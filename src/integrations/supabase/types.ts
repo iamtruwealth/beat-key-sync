@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      audio_analysis_jobs: {
+        Row: {
+          bpm: number | null
+          confidence_score: number | null
+          created_at: string
+          error_message: string | null
+          file_name: string
+          file_size: number | null
+          id: string
+          musical_key: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bpm?: number | null
+          confidence_score?: number | null
+          created_at?: string
+          error_message?: string | null
+          file_name: string
+          file_size?: number | null
+          id?: string
+          musical_key?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bpm?: number | null
+          confidence_score?: number | null
+          created_at?: string
+          error_message?: string | null
+          file_name?: string
+          file_size?: number | null
+          id?: string
+          musical_key?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       beat_pack_tracks: {
         Row: {
           beat_pack_id: string

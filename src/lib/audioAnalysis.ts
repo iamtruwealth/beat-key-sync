@@ -343,23 +343,11 @@ export async function analyzeAudioFile(file: File): Promise<AudioAnalysisResult>
     // 2. Convert file to audio buffer
     const audioBuffer = await fileToAudioBuffer(file);
 
-    // 3. BPM detection (Essentia first, fallback to bpm-detective)
-    let bpmResult = { bpm: 0, confidence: 0 } as { bpm: number; confidence: number };
-    try {
-      bpmResult = await detectBPMWithEssentia(audioBuffer);
-      if (!bpmResult.bpm) throw new Error('Invalid BPM');
-    } catch {
-      bpmResult = await detectBPM(audioBuffer);
-    }
+    // 3. BPM detection (fallback to bpm-detective only)
+    const bpmResult = await detectBPM(audioBuffer);
 
-    // 4. Key detection (Essentia first, fallback to Meyda/Tonal)
-    let keyResult = { key: 'Unknown', confidence: 0 } as { key: string; confidence: number };
-    try {
-      keyResult = await detectKeyWithEssentia(audioBuffer);
-      if (!keyResult.key || keyResult.key === 'Unknown') throw new Error('Invalid Key');
-    } catch {
-      keyResult = await detectKey(audioBuffer);
-    }
+    // 4. Key detection (fallback to Meyda/Tonal only)
+    const keyResult = await detectKey(audioBuffer);
 
     // 5. Get compatible keys for harmonic mixing
     const compatibleKeys = getCompatibleKeys(keyResult.key);
