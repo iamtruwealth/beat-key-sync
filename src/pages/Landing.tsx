@@ -1,9 +1,27 @@
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Play, Upload, Search, TrendingUp, Music, Users, Star, Instagram, Twitter, Youtube } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { User } from "@supabase/supabase-js";
 export default function Landing() {
   const navigate = useNavigate();
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    // Check current session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
   const featuredProducers = [{
     id: 1,
     name: "SoundWave",
@@ -49,16 +67,35 @@ export default function Landing() {
               <a href="#pricing" className="text-muted-foreground hover:text-foreground transition-colors">
                 Pricing
               </a>
-              
+              {user && (
+                <Button 
+                  variant="ghost" 
+                  onClick={() => navigate("/dashboard")} 
+                  className="text-brand-red hover:text-brand-red-glow font-semibold"
+                >
+                  Dashboard
+                </Button>
+              )}
             </div>
 
             <div className="flex items-center space-x-4">
-              <Button variant="ghost" onClick={() => navigate("/auth")} className="text-foreground hover:text-brand-red">
-                Log In
-              </Button>
-              <Button onClick={() => navigate("/auth")} className="bg-brand-red hover:bg-brand-red-glow text-white font-semibold px-6">
-                Sign Up Free
-              </Button>
+              {user ? (
+                <Button 
+                  onClick={() => navigate("/dashboard")} 
+                  className="bg-brand-red hover:bg-brand-red-glow text-white font-semibold px-6"
+                >
+                  Go to Dashboard
+                </Button>
+              ) : (
+                <>
+                  <Button variant="ghost" onClick={() => navigate("/auth")} className="text-foreground hover:text-brand-red">
+                    Log In
+                  </Button>
+                  <Button onClick={() => navigate("/auth")} className="bg-brand-red hover:bg-brand-red-glow text-white font-semibold px-6">
+                    Sign Up Free
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -84,12 +121,24 @@ export default function Landing() {
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <Button size="lg" onClick={() => navigate("/auth")} className="bg-brand-red hover:bg-brand-red-glow text-white font-semibold px-8 py-4 text-lg">
-                Sign Up Free
-              </Button>
-              <Button size="lg" variant="outline" onClick={() => navigate("/auth")} className="border-brand-red text-brand-red hover:bg-brand-red hover:text-white px-8 py-4 text-lg">
-                Log In
-              </Button>
+              {user ? (
+                <Button 
+                  size="lg" 
+                  onClick={() => navigate("/dashboard")} 
+                  className="bg-brand-red hover:bg-brand-red-glow text-white font-semibold px-8 py-4 text-lg"
+                >
+                  Go to Dashboard
+                </Button>
+              ) : (
+                <>
+                  <Button size="lg" onClick={() => navigate("/auth")} className="bg-brand-red hover:bg-brand-red-glow text-white font-semibold px-8 py-4 text-lg">
+                    Sign Up Free
+                  </Button>
+                  <Button size="lg" variant="outline" onClick={() => navigate("/auth")} className="border-brand-red text-brand-red hover:bg-brand-red hover:text-white px-8 py-4 text-lg">
+                    Log In
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>
