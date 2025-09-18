@@ -1,4 +1,17 @@
+import { parseBlob } from 'music-metadata-browser';
+import bpmDetective from 'bpm-detective';
+import Meyda from 'meyda';
+import { Key } from 'tonal';
 import * as Tonal from 'tonal';
+
+/**
+ * Converts a File object to AudioBuffer using Web Audio API
+ */
+async function fileToAudioBuffer(file: File): Promise<AudioBuffer> {
+  const arrayBuffer = await file.arrayBuffer();
+  const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+  return await audioCtx.decodeAudioData(arrayBuffer);
+}
 
 // Key compatibility system based on Circle of Fifths and Camelot wheel
 export const getCompatibleKeys = (key: string): string[] => {
@@ -55,55 +68,18 @@ export const getCompatibleKeys = (key: string): string[] => {
 // Detect key using Meyda and Tonal
 export const detectKey = async (audioBuffer: AudioBuffer): Promise<{ key: string; confidence: number }> => {
   try {
+    // Use Meyda to extract chroma features
     const audioData = audioBuffer.getChannelData(0);
-    const sampleRate = audioBuffer.sampleRate;
+    const meydaFeatures = Meyda.extract(['chroma'], Array.from(audioData));
     
-    // Analyze multiple segments for better accuracy
-    const segmentSize = Math.floor(audioData.length / 5); // 5 segments
-    const results: { key: string; confidence: number }[] = [];
-    
-    for (let i = 0; i < 5; i++) {
-      const start = i * segmentSize;
-      const end = Math.min(start + segmentSize, audioData.length);
-      const segment = audioData.slice(start, end);
-      
-      if (segment.length < 1024) continue; // Skip segments that are too small
-      
-      // Extract chroma features using basic FFT analysis
-      const chroma = extractChromaFromSegment(segment, sampleRate);
-      
-      if (chroma) {
-        const keyResult = analyzeChromaForKey(chroma);
-        if (keyResult.key !== 'Unknown') {
-          results.push(keyResult);
-        }
-      }
-    }
-    
-    if (results.length === 0) {
+    if (!meydaFeatures.chroma || !Array.isArray(meydaFeatures.chroma)) {
       return { key: 'Unknown', confidence: 0 };
     }
     
-    // Find most common key and average confidence
-    const keyCount: { [key: string]: number[] } = {};
-    results.forEach(result => {
-      if (!keyCount[result.key]) keyCount[result.key] = [];
-      keyCount[result.key].push(result.confidence);
-    });
+    // Analyze chroma vector to determine key using our existing approach
+    const keyResult = analyzeChromaForKey(meydaFeatures.chroma);
     
-    let bestKey = 'Unknown';
-    let bestConfidence = 0;
-    let maxCount = 0;
-    
-    Object.entries(keyCount).forEach(([key, confidences]) => {
-      if (confidences.length > maxCount) {
-        maxCount = confidences.length;
-        bestKey = key;
-        bestConfidence = confidences.reduce((a, b) => a + b) / confidences.length;
-      }
-    });
-    
-    return { key: bestKey, confidence: bestConfidence };
+    return keyResult;
     
   } catch (error) {
     console.warn('Key detection failed:', error);
@@ -246,10 +222,21 @@ const rotateArray = (arr: number[], steps: number): number[] => {
   return result;
 };
 
-// BPM detection using web audio beat detector
+// BPM detection using bpm-detective
 export const detectBPM = async (audioBuffer: AudioBuffer): Promise<{ bpm: number; confidence: number }> => {
-  // Pure JS detection (no native deps)
-  return await detectBPMFallback(audioBuffer);
+  try {
+    const estimatedBPM = bpmDetective(audioBuffer);
+    
+    if (estimatedBPM && estimatedBPM > 60 && estimatedBPM < 200) {
+      return { bpm: Math.round(estimatedBPM), confidence: 0.8 };
+    }
+    
+    // Fallback to our custom detection
+    return await detectBPMFallback(audioBuffer);
+  } catch (error) {
+    console.warn('BPM detection failed, using fallback:', error);
+    return await detectBPMFallback(audioBuffer);
+  }
 };
 
 // Fallback BPM detection using simple onset detection
@@ -329,6 +316,64 @@ const detectOnsets = (audioData: Float32Array, sampleRate: number): number[] => 
 };
 
 
+/**
+ * Extracts metadata, BPM, key, and duration from an uploaded audio file
+ */
+export async function analyzeAudioFile(file: File): Promise<AudioAnalysisResult> {
+  try {
+    // 1. Metadata extraction using music-metadata-browser
+    const metadata = await parseBlob(file);
+    const duration = metadata.format.duration || 0;
+    const sampleRate = metadata.format.sampleRate;
+    const bitrate = metadata.format.bitrate;
+    const tags = metadata.common;
+    const albumArt = metadata.common.picture?.[0]?.data;
+
+    // 2. Convert file to audio buffer
+    const audioBuffer = await fileToAudioBuffer(file);
+
+    // 3. BPM detection
+    const bpmResult = await detectBPM(audioBuffer);
+
+    // 4. Key detection  
+    const keyResult = await detectKey(audioBuffer);
+
+    // 5. Get compatible keys for harmonic mixing
+    const compatibleKeys = getCompatibleKeys(keyResult.key);
+
+    // 6. Calculate overall confidence score
+    const confidenceScore = (keyResult.confidence + bpmResult.confidence) / 2;
+
+    // 7. Build result object
+    const audioData: AudioAnalysisResult = {
+      bpm: bpmResult.bpm,
+      key: keyResult.key,
+      compatibleKeys,
+      duration: duration,
+      confidenceScore,
+      metadata: {
+        format: metadata.format.container,
+        sampleRate: sampleRate,
+        bitrate: bitrate,
+        tags: tags,
+        albumArt: albumArt
+      }
+    };
+
+    return audioData;
+  } catch (error) {
+    console.error('Audio analysis failed:', error);
+    return {
+      bpm: 0,
+      key: 'Unknown',
+      compatibleKeys: [],
+      duration: 0,
+      confidenceScore: 0,
+      metadata: {}
+    };
+  }
+}
+
 export interface AudioAnalysisResult {
   bpm: number;
   key: string;
@@ -339,5 +384,7 @@ export interface AudioAnalysisResult {
     format?: string;
     sampleRate?: number;
     bitrate?: number;
+    tags?: any;
+    albumArt?: Uint8Array;
   };
 }

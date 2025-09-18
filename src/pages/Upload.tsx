@@ -11,9 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Upload, X, Plus, Music, FileAudio, CheckCircle, Image } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import * as musicMetadata from "music-metadata";
 import { User } from "@supabase/supabase-js";
-import { detectBPM, detectKey, getCompatibleKeys, AudioAnalysisResult } from "@/lib/audioAnalysis";
+import { detectBPM, detectKey, getCompatibleKeys, AudioAnalysisResult, analyzeAudioFile } from "@/lib/audioAnalysis";
 
 interface UploadedFile {
   file: File;
@@ -37,7 +36,7 @@ export default function UploadPage() {
   const navigate = useNavigate();
 
   // Define analyzeAudioFile function first to avoid hoisting issues
-  const analyzeAudioFile = async (fileData: UploadedFile, index: number) => {
+  const analyzeAudioFileLocal = async (fileData: UploadedFile, index: number) => {
     try {
       setUploadedFiles(prev => 
         prev.map((file, i) => 
@@ -45,79 +44,8 @@ export default function UploadPage() {
         )
       );
 
-      // Extract basic metadata using music-metadata
-      const metadata = await musicMetadata.parseBlob(fileData.file);
-      
-      let detectedKey = 'Unknown';
-      let detectedBPM = 0;
-      let keyConfidence = 0;
-      let bpmConfidence = 0;
-
-      // First try to get BPM and key from ID3 tags
-      if (metadata.common?.bpm) {
-        detectedBPM = Math.round(metadata.common.bpm);
-        bpmConfidence = 0.9; // High confidence for embedded metadata
-      }
-      
-      // Check for key in various metadata fields
-      const keyFromTags = metadata.common?.key || 
-                         (metadata.format?.tagTypes?.includes('ID3v2.4') && 
-                         metadata.native?.['ID3v2.4']?.find(tag => tag.id === 'TKEY')?.value) as string;
-      
-      if (keyFromTags) {
-        detectedKey = keyFromTags;
-        keyConfidence = 0.9; // High confidence for embedded metadata
-      }
-
-      // Perform audio analysis if no metadata found or for verification
-      if (!metadata.common?.bpm || !keyFromTags) {
-        try {
-          // Convert file to audio buffer for analysis
-          const arrayBuffer = await fileData.file.arrayBuffer();
-          const audioContext = new AudioContext();
-          const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-
-          // Detect BPM if not found in metadata
-          if (!metadata.common?.bpm) {
-            const bpmResult = await detectBPM(audioBuffer);
-            if (bpmResult.bpm > 0) {
-              detectedBPM = bpmResult.bpm;
-              bpmConfidence = bpmResult.confidence;
-            }
-          }
-
-          // Detect key if not found in metadata
-          if (!keyFromTags) {
-            const keyResult = await detectKey(audioBuffer);
-            if (keyResult.key !== 'Unknown') {
-              detectedKey = keyResult.key;
-              keyConfidence = keyResult.confidence;
-            }
-          }
-
-        } catch (analysisError) {
-          console.warn('Audio analysis failed:', analysisError);
-        }
-      }
-
-      // Calculate overall confidence score
-      const confidenceScore = (keyConfidence + bpmConfidence) / 2;
-
-      // Get compatible keys for harmonic mixing
-      const compatibleKeys = getCompatibleKeys(detectedKey);
-
-      const analysis: AudioAnalysisResult = {
-        bpm: detectedBPM,
-        key: detectedKey,
-        compatibleKeys,
-        duration: metadata.format.duration || 0,
-        confidenceScore,
-        metadata: {
-          format: metadata.format.container,
-          sampleRate: metadata.format.sampleRate,
-          bitrate: metadata.format.bitrate
-        }
-      };
+      // Use the new analyzeAudioFile function
+      const analysis = await analyzeAudioFile(fileData.file);
 
       setUploadedFiles(prev => 
         prev.map((file, i) => 
@@ -131,7 +59,7 @@ export default function UploadPage() {
 
       toast({
         title: "Analysis Complete",
-        description: `${fileData.title} - Key: ${detectedKey}, BPM: ${detectedBPM} (${Math.round(confidenceScore * 100)}% confidence)`
+        description: `${fileData.title} - Key: ${analysis.key}, BPM: ${analysis.bpm} (${Math.round(analysis.confidenceScore * 100)}% confidence)`
       });
 
     } catch (error) {
@@ -162,9 +90,9 @@ export default function UploadPage() {
     
     // Start analyzing files
     newFiles.forEach((fileData, index) => {
-      analyzeAudioFile(fileData, uploadedFiles.length + index);
+      analyzeAudioFileLocal(fileData, uploadedFiles.length + index);
     });
-  }, [uploadedFiles.length, analyzeAudioFile]);
+  }, [uploadedFiles.length, analyzeAudioFileLocal]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
