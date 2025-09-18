@@ -39,6 +39,31 @@ export default function UploadPage() {
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  // Move all hooks to the top before any conditional logic
+  const onDrop = useCallback((acceptedFiles: File[]) => {
+    const newFiles = acceptedFiles.map(file => ({
+      file,
+      title: file.name.replace(/\.[^/.]+$/, ""),
+      tags: [],
+      progress: 0,
+      status: 'pending' as const
+    }));
+    setUploadedFiles(prev => [...prev, ...newFiles]);
+    
+    // Start analyzing files
+    newFiles.forEach((fileData, index) => {
+      analyzeAudioFile(fileData, uploadedFiles.length + index);
+    });
+  }, [uploadedFiles.length]);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'audio/*': ['.mp3', '.wav', '.flac', '.m4a', '.aac']
+    },
+    multiple: true
+  });
+
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -64,6 +89,7 @@ export default function UploadPage() {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
+  // Now conditional rendering is safe after all hooks
   if (loading) {
     return (
       <div className="p-6 flex items-center justify-center">
@@ -77,29 +103,6 @@ export default function UploadPage() {
 
   if (!user) return null;
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    const newFiles = acceptedFiles.map(file => ({
-      file,
-      title: file.name.replace(/\.[^/.]+$/, ""),
-      tags: [],
-      progress: 0,
-      status: 'pending' as const
-    }));
-    setUploadedFiles(prev => [...prev, ...newFiles]);
-    
-    // Start analyzing files
-    newFiles.forEach((fileData, index) => {
-      analyzeAudioFile(fileData, uploadedFiles.length + index);
-    });
-  }, [uploadedFiles.length]);
-
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: {
-      'audio/*': ['.mp3', '.wav', '.flac', '.m4a', '.aac']
-    },
-    multiple: true
-  });
 
   const analyzeAudioFile = async (fileData: UploadedFile, index: number) => {
     try {
