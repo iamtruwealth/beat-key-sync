@@ -200,8 +200,8 @@ export default function UploadPage() {
           )
         );
 
-        // Upload file to Supabase storage
-        const fileName = `${Date.now()}-${fileData.file.name}`;
+        // Upload file to Supabase storage with user folder structure
+        const fileName = `${user.id}/${Date.now()}-${fileData.file.name}`;
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('audio-files')
           .upload(fileName, fileData.file);
