@@ -71,7 +71,7 @@ const stats = [
     trend: { value: 2, isPositive: true },
   },
   {
-    title: "Studio Time",
+    title: "Beat Packs",
     value: "47h",
     description: "This week",
     icon: Clock,
