@@ -248,25 +248,8 @@ const rotateArray = (arr: number[], steps: number): number[] => {
 
 // BPM detection using web audio beat detector
 export const detectBPM = async (audioBuffer: AudioBuffer): Promise<{ bpm: number; confidence: number }> => {
-  try {
-    // Use web-audio-beat-detector for BPM detection
-    const { guess } = await import('web-audio-beat-detector');
-    
-    const tempo = await guess(audioBuffer);
-    
-    if (tempo && tempo.bpm > 60 && tempo.bpm < 200) {
-      // Confidence based on tempo offset (how close to a whole number)
-      const confidence = Math.max(0.5, 1 - (tempo.offset || 0));
-      return { bpm: Math.round(tempo.bpm), confidence };
-    }
-    
-    // Fallback: Simple onset detection
-    return await detectBPMFallback(audioBuffer);
-    
-  } catch (error) {
-    console.warn('BPM detection with web-audio-beat-detector failed, using fallback:', error);
-    return await detectBPMFallback(audioBuffer);
-  }
+  // Pure JS detection (no native deps)
+  return await detectBPMFallback(audioBuffer);
 };
 
 // Fallback BPM detection using simple onset detection
