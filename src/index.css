@@ -89,10 +89,3 @@
     @apply bg-background text-foreground;
   }
 }
-
-/* Inter font for clean typography */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
-.font-inter {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-}
