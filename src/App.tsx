@@ -13,6 +13,7 @@ import BeatPackPage from "./pages/BeatPack";
 import AuthPage from "./pages/Auth";
 import Account from "./pages/Account";
 import NotFound from "./pages/NotFound";
+import Landing from "./pages/Landing";
 
 const queryClient = new QueryClient();
 
@@ -22,21 +23,65 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <AppLayout>
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/library" element={<Library />} />
-            <Route path="/projects" element={<Projects />} />
-            <Route path="/beat-pack/:id" element={<BeatPackPage />} />
-            <Route path="/explore" element={<Explore />} />
-            <Route path="/upload" element={<UploadPage />} />
-            <Route path="/auth" element={<AuthPage />} />
-            <Route path="/shared" element={<div className="p-6"><h1 className="text-2xl font-bold">Shared Projects</h1><p className="text-muted-foreground">Coming soon...</p></div>} />
-            <Route path="/account" element={<Account />} />
-            <Route path="/settings" element={<div className="p-6"><h1 className="text-2xl font-bold">Settings</h1><p className="text-muted-foreground">Coming soon...</p></div>} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </AppLayout>
+        <Routes>
+          {/* Public landing page */}
+          <Route path="/" element={<Landing />} />
+          <Route path="/auth" element={<AuthPage />} />
+          
+          {/* Protected routes with layout */}
+          <Route path="/dashboard" element={
+            <AppLayout>
+              <Dashboard />
+            </AppLayout>
+          } />
+          <Route path="/library" element={
+            <AppLayout>
+              <Library />
+            </AppLayout>
+          } />
+          <Route path="/projects" element={
+            <AppLayout>
+              <Projects />
+            </AppLayout>
+          } />
+          <Route path="/beat-pack/:id" element={
+            <AppLayout>
+              <BeatPackPage />
+            </AppLayout>
+          } />
+          <Route path="/explore" element={
+            <AppLayout>
+              <Explore />
+            </AppLayout>
+          } />
+          <Route path="/upload" element={
+            <AppLayout>
+              <UploadPage />
+            </AppLayout>
+          } />
+          <Route path="/shared" element={
+            <AppLayout>
+              <div className="p-6">
+                <h1 className="text-2xl font-bold">Shared Projects</h1>
+                <p className="text-muted-foreground">Coming soon...</p>
+              </div>
+            </AppLayout>
+          } />
+          <Route path="/account" element={
+            <AppLayout>
+              <Account />
+            </AppLayout>
+          } />
+          <Route path="/settings" element={
+            <AppLayout>
+              <div className="p-6">
+                <h1 className="text-2xl font-bold">Settings</h1>
+                <p className="text-muted-foreground">Coming soon...</p>
+              </div>
+            </AppLayout>
+          } />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
