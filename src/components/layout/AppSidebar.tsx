@@ -15,7 +15,7 @@ import {
 const navigation = [
   { title: "Dashboard", url: "/", icon: Home },
   { title: "Library", url: "/library", icon: Music },
-  { title: "Projects", url: "/projects", icon: FolderOpen },
+  { title: "Beat Packs", url: "/projects", icon: FolderOpen },
   { title: "Explore", url: "/explore", icon: Compass },
   { title: "Shared", url: "/shared", icon: Users },
 ];
