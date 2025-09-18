@@ -1,9 +1,10 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Play, Share2, MoreHorizontal, Clock, Music2, Users } from "lucide-react";
+import { Play, Pause, Share2, MoreHorizontal, Clock, Music2, Users, Loader2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tables } from "@/integrations/supabase/types";
+import { useAudio } from "@/contexts/AudioContext";
 
 type Track = Tables<"tracks">;
 
@@ -16,6 +17,7 @@ interface TrackCardProps {
 }
 
 export function TrackCard({ track }: TrackCardProps) {
+  const { currentTrack, isPlaying, loading, playTrack } = useAudio();
   const formatDuration = (duration: number | null) => {
     if (!duration) return "0:00";
     const minutes = Math.floor(duration / 60);
@@ -42,6 +44,28 @@ export function TrackCard({ track }: TrackCardProps) {
 
   const displayBpm = track.manual_bpm || track.detected_bpm;
   const displayKey = track.manual_key || track.detected_key;
+
+  const handlePlayClick = () => {
+    if (!track.file_url) return;
+    
+    const audioTrack = {
+      id: track.id,
+      title: track.title,
+      artist: 'Unknown Artist',
+      file_url: track.file_url,
+      artwork_url: track.artwork_url || undefined,
+      duration: track.duration || undefined,
+      detected_key: track.detected_key || undefined,
+      detected_bpm: track.detected_bpm || undefined,
+      manual_key: track.manual_key || undefined,
+      manual_bpm: track.manual_bpm || undefined,
+    };
+    
+    playTrack(audioTrack);
+  };
+
+  const isCurrentTrack = currentTrack?.id === track.id;
+  const showPlayButton = !isCurrentTrack || !isPlaying;
 
   return (
     <Card className="group hover:shadow-lg hover:shadow-primary/10 transition-all duration-300 border-border/50 bg-card/80 backdrop-blur-sm">
@@ -153,9 +177,21 @@ export function TrackCard({ track }: TrackCardProps) {
           </span>
           
           <div className="flex items-center gap-2">
-            <Button variant="waveform" size="sm">
-              <Play className="w-3 h-3" />
-              Play
+            <Button 
+              variant="waveform" 
+              size="sm" 
+              onClick={handlePlayClick}
+              disabled={!track.file_url || loading}
+              className={isCurrentTrack ? "bg-primary/20 border-primary" : ""}
+            >
+              {loading && isCurrentTrack ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : showPlayButton ? (
+                <Play className="w-3 h-3" />
+              ) : (
+                <Pause className="w-3 h-3" />
+              )}
+              {showPlayButton ? "Play" : "Playing"}
             </Button>
             <Button variant="outline" size="sm">
               <Share2 className="w-3 h-3" />

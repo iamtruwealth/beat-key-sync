@@ -1,13 +1,23 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Play, Upload, Search, TrendingUp, Music, Users, Star, Instagram, Twitter, Youtube } from "lucide-react";
+import { Play, Pause, Upload, Search, TrendingUp, Music, Users, Star, Instagram, Twitter, Youtube, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
+import { useAudio, AudioProvider } from "@/contexts/AudioContext";
 export default function Landing() {
+  return (
+    <AudioProvider>
+      <LandingContent />
+    </AudioProvider>
+  );
+}
+
+function LandingContent() {
   const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
+  const { currentTrack, isPlaying, loading, playTrack } = useAudio();
 
   useEffect(() => {
     // Check current session
@@ -27,26 +37,42 @@ export default function Landing() {
     name: "SoundWave",
     image: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=150&h=150&fit=crop&crop=face",
     packTitle: "Trap Vibes Vol. 3",
-    plays: "2.1K"
+    plays: "2.1K",
+    preview_url: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav" // Demo audio
   }, {
     id: 2,
     name: "BeatMaker Pro",
     image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face",
     packTitle: "R&B Essentials",
-    plays: "3.4K"
+    plays: "3.4K",
+    preview_url: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav" // Demo audio
   }, {
     id: 3,
     name: "DrumlineKing",
     image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face",
     packTitle: "Hip Hop Heat",
-    plays: "1.8K"
+    plays: "1.8K",
+    preview_url: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav" // Demo audio
   }, {
     id: 4,
     name: "MelodyMaster",
     image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face",
     packTitle: "Chill Vibes",
-    plays: "4.2K"
+    plays: "4.2K",
+    preview_url: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav" // Demo audio
   }];
+
+  const handleProducerPlay = (producer: typeof featuredProducers[0]) => {
+    const audioTrack = {
+      id: producer.id.toString(),
+      title: producer.packTitle,
+      artist: producer.name,
+      file_url: producer.preview_url,
+      artwork_url: producer.image,
+    };
+    
+    playTrack(audioTrack);
+  };
   return <div className="min-h-screen bg-background">
       {/* Navigation */}
       <nav className="fixed top-0 w-full z-50 bg-background/95 backdrop-blur-md border-b border-border">
@@ -157,33 +183,51 @@ export default function Landing() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {featuredProducers.map(producer => <Card key={producer.id} className="group cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg border-border bg-card/80 backdrop-blur-sm">
-                <CardContent className="p-6">
-                  <div className="relative mb-4">
-                    <img src={producer.image} alt={producer.name} className="w-full h-48 object-cover rounded-lg" />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg flex items-center justify-center">
-                      <Button size="icon" className="bg-gradient-to-r from-brand-blue-deep to-brand-blue hover:from-brand-blue hover:to-brand-blue-glow">
-                        <Play className="w-6 h-6 text-white" />
-                      </Button>
+            {featuredProducers.map(producer => {
+              const isCurrentTrack = currentTrack?.id === producer.id.toString();
+              const showPlayButton = !isCurrentTrack || !isPlaying;
+              
+              return (
+                <Card key={producer.id} className="group cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg border-border bg-card/80 backdrop-blur-sm">
+                  <CardContent className="p-6">
+                    <div className="relative mb-4">
+                      <img src={producer.image} alt={producer.name} className="w-full h-48 object-cover rounded-lg" />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg flex items-center justify-center">
+                        <Button 
+                          size="icon" 
+                          className="bg-gradient-to-r from-brand-blue-deep to-brand-blue hover:from-brand-blue hover:to-brand-blue-glow"
+                          onClick={() => handleProducerPlay(producer)}
+                          disabled={loading && isCurrentTrack}
+                        >
+                          {loading && isCurrentTrack ? (
+                            <Loader2 className="w-6 h-6 text-white animate-spin" />
+                          ) : showPlayButton ? (
+                            <Play className="w-6 h-6 text-white" />
+                          ) : (
+                            <Pause className="w-6 h-6 text-white" />
+                          )}
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                  
-                  <h3 className="text-lg font-semibold text-foreground mb-1">
-                    {producer.name}
-                  </h3>
-                  <p className="text-muted-foreground mb-2">{producer.packTitle}</p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground flex items-center gap-1">
-                      <Play className="w-3 h-3" />
-                      {producer.plays} plays
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <Star className="w-4 h-4 fill-brand-blue text-brand-blue" />
-                      <span className="text-sm text-foreground">4.9</span>
+                    
+                    <h3 className="text-lg font-semibold text-foreground mb-1">
+                      {producer.name}
+                    </h3>
+                    <p className="text-muted-foreground mb-2">{producer.packTitle}</p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground flex items-center gap-1">
+                        <Play className="w-3 h-3" />
+                        {producer.plays} plays
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <Star className="w-4 h-4 fill-brand-blue text-brand-blue" />
+                        <span className="text-sm text-foreground">4.9</span>
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>)}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         </div>
       </section>
