@@ -1,4 +1,4 @@
-import { Home, Music, Users, User, Settings, Upload, FolderOpen } from "lucide-react";
+import { Home, Music, Users, User, Settings, Upload, FolderOpen, Compass } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Sidebar,
@@ -16,6 +16,7 @@ const navigation = [
   { title: "Dashboard", url: "/", icon: Home },
   { title: "Library", url: "/library", icon: Music },
   { title: "Projects", url: "/projects", icon: FolderOpen },
+  { title: "Explore", url: "/explore", icon: Compass },
   { title: "Shared", url: "/shared", icon: Users },
 ];
 

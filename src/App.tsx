@@ -7,6 +7,7 @@ import { AppLayout } from "./components/layout/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import Library from "./pages/Library";
 import Projects from "./pages/Projects";
+import Explore from "./pages/Explore";
 import UploadPage from "./pages/Upload";
 import NotFound from "./pages/NotFound";
 
@@ -23,6 +24,7 @@ const App = () => (
             <Route path="/" element={<Dashboard />} />
             <Route path="/library" element={<Library />} />
             <Route path="/projects" element={<Projects />} />
+            <Route path="/explore" element={<Explore />} />
             <Route path="/upload" element={<UploadPage />} />
             <Route path="/shared" element={<div className="p-6"><h1 className="text-2xl font-bold">Shared Projects</h1><p className="text-muted-foreground">Coming soon...</p></div>} />
             <Route path="/account" element={<div className="p-6"><h1 className="text-2xl font-bold">Account Settings</h1><p className="text-muted-foreground">Coming soon...</p></div>} />
