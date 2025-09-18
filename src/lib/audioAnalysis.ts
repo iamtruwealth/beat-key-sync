@@ -321,6 +321,143 @@ const detectOnsets = (audioData: Float32Array, sampleRate: number): number[] => 
 
 
 /**
+ * Extracts BPM and key information from filename patterns
+ */
+export function parseFilenameForMetadata(filename: string): { bpm?: number; key?: string; confidence: number } {
+  const cleanName = filename.toLowerCase().replace(/\.[^/.]+$/, ""); // Remove extension
+  
+  let bpm: number | undefined;
+  let key: string | undefined;
+  let confidence = 0;
+
+  // BPM patterns: 120bpm, 120_bpm, bpm120, 120-bpm, etc.
+  const bpmPatterns = [
+    /(\d{2,3})bpm/i,
+    /(\d{2,3})[_-]?bpm/i,
+    /bpm[_-]?(\d{2,3})/i,
+    /(\d{2,3})[_-]beats?/i,
+    /[_-](\d{2,3})[_-]/,
+  ];
+
+  for (const pattern of bpmPatterns) {
+    const match = cleanName.match(pattern);
+    if (match) {
+      const parsedBpm = parseInt(match[1]);
+      if (parsedBpm >= 60 && parsedBpm <= 200) {
+        bpm = parsedBpm;
+        confidence += 0.5;
+        break;
+      }
+    }
+  }
+
+  // Key patterns: Cmaj, C_major, Cmin, C_minor, C#m, Dbm, etc.
+  const keyPatterns = [
+    // Major keys
+    /([a-g][#b]?)maj(or)?/i,
+    /([a-g][#b]?)[_-]?maj(or)?/i,
+    /([a-g][#b]?)[_-]?major/i,
+    // Minor keys  
+    /([a-g][#b]?)min(or)?/i,
+    /([a-g][#b]?)[_-]?min(or)?/i,
+    /([a-g][#b]?)[_-]?minor/i,
+    /([a-g][#b]?)m[_-]/i,
+    /[_-]([a-g][#b]?)m$/i,
+    // Simple patterns like C, Cm, F#, Bbm
+    /[_-]([a-g][#b]?)([m]?)[_-]/i,
+  ];
+
+  for (const pattern of keyPatterns) {
+    const match = cleanName.match(pattern);
+    if (match) {
+      const note = match[1].toUpperCase();
+      const modifier = match[2] || '';
+      
+      // Normalize note name
+      let normalizedNote = note.replace('B', '#').replace('S', '#');
+      if (normalizedNote.includes('#')) {
+        normalizedNote = normalizedNote.charAt(0) + '#';
+      }
+      
+      // Determine if major or minor
+      const isMinor = modifier.toLowerCase().includes('m') || 
+                     pattern.source.includes('min') ||
+                     cleanName.includes('minor');
+      
+      key = `${normalizedNote}${isMinor ? ' Minor' : ' Major'}`;
+      confidence += 0.5;
+      break;
+    }
+  }
+
+  return { bpm, key, confidence: Math.min(confidence, 1.0) };
+}
+
+/**
+ * Combines filename parsing with audio analysis for more accurate results
+ */
+function combineAnalysisResults(
+  audioResult: { bpm: number; key: string; confidence: number },
+  filenameResult: { bpm?: number; key?: string; confidence: number }
+): { bpm: number; key: string; confidence: number } {
+  
+  // BPM combination logic
+  let finalBpm = audioResult.bpm;
+  let bpmConfidence = audioResult.confidence;
+  
+  if (filenameResult.bpm && filenameResult.confidence > 0.3) {
+    if (audioResult.confidence < 0.5) {
+      // Trust filename more when audio analysis is uncertain
+      finalBpm = filenameResult.bpm;
+      bpmConfidence = filenameResult.confidence;
+    } else if (Math.abs(audioResult.bpm - filenameResult.bpm) <= 5) {
+      // Values are close, increase confidence
+      bpmConfidence = Math.min(1.0, audioResult.confidence + 0.2);
+    } else if (Math.abs(audioResult.bpm - filenameResult.bpm) > 20) {
+      // Values are very different, reduce confidence and favor filename if it seems more reasonable
+      const avgBpm = (audioResult.bpm + filenameResult.bpm) / 2;
+      if (filenameResult.bpm >= 60 && filenameResult.bpm <= 200) {
+        finalBpm = filenameResult.bpm;
+        bpmConfidence = 0.6;
+      } else {
+        bpmConfidence = Math.max(0.3, audioResult.confidence - 0.2);
+      }
+    }
+  }
+
+  // Key combination logic
+  let finalKey = audioResult.key;
+  let keyConfidence = audioResult.confidence;
+  
+  if (filenameResult.key && filenameResult.confidence > 0.3) {
+    if (audioResult.key === 'Unknown' || audioResult.confidence < 0.4) {
+      // Use filename key when audio analysis failed or is uncertain
+      finalKey = filenameResult.key;
+      keyConfidence = filenameResult.confidence;
+    } else if (audioResult.key === filenameResult.key) {
+      // Exact match, boost confidence
+      keyConfidence = Math.min(1.0, audioResult.confidence + 0.3);
+    } else {
+      // Different keys, check if they're compatible
+      const compatibleKeys = getCompatibleKeys(audioResult.key);
+      if (compatibleKeys.includes(filenameResult.key)) {
+        // Keys are compatible, moderate confidence boost
+        keyConfidence = Math.min(1.0, audioResult.confidence + 0.1);
+      } else {
+        // Keys conflict, reduce confidence
+        keyConfidence = Math.max(0.2, audioResult.confidence - 0.2);
+      }
+    }
+  }
+
+  return {
+    bpm: finalBpm,
+    key: finalKey,
+    confidence: (bpmConfidence + keyConfidence) / 2
+  };
+}
+
+/**
  * Extracts metadata, BPM, key, and duration from an uploaded audio file
  */
 export async function analyzeAudioFile(file: File): Promise<AudioAnalysisResult> {
@@ -336,22 +473,35 @@ export async function analyzeAudioFile(file: File): Promise<AudioAnalysisResult>
     // 2. Convert file to audio buffer
     const audioBuffer = await fileToAudioBuffer(file);
 
-    // 3. BPM detection (fallback to bpm-detective only)
+    // 3. Parse filename for BPM and key information
+    const filenameResult = parseFilenameForMetadata(file.name);
+
+    // 4. BPM detection from audio analysis
     const bpmResult = await detectBPM(audioBuffer);
 
-    // 4. Key detection (custom chroma extraction)
+    // 5. Key detection from audio analysis
     const keyResult = await detectKey(audioBuffer);
 
-    // 5. Get compatible keys for harmonic mixing
-    const compatibleKeys = getCompatibleKeys(keyResult.key);
+    // 6. Combine filename parsing with audio analysis for better accuracy
+    const combinedResult = combineAnalysisResults(
+      { 
+        bpm: bpmResult.bpm, 
+        key: keyResult.key, 
+        confidence: (bpmResult.confidence + keyResult.confidence) / 2 
+      },
+      filenameResult
+    );
 
-    // 6. Calculate overall confidence score
-    const confidenceScore = (keyResult.confidence + bpmResult.confidence) / 2;
+    // 7. Get compatible keys for harmonic mixing
+    const compatibleKeys = getCompatibleKeys(combinedResult.key);
 
-    // 7. Build result object
+    // 8. Calculate overall confidence score
+    const confidenceScore = combinedResult.confidence;
+
+    // 9. Build result object with combined analysis
     const audioData: AudioAnalysisResult = {
-      bpm: bpmResult.bpm,
-      key: keyResult.key,
+      bpm: combinedResult.bpm,
+      key: combinedResult.key,
       compatibleKeys,
       duration: duration,
       confidenceScore,
@@ -360,7 +510,13 @@ export async function analyzeAudioFile(file: File): Promise<AudioAnalysisResult>
         sampleRate: sampleRate,
         bitrate: bitrate,
         tags: tags,
-        albumArt: albumArt
+        albumArt: albumArt,
+        filenameAnalysis: filenameResult,
+        audioAnalysis: {
+          bpm: bpmResult.bpm,
+          key: keyResult.key,
+          confidence: (bpmResult.confidence + keyResult.confidence) / 2
+        }
       }
     };
 
@@ -390,5 +546,15 @@ export interface AudioAnalysisResult {
     bitrate?: number;
     tags?: any;
     albumArt?: Uint8Array;
+    filenameAnalysis?: {
+      bpm?: number;
+      key?: string;
+      confidence: number;
+    };
+    audioAnalysis?: {
+      bpm: number;
+      key: string;
+      confidence: number;
+    };
   };
 }

@@ -60,7 +60,13 @@ export default function UploadPage() {
 
       toast({
         title: "Analysis Complete",
-        description: `${fileData.title} - Key: ${analysis.key}, BPM: ${analysis.bpm} (${Math.round(analysis.confidenceScore * 100)}% confidence)`
+        description: `${fileData.title} - Key: ${analysis.key}, BPM: ${analysis.bpm} (${Math.round(analysis.confidenceScore * 100)}% confidence)${
+          analysis.metadata.filenameAnalysis?.bpm || analysis.metadata.filenameAnalysis?.key 
+            ? ` | From filename: ${analysis.metadata.filenameAnalysis.bpm || ''}${
+                analysis.metadata.filenameAnalysis.bpm && analysis.metadata.filenameAnalysis.key ? ', ' : ''
+              }${analysis.metadata.filenameAnalysis.key || ''}`
+            : ''
+        }`
       });
 
     } catch (error) {
@@ -386,17 +392,27 @@ export default function UploadPage() {
                       className="font-medium"
                       placeholder="Track title"
                     />
-                     <p className="text-sm text-muted-foreground mt-1">
-                       {(fileData.file.size / 1024 / 1024).toFixed(2)} MB
-                       {fileData.analysis && (
-                         <span>
-                           {" • "}{fileData.analysis.duration.toFixed(0)}s
-                           {fileData.analysis.key && " • " + fileData.analysis.key}
-                           {fileData.analysis.bpm > 0 && " • " + fileData.analysis.bpm + " BPM"}
-                           {fileData.analysis.confidenceScore > 0 && " • " + Math.round(fileData.analysis.confidenceScore * 100) + "% confidence"}
-                         </span>
-                       )}
-                     </p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {(fileData.file.size / 1024 / 1024).toFixed(2)} MB
+                        {fileData.analysis && (
+                          <span>
+                            {" • "}{fileData.analysis.duration.toFixed(0)}s
+                            {fileData.analysis.key && " • " + fileData.analysis.key}
+                            {fileData.analysis.bpm > 0 && " • " + fileData.analysis.bpm + " BPM"}
+                            {fileData.analysis.confidenceScore > 0 && " • " + Math.round(fileData.analysis.confidenceScore * 100) + "% confidence"}
+                            {fileData.analysis.metadata.filenameAnalysis && (
+                              fileData.analysis.metadata.filenameAnalysis.bpm || fileData.analysis.metadata.filenameAnalysis.key
+                            ) && (
+                              <span className="text-blue-600">
+                                {" • Filename: "}
+                                {fileData.analysis.metadata.filenameAnalysis.bpm && fileData.analysis.metadata.filenameAnalysis.bpm + " BPM"}
+                                {fileData.analysis.metadata.filenameAnalysis.bpm && fileData.analysis.metadata.filenameAnalysis.key && ", "}
+                                {fileData.analysis.metadata.filenameAnalysis.key}
+                              </span>
+                            )}
+                          </span>
+                        )}
+                      </p>
                   </div>
                   <Badge variant={
                     fileData.status === 'complete' ? 'default' :
