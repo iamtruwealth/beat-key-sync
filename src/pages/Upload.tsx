@@ -12,7 +12,7 @@ import { Upload, X, Plus, Music, FileAudio, CheckCircle, Image } from "lucide-re
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import * as musicMetadata from "music-metadata";
-import { Essentia, EssentiaWASM } from 'essentia.js/dist/essentia-wasm.web.js';
+import { Essentia, EssentiaWASM } from 'essentia.js';
 import { User } from "@supabase/supabase-js";
 
 interface UploadedFile {
@@ -174,21 +174,21 @@ export default function UploadPage() {
   });
 
   useEffect(() => {
-    const initializeEssentia = async () => {
-      try {
-        const essentiaWasm = new EssentiaWASM();
-        await essentiaWasm.module;
-        setEssentia(new Essentia(essentiaWasm));
-        console.log('Essentia.js initialized successfully');
-      } catch (error) {
-        console.error('Failed to initialize Essentia:', error);
-        toast({
-          title: "Audio Analysis Unavailable",
-          description: "Using basic metadata analysis only",
-          variant: "destructive"
-        });
-      }
-    };
+  const initializeEssentia = async () => {
+    try {
+      // Initialize Essentia with the WASM module
+      const essentia = new Essentia(EssentiaWASM);
+      setEssentia(essentia);
+      console.log('Essentia.js initialized successfully');
+    } catch (error) {
+      console.error('Failed to initialize Essentia:', error);
+      toast({
+        title: "Audio Analysis Unavailable",
+        description: "Using basic metadata analysis only",
+        variant: "destructive"
+      });
+    }
+  };
 
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
