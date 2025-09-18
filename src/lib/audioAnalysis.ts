@@ -1,7 +1,6 @@
 import { parseBlob } from 'music-metadata-browser';
 import bpmDetective from 'bpm-detective';
 import Meyda from 'meyda';
-import { Key } from 'tonal';
 import * as Tonal from 'tonal';
 
 /**
