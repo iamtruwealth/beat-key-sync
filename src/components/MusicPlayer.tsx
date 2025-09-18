@@ -41,48 +41,47 @@ export function MusicPlayer() {
   };
 
   return (
-    <Card className="fixed bottom-4 left-4 right-4 md:left-6 md:right-6 bg-card/95 backdrop-blur-lg border-border/20 rounded-2xl p-3 shadow-lg">
-      <div className="flex items-center gap-3">
+    <Card className="fixed bottom-4 left-4 right-4 max-w-md mx-auto bg-card/95 backdrop-blur-lg border-border/20 rounded-xl p-2 shadow-lg z-50">
+      <div className="flex items-center gap-2">
         {/* Album Artwork */}
-        <Avatar className="w-12 h-12 rounded-xl">
-          <AvatarImage src={currentTrack.artwork_url} alt="Album artwork" className="rounded-xl" />
-          <AvatarFallback className="rounded-xl bg-muted">
-            <div className="w-6 h-6 bg-primary/20 rounded-lg" />
+        <Avatar className="w-10 h-10 rounded-lg flex-shrink-0">
+          <AvatarImage src={currentTrack.artwork_url} alt="Album artwork" className="rounded-lg" />
+          <AvatarFallback className="rounded-lg bg-primary/20">
+            <div className="w-4 h-4 bg-primary/40 rounded" />
           </AvatarFallback>
         </Avatar>
 
         {/* Track Info & Progress */}
-        <div className="flex-1 space-y-1">
-          <div>
-            <p className="text-xs text-muted-foreground">{currentTrack.artist || 'Unknown Artist'}</p>
-            <h3 className="text-sm font-semibold text-foreground truncate">{currentTrack.title}</h3>
+        <div className="flex-1 min-w-0 space-y-1">
+          <div className="flex items-center justify-between">
+            <div className="min-w-0 flex-1">
+              <h3 className="text-xs font-medium text-foreground truncate">{currentTrack.title}</h3>
+              <p className="text-xs text-muted-foreground truncate">{currentTrack.artist || 'Unknown Artist'}</p>
+            </div>
+            <div className="text-xs text-muted-foreground ml-2 flex-shrink-0">
+              {formatTime(currentTime)} / {formatTime(duration)}
+            </div>
           </div>
           
-          <div className="space-y-1">
-            <div className="cursor-pointer" onClick={handleSeek}>
-              <Progress value={progressPercent} className="h-1" />
-            </div>
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>{formatTime(currentTime)}</span>
-              <span>{formatTime(duration)}</span>
-            </div>
+          <div className="cursor-pointer" onClick={handleSeek}>
+            <Progress value={progressPercent} className="h-1" />
           </div>
         </div>
 
         {/* Control Buttons */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-shrink-0">
           <Button
             variant="ghost"
             size="icon"
-            className="w-8 h-8 rounded-lg bg-muted/20 hover:bg-muted/40"
+            className="w-7 h-7 rounded-md"
           >
-            <SkipBack className="w-4 h-4" />
+            <SkipBack className="w-3 h-3" />
           </Button>
           
           <Button
             variant="ghost"
             size="icon"
-            className="w-8 h-8 rounded-lg bg-muted/20 hover:bg-muted/40"
+            className="w-8 h-8 rounded-md bg-primary/10 hover:bg-primary/20"
             onClick={togglePlayPause}
           >
             {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
@@ -91,9 +90,9 @@ export function MusicPlayer() {
           <Button
             variant="ghost"
             size="icon"
-            className="w-8 h-8 rounded-lg bg-muted/20 hover:bg-muted/40"
+            className="w-7 h-7 rounded-md"
           >
-            <SkipForward className="w-4 h-4" />
+            <SkipForward className="w-3 h-3" />
           </Button>
         </div>
       </div>
