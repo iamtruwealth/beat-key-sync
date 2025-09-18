@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, X, Plus, Music, FileAudio, CheckCircle } from "lucide-react";
+import { Upload, X, Plus, Music, FileAudio, CheckCircle, Image } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import * as musicMetadata from "music-metadata";
@@ -21,6 +21,8 @@ interface UploadedFile {
   beatPackId?: string;
   progress: number;
   status: 'pending' | 'analyzing' | 'uploading' | 'complete' | 'error';
+  artwork?: File;
+  artworkPreview?: string;
   metadata?: {
     duration?: number;
     format?: string;
@@ -181,6 +183,54 @@ export default function UploadPage() {
     );
   };
 
+  const uploadArtwork = async (file: File, userId: string): Promise<string | null> => {
+    try {
+      const fileName = `${userId}/artwork/${Date.now()}-${file.name}`;
+      const { data, error } = await supabase.storage
+        .from('artwork')
+        .upload(fileName, file);
+
+      if (error) throw error;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('artwork')
+        .getPublicUrl(fileName);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Artwork upload error:', error);
+      return null;
+    }
+  };
+
+  const handleArtworkUpload = (index: number, file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setUploadedFiles(prev => 
+        prev.map((fileData, i) => 
+          i === index ? { 
+            ...fileData, 
+            artwork: file,
+            artworkPreview: e.target?.result as string
+          } : fileData
+        )
+      );
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeArtwork = (index: number) => {
+    setUploadedFiles(prev => 
+      prev.map((fileData, i) => 
+        i === index ? { 
+          ...fileData, 
+          artwork: undefined,
+          artworkPreview: undefined
+        } : fileData
+      )
+    );
+  };
+
   const updateFileTitle = (index: number, title: string) => {
     setUploadedFiles(prev => 
       prev.map((file, i) => 
@@ -189,7 +239,54 @@ export default function UploadPage() {
     );
   };
 
-  const uploadFiles = async () => {
+  const uploadArtwork = async (file: File, userId: string): Promise<string | null> => {
+    try {
+      const fileName = `${userId}/artwork/${Date.now()}-${file.name}`;
+      const { data, error } = await supabase.storage
+        .from('artwork')
+        .upload(fileName, file);
+
+      if (error) throw error;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('artwork')
+        .getPublicUrl(fileName);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Artwork upload error:', error);
+      return null;
+    }
+  };
+
+  const handleArtworkUpload = (index: number, file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setUploadedFiles(prev => 
+        prev.map((fileData, i) => 
+          i === index ? { 
+            ...fileData, 
+            artwork: file,
+            artworkPreview: e.target?.result as string
+          } : fileData
+        )
+      );
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeArtwork = (index: number) => {
+    setUploadedFiles(prev => 
+      prev.map((fileData, i) => 
+        i === index ? { 
+          ...fileData, 
+          artwork: undefined,
+          artworkPreview: undefined
+        } : fileData
+      )
+    );
+  };
+
     if (uploadedFiles.length === 0) return;
     
     try {
@@ -200,7 +297,13 @@ export default function UploadPage() {
           )
         );
 
-        // Upload file to Supabase storage with user folder structure
+        // Upload artwork if provided
+        let artworkUrl = null;
+        if (fileData.artwork) {
+          artworkUrl = await uploadArtwork(fileData.artwork, user.id);
+        }
+
+        // Upload audio file to Supabase storage with user folder structure
         const fileName = `${user.id}/${Date.now()}-${fileData.file.name}`;
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('audio-files')
@@ -221,6 +324,7 @@ export default function UploadPage() {
           .insert({
             title: fileData.title,
             file_url: publicUrl,
+            artwork_url: artworkUrl,
             tags: fileData.tags,
             detected_key: fileData.metadata?.detectedKey,
             detected_bpm: fileData.metadata?.detectedBPM,
@@ -372,6 +476,46 @@ export default function UploadPage() {
                     >
                       <Plus className="w-4 h-4" />
                     </Button>
+                  </div>
+                </div>
+
+                {/* Artwork Upload */}
+                <div>
+                  <Label className="text-sm font-medium">Track Artwork</Label>
+                  <div className="mt-2 flex items-center gap-4">
+                    {fileData.artworkPreview ? (
+                      <div className="relative w-20 h-20 rounded-lg overflow-hidden border">
+                        <img 
+                          src={fileData.artworkPreview} 
+                          alt="Track artwork" 
+                          className="w-full h-full object-cover"
+                        />
+                        <button
+                          onClick={() => removeArtwork(index)}
+                          className="absolute top-1 right-1 w-5 h-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center text-xs"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="w-20 h-20 rounded-lg border-2 border-dashed border-muted-foreground/25 flex items-center justify-center">
+                        <Image className="w-8 h-8 text-muted-foreground" />
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleArtworkUpload(index, file);
+                        }}
+                        className="mb-2"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Upload artwork or we'll use your profile photo as fallback
+                      </p>
+                    </div>
                   </div>
                 </div>
 
