@@ -414,7 +414,11 @@ export default function Projects() {
       {filteredBeatPacks.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredBeatPacks.map((pack) => (
-            <Card key={pack.id} className="group cursor-pointer hover:shadow-lg transition-all duration-200">
+            <Card 
+              key={pack.id} 
+              className="group cursor-pointer hover:shadow-lg transition-all duration-200"
+              onClick={() => navigate(`/pack/${pack.id}`)}
+            >
               <CardContent className="p-0">
                 <div className="aspect-square bg-gradient-to-br from-primary/20 to-primary/5 rounded-t-lg relative overflow-hidden">
                   {pack.artwork_url ? (

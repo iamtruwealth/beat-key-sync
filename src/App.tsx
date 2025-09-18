@@ -62,13 +62,6 @@ const App = () => (
               </AppLayout>
             </ProtectedRoute>
           } />
-          <Route path="/beat-pack/:id" element={
-            <ProtectedRoute>
-              <AppLayout>
-                <BeatPackPage />
-              </AppLayout>
-            </ProtectedRoute>
-          } />
           <Route path="/explore" element={
             <ProtectedRoute>
               <AppLayout>
