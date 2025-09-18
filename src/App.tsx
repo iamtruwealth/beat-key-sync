@@ -9,6 +9,7 @@ import Library from "./pages/Library";
 import Projects from "./pages/Projects";
 import Explore from "./pages/Explore";
 import UploadPage from "./pages/Upload";
+import BeatPackPage from "./pages/BeatPack";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +25,7 @@ const App = () => (
             <Route path="/" element={<Dashboard />} />
             <Route path="/library" element={<Library />} />
             <Route path="/projects" element={<Projects />} />
+            <Route path="/beat-pack/:id" element={<BeatPackPage />} />
             <Route path="/explore" element={<Explore />} />
             <Route path="/upload" element={<UploadPage />} />
             <Route path="/shared" element={<div className="p-6"><h1 className="text-2xl font-bold">Shared Projects</h1><p className="text-muted-foreground">Coming soon...</p></div>} />
