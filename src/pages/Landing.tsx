@@ -2,43 +2,34 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Play, Upload, Search, TrendingUp, Music, Users, Star, Instagram, Twitter, Youtube } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-
 export default function Landing() {
   const navigate = useNavigate();
-
-  const featuredProducers = [
-    {
-      id: 1,
-      name: "SoundWave",
-      image: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=150&h=150&fit=crop&crop=face",
-      packTitle: "Trap Vibes Vol. 3",
-      plays: "2.1K"
-    },
-    {
-      id: 2,
-      name: "BeatMaker Pro",
-      image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face",
-      packTitle: "R&B Essentials",
-      plays: "3.4K"
-    },
-    {
-      id: 3,
-      name: "DrumlineKing",
-      image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face",
-      packTitle: "Hip Hop Heat",
-      plays: "1.8K"
-    },
-    {
-      id: 4,
-      name: "MelodyMaster",
-      image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face",
-      packTitle: "Chill Vibes",
-      plays: "4.2K"
-    }
-  ];
-
-  return (
-    <div className="min-h-screen bg-background">
+  const featuredProducers = [{
+    id: 1,
+    name: "SoundWave",
+    image: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=150&h=150&fit=crop&crop=face",
+    packTitle: "Trap Vibes Vol. 3",
+    plays: "2.1K"
+  }, {
+    id: 2,
+    name: "BeatMaker Pro",
+    image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face",
+    packTitle: "R&B Essentials",
+    plays: "3.4K"
+  }, {
+    id: 3,
+    name: "DrumlineKing",
+    image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face",
+    packTitle: "Hip Hop Heat",
+    plays: "1.8K"
+  }, {
+    id: 4,
+    name: "MelodyMaster",
+    image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face",
+    packTitle: "Chill Vibes",
+    plays: "4.2K"
+  }];
+  return <div className="min-h-screen bg-background">
       {/* Navigation */}
       <nav className="fixed top-0 w-full z-50 bg-background/95 backdrop-blur-md border-b border-border">
         <div className="container mx-auto px-6 py-4">
@@ -58,23 +49,14 @@ export default function Landing() {
               <a href="#pricing" className="text-muted-foreground hover:text-foreground transition-colors">
                 Pricing
               </a>
-              <a href="#community" className="text-muted-foreground hover:text-foreground transition-colors">
-                Community
-              </a>
+              
             </div>
 
             <div className="flex items-center space-x-4">
-              <Button 
-                variant="ghost" 
-                onClick={() => navigate("/auth")}
-                className="text-foreground hover:text-brand-red"
-              >
+              <Button variant="ghost" onClick={() => navigate("/auth")} className="text-foreground hover:text-brand-red">
                 Log In
               </Button>
-              <Button 
-                onClick={() => navigate("/auth")}
-                className="bg-brand-red hover:bg-brand-red-glow text-white font-semibold px-6"
-              >
+              <Button onClick={() => navigate("/auth")} className="bg-brand-red hover:bg-brand-red-glow text-white font-semibold px-6">
                 Sign Up Free
               </Button>
             </div>
@@ -84,12 +66,9 @@ export default function Landing() {
 
       {/* Hero Section */}
       <section className="relative pt-20 pb-32 overflow-hidden">
-        <div 
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-20"
-          style={{
-            backgroundImage: "url('https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=1920&h=1080&fit=crop')"
-          }}
-        />
+        <div className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-20" style={{
+        backgroundImage: "url('https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=1920&h=1080&fit=crop')"
+      }} />
         <div className="absolute inset-0 bg-gradient-to-br from-background/90 via-background/70 to-card/50" />
         
         <div className="relative container mx-auto px-6 text-center">
@@ -105,19 +84,10 @@ export default function Landing() {
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <Button 
-                size="lg"
-                onClick={() => navigate("/auth")}
-                className="bg-brand-red hover:bg-brand-red-glow text-white font-semibold px-8 py-4 text-lg"
-              >
+              <Button size="lg" onClick={() => navigate("/auth")} className="bg-brand-red hover:bg-brand-red-glow text-white font-semibold px-8 py-4 text-lg">
                 Sign Up Free
               </Button>
-              <Button 
-                size="lg" 
-                variant="outline"
-                onClick={() => navigate("/auth")}
-                className="border-brand-red text-brand-red hover:bg-brand-red hover:text-white px-8 py-4 text-lg"
-              >
+              <Button size="lg" variant="outline" onClick={() => navigate("/auth")} className="border-brand-red text-brand-red hover:bg-brand-red hover:text-white px-8 py-4 text-lg">
                 Log In
               </Button>
             </div>
@@ -138,18 +108,10 @@ export default function Landing() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {featuredProducers.map((producer) => (
-              <Card 
-                key={producer.id}
-                className="group cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg border-border bg-card/80 backdrop-blur-sm"
-              >
+            {featuredProducers.map(producer => <Card key={producer.id} className="group cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg border-border bg-card/80 backdrop-blur-sm">
                 <CardContent className="p-6">
                   <div className="relative mb-4">
-                    <img
-                      src={producer.image}
-                      alt={producer.name}
-                      className="w-full h-48 object-cover rounded-lg"
-                    />
+                    <img src={producer.image} alt={producer.name} className="w-full h-48 object-cover rounded-lg" />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg flex items-center justify-center">
                       <Button size="icon" className="bg-brand-red hover:bg-brand-red-glow">
                         <Play className="w-6 h-6 text-white" />
@@ -172,8 +134,7 @@ export default function Landing() {
                     </div>
                   </div>
                 </CardContent>
-              </Card>
-            ))}
+              </Card>)}
           </div>
         </div>
       </section>
@@ -233,11 +194,7 @@ export default function Landing() {
           <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
             Where Producers & Artists Meet
           </p>
-          <Button 
-            size="lg"
-            onClick={() => navigate("/auth")}
-            className="bg-brand-red hover:bg-brand-red-glow text-white font-semibold px-12 py-4 text-xl"
-          >
+          <Button size="lg" onClick={() => navigate("/auth")} className="bg-brand-red hover:bg-brand-red-glow text-white font-semibold px-12 py-4 text-xl">
             Get Started Free
           </Button>
         </div>
@@ -294,6 +251,5 @@ export default function Landing() {
           </div>
         </div>
       </footer>
-    </div>
-  );
+    </div>;
 }
