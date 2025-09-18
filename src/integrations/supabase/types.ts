@@ -166,7 +166,29 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_public_tracks: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          artwork_url: string
+          created_at: string
+          detected_bpm: number
+          detected_key: string
+          duration: number
+          file_size: number
+          file_url: string
+          format: string
+          id: string
+          manual_bpm: number
+          manual_key: string
+          metadata: Json
+          sample_rate: number
+          stems: string[]
+          tags: string[]
+          title: string
+          updated_at: string
+          waveform_data: Json
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
