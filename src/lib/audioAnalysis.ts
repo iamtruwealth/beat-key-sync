@@ -1,6 +1,4 @@
 import { parseBlob } from 'music-metadata-browser';
-import bpmDetective from 'bpm-detective';
-
 import * as Tonal from 'tonal';
 
 /**
@@ -64,7 +62,7 @@ export const getCompatibleKeys = (key: string): string[] => {
   return [...new Set(compatibleKeys)].filter(k => k !== key);
 };
 
-// Detect key using Meyda and Tonal
+// Detect key using custom chroma extraction and Tonal
 export const detectKey = async (audioBuffer: AudioBuffer): Promise<{ key: string; confidence: number }> => {
   try {
     const audioData = audioBuffer.getChannelData(0);
@@ -246,25 +244,8 @@ const analyzeAudioWithAPI = async (file: File): Promise<{ bpm: number; key: stri
   }
 };
 
-// BPM detection using bpm-detective
+// BPM detection using simple onset detection
 export const detectBPM = async (audioBuffer: AudioBuffer): Promise<{ bpm: number; confidence: number }> => {
-  try {
-    const estimatedBPM = bpmDetective(audioBuffer);
-    
-    if (estimatedBPM && estimatedBPM > 60 && estimatedBPM < 200) {
-      return { bpm: Math.round(estimatedBPM), confidence: 0.8 };
-    }
-    
-    // Fallback to our custom detection
-    return await detectBPMFallback(audioBuffer);
-  } catch (error) {
-    console.warn('BPM detection failed, using fallback:', error);
-    return await detectBPMFallback(audioBuffer);
-  }
-};
-
-// Fallback BPM detection using simple onset detection
-const detectBPMFallback = async (audioBuffer: AudioBuffer): Promise<{ bpm: number; confidence: number }> => {
   try {
     const audioData = audioBuffer.getChannelData(0);
     const sampleRate = audioBuffer.sampleRate;
@@ -273,7 +254,7 @@ const detectBPMFallback = async (audioBuffer: AudioBuffer): Promise<{ bpm: numbe
     const onsets = detectOnsets(audioData, sampleRate);
     
     if (onsets.length < 4) {
-      return { bpm: 0, confidence: 0 };
+      return { bpm: 120, confidence: 0.3 }; // Default BPM
     }
     
     // Calculate intervals between onsets
@@ -289,18 +270,17 @@ const detectBPMFallback = async (audioBuffer: AudioBuffer): Promise<{ bpm: numbe
     if (medianInterval > 0.25 && medianInterval < 1.5) { // Reasonable beat intervals
       const bpm = Math.round(60 / medianInterval);
       if (bpm >= 60 && bpm <= 200) {
-        const confidence = 0.6; // Medium confidence for fallback method
-        return { bpm, confidence };
+        return { bpm, confidence: 0.7 };
       }
     }
     
-    return { bpm: 0, confidence: 0 };
-    
+    return { bpm: 120, confidence: 0.3 }; // Fallback
   } catch (error) {
-    console.warn('Fallback BPM detection failed:', error);
-    return { bpm: 0, confidence: 0 };
+    console.warn('BPM detection failed:', error);
+    return { bpm: 120, confidence: 0.3 };
   }
 };
+
 
 // Simple onset detection based on energy changes
 const detectOnsets = (audioData: Float32Array, sampleRate: number): number[] => {
@@ -359,7 +339,7 @@ export async function analyzeAudioFile(file: File): Promise<AudioAnalysisResult>
     // 3. BPM detection (fallback to bpm-detective only)
     const bpmResult = await detectBPM(audioBuffer);
 
-    // 4. Key detection (fallback to Meyda/Tonal only)
+    // 4. Key detection (custom chroma extraction)
     const keyResult = await detectKey(audioBuffer);
 
     // 5. Get compatible keys for harmonic mixing
