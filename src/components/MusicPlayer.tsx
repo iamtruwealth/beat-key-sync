@@ -42,25 +42,25 @@ export function MusicPlayer({ track }: MusicPlayerProps) {
   };
 
   return (
-    <Card className="fixed bottom-4 left-4 right-4 md:left-6 md:right-6 bg-card/95 backdrop-blur-lg border-border/20 rounded-3xl p-4 shadow-2xl">
-      <div className="flex items-center gap-4">
+    <Card className="fixed bottom-4 left-4 right-4 md:left-6 md:right-6 bg-card/95 backdrop-blur-lg border-border/20 rounded-2xl p-3 shadow-lg">
+      <div className="flex items-center gap-3">
         {/* Album Artwork */}
-        <Avatar className="w-16 h-16 rounded-2xl">
-          <AvatarImage src={currentTrack.artwork} alt="Album artwork" className="rounded-2xl" />
-          <AvatarFallback className="rounded-2xl bg-muted">
-            <div className="w-8 h-8 bg-primary/20 rounded-lg" />
+        <Avatar className="w-12 h-12 rounded-xl">
+          <AvatarImage src={currentTrack.artwork} alt="Album artwork" className="rounded-xl" />
+          <AvatarFallback className="rounded-xl bg-muted">
+            <div className="w-6 h-6 bg-primary/20 rounded-lg" />
           </AvatarFallback>
         </Avatar>
 
         {/* Track Info & Progress */}
-        <div className="flex-1 space-y-2">
+        <div className="flex-1 space-y-1">
           <div>
-            <p className="text-sm text-muted-foreground">{currentTrack.artist}</p>
-            <h3 className="text-lg font-semibold text-foreground">{currentTrack.title}</h3>
+            <p className="text-xs text-muted-foreground">{currentTrack.artist}</p>
+            <h3 className="text-sm font-semibold text-foreground truncate">{currentTrack.title}</h3>
           </div>
           
           <div className="space-y-1">
-            <Progress value={progressPercent} className="h-1.5" />
+            <Progress value={progressPercent} className="h-1" />
             <div className="flex justify-between text-xs text-muted-foreground">
               <span>{formatTime(currentTrack.currentTime)}</span>
               <span>{formatTime(currentTrack.duration)}</span>
@@ -68,57 +68,31 @@ export function MusicPlayer({ track }: MusicPlayerProps) {
           </div>
         </div>
 
-        {/* Control Buttons Grid */}
-        <div className="grid grid-cols-3 gap-2">
-          {/* Top Row */}
+        {/* Control Buttons */}
+        <div className="flex items-center gap-1">
           <Button
             variant="ghost"
             size="icon"
-            className="w-12 h-12 rounded-2xl bg-muted/20 hover:bg-muted/40"
+            className="w-8 h-8 rounded-lg bg-muted/20 hover:bg-muted/40"
+          >
+            <SkipBack className="w-4 h-4" />
+          </Button>
+          
+          <Button
+            variant="ghost"
+            size="icon"
+            className="w-8 h-8 rounded-lg bg-muted/20 hover:bg-muted/40"
             onClick={togglePlay}
           >
-            {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+            {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
           </Button>
           
           <Button
             variant="ghost"
             size="icon"
-            className="w-12 h-12 rounded-2xl bg-muted/20 hover:bg-muted/40"
+            className="w-8 h-8 rounded-lg bg-muted/20 hover:bg-muted/40"
           >
-            <Plus className="w-5 h-5" />
-          </Button>
-          
-          <Button
-            variant="ghost"
-            size="icon"
-            className="w-12 h-12 rounded-2xl bg-muted/20 hover:bg-muted/40"
-          >
-            <Pause className="w-5 h-5" />
-          </Button>
-
-          {/* Bottom Row */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="w-12 h-12 rounded-2xl bg-muted/20 hover:bg-muted/40"
-          >
-            <Headphones className="w-5 h-5" />
-          </Button>
-          
-          <Button
-            variant="ghost"
-            size="icon"
-            className="w-12 h-12 rounded-2xl bg-muted/20 hover:bg-muted/40"
-          >
-            <SkipBack className="w-5 h-5" />
-          </Button>
-          
-          <Button
-            variant="ghost"
-            size="icon"
-            className="w-12 h-12 rounded-2xl bg-muted/20 hover:bg-muted/40"
-          >
-            <SkipForward className="w-5 h-5" />
+            <SkipForward className="w-4 h-4" />
           </Button>
         </div>
       </div>
