@@ -1,6 +1,6 @@
 import { parseBlob } from 'music-metadata-browser';
 import bpmDetective from 'bpm-detective';
-import Meyda from 'meyda';
+
 import * as Tonal from 'tonal';
 
 /**
@@ -67,19 +67,32 @@ export const getCompatibleKeys = (key: string): string[] => {
 // Detect key using Meyda and Tonal
 export const detectKey = async (audioBuffer: AudioBuffer): Promise<{ key: string; confidence: number }> => {
   try {
-    // Use Meyda to extract chroma features
     const audioData = audioBuffer.getChannelData(0);
-    const meydaFeatures = Meyda.extract(['chroma'], Array.from(audioData));
-    
-    if (!meydaFeatures.chroma || !Array.isArray(meydaFeatures.chroma)) {
-      return { key: 'Unknown', confidence: 0 };
+    const sampleRate = audioBuffer.sampleRate;
+
+    // Use custom chroma extraction over multiple segments and average
+    const segments = 3;
+    const segmentLength = Math.floor(audioData.length / segments);
+    const chromaAccum = new Array(12).fill(0);
+    let validSegments = 0;
+
+    for (let s = 0; s < segments; s++) {
+      const start = s * segmentLength;
+      const end = s === segments - 1 ? audioData.length : start + segmentLength;
+      const segment = audioData.subarray(start, end);
+      const chroma = extractChromaFromSegment(segment, sampleRate);
+      if (chroma) {
+        for (let i = 0; i < 12; i++) chromaAccum[i] += chroma[i];
+        validSegments++;
+      }
     }
-    
-    // Analyze chroma vector to determine key using our existing approach
-    const keyResult = analyzeChromaForKey(meydaFeatures.chroma);
-    
+
+    if (validSegments === 0) return { key: 'Unknown', confidence: 0 };
+
+    for (let i = 0; i < 12; i++) chromaAccum[i] /= validSegments;
+
+    const keyResult = analyzeChromaForKey(chromaAccum);
     return keyResult;
-    
   } catch (error) {
     console.warn('Key detection failed:', error);
     return { key: 'Unknown', confidence: 0 };
