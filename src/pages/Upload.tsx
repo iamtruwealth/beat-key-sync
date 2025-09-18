@@ -12,8 +12,8 @@ import { Upload, X, Plus, Music, FileAudio, CheckCircle, Image } from "lucide-re
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import * as musicMetadata from "music-metadata";
-import * as es from 'essentia.js';
 import { User } from "@supabase/supabase-js";
+import { detectBPM, detectKey, getCompatibleKeys, AudioAnalysisResult } from "@/lib/audioAnalysis";
 
 interface UploadedFile {
   file: File;
@@ -24,13 +24,7 @@ interface UploadedFile {
   status: 'pending' | 'analyzing' | 'uploading' | 'complete' | 'error';
   artwork?: File;
   artworkPreview?: string;
-  metadata?: {
-    duration?: number;
-    format?: string;
-    sampleRate?: number;
-    detectedKey?: string;
-    detectedBPM?: number;
-  };
+  analysis?: AudioAnalysisResult;
 }
 
 export default function UploadPage() {
@@ -39,7 +33,6 @@ export default function UploadPage() {
   const [beatPacks, setBeatPacks] = useState<Array<{ id: string; name: string }>>([]);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [essentia, setEssentia] = useState<InstanceType<typeof es.Essentia> | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -55,98 +48,82 @@ export default function UploadPage() {
       // Extract basic metadata using music-metadata
       const metadata = await musicMetadata.parseBlob(fileData.file);
       
-      let detectedKey = null;
-      let detectedBPM = null;
+      let detectedKey = 'Unknown';
+      let detectedBPM = 0;
+      let keyConfidence = 0;
+      let bpmConfidence = 0;
 
       // First try to get BPM and key from ID3 tags
       if (metadata.common?.bpm) {
         detectedBPM = Math.round(metadata.common.bpm);
+        bpmConfidence = 0.9; // High confidence for embedded metadata
       }
       
       // Check for key in various metadata fields
       const keyFromTags = metadata.common?.key || 
-                         metadata.format?.tagTypes?.includes('ID3v2.4') && 
-                         metadata.native?.['ID3v2.4']?.find(tag => tag.id === 'TKEY')?.value;
+                         (metadata.format?.tagTypes?.includes('ID3v2.4') && 
+                         metadata.native?.['ID3v2.4']?.find(tag => tag.id === 'TKEY')?.value) as string;
       
       if (keyFromTags) {
         detectedKey = keyFromTags;
+        keyConfidence = 0.9; // High confidence for embedded metadata
       }
 
-      // Perform advanced audio analysis with Essentia.js if available and no metadata found
-      if (essentia && (!detectedBPM || !detectedKey)) {
+      // Perform audio analysis if no metadata found or for verification
+      if (!metadata.common?.bpm || !keyFromTags) {
         try {
           // Convert file to audio buffer for analysis
           const arrayBuffer = await fileData.file.arrayBuffer();
           const audioContext = new AudioContext();
           const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-          
-          // Convert to mono and normalize audio data
-          const audioData = audioBuffer.getChannelData(0);
-          
-          // Resample to 44.1kHz if needed for better analysis
-          let processedAudio = audioData;
-          if (audioBuffer.sampleRate !== 44100) {
-            // Simple downsampling for analysis
-            const ratio = audioBuffer.sampleRate / 44100;
-            const newLength = Math.floor(audioData.length / ratio);
-            const resampled = new Float32Array(newLength);
-            for (let i = 0; i < newLength; i++) {
-              resampled[i] = audioData[Math.floor(i * ratio)];
-            }
-            processedAudio = resampled;
-          }
 
-          const vector = essentia.arrayToVector(processedAudio);
-
-          // Analyze BPM only if not found in metadata
-          if (!detectedBPM) {
-            try {
-              const bpmResult = essentia.RhythmExtractor2013(vector, 44100);
-              if (bpmResult.bpm > 60 && bpmResult.bpm < 200) {
-                detectedBPM = Math.round(bpmResult.bpm);
-              }
-            } catch (bpmError) {
-              console.warn('BPM detection failed:', bpmError);
+          // Detect BPM if not found in metadata
+          if (!metadata.common?.bpm) {
+            const bpmResult = await detectBPM(audioBuffer);
+            if (bpmResult.bpm > 0) {
+              detectedBPM = bpmResult.bpm;
+              bpmConfidence = bpmResult.confidence;
             }
           }
 
-          // Analyze Key only if not found in metadata
-          if (!detectedKey) {
-            try {
-              const keyResult = essentia.KeyExtractor(vector, 44100);
-              if (keyResult.key && keyResult.scale) {
-                const keyMap: { [key: string]: string } = {
-                  'A': 'A', 'As': 'A#', 'B': 'B', 'C': 'C', 'Cs': 'C#', 
-                  'D': 'D', 'Ds': 'D#', 'E': 'E', 'F': 'F', 'Fs': 'F#', 'G': 'G', 'Gs': 'G#'
-                };
-                const mappedKey = keyMap[keyResult.key] || keyResult.key;
-                const scale = keyResult.scale === 'major' ? 'Major' : 'Minor';
-                detectedKey = `${mappedKey} ${scale}`;
-              }
-            } catch (keyError) {
-              console.warn('Key detection failed:', keyError);
+          // Detect key if not found in metadata
+          if (!keyFromTags) {
+            const keyResult = await detectKey(audioBuffer);
+            if (keyResult.key !== 'Unknown') {
+              detectedKey = keyResult.key;
+              keyConfidence = keyResult.confidence;
             }
           }
+
         } catch (analysisError) {
-          console.warn('Advanced audio analysis failed:', analysisError);
+          console.warn('Audio analysis failed:', analysisError);
         }
       }
 
-      // Leave values as null if not detected rather than using random values
+      // Calculate overall confidence score
+      const confidenceScore = (keyConfidence + bpmConfidence) / 2;
 
-      const audioMetadata = {
-        duration: metadata.format.duration,
-        format: metadata.format.container,
-        sampleRate: metadata.format.sampleRate,
-        detectedKey: detectedKey || 'Unknown',
-        detectedBPM: detectedBPM || 0
+      // Get compatible keys for harmonic mixing
+      const compatibleKeys = getCompatibleKeys(detectedKey);
+
+      const analysis: AudioAnalysisResult = {
+        bpm: detectedBPM,
+        key: detectedKey,
+        compatibleKeys,
+        duration: metadata.format.duration || 0,
+        confidenceScore,
+        metadata: {
+          format: metadata.format.container,
+          sampleRate: metadata.format.sampleRate,
+          bitrate: metadata.format.bitrate
+        }
       };
 
       setUploadedFiles(prev => 
         prev.map((file, i) => 
           i === index ? { 
             ...file, 
-            metadata: audioMetadata,
+            analysis,
             status: 'complete'
           } : file
         )
@@ -154,7 +131,7 @@ export default function UploadPage() {
 
       toast({
         title: "Analysis Complete",
-        description: `${fileData.title} - Key: ${audioMetadata.detectedKey}, BPM: ${audioMetadata.detectedBPM}`
+        description: `${fileData.title} - Key: ${detectedKey}, BPM: ${detectedBPM} (${Math.round(confidenceScore * 100)}% confidence)`
       });
 
     } catch (error) {
@@ -198,18 +175,6 @@ export default function UploadPage() {
   });
 
   useEffect(() => {
-    const initializeEssentia = async () => {
-      try {
-        const instance = new es.Essentia(es.EssentiaWASM);
-        setEssentia(instance);
-        console.log('Essentia.js initialized successfully');
-      } catch (error) {
-        console.error('Failed to initialize Essentia:', error);
-        console.log('Continuing with metadata-only analysis');
-        // Don't show error toast, just continue with metadata analysis
-      }
-    };
-
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
@@ -220,7 +185,6 @@ export default function UploadPage() {
       setLoading(false);
     };
 
-    initializeEssentia();
     checkAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -370,13 +334,18 @@ export default function UploadPage() {
             file_url: publicUrl,
             artwork_url: artworkUrl,
             tags: fileData.tags,
-            detected_key: fileData.metadata?.detectedKey,
-            detected_bpm: fileData.metadata?.detectedBPM,
-            duration: fileData.metadata?.duration,
-            format: fileData.metadata?.format,
-            sample_rate: fileData.metadata?.sampleRate,
+            detected_key: fileData.analysis?.key,
+            detected_bpm: fileData.analysis?.bpm,
+            duration: fileData.analysis?.duration,
+            format: fileData.analysis?.metadata.format,
+            sample_rate: fileData.analysis?.metadata.sampleRate,
             file_size: fileData.file.size,
-            user_id: user.id
+            user_id: user.id,
+            metadata: {
+              ...fileData.analysis?.metadata,
+              compatibleKeys: fileData.analysis?.compatibleKeys,
+              confidenceScore: fileData.analysis?.confidenceScore
+            }
           });
 
         if (dbError) {
@@ -469,16 +438,17 @@ export default function UploadPage() {
                       className="font-medium"
                       placeholder="Track title"
                     />
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {(fileData.file.size / 1024 / 1024).toFixed(2)} MB
-                      {fileData.metadata && (
-                        <span>
-                          {" • "}{fileData.metadata.duration?.toFixed(0)}s
-                          {fileData.metadata.detectedKey && " • " + fileData.metadata.detectedKey}
-                          {fileData.metadata.detectedBPM && " • " + fileData.metadata.detectedBPM + " BPM"}
-                        </span>
-                      )}
-                    </p>
+                     <p className="text-sm text-muted-foreground mt-1">
+                       {(fileData.file.size / 1024 / 1024).toFixed(2)} MB
+                       {fileData.analysis && (
+                         <span>
+                           {" • "}{fileData.analysis.duration.toFixed(0)}s
+                           {fileData.analysis.key && " • " + fileData.analysis.key}
+                           {fileData.analysis.bpm > 0 && " • " + fileData.analysis.bpm + " BPM"}
+                           {fileData.analysis.confidenceScore > 0 && " • " + Math.round(fileData.analysis.confidenceScore * 100) + "% confidence"}
+                         </span>
+                       )}
+                     </p>
                   </div>
                   <Badge variant={
                     fileData.status === 'complete' ? 'default' :
