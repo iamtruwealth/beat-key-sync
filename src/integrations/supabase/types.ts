@@ -146,6 +146,7 @@ export type Database = {
           id: string
           last_name: string | null
           producer_logo_url: string | null
+          producer_name: string | null
           updated_at: string
         }
         Insert: {
@@ -156,6 +157,7 @@ export type Database = {
           id: string
           last_name?: string | null
           producer_logo_url?: string | null
+          producer_name?: string | null
           updated_at?: string
         }
         Update: {
@@ -166,6 +168,7 @@ export type Database = {
           id?: string
           last_name?: string | null
           producer_logo_url?: string | null
+          producer_name?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -255,6 +258,7 @@ export type Database = {
       }
       tracks: {
         Row: {
+          artist: string | null
           artwork_url: string | null
           created_at: string
           detected_bpm: number | null
@@ -276,6 +280,7 @@ export type Database = {
           waveform_data: Json | null
         }
         Insert: {
+          artist?: string | null
           artwork_url?: string | null
           created_at?: string
           detected_bpm?: number | null
@@ -297,6 +302,7 @@ export type Database = {
           waveform_data?: Json | null
         }
         Update: {
+          artist?: string | null
           artwork_url?: string | null
           created_at?: string
           detected_bpm?: number | null

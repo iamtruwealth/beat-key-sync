@@ -13,6 +13,7 @@ interface Profile {
   id: string;
   first_name: string | null;
   last_name: string | null;
+  producer_name: string | null;
   home_town: string | null;
   producer_logo_url: string | null;
   genres: string[];
@@ -32,6 +33,7 @@ export default function Account() {
   const [formData, setFormData] = useState({
     first_name: "",
     last_name: "",
+    producer_name: "",
     home_town: "",
     genres: [] as string[]
   });
@@ -73,6 +75,7 @@ export default function Account() {
         setFormData({
           first_name: profile.first_name || "",
           last_name: profile.last_name || "",
+          producer_name: profile.producer_name || "",
           home_town: profile.home_town || "",
           genres: profile.genres || []
         });
@@ -91,6 +94,7 @@ export default function Account() {
           setFormData({
             first_name: "",
             last_name: "",
+            producer_name: "",
             home_town: "",
             genres: []
           });
@@ -180,6 +184,7 @@ export default function Account() {
         .update({
           first_name: formData.first_name || null,
           last_name: formData.last_name || null,
+          producer_name: formData.producer_name || null,
           home_town: formData.home_town || null,
           genres: formData.genres
         })
@@ -258,6 +263,22 @@ export default function Account() {
                     placeholder="Enter your last name"
                   />
                 </div>
+              </div>
+
+              <div>
+                <Label htmlFor="producer_name" className="flex items-center gap-2">
+                  <Music className="w-4 h-4" />
+                  Producer Name
+                </Label>
+                <Input
+                  id="producer_name"
+                  value={formData.producer_name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, producer_name: e.target.value }))}
+                  placeholder="Enter your producer name (e.g., DJ Producer, BeatMaker)"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  This will be automatically added to your uploaded tracks as the artist name
+                </p>
               </div>
 
               <div>

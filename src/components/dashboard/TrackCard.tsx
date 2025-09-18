@@ -51,7 +51,7 @@ export function TrackCard({ track }: TrackCardProps) {
     const audioTrack = {
       id: track.id,
       title: track.title,
-      artist: 'Unknown Artist',
+      artist: track.artist || 'Unknown Artist',
       file_url: track.file_url,
       artwork_url: track.artwork_url || undefined,
       duration: track.duration || undefined,

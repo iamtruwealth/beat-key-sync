@@ -31,6 +31,7 @@ export default function UploadPage() {
   const [newTag, setNewTag] = useState("");
   const [beatPacks, setBeatPacks] = useState<Array<{ id: string; name: string }>>([]);
   const [user, setUser] = useState<User | null>(null);
+  const [userProfile, setUserProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -110,17 +111,35 @@ export default function UploadPage() {
         return;
       }
       setUser(session.user);
+      
+      // Fetch user profile to get producer name
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", session.user.id)
+        .maybeSingle();
+      
+      setUserProfile(profile);
       setLoading(false);
     };
 
     checkAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!session) {
         navigate("/auth");
         return;
       }
       setUser(session.user);
+      
+      // Fetch user profile when auth state changes
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", session.user.id)
+        .maybeSingle();
+      
+      setUserProfile(profile);
       setLoading(false);
     });
 
@@ -261,6 +280,7 @@ export default function UploadPage() {
             title: fileData.title,
             file_url: publicUrl,
             artwork_url: artworkUrl,
+            artist: userProfile?.producer_name || 'Unknown Artist',
             tags: fileData.tags,
             detected_key: fileData.analysis?.key,
             detected_bpm: fileData.analysis?.bpm,
