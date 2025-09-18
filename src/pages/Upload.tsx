@@ -227,7 +227,8 @@ export default function UploadPage() {
             duration: fileData.metadata?.duration,
             format: fileData.metadata?.format,
             sample_rate: fileData.metadata?.sampleRate,
-            file_size: fileData.file.size
+            file_size: fileData.file.size,
+            user_id: user.id
           });
 
         if (dbError) {
