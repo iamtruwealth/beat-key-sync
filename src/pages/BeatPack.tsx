@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { SpotifyPlayer } from "@/components/SpotifyPlayer";
+import { OfftopBeatPack } from "@/components/OfftopBeatPack";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -22,6 +22,7 @@ interface BeatPack {
   description?: string;
   artwork_url?: string;
   tracks: Track[];
+  download_enabled?: boolean;
 }
 
 export default function BeatPackPage() {
@@ -115,22 +116,22 @@ export default function BeatPackPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#121212] text-white flex items-center justify-center">
-        <div className="text-xl">Loading beat pack...</div>
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-xl text-gray-900">Loading beat pack...</div>
       </div>
     );
   }
 
   if (!beatPack) {
     return (
-      <div className="min-h-screen bg-[#121212] text-white flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold mb-2">Beat Pack Not Found</h1>
-          <p className="text-[#b3b3b3]">The beat pack you're looking for doesn't exist.</p>
+          <h1 className="text-2xl font-bold mb-2 text-gray-900">This Beat Pack is unavailable</h1>
+          <p className="text-gray-600">The beat pack you're looking for doesn't exist or has been removed.</p>
         </div>
       </div>
     );
   }
 
-  return <SpotifyPlayer beatPack={beatPack} />;
+  return <OfftopBeatPack beatPack={beatPack} />;
 }
