@@ -239,54 +239,7 @@ export default function UploadPage() {
     );
   };
 
-  const uploadArtwork = async (file: File, userId: string): Promise<string | null> => {
-    try {
-      const fileName = `${userId}/artwork/${Date.now()}-${file.name}`;
-      const { data, error } = await supabase.storage
-        .from('artwork')
-        .upload(fileName, file);
-
-      if (error) throw error;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('artwork')
-        .getPublicUrl(fileName);
-
-      return publicUrl;
-    } catch (error) {
-      console.error('Artwork upload error:', error);
-      return null;
-    }
-  };
-
-  const handleArtworkUpload = (index: number, file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setUploadedFiles(prev => 
-        prev.map((fileData, i) => 
-          i === index ? { 
-            ...fileData, 
-            artwork: file,
-            artworkPreview: e.target?.result as string
-          } : fileData
-        )
-      );
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const removeArtwork = (index: number) => {
-    setUploadedFiles(prev => 
-      prev.map((fileData, i) => 
-        i === index ? { 
-          ...fileData, 
-          artwork: undefined,
-          artworkPreview: undefined
-        } : fileData
-      )
-    );
-  };
-
+  const uploadFiles = async () => {
     if (uploadedFiles.length === 0) return;
     
     try {

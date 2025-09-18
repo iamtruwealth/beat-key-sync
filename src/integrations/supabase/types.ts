@@ -97,6 +97,7 @@ export type Database = {
       }
       tracks: {
         Row: {
+          artwork_url: string | null
           created_at: string
           detected_bpm: number | null
           detected_key: string | null
@@ -117,6 +118,7 @@ export type Database = {
           waveform_data: Json | null
         }
         Insert: {
+          artwork_url?: string | null
           created_at?: string
           detected_bpm?: number | null
           detected_key?: string | null
@@ -137,6 +139,7 @@ export type Database = {
           waveform_data?: Json | null
         }
         Update: {
+          artwork_url?: string | null
           created_at?: string
           detected_bpm?: number | null
           detected_key?: string | null
