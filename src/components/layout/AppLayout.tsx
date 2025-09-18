@@ -1,5 +1,6 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
+import { MusicPlayer } from "../MusicPlayer";
 import { Menu } from "lucide-react";
 
 interface AppLayoutProps {
@@ -31,10 +32,13 @@ export function AppLayout({ children }: AppLayoutProps) {
           </header>
 
           {/* Main Content */}
-          <main className="flex-1 overflow-auto">
+          <main className="flex-1 overflow-auto pb-24">
             {children}
           </main>
         </div>
+        
+        {/* Music Player */}
+        <MusicPlayer />
       </div>
     </SidebarProvider>
   );
