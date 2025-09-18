@@ -59,15 +59,20 @@
     --gradient-subtle: linear-gradient(180deg, hsl(var(--card)), hsl(var(--muted)));
     --gradient-hero: linear-gradient(135deg, hsl(var(--background)) 0%, hsl(var(--card)) 100%);
     
-    /* BeatPackz brand colors */
-    --brand-red: 0 84% 55%;
-    --brand-red-glow: 0 84% 65%;
+    /* BeatPackz brand colors - Gradient Blue */
+    --brand-blue: 220 91% 60%;
+    --brand-blue-glow: 220 91% 70%;
+    --brand-blue-deep: 225 100% 45%;
     
     /* Shadows and glows */
     --shadow-primary: 0 0 30px hsl(var(--primary) / 0.3);
     --shadow-secondary: 0 0 30px hsl(var(--secondary) / 0.3);
-    --shadow-red: 0 0 30px hsl(var(--brand-red) / 0.3);
+    --shadow-blue: 0 0 30px hsl(var(--brand-blue) / 0.3);
     --shadow-elegant: 0 10px 30px -10px hsl(var(--primary) / 0.2);
+    
+    /* Blue gradients */
+    --gradient-blue: linear-gradient(135deg, hsl(var(--brand-blue-deep)), hsl(var(--brand-blue)));
+    --gradient-blue-glow: linear-gradient(135deg, hsl(var(--brand-blue)), hsl(var(--brand-blue-glow)));
     
     /* Animations */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);

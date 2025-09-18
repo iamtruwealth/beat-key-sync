@@ -53,7 +53,7 @@ export default function Landing() {
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <Music className="w-8 h-8 text-brand-red" />
+              <Music className="w-8 h-8 text-brand-blue" />
               <span className="text-2xl font-bold text-foreground">BeatPackz</span>
             </div>
             
@@ -71,7 +71,7 @@ export default function Landing() {
                 <Button 
                   variant="ghost" 
                   onClick={() => navigate("/dashboard")} 
-                  className="text-brand-red hover:text-brand-red-glow font-semibold"
+                  className="text-brand-blue hover:text-brand-blue-glow font-semibold"
                 >
                   Dashboard
                 </Button>
@@ -82,16 +82,16 @@ export default function Landing() {
               {user ? (
                 <Button 
                   onClick={() => navigate("/dashboard")} 
-                  className="bg-brand-red hover:bg-brand-red-glow text-white font-semibold px-6"
+                  className="bg-gradient-to-r from-brand-blue-deep to-brand-blue hover:from-brand-blue hover:to-brand-blue-glow text-white font-semibold px-6"
                 >
                   Go to Dashboard
                 </Button>
               ) : (
                 <>
-                  <Button variant="ghost" onClick={() => navigate("/auth")} className="text-foreground hover:text-brand-red">
+                  <Button variant="ghost" onClick={() => navigate("/auth")} className="text-foreground hover:text-brand-blue">
                     Log In
                   </Button>
-                  <Button onClick={() => navigate("/auth")} className="bg-brand-red hover:bg-brand-red-glow text-white font-semibold px-6">
+                  <Button onClick={() => navigate("/auth")} className="bg-gradient-to-r from-brand-blue-deep to-brand-blue hover:from-brand-blue hover:to-brand-blue-glow text-white font-semibold px-6">
                     Sign Up Free
                   </Button>
                 </>
@@ -112,7 +112,7 @@ export default function Landing() {
           <div className="max-w-4xl mx-auto">
             <h1 className="text-5xl md:text-7xl font-bold text-foreground mb-6 leading-tight">
               Discover.{" "}
-              <span className="text-brand-red">Connect.</span>{" "}
+              <span className="bg-gradient-to-r from-brand-blue-deep to-brand-blue bg-clip-text text-transparent">Connect.</span>{" "}
               Create.
             </h1>
             
@@ -125,16 +125,16 @@ export default function Landing() {
                 <Button 
                   size="lg" 
                   onClick={() => navigate("/dashboard")} 
-                  className="bg-brand-red hover:bg-brand-red-glow text-white font-semibold px-8 py-4 text-lg"
+                  className="bg-gradient-to-r from-brand-blue-deep to-brand-blue hover:from-brand-blue hover:to-brand-blue-glow text-white font-semibold px-8 py-4 text-lg shadow-lg shadow-brand-blue/30"
                 >
                   Go to Dashboard
                 </Button>
               ) : (
                 <>
-                  <Button size="lg" onClick={() => navigate("/auth")} className="bg-brand-red hover:bg-brand-red-glow text-white font-semibold px-8 py-4 text-lg">
+                  <Button size="lg" onClick={() => navigate("/auth")} className="bg-gradient-to-r from-brand-blue-deep to-brand-blue hover:from-brand-blue hover:to-brand-blue-glow text-white font-semibold px-8 py-4 text-lg shadow-lg shadow-brand-blue/30">
                     Sign Up Free
                   </Button>
-                  <Button size="lg" variant="outline" onClick={() => navigate("/auth")} className="border-brand-red text-brand-red hover:bg-brand-red hover:text-white px-8 py-4 text-lg">
+                  <Button size="lg" variant="outline" onClick={() => navigate("/auth")} className="border-brand-blue text-brand-blue hover:bg-gradient-to-r hover:from-brand-blue-deep hover:to-brand-blue hover:text-white px-8 py-4 text-lg">
                     Log In
                   </Button>
                 </>
@@ -162,7 +162,7 @@ export default function Landing() {
                   <div className="relative mb-4">
                     <img src={producer.image} alt={producer.name} className="w-full h-48 object-cover rounded-lg" />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg flex items-center justify-center">
-                      <Button size="icon" className="bg-brand-red hover:bg-brand-red-glow">
+                      <Button size="icon" className="bg-gradient-to-r from-brand-blue-deep to-brand-blue hover:from-brand-blue hover:to-brand-blue-glow">
                         <Play className="w-6 h-6 text-white" />
                       </Button>
                     </div>
@@ -178,7 +178,7 @@ export default function Landing() {
                       {producer.plays} plays
                     </span>
                     <div className="flex items-center gap-1">
-                      <Star className="w-4 h-4 fill-brand-red text-brand-red" />
+                      <Star className="w-4 h-4 fill-brand-blue text-brand-blue" />
                       <span className="text-sm text-foreground">4.9</span>
                     </div>
                   </div>
@@ -202,8 +202,8 @@ export default function Landing() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
             <div className="text-center group">
-              <div className="w-20 h-20 bg-brand-red/10 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:bg-brand-red/20 transition-colors">
-                <Upload className="w-10 h-10 text-brand-red" />
+              <div className="w-20 h-20 bg-brand-blue/10 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:bg-brand-blue/20 transition-colors">
+                <Upload className="w-10 h-10 text-brand-blue" />
               </div>
               <h3 className="text-2xl font-bold text-foreground mb-4">Upload & Send Packs</h3>
               <p className="text-muted-foreground leading-relaxed">
@@ -235,7 +235,7 @@ export default function Landing() {
       </section>
 
       {/* Call-to-Action Banner */}
-      <section className="py-20 bg-gradient-to-r from-brand-red/10 via-primary/10 to-secondary/10">
+      <section className="py-20 bg-gradient-to-r from-brand-blue/10 via-brand-blue-glow/5 to-brand-blue-deep/10">
         <div className="container mx-auto px-6 text-center">
           <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-6">
             Join BeatPackz Today
@@ -243,7 +243,7 @@ export default function Landing() {
           <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
             Where Producers & Artists Meet
           </p>
-          <Button size="lg" onClick={() => navigate("/auth")} className="bg-brand-red hover:bg-brand-red-glow text-white font-semibold px-12 py-4 text-xl">
+          <Button size="lg" onClick={() => navigate("/auth")} className="bg-gradient-to-r from-brand-blue-deep to-brand-blue hover:from-brand-blue hover:to-brand-blue-glow text-white font-semibold px-12 py-4 text-xl shadow-xl shadow-brand-blue/40">
             Get Started Free
           </Button>
         </div>
@@ -255,20 +255,20 @@ export default function Landing() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div className="md:col-span-2">
               <div className="flex items-center space-x-2 mb-4">
-                <Music className="w-8 h-8 text-brand-red" />
+                <Music className="w-8 h-8 text-brand-blue" />
                 <span className="text-2xl font-bold text-foreground">BeatPackz</span>
               </div>
               <p className="text-muted-foreground mb-6 max-w-md">
                 The premier platform connecting producers and artists through curated beat packs and seamless collaboration tools.
               </p>
               <div className="flex space-x-4">
-                <Button size="icon" variant="ghost" className="text-muted-foreground hover:text-brand-red">
+                <Button size="icon" variant="ghost" className="text-muted-foreground hover:text-brand-blue">
                   <Instagram className="w-5 h-5" />
                 </Button>
-                <Button size="icon" variant="ghost" className="text-muted-foreground hover:text-brand-red">
+                <Button size="icon" variant="ghost" className="text-muted-foreground hover:text-brand-blue">
                   <Twitter className="w-5 h-5" />
                 </Button>
-                <Button size="icon" variant="ghost" className="text-muted-foreground hover:text-brand-red">
+                <Button size="icon" variant="ghost" className="text-muted-foreground hover:text-brand-blue">
                   <Youtube className="w-5 h-5" />
                 </Button>
               </div>
