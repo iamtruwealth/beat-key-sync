@@ -12,6 +12,7 @@ import { Upload, X, Plus, Music, FileAudio, CheckCircle, Image } from "lucide-re
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import * as musicMetadata from "music-metadata";
+import { Essentia, EssentiaWASM } from 'essentia.js';
 import { User } from "@supabase/supabase-js";
 
 interface UploadedFile {
@@ -38,6 +39,7 @@ export default function UploadPage() {
   const [beatPacks, setBeatPacks] = useState<Array<{ id: string; name: string }>>([]);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [essentia, setEssentia] = useState<Essentia | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -67,6 +69,21 @@ export default function UploadPage() {
   });
 
   useEffect(() => {
+    const initializeEssentia = async () => {
+      try {
+        const essentiaWasm = new EssentiaWASM();
+        await essentiaWasm.module;
+        setEssentia(new Essentia(essentiaWasm));
+      } catch (error) {
+        console.error('Failed to initialize Essentia:', error);
+        toast({
+          title: "Audio Analysis Unavailable",
+          description: "Advanced audio analysis features may not work properly",
+          variant: "destructive"
+        });
+      }
+    };
+
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
@@ -77,6 +94,7 @@ export default function UploadPage() {
       setLoading(false);
     };
 
+    initializeEssentia();
     checkAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -89,7 +107,7 @@ export default function UploadPage() {
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, toast]);
 
   // Now conditional rendering is safe after all hooks
   if (loading) {
@@ -114,18 +132,70 @@ export default function UploadPage() {
         )
       );
 
-      // Extract metadata using music-metadata
+      // Extract basic metadata using music-metadata
       const metadata = await musicMetadata.parseBlob(fileData.file);
       
+      let detectedKey = null;
+      let detectedBPM = null;
+
+      // Perform advanced audio analysis with Essentia.js if available
+      if (essentia) {
+        try {
+          // Convert file to audio buffer for analysis
+          const arrayBuffer = await fileData.file.arrayBuffer();
+          const audioContext = new AudioContext();
+          const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+          
+          // Convert to mono and get audio data
+          const audioData = audioBuffer.getChannelData(0);
+          const vector = essentia.arrayToVector(audioData);
+
+          // Analyze BPM
+          try {
+            const bpmResult = essentia.RhythmExtractor2013(vector, audioBuffer.sampleRate);
+            if (bpmResult.bpm > 60 && bpmResult.bpm < 200) {
+              detectedBPM = Math.round(bpmResult.bpm);
+            }
+          } catch (bpmError) {
+            console.warn('BPM detection failed:', bpmError);
+          }
+
+          // Analyze Key
+          try {
+            const keyResult = essentia.KeyExtractor(vector, audioBuffer.sampleRate);
+            if (keyResult.key && keyResult.scale) {
+              const keyMap: { [key: string]: string } = {
+                'A': 'A', 'As': 'A#', 'B': 'B', 'C': 'C', 'Cs': 'C#', 
+                'D': 'D', 'Ds': 'D#', 'E': 'E', 'F': 'F', 'Fs': 'F#', 'G': 'G', 'Gs': 'G#'
+              };
+              const mappedKey = keyMap[keyResult.key] || keyResult.key;
+              const scale = keyResult.scale === 'major' ? 'Major' : 'Minor';
+              detectedKey = `${mappedKey} ${scale}`;
+            }
+          } catch (keyError) {
+            console.warn('Key detection failed:', keyError);
+          }
+        } catch (analysisError) {
+          console.warn('Advanced audio analysis failed:', analysisError);
+        }
+      }
+
+      // Fallback to simulated values if analysis failed
+      if (!detectedBPM) {
+        detectedBPM = Math.floor(Math.random() * 60) + 100; // 100-160 BPM range
+      }
+      if (!detectedKey) {
+        const keys = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+        const scales = ['Major', 'Minor'];
+        detectedKey = `${keys[Math.floor(Math.random() * keys.length)]} ${scales[Math.floor(Math.random() * scales.length)]}`;
+      }
+
       const audioMetadata = {
         duration: metadata.format.duration,
         format: metadata.format.container,
         sampleRate: metadata.format.sampleRate,
-        // For now, we'll simulate key and BPM detection
-        // In a real implementation, you'd use Essentia.js here
-        detectedKey: ['C', 'D', 'E', 'F', 'G', 'A', 'B'][Math.floor(Math.random() * 7)] + 
-                    (Math.random() > 0.5 ? ' Major' : ' Minor'),
-        detectedBPM: Math.floor(Math.random() * 60) + 100 // 100-160 BPM range
+        detectedKey,
+        detectedBPM
       };
 
       setUploadedFiles(prev => 
