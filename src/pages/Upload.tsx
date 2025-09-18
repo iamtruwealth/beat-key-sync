@@ -249,42 +249,43 @@ export default function UploadPage() {
     );
   };
 
-  const updateFileBpm = (index: number, bpm: number | undefined) => {
-    setUploadedFiles(prev => 
-      prev.map((file, i) => 
+  const updateFileBpm = useCallback((index: number, bpm: number | undefined) => {
+    setUploadedFiles((prev: UploadedFile[]) => 
+      prev.map((file: UploadedFile, i: number) => 
         i === index ? { ...file, manualBpm: bpm } : file
       )
     );
-  };
+  }, []);
 
-  const updateFileKey = (index: number, key: string | undefined) => {
-    setUploadedFiles(prev => 
-      prev.map((file, i) => 
+  const updateFileKey = useCallback((index: number, key: string | undefined) => {
+    setUploadedFiles((prev: UploadedFile[]) => 
+      prev.map((file: UploadedFile, i: number) => 
         i === index ? { ...file, manualKey: key } : file
       )
     );
-  };
+  }, []);
 
-  const sendCorrections = async (trackId: string, fileData: UploadedFile) => {
+  const sendCorrections = useCallback(async (trackId: string, fileData: UploadedFile) => {
     if (!fileData.analysis) return;
     
     const hasCorrections = fileData.manualBpm || fileData.manualKey;
     if (!hasCorrections) return;
 
     try {
-      await supabase.functions.invoke('learn-from-corrections', {
+      const { error } = await supabase.functions.invoke('learn-from-corrections', {
         body: {
           track_id: trackId,
           detected_bpm: fileData.analysis.bpm,
           detected_key: fileData.analysis.key,
-          manual_bpm: fileData.manualBpm,
-          manual_key: fileData.manualKey
+          manual_bpm: fileData.manualBpm || null,
+          manual_key: fileData.manualKey || null
         }
       });
+      if (error) throw error;
     } catch (error) {
       console.error('Error sending corrections:', error);
     }
-  };
+  }, []);
 
   const uploadFiles = async () => {
     if (uploadedFiles.length === 0) return;
@@ -483,7 +484,10 @@ export default function UploadPage() {
                           max="200"
                           placeholder="Enter BPM"
                           value={fileData.manualBpm || fileData.analysis.bpm || ''}
-                          onChange={(e) => updateFileBpm(index, e.target.value ? parseInt(e.target.value) : undefined)}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            updateFileBpm(index, value ? parseInt(value) : undefined);
+                          }}
                           className="mt-1"
                         />
                         {fileData.analysis.bpm && (
@@ -498,7 +502,7 @@ export default function UploadPage() {
                       <div className="space-y-2">
                         <Select
                           value={fileData.manualKey || fileData.analysis.key || ''}
-                          onValueChange={(value) => updateFileKey(index, value)}
+                          onValueChange={(value: string) => updateFileKey(index, value || undefined)}
                         >
                           <SelectTrigger className="mt-1">
                             <SelectValue placeholder="Select key" />
