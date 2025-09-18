@@ -1,12 +1,12 @@
 import { Home, Music, Users, User, Settings, Upload, FolderOpen, Compass, LogIn, LogOut } from "lucide-react";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
 import { User as SupabaseUser } from "@supabase/supabase-js";
 const navigation = [{
   title: "Dashboard",
-  url: "/",
+  url: "/dashboard",
   icon: Home
 }, {
   title: "Library",
@@ -41,6 +41,7 @@ const tools = [{
 export function AppSidebar() {
   const { state } = useSidebar();
   const location = useLocation();
+  const navigate = useNavigate();
   const currentPath = location.pathname;
   const collapsed = state === "collapsed";
   const [user, setUser] = useState<SupabaseUser | null>(null);
@@ -67,7 +68,10 @@ export function AppSidebar() {
       <SidebarContent className="bg-sidebar-background">
         {/* Logo/Brand */}
         <div className="p-4 border-b border-sidebar-border">
-          <div className="flex items-center gap-2">
+          <div 
+            className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+            onClick={() => navigate("/")}
+          >
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center">
               <Music className="w-5 h-5 text-primary-foreground" />
             </div>
