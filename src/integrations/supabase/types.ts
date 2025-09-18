@@ -140,8 +140,137 @@ export type Database = {
         }
         Relationships: []
       }
+      collab_room_members: {
+        Row: {
+          id: string
+          joined_at: string
+          role: string | null
+          room_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          joined_at?: string
+          role?: string | null
+          room_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          joined_at?: string
+          role?: string | null
+          room_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collab_room_members_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "collab_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      collab_rooms: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      messages: {
+        Row: {
+          content: string
+          created_at: string
+          file_url: string | null
+          id: string
+          message_type: string | null
+          read_at: string | null
+          recipient_id: string
+          sender_id: string
+          updated_at: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          file_url?: string | null
+          id?: string
+          message_type?: string | null
+          read_at?: string | null
+          recipient_id: string
+          sender_id: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          file_url?: string | null
+          id?: string
+          message_type?: string | null
+          read_at?: string | null
+          recipient_id?: string
+          sender_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          data: Json | null
+          id: string
+          message: string
+          read_at: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          data?: Json | null
+          id?: string
+          message: string
+          read_at?: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          data?: Json | null
+          id?: string
+          message?: string
+          read_at?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
+          bio: string | null
           created_at: string
           first_name: string | null
           genres: string[] | null
@@ -150,9 +279,14 @@ export type Database = {
           last_name: string | null
           producer_logo_url: string | null
           producer_name: string | null
+          public_profile_enabled: boolean | null
+          role: Database["public"]["Enums"]["user_role"] | null
+          social_links: Json | null
           updated_at: string
+          verification_status: string | null
         }
         Insert: {
+          bio?: string | null
           created_at?: string
           first_name?: string | null
           genres?: string[] | null
@@ -161,9 +295,14 @@ export type Database = {
           last_name?: string | null
           producer_logo_url?: string | null
           producer_name?: string | null
+          public_profile_enabled?: boolean | null
+          role?: Database["public"]["Enums"]["user_role"] | null
+          social_links?: Json | null
           updated_at?: string
+          verification_status?: string | null
         }
         Update: {
+          bio?: string | null
           created_at?: string
           first_name?: string | null
           genres?: string[] | null
@@ -172,7 +311,47 @@ export type Database = {
           last_name?: string | null
           producer_logo_url?: string | null
           producer_name?: string | null
+          public_profile_enabled?: boolean | null
+          role?: Database["public"]["Enums"]["user_role"] | null
+          social_links?: Json | null
           updated_at?: string
+          verification_status?: string | null
+        }
+        Relationships: []
+      }
+      projects: {
+        Row: {
+          artwork_url: string | null
+          created_at: string
+          description: string | null
+          id: string
+          metadata: Json | null
+          name: string
+          status: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          artwork_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          name: string
+          status?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          artwork_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          name?: string
+          status?: string | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -358,7 +537,7 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      user_role: "artist" | "producer"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -485,6 +664,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      user_role: ["artist", "producer"],
+    },
   },
 } as const
