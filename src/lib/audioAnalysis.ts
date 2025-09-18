@@ -4,6 +4,19 @@ import Meyda from 'meyda';
 import * as Tonal from 'tonal';
 
 /**
+ * Lazy-load Essentia.js WASM (browser-only)
+ */
+let _essentia: any | null = null;
+const getEssentia = async () => {
+  if (_essentia) return _essentia;
+  const mod: any = await import('essentia.js');
+  const Essentia = mod.Essentia || (mod.default && mod.default.Essentia);
+  const EssentiaWASM = mod.EssentiaWASM || (mod.default && mod.default.EssentiaWASM);
+  _essentia = new Essentia(EssentiaWASM);
+  return _essentia;
+};
+
+/**
  * Converts a File object to AudioBuffer using Web Audio API
  */
 async function fileToAudioBuffer(file: File): Promise<AudioBuffer> {
@@ -221,6 +234,41 @@ const rotateArray = (arr: number[], steps: number): number[] => {
   return result;
 };
 
+// Essentia.js helpers
+const audioBufferToMonoFloat32 = (buffer: AudioBuffer): Float32Array => {
+  const len = buffer.length;
+  const out = new Float32Array(len);
+  const channels = buffer.numberOfChannels;
+  for (let ch = 0; ch < channels; ch++) {
+    const data = buffer.getChannelData(ch);
+    for (let i = 0; i < len; i++) out[i] += data[i] / channels;
+  }
+  return out;
+};
+
+const detectBPMWithEssentia = async (audioBuffer: AudioBuffer): Promise<{ bpm: number; confidence: number }> => {
+  const e = await getEssentia();
+  const mono = audioBufferToMonoFloat32(audioBuffer);
+  const vec = e.arrayToVector(mono);
+  // Essentia RhythmExtractor2013 expects (signal, sampleRate)
+  const res: any = (e as any).RhythmExtractor2013(vec, audioBuffer.sampleRate);
+  const bpm = Math.round(res?.bpm || 0);
+  const confidence = typeof res?.confidence === 'number' ? Math.max(0, Math.min(1, res.confidence)) : (bpm ? 0.85 : 0);
+  return { bpm, confidence };
+};
+
+const detectKeyWithEssentia = async (audioBuffer: AudioBuffer): Promise<{ key: string; confidence: number }> => {
+  const e = await getEssentia();
+  const mono = audioBufferToMonoFloat32(audioBuffer);
+  const vec = e.arrayToVector(mono);
+  const res: any = (e as any).KeyExtractor(vec, audioBuffer.sampleRate);
+  const scale = res?.scale || '';
+  const keyName = res?.key || '';
+  const formatted = keyName ? `${keyName} ${/minor/i.test(scale) ? 'Minor' : 'Major'}` : 'Unknown';
+  const confidence = typeof res?.strength === 'number' ? Math.max(0, Math.min(1, res.strength)) : (formatted !== 'Unknown' ? 0.75 : 0);
+  return { key: formatted, confidence };
+};
+
 // BPM detection using bpm-detective
 export const detectBPM = async (audioBuffer: AudioBuffer): Promise<{ bpm: number; confidence: number }> => {
   try {
@@ -331,11 +379,23 @@ export async function analyzeAudioFile(file: File): Promise<AudioAnalysisResult>
     // 2. Convert file to audio buffer
     const audioBuffer = await fileToAudioBuffer(file);
 
-    // 3. BPM detection
-    const bpmResult = await detectBPM(audioBuffer);
+    // 3. BPM detection (Essentia first, fallback to bpm-detective)
+    let bpmResult = { bpm: 0, confidence: 0 } as { bpm: number; confidence: number };
+    try {
+      bpmResult = await detectBPMWithEssentia(audioBuffer);
+      if (!bpmResult.bpm) throw new Error('Invalid BPM');
+    } catch {
+      bpmResult = await detectBPM(audioBuffer);
+    }
 
-    // 4. Key detection  
-    const keyResult = await detectKey(audioBuffer);
+    // 4. Key detection (Essentia first, fallback to Meyda/Tonal)
+    let keyResult = { key: 'Unknown', confidence: 0 } as { key: string; confidence: number };
+    try {
+      keyResult = await detectKeyWithEssentia(audioBuffer);
+      if (!keyResult.key || keyResult.key === 'Unknown') throw new Error('Invalid Key');
+    } catch {
+      keyResult = await detectKey(audioBuffer);
+    }
 
     // 5. Get compatible keys for harmonic mixing
     const compatibleKeys = getCompatibleKeys(keyResult.key);
