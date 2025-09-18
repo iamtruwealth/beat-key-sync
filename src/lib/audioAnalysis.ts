@@ -246,138 +246,105 @@ const rotateArray = (arr: number[], steps: number): number[] => {
   return result;
 };
 
-// BPM detection using multiple methods
+// BPM detection using web audio beat detector
 export const detectBPM = async (audioBuffer: AudioBuffer): Promise<{ bpm: number; confidence: number }> => {
   try {
-    const audioData = audioBuffer.getChannelData(0);
+    // Use web-audio-beat-detector for BPM detection
+    const { guess } = await import('web-audio-beat-detector');
     
-    // Analyze multiple segments
-    const segmentSize = Math.floor(audioData.length / 3); // 3 segments
-    const results: number[] = [];
+    const tempo = await guess(audioBuffer);
     
-    for (let i = 0; i < 3; i++) {
-      const start = i * segmentSize;
-      const end = Math.min(start + segmentSize, audioData.length);
-      const segment = audioData.slice(start, end);
-      
-      if (segment.length < audioBuffer.sampleRate * 10) continue; // Skip segments < 10 seconds
-      
-      const bpm = await detectSegmentBPM(segment, audioBuffer.sampleRate);
-      if (bpm > 60 && bpm < 200) {
-        results.push(bpm);
-      }
+    if (tempo && tempo.bpm > 60 && tempo.bpm < 200) {
+      // Confidence based on tempo offset (how close to a whole number)
+      const confidence = Math.max(0.5, 1 - (tempo.offset || 0));
+      return { bpm: Math.round(tempo.bpm), confidence };
     }
     
-    if (results.length === 0) {
+    // Fallback: Simple onset detection
+    return await detectBPMFallback(audioBuffer);
+    
+  } catch (error) {
+    console.warn('BPM detection with web-audio-beat-detector failed, using fallback:', error);
+    return await detectBPMFallback(audioBuffer);
+  }
+};
+
+// Fallback BPM detection using simple onset detection
+const detectBPMFallback = async (audioBuffer: AudioBuffer): Promise<{ bpm: number; confidence: number }> => {
+  try {
+    const audioData = audioBuffer.getChannelData(0);
+    const sampleRate = audioBuffer.sampleRate;
+    
+    // Detect onsets using simple energy-based method
+    const onsets = detectOnsets(audioData, sampleRate);
+    
+    if (onsets.length < 4) {
       return { bpm: 0, confidence: 0 };
     }
     
-    // Find most common BPM (within tolerance)
-    const bpmCounts: { [key: number]: number } = {};
-    const tolerance = 2; // BPM tolerance
+    // Calculate intervals between onsets
+    const intervals: number[] = [];
+    for (let i = 1; i < onsets.length; i++) {
+      intervals.push(onsets[i] - onsets[i - 1]);
+    }
     
-    results.forEach(bpm => {
-      const rounded = Math.round(bpm);
-      let found = false;
-      
-      // Check if this BPM is close to an existing one
-      Object.keys(bpmCounts).forEach(existing => {
-        const existingBpm = parseInt(existing);
-        if (Math.abs(existingBpm - rounded) <= tolerance) {
-          bpmCounts[existingBpm]++;
-          found = true;
-        }
-      });
-      
-      if (!found) {
-        bpmCounts[rounded] = 1;
+    // Find most common interval (representing beat duration)
+    intervals.sort((a, b) => a - b);
+    const medianInterval = intervals[Math.floor(intervals.length / 2)];
+    
+    if (medianInterval > 0.25 && medianInterval < 1.5) { // Reasonable beat intervals
+      const bpm = Math.round(60 / medianInterval);
+      if (bpm >= 60 && bpm <= 200) {
+        const confidence = 0.6; // Medium confidence for fallback method
+        return { bpm, confidence };
       }
-    });
+    }
     
-    // Find most frequent BPM
-    let bestBpm = 0;
-    let maxCount = 0;
-    
-    Object.entries(bpmCounts).forEach(([bpm, count]) => {
-      if (count > maxCount) {
-        maxCount = count;
-        bestBpm = parseInt(bpm);
-      }
-    });
-    
-    const confidence = maxCount / results.length;
-    
-    return { bpm: bestBpm, confidence };
+    return { bpm: 0, confidence: 0 };
     
   } catch (error) {
-    console.warn('BPM detection failed:', error);
+    console.warn('Fallback BPM detection failed:', error);
     return { bpm: 0, confidence: 0 };
   }
 };
 
-// Simple BPM detection for a segment using onset detection
-const detectSegmentBPM = async (audioData: Float32Array, sampleRate: number): Promise<number> => {
-  // Simple onset detection using spectral flux
+// Simple onset detection based on energy changes
+const detectOnsets = (audioData: Float32Array, sampleRate: number): number[] => {
   const frameSize = 1024;
   const hopSize = 512;
   const frames = Math.floor((audioData.length - frameSize) / hopSize);
   
+  const energies: number[] = [];
   const onsets: number[] = [];
-  let prevSpectrum: Float32Array | null = null;
   
+  // Calculate energy for each frame
   for (let i = 0; i < frames; i++) {
     const start = i * hopSize;
-    const frame = audioData.slice(start, start + frameSize);
+    let energy = 0;
     
-    // Simple FFT approximation using DFT
-    const spectrum = new Float32Array(frameSize / 2);
-    for (let k = 0; k < spectrum.length; k++) {
-      let real = 0;
-      let imag = 0;
-      for (let n = 0; n < frameSize; n++) {
-        const angle = -2 * Math.PI * k * n / frameSize;
-        real += frame[n] * Math.cos(angle);
-        imag += frame[n] * Math.sin(angle);
-      }
-      spectrum[k] = Math.sqrt(real * real + imag * imag);
+    for (let j = start; j < start + frameSize; j++) {
+      energy += audioData[j] * audioData[j];
     }
     
-    if (prevSpectrum) {
-      // Compute spectral flux
-      let flux = 0;
-      for (let k = 0; k < spectrum.length; k++) {
-        const diff = spectrum[k] - prevSpectrum[k];
-        flux += diff > 0 ? diff : 0;
-      }
-      
-      // Simple peak picking
-      if (flux > 0.1) { // Threshold
-        onsets.push(i * hopSize / sampleRate);
-      }
-    }
+    energies.push(energy);
+  }
+  
+  // Find peaks in energy (potential onsets)
+  for (let i = 1; i < energies.length - 1; i++) {
+    const current = energies[i];
+    const prev = energies[i - 1];
+    const next = energies[i + 1];
     
-    prevSpectrum = spectrum;
+    // Simple peak detection with threshold
+    if (current > prev && current > next && current > 0.01) {
+      const timeInSeconds = (i * hopSize) / sampleRate;
+      onsets.push(timeInSeconds);
+    }
   }
   
-  if (onsets.length < 4) return 0;
-  
-  // Estimate BPM from onset intervals
-  const intervals: number[] = [];
-  for (let i = 1; i < onsets.length; i++) {
-    intervals.push(onsets[i] - onsets[i - 1]);
-  }
-  
-  // Find most common interval (within tolerance)
-  intervals.sort((a, b) => a - b);
-  const medianInterval = intervals[Math.floor(intervals.length / 2)];
-  
-  if (medianInterval > 0) {
-    const bpm = 60 / medianInterval;
-    return bpm;
-  }
-  
-  return 0;
+  return onsets;
 };
+
 
 export interface AudioAnalysisResult {
   bpm: number;
