@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Tables } from "@/integrations/supabase/types";
+import { TrackCard } from "@/components/dashboard/TrackCard";
 
 type Track = Tables<"tracks">;
 type BeatPack = Tables<"beat_packs">;
@@ -213,39 +214,9 @@ export default function Library() {
               </div>
               
               {viewMode === "grid" ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   {filteredTracks.map((track) => (
-                    <Card key={track.id} className="group hover:shadow-lg transition-shadow cursor-pointer">
-                      <CardContent className="p-4">
-                        <div className="aspect-square bg-gradient-to-br from-secondary/20 to-secondary/10 rounded-lg mb-3 flex items-center justify-center relative overflow-hidden">
-                          {track.artwork_url ? (
-                            <img 
-                              src={track.artwork_url} 
-                              alt={track.title}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <Music className="w-8 h-8 text-secondary/60" />
-                          )}
-                          <Button
-                            size="sm"
-                            className="absolute inset-0 bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <Play className="w-4 h-4" />
-                          </Button>
-                        </div>
-                        <h3 className="font-medium text-sm truncate">{track.title}</h3>
-                        <div className="flex items-center justify-between mt-2">
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            {track.detected_bpm && <span>{track.detected_bpm} BPM</span>}
-                            {track.detected_key && <span>{track.detected_key}</span>}
-                          </div>
-                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                            <MoreHorizontal className="w-3 h-3" />
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
+                    <TrackCard key={track.id} track={track} />
                   ))}
                 </div>
               ) : (
