@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Search, Plus, FolderOpen, Music, Play, MoreVertical, Edit, Trash2, Upload, X } from "lucide-react";
+import { Search, Plus, FolderOpen, Music, Play, MoreVertical, Edit, Trash2, Upload, X, Link, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,8 +8,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 
 interface BeatPack {
   id: string;
@@ -18,6 +20,7 @@ interface BeatPack {
   artwork_url?: string;
   created_at: string;
   track_count: number;
+  download_enabled?: boolean;
 }
 
 export default function Projects() {
@@ -25,11 +28,13 @@ export default function Projects() {
   const [searchQuery, setSearchQuery] = useState("");
   const [newPackName, setNewPackName] = useState("");
   const [newPackDescription, setNewPackDescription] = useState("");
+  const [newPackDownloadEnabled, setNewPackDownloadEnabled] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingPack, setEditingPack] = useState<BeatPack | null>(null);
   const [artworkPreview, setArtworkPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -76,6 +81,7 @@ export default function Projects() {
         .insert({
           name: newPackName.trim(),
           description: newPackDescription.trim() || null,
+          download_enabled: newPackDownloadEnabled,
           user_id: user.id
         });
 
@@ -88,6 +94,7 @@ export default function Projects() {
 
       setNewPackName("");
       setNewPackDescription("");
+      setNewPackDownloadEnabled(false);
       setIsCreateDialogOpen(false);
       fetchBeatPacks();
     } catch (error) {
@@ -203,6 +210,40 @@ export default function Projects() {
     setIsEditDialogOpen(true);
   };
 
+  const copyPackLink = (packId: string) => {
+    const url = `${window.location.origin}/pack/${packId}`;
+    navigator.clipboard.writeText(url);
+    toast({
+      title: "Link copied",
+      description: "Beat pack link copied to clipboard"
+    });
+  };
+
+  const toggleDownload = async (packId: string, currentStatus: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('beat_packs')
+        .update({ download_enabled: !currentStatus })
+        .eq('id', packId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: `Downloads ${!currentStatus ? 'enabled' : 'disabled'} for this beat pack`
+      });
+
+      fetchBeatPacks();
+    } catch (error) {
+      console.error('Error updating download settings:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update download settings",
+        variant: "destructive"
+      });
+    }
+  };
+
   const filteredBeatPacks = beatPacks.filter(pack => 
     pack.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     pack.description?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -242,16 +283,26 @@ export default function Projects() {
                   placeholder="Enter pack name..."
                 />
               </div>
-              <div>
-                <Label htmlFor="pack-description">Description (Optional)</Label>
-                <Textarea
-                  id="pack-description"
-                  value={newPackDescription}
-                  onChange={(e) => setNewPackDescription(e.target.value)}
-                  placeholder="Describe your beat pack..."
-                  rows={3}
-                />
-              </div>
+                <div>
+                  <Label htmlFor="pack-description">Description (Optional)</Label>
+                  <Textarea
+                    id="pack-description"
+                    value={newPackDescription}
+                    onChange={(e) => setNewPackDescription(e.target.value)}
+                    placeholder="Describe your beat pack..."
+                    rows={3}
+                  />
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="download-enabled"
+                    checked={newPackDownloadEnabled}
+                    onCheckedChange={(checked) => setNewPackDownloadEnabled(checked === true)}
+                  />
+                  <Label htmlFor="download-enabled" className="text-sm">
+                    Allow downloads (users can download tracks from this pack)
+                  </Label>
+                </div>
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
                   Cancel
@@ -380,7 +431,11 @@ export default function Projects() {
                   
                   {/* Play button overlay */}
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <Button size="icon" className="w-12 h-12 rounded-full bg-primary hover:bg-primary/90">
+                    <Button 
+                      size="icon" 
+                      className="w-12 h-12 rounded-full bg-primary hover:bg-primary/90"
+                      onClick={() => navigate(`/pack/${pack.id}`)}
+                    >
                       <Play className="w-6 h-6" />
                     </Button>
                   </div>
@@ -397,9 +452,17 @@ export default function Projects() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => copyPackLink(pack.id)}>
+                        <Link className="w-4 h-4 mr-2" />
+                        Copy Share Link
+                      </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => openEditDialog(pack)}>
                         <Edit className="w-4 h-4 mr-2" />
                         Edit Artwork
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => toggleDownload(pack.id, pack.download_enabled || false)}>
+                        <Download className="w-4 h-4 mr-2" />
+                        {pack.download_enabled ? 'Disable' : 'Enable'} Downloads
                       </DropdownMenuItem>
                       <DropdownMenuItem 
                         onClick={() => deleteBeatPack(pack.id)}
@@ -422,9 +485,17 @@ export default function Projects() {
                     </p>
                   )}
                   <div className="flex items-center justify-between mt-3">
-                    <Badge variant="secondary" className="text-xs">
-                      {pack.track_count} track{pack.track_count !== 1 ? 's' : ''}
-                    </Badge>
+                    <div className="flex gap-2">
+                      <Badge variant="secondary" className="text-xs">
+                        {pack.track_count} track{pack.track_count !== 1 ? 's' : ''}
+                      </Badge>
+                      {pack.download_enabled && (
+                        <Badge variant="outline" className="text-xs">
+                          <Download className="w-3 h-3 mr-1" />
+                          Downloads
+                        </Badge>
+                      )}
+                    </div>
                     <span className="text-xs text-muted-foreground">
                       {new Date(pack.created_at).toLocaleDateString()}
                     </span>

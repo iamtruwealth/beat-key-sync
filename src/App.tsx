@@ -30,6 +30,9 @@ const App = () => (
           <Route path="/" element={<Landing />} />
           <Route path="/auth" element={<AuthPage />} />
           
+          {/* Public beat pack sharing */}
+          <Route path="/pack/:id" element={<BeatPackPage />} />
+          
           {/* Protected routes with layout */}
           <Route path="/dashboard" element={
             <ProtectedRoute>

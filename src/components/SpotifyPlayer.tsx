@@ -12,8 +12,12 @@ import {
   Repeat, 
   Volume2,
   Heart,
-  MoreHorizontal 
+  MoreHorizontal,
+  Download,
+  Link,
+  Copy
 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface Track {
   id: string;
@@ -33,6 +37,7 @@ interface BeatPack {
   description?: string;
   artwork_url?: string;
   tracks: Track[];
+  download_enabled?: boolean;
 }
 
 interface SpotifyPlayerProps {
@@ -47,6 +52,7 @@ export function SpotifyPlayer({ beatPack }: SpotifyPlayerProps) {
   const [shuffle, setShuffle] = useState(false);
   const [repeat, setRepeat] = useState<'none' | 'one' | 'all'>('none');
   const audioRef = useRef<HTMLAudioElement>(null);
+  const { toast } = useToast();
 
   const currentTrack = beatPack.tracks[currentTrackIndex];
   const progressPercent = currentTrack ? (currentTime / currentTrack.duration) * 100 : 0;
@@ -135,6 +141,49 @@ export function SpotifyPlayer({ beatPack }: SpotifyPlayerProps) {
     setCurrentTime(newTime);
   };
 
+  const copyPackLink = () => {
+    const url = `${window.location.origin}/pack/${beatPack.id}`;
+    navigator.clipboard.writeText(url);
+    toast({
+      title: "Link copied",
+      description: "Beat pack link copied to clipboard"
+    });
+  };
+
+  const downloadTrack = async (track: Track) => {
+    try {
+      const response = await fetch(track.file_url);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${track.title}.mp3`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      
+      toast({
+        title: "Download started",
+        description: `Downloading ${track.title}`
+      });
+    } catch (error) {
+      toast({
+        title: "Download failed",
+        description: "Unable to download track",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const downloadAllTracks = async () => {
+    for (const track of beatPack.tracks) {
+      await downloadTrack(track);
+      // Add small delay between downloads
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  };
+
   if (!currentTrack) return null;
 
   return (
@@ -167,9 +216,31 @@ export function SpotifyPlayer({ beatPack }: SpotifyPlayerProps) {
             {beatPack.description && (
               <p className="text-[#b3b3b3] text-lg mb-4">{beatPack.description}</p>
             )}
-            <p className="text-[#b3b3b3] text-sm">
-              {beatPack.tracks.length} track{beatPack.tracks.length !== 1 ? 's' : ''}
-            </p>
+            <div className="flex items-center gap-4 mb-4">
+              <p className="text-[#b3b3b3] text-sm">
+                {beatPack.tracks.length} track{beatPack.tracks.length !== 1 ? 's' : ''}
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={copyPackLink}
+                className="text-white border-white/20 hover:bg-white/10"
+              >
+                <Copy className="w-4 h-4 mr-2" />
+                Copy Link
+              </Button>
+              {beatPack.download_enabled && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={downloadAllTracks}
+                  className="text-white border-white/20 hover:bg-white/10"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Download All
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -255,10 +326,11 @@ export function SpotifyPlayer({ beatPack }: SpotifyPlayerProps) {
       <div className="max-w-6xl mx-auto p-8">
         <div className="grid grid-cols-12 gap-4 text-[#b3b3b3] text-sm font-medium border-b border-[#282828] pb-2 mb-4">
           <div className="col-span-1">#</div>
-          <div className="col-span-6">Title</div>
+          <div className="col-span-5">Title</div>
           <div className="col-span-2">Key</div>
           <div className="col-span-2">BPM</div>
           <div className="col-span-1">Duration</div>
+          {beatPack.download_enabled && <div className="col-span-1"></div>}
         </div>
 
         <div className="space-y-1">
@@ -285,7 +357,7 @@ export function SpotifyPlayer({ beatPack }: SpotifyPlayerProps) {
                 <Play className="w-4 h-4 hidden group-hover:block" />
               </div>
               
-              <div className="col-span-6">
+              <div className={`${beatPack.download_enabled ? 'col-span-5' : 'col-span-6'}`}>
                 <div className={`font-medium ${index === currentTrackIndex ? 'text-[#1db954]' : 'text-white'}`}>
                   {track.title}
                 </div>
@@ -303,6 +375,22 @@ export function SpotifyPlayer({ beatPack }: SpotifyPlayerProps) {
               <div className="col-span-1 text-[#b3b3b3] text-sm text-right">
                 {formatTime(track.duration)}
               </div>
+
+              {beatPack.download_enabled && (
+                <div className="col-span-1 text-right">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      downloadTrack(track);
+                    }}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity text-[#b3b3b3] hover:text-white h-6 w-6"
+                  >
+                    <Download className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
             </div>
           ))}
         </div>
