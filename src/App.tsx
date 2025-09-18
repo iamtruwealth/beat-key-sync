@@ -11,6 +11,7 @@ import Explore from "./pages/Explore";
 import UploadPage from "./pages/Upload";
 import BeatPackPage from "./pages/BeatPack";
 import AuthPage from "./pages/Auth";
+import AccountPage from "./pages/Account";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -31,7 +32,7 @@ const App = () => (
             <Route path="/upload" element={<UploadPage />} />
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/shared" element={<div className="p-6"><h1 className="text-2xl font-bold">Shared Projects</h1><p className="text-muted-foreground">Coming soon...</p></div>} />
-            <Route path="/account" element={<div className="p-6"><h1 className="text-2xl font-bold">Account Settings</h1><p className="text-muted-foreground">Coming soon...</p></div>} />
+            <Route path="/account" element={<AccountPage />} />
             <Route path="/settings" element={<div className="p-6"><h1 className="text-2xl font-bold">Settings</h1><p className="text-muted-foreground">Coming soon...</p></div>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
