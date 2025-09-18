@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Play, Share2, MoreHorizontal, Clock, Music2 } from "lucide-react";
+import { Play, Share2, MoreHorizontal, Clock, Music2, Users } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tables } from "@/integrations/supabase/types";
 
@@ -47,14 +47,30 @@ export function TrackCard({ track }: TrackCardProps) {
     <Card className="group hover:shadow-lg hover:shadow-primary/10 transition-all duration-300 border-border/50 bg-card/80 backdrop-blur-sm">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
-          <div className="space-y-1 min-w-0 flex-1">
-            <CardTitle className="text-lg font-semibold group-hover:text-primary transition-colors truncate">
-              {track.title}
-            </CardTitle>
-            <CardDescription className="text-muted-foreground">
-              {track.format?.toUpperCase() || 'Audio'} • {formatFileSize(track.file_size)}
-              {track.sample_rate && ` • ${track.sample_rate}Hz`}
-            </CardDescription>
+          <div className="flex items-start gap-3 min-w-0 flex-1">
+            {/* Album Artwork */}
+            <div className="w-12 h-12 rounded-md overflow-hidden bg-muted flex-shrink-0">
+              {track.artwork_url ? (
+                <img 
+                  src={track.artwork_url} 
+                  alt={`${track.title} artwork`}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <Music2 className="w-5 h-5 text-muted-foreground" />
+                </div>
+              )}
+            </div>
+            
+            <div className="space-y-1 min-w-0 flex-1">
+              <CardTitle className="text-lg font-semibold group-hover:text-primary transition-colors truncate">
+                {track.title}
+              </CardTitle>
+              <CardDescription className="text-muted-foreground">
+                {track.stems?.length || 0} stems • 1 collaborator
+              </CardDescription>
+            </div>
           </div>
           
           <DropdownMenu>
@@ -85,11 +101,6 @@ export function TrackCard({ track }: TrackCardProps) {
             {displayBpm && (
               <Badge variant="outline" className="border-secondary/30 text-secondary">
                 {displayBpm} BPM
-              </Badge>
-            )}
-            {track.tags && track.tags.length > 0 && (
-              <Badge variant="outline" className="border-accent/30 text-accent">
-                {track.tags[0]}
               </Badge>
             )}
           </div>
@@ -138,7 +149,7 @@ export function TrackCard({ track }: TrackCardProps) {
         
         <div className="flex items-center justify-between pt-2">
           <span className="text-sm text-muted-foreground">
-            Uploaded {getTimeAgo(track.created_at)}
+            Modified {getTimeAgo(track.updated_at || track.created_at)}
           </span>
           
           <div className="flex items-center gap-2">
