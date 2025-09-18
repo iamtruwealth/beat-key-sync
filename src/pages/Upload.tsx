@@ -1,4 +1,5 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useDropzone } from "react-dropzone";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ import { Upload, X, Plus, Music, FileAudio, CheckCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import * as musicMetadata from "music-metadata";
+import { User } from "@supabase/supabase-js";
 
 interface UploadedFile {
   file: File;
@@ -32,7 +34,45 @@ export default function UploadPage() {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [newTag, setNewTag] = useState("");
   const [beatPacks, setBeatPacks] = useState<Array<{ id: string; name: string }>>([]);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        navigate("/auth");
+        return;
+      }
+      setUser(session.user);
+      setLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!session) {
+        navigate("/auth");
+        return;
+      }
+      setUser(session.user);
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) return null;
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const newFiles = acceptedFiles.map(file => ({
@@ -144,11 +184,73 @@ export default function UploadPage() {
   };
 
   const uploadFiles = async () => {
-    // This would handle the actual upload to Supabase
-    toast({
-      title: "Upload Started",
-      description: `Uploading ${uploadedFiles.length} files...`
-    });
+    if (uploadedFiles.length === 0) return;
+    
+    try {
+      for (const fileData of uploadedFiles) {
+        setUploadedFiles(prev => 
+          prev.map(file => 
+            file === fileData ? { ...file, status: 'uploading', progress: 0 } : file
+          )
+        );
+
+        // Upload file to Supabase storage
+        const fileName = `${Date.now()}-${fileData.file.name}`;
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('audio-files')
+          .upload(fileName, fileData.file);
+
+        if (uploadError) {
+          throw uploadError;
+        }
+
+        // Get public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from('audio-files')
+          .getPublicUrl(fileName);
+
+        // Save track to database
+        const { error: dbError } = await supabase
+          .from('tracks')
+          .insert({
+            title: fileData.title,
+            file_url: publicUrl,
+            tags: fileData.tags,
+            detected_key: fileData.metadata?.detectedKey,
+            detected_bpm: fileData.metadata?.detectedBPM,
+            duration: fileData.metadata?.duration,
+            format: fileData.metadata?.format,
+            sample_rate: fileData.metadata?.sampleRate,
+            file_size: fileData.file.size
+          });
+
+        if (dbError) {
+          throw dbError;
+        }
+
+        setUploadedFiles(prev => 
+          prev.map(file => 
+            file === fileData ? { ...file, status: 'complete', progress: 100 } : file
+          )
+        );
+      }
+
+      toast({
+        title: "Upload Complete",
+        description: `Successfully uploaded ${uploadedFiles.length} files`
+      });
+
+      // Clear uploaded files after successful upload
+      setUploadedFiles([]);
+
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast({
+        title: "Upload Failed",
+        description: error instanceof Error ? error.message : "An error occurred during upload",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
