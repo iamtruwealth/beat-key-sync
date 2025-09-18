@@ -1,4 +1,4 @@
-import { Home, Music, Users, User, Settings, Upload, FolderOpen, Compass, LogIn, LogOut } from "lucide-react";
+import { Home, Music, Users, User, Settings, Upload, FolderOpen, Compass, LogIn, LogOut, FileText } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,6 +29,10 @@ const tools = [{
   title: "Upload",
   url: "/upload",
   icon: Upload
+}, {
+  title: "Paperwork",
+  url: "/paperwork",
+  icon: FileText
 }, {
   title: "Account",
   url: "/account",

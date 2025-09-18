@@ -15,6 +15,7 @@ import AuthPage from "./pages/Auth";
 import Account from "./pages/Account";
 import NotFound from "./pages/NotFound";
 import Landing from "./pages/Landing";
+import Paperwork from "./pages/Paperwork";
 
 const queryClient = new QueryClient();
 
@@ -48,6 +49,13 @@ const App = () => (
             <ProtectedRoute>
               <AppLayout>
                 <Projects />
+              </AppLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/paperwork" element={
+            <ProtectedRoute>
+              <AppLayout>
+                <Paperwork />
               </AppLayout>
             </ProtectedRoute>
           } />

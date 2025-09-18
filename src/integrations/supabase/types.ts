@@ -128,6 +128,89 @@ export type Database = {
         }
         Relationships: []
       }
+      split_sheet_contributors: {
+        Row: {
+          contact_info: string | null
+          created_at: string
+          id: string
+          name: string
+          ownership_percentage: number
+          role: string
+          signature_data: string | null
+          signature_type: string | null
+          signed_at: string | null
+          split_sheet_id: string
+        }
+        Insert: {
+          contact_info?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          ownership_percentage: number
+          role: string
+          signature_data?: string | null
+          signature_type?: string | null
+          signed_at?: string | null
+          split_sheet_id: string
+        }
+        Update: {
+          contact_info?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          ownership_percentage?: number
+          role?: string
+          signature_data?: string | null
+          signature_type?: string | null
+          signed_at?: string | null
+          split_sheet_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "split_sheet_contributors_split_sheet_id_fkey"
+            columns: ["split_sheet_id"]
+            isOneToOne: false
+            referencedRelation: "split_sheets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      split_sheets: {
+        Row: {
+          artist_name: string
+          created_at: string
+          date_of_agreement: string
+          id: string
+          producer_name: string
+          song_title: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          artist_name: string
+          created_at?: string
+          date_of_agreement?: string
+          id?: string
+          producer_name: string
+          song_title: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          artist_name?: string
+          created_at?: string
+          date_of_agreement?: string
+          id?: string
+          producer_name?: string
+          song_title?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       tracks: {
         Row: {
           artwork_url: string | null
