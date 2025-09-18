@@ -249,23 +249,23 @@ export default function UploadPage() {
     );
   };
 
-  const updateFileBpm = useCallback((index: number, bpm: number | undefined) => {
-    setUploadedFiles((prev: UploadedFile[]) => 
-      prev.map((file: UploadedFile, i: number) => 
+  const updateFileBpm = (index: number, bpm: number | undefined) => {
+    setUploadedFiles(prev => 
+      prev.map((file, i) => 
         i === index ? { ...file, manualBpm: bpm } : file
       )
     );
-  }, []);
+  };
 
-  const updateFileKey = useCallback((index: number, key: string | undefined) => {
-    setUploadedFiles((prev: UploadedFile[]) => 
-      prev.map((file: UploadedFile, i: number) => 
+  const updateFileKey = (index: number, key: string | undefined) => {
+    setUploadedFiles(prev => 
+      prev.map((file, i) => 
         i === index ? { ...file, manualKey: key } : file
       )
     );
-  }, []);
+  };
 
-  const sendCorrections = useCallback(async (trackId: string, fileData: UploadedFile) => {
+  const sendCorrections = async (trackId: string, fileData: UploadedFile) => {
     if (!fileData.analysis) return;
     
     const hasCorrections = fileData.manualBpm || fileData.manualKey;
@@ -285,7 +285,7 @@ export default function UploadPage() {
     } catch (error) {
       console.error('Error sending corrections:', error);
     }
-  }, []);
+  };
 
   const uploadFiles = async () => {
     if (uploadedFiles.length === 0) return;

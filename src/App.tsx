@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AppLayout } from "./components/layout/AppLayout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import Dashboard from "./pages/Dashboard";
+import ArtistDashboard from "./pages/ArtistDashboard";
+import ProducerDashboard from "./pages/ProducerDashboard";
 import Library from "./pages/Library";
 import Projects from "./pages/Projects";
 import Explore from "./pages/Explore";
@@ -38,6 +40,20 @@ const App = () => (
             <ProtectedRoute>
               <AppLayout>
                 <Dashboard />
+              </AppLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/artist-dashboard" element={
+            <ProtectedRoute>
+              <AppLayout>
+                <ArtistDashboard />
+              </AppLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/producer-dashboard" element={
+            <ProtectedRoute>
+              <AppLayout>
+                <ProducerDashboard />
               </AppLayout>
             </ProtectedRoute>
           } />

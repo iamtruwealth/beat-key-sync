@@ -6,8 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Music, Upload, AlertCircle } from "lucide-react";
+import { Music, Upload, AlertCircle, User, Headphones } from "lucide-react";
+
+type UserRole = 'artist' | 'producer';
 
 export default function AuthPage() {
   const [email, setEmail] = useState("");
@@ -15,21 +18,38 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [artistLogo, setArtistLogo] = useState<File | null>(null);
   const [resetLoading, setResetLoading] = useState(false);
+  const [userRole, setUserRole] = useState<UserRole>('artist');
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check if user is already logged in
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // Check if user is already logged in and redirect based on role
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session) {
-        navigate("/dashboard");
+        // Get user profile to determine role
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .single();
+        
+        const role = profile?.role || 'artist';
+        navigate(role === 'artist' ? '/artist-dashboard' : '/producer-dashboard');
       }
     });
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session) {
-        navigate("/dashboard");
+        // Get user profile to determine role
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .single();
+        
+        const role = profile?.role || 'artist';
+        navigate(role === 'artist' ? '/artist-dashboard' : '/producer-dashboard');
       }
     });
 
@@ -91,7 +111,8 @@ export default function AuthPage() {
         options: {
           emailRedirectTo: redirectUrl,
           data: {
-            artist_logo: logoUrl
+            artist_logo: logoUrl,
+            role: userRole
           }
         }
       });
@@ -174,14 +195,14 @@ export default function AuthPage() {
       <div className="w-full max-w-md">
         <div className="flex items-center justify-center mb-8">
           <Music className="w-8 h-8 text-primary mr-2" />
-          <h1 className="text-2xl font-bold">Beat Studio</h1>
+          <h1 className="text-2xl font-bold">BeatPackz</h1>
         </div>
         
         <Card>
           <CardHeader>
             <CardTitle>Welcome</CardTitle>
             <CardDescription>
-              Sign in to your account or create a new one to start uploading beats
+              Join the all-in-one music collaboration platform for artists and producers
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -235,6 +256,28 @@ export default function AuthPage() {
               <TabsContent value="signup">
                 <form onSubmit={handleSignUp} className="space-y-4">
                   <div>
+                    <Label htmlFor="user-role">I am a</Label>
+                    <Select value={userRole} onValueChange={(value: UserRole) => setUserRole(value)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="artist">
+                          <div className="flex items-center gap-2">
+                            <User className="w-4 h-4" />
+                            Artist - Create music, manage projects, handle business
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="producer">
+                          <div className="flex items-center gap-2">
+                            <Headphones className="w-4 h-4" />
+                            Producer - Create beats, sell beat packs, collaborate
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
                     <Label htmlFor="signup-email">Email</Label>
                     <Input
                       id="signup-email"
@@ -252,11 +295,11 @@ export default function AuthPage() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
-                      minLength={6}
+                      minLength={8}
                     />
                   </div>
                   <div>
-                    <Label htmlFor="artist-logo">Artist Logo (Optional)</Label>
+                    <Label htmlFor="artist-logo">{userRole === 'artist' ? 'Artist' : 'Producer'} Logo (Optional)</Label>
                     <div className="flex items-center gap-2">
                       <Input
                         id="artist-logo"
@@ -282,7 +325,7 @@ export default function AuthPage() {
                     )}
                   </div>
                   <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? "Creating Account..." : "Create Account"}
+                    {loading ? "Creating Account..." : `Create ${userRole === 'artist' ? 'Artist' : 'Producer'} Account`}
                   </Button>
                 </form>
               </TabsContent>
