@@ -7,12 +7,14 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Music } from "lucide-react";
+import { Music, Upload, AlertCircle } from "lucide-react";
 
 export default function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [artistLogo, setArtistLogo] = useState<File | null>(null);
+  const [resetLoading, setResetLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -34,33 +36,118 @@ export default function AuthPage() {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "File too large",
+          description: "Please choose an image under 5MB",
+          variant: "destructive"
+        });
+        return;
+      }
+      setArtistLogo(file);
+    }
+  };
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    const redirectUrl = `${window.location.origin}/`;
-    
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl
+    try {
+      let logoUrl = null;
+      
+      // Upload artist logo if provided
+      if (artistLogo) {
+        const fileExt = artistLogo.name.split('.').pop();
+        const fileName = `${Date.now()}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('artwork')
+          .upload(fileName, artistLogo);
+          
+        if (uploadError) {
+          toast({
+            title: "Logo upload failed",
+            description: uploadError.message,
+            variant: "destructive"
+          });
+          setLoading(false);
+          return;
+        }
+        
+        const { data: { publicUrl } } = supabase.storage
+          .from('artwork')
+          .getPublicUrl(fileName);
+        logoUrl = publicUrl;
       }
+
+      const redirectUrl = `${window.location.origin}/`;
+      
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: redirectUrl,
+          data: {
+            artist_logo: logoUrl
+          }
+        }
+      });
+
+      if (error) {
+        toast({
+          title: "Sign up failed",
+          description: error.message,
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Check your email",
+          description: "We've sent you a confirmation link"
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Sign up failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+    setLoading(false);
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      toast({
+        title: "Email required",
+        description: "Please enter your email address first",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setResetLoading(true);
+    const redirectUrl = `${window.location.origin}/auth`;
+    
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: redirectUrl
     });
 
     if (error) {
       toast({
-        title: "Sign up failed",
+        title: "Reset failed",
         description: error.message,
         variant: "destructive"
       });
     } else {
       toast({
         title: "Check your email",
-        description: "We've sent you a confirmation link"
+        description: "We've sent you a password reset link"
       });
     }
-    setLoading(false);
+    setResetLoading(false);
   };
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -129,6 +216,19 @@ export default function AuthPage() {
                   <Button type="submit" className="w-full" disabled={loading}>
                     {loading ? "Signing In..." : "Sign In"}
                   </Button>
+                  <div className="flex items-center justify-center mt-4">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleForgotPassword}
+                      disabled={resetLoading}
+                      className="text-sm text-muted-foreground hover:text-foreground"
+                    >
+                      <AlertCircle className="w-4 h-4 mr-1" />
+                      {resetLoading ? "Sending..." : "Forgot Password?"}
+                    </Button>
+                  </div>
                 </form>
               </TabsContent>
               
@@ -154,6 +254,32 @@ export default function AuthPage() {
                       required
                       minLength={6}
                     />
+                  </div>
+                  <div>
+                    <Label htmlFor="artist-logo">Artist Logo (Optional)</Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="artist-logo"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleLogoUpload}
+                        className="hidden"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => document.getElementById('artist-logo')?.click()}
+                        className="w-full"
+                      >
+                        <Upload className="w-4 h-4 mr-2" />
+                        {artistLogo ? artistLogo.name : "Choose Logo"}
+                      </Button>
+                    </div>
+                    {artistLogo && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Selected: {artistLogo.name}
+                      </p>
+                    )}
                   </div>
                   <Button type="submit" className="w-full" disabled={loading}>
                     {loading ? "Creating Account..." : "Create Account"}
