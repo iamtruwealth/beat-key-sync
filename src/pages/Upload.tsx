@@ -12,7 +12,7 @@ import { Upload, X, Plus, Music, FileAudio, CheckCircle, Image } from "lucide-re
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import * as musicMetadata from "music-metadata";
-import Essentia from 'essentia.js';
+import * as es from 'essentia.js';
 import { User } from "@supabase/supabase-js";
 
 interface UploadedFile {
@@ -39,7 +39,7 @@ export default function UploadPage() {
   const [beatPacks, setBeatPacks] = useState<Array<{ id: string; name: string }>>([]);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [essentia, setEssentia] = useState<Essentia | null>(null);
+  const [essentia, setEssentia] = useState<InstanceType<typeof es.Essentia> | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -198,19 +198,17 @@ export default function UploadPage() {
   });
 
   useEffect(() => {
-  const initializeEssentia = async () => {
-    try {
-      // Initialize Essentia.js properly
-      const essentiaInstance = new Essentia();
-      await essentiaInstance.initialize();
-      setEssentia(essentiaInstance);
-      console.log('Essentia.js initialized successfully');
-    } catch (error) {
-      console.error('Failed to initialize Essentia:', error);
-      console.log('Continuing with metadata-only analysis');
-      // Don't show error toast, just continue with metadata analysis
-    }
-  };
+    const initializeEssentia = async () => {
+      try {
+        const instance = new es.Essentia(es.EssentiaWASM);
+        setEssentia(instance);
+        console.log('Essentia.js initialized successfully');
+      } catch (error) {
+        console.error('Failed to initialize Essentia:', error);
+        console.log('Continuing with metadata-only analysis');
+        // Don't show error toast, just continue with metadata analysis
+      }
+    };
 
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
