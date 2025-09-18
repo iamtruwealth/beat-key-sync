@@ -154,9 +154,9 @@ export default function UploadPage() {
   return (
     <div className="p-6 space-y-6 max-w-4xl mx-auto">
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Upload Audio</h1>
+        <h1 className="text-3xl font-bold text-foreground">Upload Your Beats</h1>
         <p className="text-muted-foreground">
-          Upload your beats, stems, and audio files with automatic analysis.
+          Upload your beats, stems, and audio files. We'll automatically analyze them and help you organize into beat packs like "trap pack", "drill pack", or custom collections.
         </p>
       </div>
 
