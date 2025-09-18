@@ -337,6 +337,9 @@ export function parseFilenameForMetadata(filename: string): { bpm?: number; key?
     /bpm[_-]?(\d{2,3})/i,
     /(\d{2,3})[_-]beats?/i,
     /[_-](\d{2,3})[_-]/,
+    /^(\d{2,3})[_-]/,  // Start of filename
+    /[_-](\d{2,3})$/,  // End of filename
+    /\s(\d{2,3})\s/,   // Surrounded by spaces
   ];
 
   for (const pattern of bpmPatterns) {
@@ -363,8 +366,12 @@ export function parseFilenameForMetadata(filename: string): { bpm?: number; key?
     /([a-g][#b]?)[_-]?minor/i,
     /([a-g][#b]?)m[_-]/i,
     /[_-]([a-g][#b]?)m$/i,
+    /^([a-g][#b]?)m[_-]/i,     // Start of filename
+    /[_-]([a-g][#b]?)m$/i,     // End of filename
     // Simple patterns like C, Cm, F#, Bbm
     /[_-]([a-g][#b]?)([m]?)[_-]/i,
+    /^([a-g][#b]?)([m]?)[_-]/i,  // Start of filename
+    /[_-]([a-g][#b]?)([m]?)$/i,  // End of filename
   ];
 
   for (const pattern of keyPatterns) {

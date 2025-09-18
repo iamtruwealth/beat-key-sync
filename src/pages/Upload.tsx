@@ -24,6 +24,8 @@ interface UploadedFile {
   artwork?: File;
   artworkPreview?: string;
   analysis?: AudioAnalysisResult;
+  manualBpm?: number;
+  manualKey?: string;
 }
 
 export default function UploadPage() {
@@ -247,6 +249,43 @@ export default function UploadPage() {
     );
   };
 
+  const updateFileBpm = (index: number, bpm: number | undefined) => {
+    setUploadedFiles(prev => 
+      prev.map((file, i) => 
+        i === index ? { ...file, manualBpm: bpm } : file
+      )
+    );
+  };
+
+  const updateFileKey = (index: number, key: string | undefined) => {
+    setUploadedFiles(prev => 
+      prev.map((file, i) => 
+        i === index ? { ...file, manualKey: key } : file
+      )
+    );
+  };
+
+  const sendCorrections = async (trackId: string, fileData: UploadedFile) => {
+    if (!fileData.analysis) return;
+    
+    const hasCorrections = fileData.manualBpm || fileData.manualKey;
+    if (!hasCorrections) return;
+
+    try {
+      await supabase.functions.invoke('learn-from-corrections', {
+        body: {
+          track_id: trackId,
+          detected_bpm: fileData.analysis.bpm,
+          detected_key: fileData.analysis.key,
+          manual_bpm: fileData.manualBpm,
+          manual_key: fileData.manualKey
+        }
+      });
+    } catch (error) {
+      console.error('Error sending corrections:', error);
+    }
+  };
+
   const uploadFiles = async () => {
     if (uploadedFiles.length === 0) return;
     
@@ -280,7 +319,7 @@ export default function UploadPage() {
           .getPublicUrl(fileName);
 
         // Save track to database
-        const { error: dbError } = await supabase
+        const { data: insertedTrack, error: dbError } = await supabase
           .from('tracks')
           .insert({
             title: fileData.title,
@@ -290,6 +329,8 @@ export default function UploadPage() {
             tags: fileData.tags,
             detected_key: fileData.analysis?.key,
             detected_bpm: fileData.analysis?.bpm,
+            manual_key: fileData.manualKey,
+            manual_bpm: fileData.manualBpm,
             duration: fileData.analysis?.duration,
             format: fileData.analysis?.metadata.format,
             sample_rate: fileData.analysis?.metadata.sampleRate,
@@ -300,10 +341,17 @@ export default function UploadPage() {
               compatibleKeys: fileData.analysis?.compatibleKeys,
               confidenceScore: fileData.analysis?.confidenceScore
             }
-          });
+          })
+          .select()
+          .single();
 
         if (dbError) {
           throw dbError;
+        }
+
+        // Send corrections to learning system if user made manual edits
+        if (insertedTrack) {
+          await sendCorrections(insertedTrack.id, fileData);
         }
 
         setUploadedFiles(prev => 
@@ -397,8 +445,6 @@ export default function UploadPage() {
                         {fileData.analysis && (
                           <span>
                             {" • "}{fileData.analysis.duration.toFixed(0)}s
-                            {fileData.analysis.key && " • " + fileData.analysis.key}
-                            {fileData.analysis.bpm > 0 && " • " + fileData.analysis.bpm + " BPM"}
                             {fileData.analysis.confidenceScore > 0 && " • " + Math.round(fileData.analysis.confidenceScore * 100) + "% confidence"}
                             {fileData.analysis.metadata.filenameAnalysis && (
                               fileData.analysis.metadata.filenameAnalysis.bpm || fileData.analysis.metadata.filenameAnalysis.key
@@ -425,6 +471,55 @@ export default function UploadPage() {
               </CardHeader>
               
               <CardContent className="space-y-4">
+                {/* BPM and Key Metadata */}
+                {fileData.analysis && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-sm font-medium">BPM</Label>
+                      <div className="space-y-2">
+                        <Input
+                          type="number"
+                          min="60"
+                          max="200"
+                          placeholder="Enter BPM"
+                          value={fileData.manualBpm || fileData.analysis.bpm || ''}
+                          onChange={(e) => updateFileBpm(index, e.target.value ? parseInt(e.target.value) : undefined)}
+                          className="mt-1"
+                        />
+                        {fileData.analysis.bpm && (
+                          <p className="text-xs text-muted-foreground">
+                            Detected: {fileData.analysis.bpm} BPM
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium">Key</Label>
+                      <div className="space-y-2">
+                        <Select
+                          value={fileData.manualKey || fileData.analysis.key || ''}
+                          onValueChange={(value) => updateFileKey(index, value)}
+                        >
+                          <SelectTrigger className="mt-1">
+                            <SelectValue placeholder="Select key" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {['C Major', 'C# Major', 'D Major', 'D# Major', 'E Major', 'F Major', 'F# Major', 'G Major', 'G# Major', 'A Major', 'A# Major', 'B Major',
+                              'C Minor', 'C# Minor', 'D Minor', 'D# Minor', 'E Minor', 'F Minor', 'F# Minor', 'G Minor', 'G# Minor', 'A Minor', 'A# Minor', 'B Minor'].map(key => (
+                              <SelectItem key={key} value={key}>{key}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {fileData.analysis.key && (
+                          <p className="text-xs text-muted-foreground">
+                            Detected: {fileData.analysis.key}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Tags */}
                 <div>
                   <Label className="text-sm font-medium">Tags</Label>
