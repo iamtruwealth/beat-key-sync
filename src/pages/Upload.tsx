@@ -12,7 +12,7 @@ import { Upload, X, Plus, Music, FileAudio, CheckCircle, Image } from "lucide-re
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import * as musicMetadata from "music-metadata";
-import { Essentia, EssentiaWASM } from 'essentia.js';
+import { Essentia, EssentiaWASM } from 'essentia.js/dist/essentia-wasm.web.js';
 import { User } from "@supabase/supabase-js";
 
 interface UploadedFile {
@@ -43,87 +43,7 @@ export default function UploadPage() {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Move all hooks to the top before any conditional logic
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    const newFiles = acceptedFiles.map(file => ({
-      file,
-      title: file.name.replace(/\.[^/.]+$/, ""),
-      tags: [],
-      progress: 0,
-      status: 'pending' as const
-    }));
-    setUploadedFiles(prev => [...prev, ...newFiles]);
-    
-    // Start analyzing files
-    newFiles.forEach((fileData, index) => {
-      analyzeAudioFile(fileData, uploadedFiles.length + index);
-    });
-  }, [uploadedFiles.length]);
-
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: {
-      'audio/*': ['.mp3', '.wav', '.flac', '.m4a', '.aac']
-    },
-    multiple: true
-  });
-
-  useEffect(() => {
-    const initializeEssentia = async () => {
-      try {
-        const essentiaWasm = new EssentiaWASM();
-        await essentiaWasm.module;
-        setEssentia(new Essentia(essentiaWasm));
-      } catch (error) {
-        console.error('Failed to initialize Essentia:', error);
-        toast({
-          title: "Audio Analysis Unavailable",
-          description: "Advanced audio analysis features may not work properly",
-          variant: "destructive"
-        });
-      }
-    };
-
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        navigate("/auth");
-        return;
-      }
-      setUser(session.user);
-      setLoading(false);
-    };
-
-    initializeEssentia();
-    checkAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!session) {
-        navigate("/auth");
-        return;
-      }
-      setUser(session.user);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
-  }, [navigate, toast]);
-
-  // Now conditional rendering is safe after all hooks
-  if (loading) {
-    return (
-      <div className="p-6 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) return null;
-
-
+  // Define analyzeAudioFile function first to avoid hoisting issues
   const analyzeAudioFile = async (fileData: UploadedFile, index: number) => {
     try {
       setUploadedFiles(prev => 
@@ -227,6 +147,87 @@ export default function UploadPage() {
       });
     }
   };
+
+  // Move all hooks to the top before any conditional logic
+  const onDrop = useCallback((acceptedFiles: File[]) => {
+    const newFiles = acceptedFiles.map(file => ({
+      file,
+      title: file.name.replace(/\.[^/.]+$/, ""),
+      tags: [],
+      progress: 0,
+      status: 'pending' as const
+    }));
+    setUploadedFiles(prev => [...prev, ...newFiles]);
+    
+    // Start analyzing files
+    newFiles.forEach((fileData, index) => {
+      analyzeAudioFile(fileData, uploadedFiles.length + index);
+    });
+  }, [uploadedFiles.length, analyzeAudioFile]);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'audio/*': ['.mp3', '.wav', '.flac', '.m4a', '.aac']
+    },
+    multiple: true
+  });
+
+  useEffect(() => {
+    const initializeEssentia = async () => {
+      try {
+        const essentiaWasm = new EssentiaWASM();
+        await essentiaWasm.module;
+        setEssentia(new Essentia(essentiaWasm));
+        console.log('Essentia.js initialized successfully');
+      } catch (error) {
+        console.error('Failed to initialize Essentia:', error);
+        toast({
+          title: "Audio Analysis Unavailable",
+          description: "Using basic metadata analysis only",
+          variant: "destructive"
+        });
+      }
+    };
+
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        navigate("/auth");
+        return;
+      }
+      setUser(session.user);
+      setLoading(false);
+    };
+
+    initializeEssentia();
+    checkAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!session) {
+        navigate("/auth");
+        return;
+      }
+      setUser(session.user);
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate, toast]);
+
+  // Now conditional rendering is safe after all hooks
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) return null;
 
   const addTag = (index: number) => {
     if (!newTag.trim()) return;
