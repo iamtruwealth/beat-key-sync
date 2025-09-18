@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
-import { Search, Plus, FolderOpen, Music, Play, MoreVertical } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Search, Plus, FolderOpen, Music, Play, MoreVertical, Edit, Trash2, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
@@ -25,6 +26,10 @@ export default function Projects() {
   const [newPackName, setNewPackName] = useState("");
   const [newPackDescription, setNewPackDescription] = useState("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingPack, setEditingPack] = useState<BeatPack | null>(null);
+  const [artworkPreview, setArtworkPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -95,6 +100,109 @@ export default function Projects() {
     }
   };
 
+  const uploadArtwork = async (file: File, packId: string): Promise<string | null> => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const fileName = `${user.id}/beat-packs/${packId}/artwork-${Date.now()}.${file.name.split('.').pop()}`;
+      const { data, error } = await supabase.storage
+        .from('artwork')
+        .upload(fileName, file);
+
+      if (error) throw error;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('artwork')
+        .getPublicUrl(fileName);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Artwork upload error:', error);
+      return null;
+    }
+  };
+
+  const handleArtworkChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setArtworkPreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const saveArtwork = async () => {
+    if (!editingPack || !fileInputRef.current?.files?.[0]) return;
+
+    try {
+      const file = fileInputRef.current.files[0];
+      const artworkUrl = await uploadArtwork(file, editingPack.id);
+      
+      if (!artworkUrl) {
+        throw new Error('Failed to upload artwork');
+      }
+
+      const { error } = await supabase
+        .from('beat_packs')
+        .update({ artwork_url: artworkUrl })
+        .eq('id', editingPack.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Artwork updated successfully"
+      });
+
+      setIsEditDialogOpen(false);
+      setEditingPack(null);
+      setArtworkPreview(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      fetchBeatPacks();
+    } catch (error) {
+      console.error('Error updating artwork:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update artwork",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const deleteBeatPack = async (packId: string) => {
+    try {
+      const { error } = await supabase
+        .from('beat_packs')
+        .delete()
+        .eq('id', packId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Beat pack deleted successfully"
+      });
+
+      fetchBeatPacks();
+    } catch (error) {
+      console.error('Error deleting beat pack:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete beat pack",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const openEditDialog = (pack: BeatPack) => {
+    setEditingPack(pack);
+    setArtworkPreview(pack.artwork_url || null);
+    setIsEditDialogOpen(true);
+  };
+
   const filteredBeatPacks = beatPacks.filter(pack => 
     pack.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     pack.description?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -155,6 +263,89 @@ export default function Projects() {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Edit Artwork Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Beat Pack Artwork</DialogTitle>
+              <DialogDescription>
+                Upload a new artwork or logo for {editingPack?.name}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="flex flex-col items-center gap-4">
+                <div className="w-48 h-48 border-2 border-dashed border-border rounded-lg overflow-hidden bg-muted">
+                  {artworkPreview ? (
+                    <img 
+                      src={artworkPreview} 
+                      alt="Preview"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Music className="w-16 h-16 text-muted-foreground" />
+                    </div>
+                  )}
+                </div>
+                
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Choose Image
+                  </Button>
+                  {artworkPreview && (
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setArtworkPreview(null);
+                        if (fileInputRef.current) fileInputRef.current.value = '';
+                      }}
+                    >
+                      <X className="w-4 h-4 mr-2" />
+                      Remove
+                    </Button>
+                  )}
+                </div>
+                
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleArtworkChange}
+                  className="hidden"
+                />
+                
+                <p className="text-sm text-muted-foreground text-center">
+                  Recommended: Square image (1:1 ratio), minimum 400x400px
+                </p>
+              </div>
+              
+              <div className="flex justify-end gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setIsEditDialogOpen(false);
+                    setEditingPack(null);
+                    setArtworkPreview(null);
+                    if (fileInputRef.current) fileInputRef.current.value = '';
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={saveArtwork}
+                  disabled={!fileInputRef.current?.files?.[0]}
+                >
+                  Save Artwork
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="flex-1 max-w-md">
@@ -195,13 +386,30 @@ export default function Projects() {
                   </div>
                   
                   {/* More options */}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 hover:bg-black/70 text-white"
-                  >
-                    <MoreVertical className="w-4 h-4" />
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 hover:bg-black/70 text-white"
+                      >
+                        <MoreVertical className="w-4 h-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => openEditDialog(pack)}>
+                        <Edit className="w-4 h-4 mr-2" />
+                        Edit Artwork
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={() => deleteBeatPack(pack.id)}
+                        className="text-destructive"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete Pack
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
                 
                 <div className="p-4">
