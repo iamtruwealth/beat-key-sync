@@ -1,10 +1,14 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Play, Pause, Share2, MoreHorizontal, Clock, Music2, Users, Loader2 } from "lucide-react";
+import { Play, Pause, Share2, MoreHorizontal, Clock, Music2, Users, Loader2, Edit, Trash2, Download } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tables } from "@/integrations/supabase/types";
 import { useAudio } from "@/contexts/AudioContext";
+import { TrackMetadataDialog } from "./TrackMetadataDialog";
+import { DeleteTrackDialog } from "./DeleteTrackDialog";
+import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 type Track = Tables<"tracks">;
 
@@ -14,10 +18,15 @@ interface TrackCardProps {
     formattedSize?: string;
     lastModified?: string;
   };
+  onTrackUpdated?: (updatedTrack: Track) => void;
+  onTrackDeleted?: (trackId: string) => void;
 }
 
-export function TrackCard({ track }: TrackCardProps) {
+export function TrackCard({ track, onTrackUpdated, onTrackDeleted }: TrackCardProps) {
   const { currentTrack, isPlaying, loading, playTrack } = useAudio();
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const { toast } = useToast();
   const formatDuration = (duration: number | null) => {
     if (!duration) return "0:00";
     const minutes = Math.floor(duration / 60);
@@ -67,6 +76,45 @@ export function TrackCard({ track }: TrackCardProps) {
   const isCurrentTrack = currentTrack?.id === track.id;
   const showPlayButton = !isCurrentTrack || !isPlaying;
 
+  const handleDownload = () => {
+    if (track.file_url) {
+      const link = document.createElement('a');
+      link.href = track.file_url;
+      link.download = `${track.title}.${track.format || 'mp3'}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast({
+        title: "Download started",
+        description: `Downloading ${track.title}`,
+      });
+    }
+  };
+
+  const handleShare = () => {
+    if (navigator.share) {
+      navigator.share({
+        title: track.title,
+        text: `Check out this track: ${track.title}`,
+        url: window.location.href,
+      });
+    } else {
+      navigator.clipboard.writeText(window.location.href);
+      toast({
+        title: "Link copied",
+        description: "Track link copied to clipboard",
+      });
+    }
+  };
+
+  const handleTrackUpdated = (updatedTrack: Track) => {
+    onTrackUpdated?.(updatedTrack);
+  };
+
+  const handleTrackDeleted = (trackId: string) => {
+    onTrackDeleted?.(trackId);
+  };
+
   return (
     <Card className="group hover:shadow-lg hover:shadow-primary/10 transition-all duration-300 border-border/50 bg-card/80 backdrop-blur-sm">
       <CardHeader className="pb-3">
@@ -104,11 +152,25 @@ export function TrackCard({ track }: TrackCardProps) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem>Open Track</DropdownMenuItem>
-              <DropdownMenuItem>Edit Metadata</DropdownMenuItem>
-              <DropdownMenuItem>Download</DropdownMenuItem>
-              <DropdownMenuItem>Share</DropdownMenuItem>
-              <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setEditDialogOpen(true)}>
+                <Edit className="w-4 h-4 mr-2" />
+                Edit Metadata
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleDownload}>
+                <Download className="w-4 h-4 mr-2" />
+                Download
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleShare}>
+                <Share2 className="w-4 h-4 mr-2" />
+                Share
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                className="text-destructive focus:text-destructive"
+                onClick={() => setDeleteDialogOpen(true)}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -200,6 +262,20 @@ export function TrackCard({ track }: TrackCardProps) {
           </div>
         </div>
       </CardContent>
+
+      <TrackMetadataDialog
+        track={track}
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        onTrackUpdated={handleTrackUpdated}
+      />
+
+      <DeleteTrackDialog
+        track={track}
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onTrackDeleted={handleTrackDeleted}
+      />
     </Card>
   );
 }

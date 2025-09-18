@@ -74,6 +74,52 @@ export default function Library() {
       setIsLoading(false);
     };
     loadData();
+
+    // Set up real-time subscriptions
+    const tracksChannel = supabase
+      .channel('tracks-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'tracks'
+      }, (payload) => {
+        console.log('Track change detected:', payload);
+        if (payload.eventType === 'DELETE') {
+          setTracks(prev => prev.filter(track => track.id !== payload.old.id));
+        } else if (payload.eventType === 'UPDATE') {
+          setTracks(prev => prev.map(track => 
+            track.id === payload.new.id ? payload.new as Track : track
+          ));
+        } else if (payload.eventType === 'INSERT') {
+          setTracks(prev => [payload.new as Track, ...prev]);
+        }
+      })
+      .subscribe();
+
+    const beatPacksChannel = supabase
+      .channel('beat-packs-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'beat_packs'
+      }, (payload) => {
+        console.log('Beat pack change detected:', payload);
+        if (payload.eventType === 'DELETE') {
+          setBeatPacks(prev => prev.filter(pack => pack.id !== payload.old.id));
+        } else if (payload.eventType === 'UPDATE') {
+          setBeatPacks(prev => prev.map(pack => 
+            pack.id === payload.new.id ? payload.new as BeatPack : pack
+          ));
+        } else if (payload.eventType === 'INSERT') {
+          setBeatPacks(prev => [payload.new as BeatPack, ...prev]);
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(tracksChannel);
+      supabase.removeChannel(beatPacksChannel);
+    };
   }, []);
 
   const filteredTracks = tracks.filter(track => {
@@ -86,6 +132,16 @@ export default function Library() {
   });
 
   const categories = ["All Files", "Vocals", "Drums", "Bass", "Melody", "FX"];
+
+  const handleTrackUpdated = (updatedTrack: Track) => {
+    setTracks(prev => prev.map(track => 
+      track.id === updatedTrack.id ? updatedTrack : track
+    ));
+  };
+
+  const handleTrackDeleted = (trackId: string) => {
+    setTracks(prev => prev.filter(track => track.id !== trackId));
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -216,7 +272,12 @@ export default function Library() {
               {viewMode === "grid" ? (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   {filteredTracks.map((track) => (
-                    <TrackCard key={track.id} track={track} />
+                    <TrackCard 
+                      key={track.id} 
+                      track={track} 
+                      onTrackUpdated={handleTrackUpdated}
+                      onTrackDeleted={handleTrackDeleted}
+                    />
                   ))}
                 </div>
               ) : (

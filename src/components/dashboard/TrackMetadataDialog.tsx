@@ -1,0 +1,275 @@
+import { useState, useEffect } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Tables } from "@/integrations/supabase/types";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2 } from "lucide-react";
+
+type Track = Tables<"tracks">;
+type BeatPack = Tables<"beat_packs">;
+
+interface TrackMetadataDialogProps {
+  track: Track | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onTrackUpdated: (updatedTrack: Track) => void;
+}
+
+const musicalKeys = [
+  "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
+  "Cm", "C#m", "Dm", "D#m", "Em", "Fm", "F#m", "Gm", "G#m", "Am", "A#m", "Bm"
+];
+
+export function TrackMetadataDialog({ track, open, onOpenChange, onTrackUpdated }: TrackMetadataDialogProps) {
+  const [isLoading, setIsLoading] = useState(false);
+  const [beatPacks, setBeatPacks] = useState<BeatPack[]>([]);
+  const [formData, setFormData] = useState({
+    title: "",
+    artist: "",
+    manual_bpm: "",
+    manual_key: "",
+    tags: [] as string[],
+    selectedBeatPack: "" as string
+  });
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (track && open) {
+      setFormData({
+        title: track.title || "",
+        artist: track.artist || "",
+        manual_bpm: track.manual_bpm?.toString() || "",
+        manual_key: track.manual_key || "",
+        tags: track.tags || [],
+        selectedBeatPack: ""
+      });
+      fetchBeatPacks();
+    }
+  }, [track, open]);
+
+  const fetchBeatPacks = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('beat_packs')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setBeatPacks(data || []);
+    } catch (error) {
+      console.error('Error fetching beat packs:', error);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!track) return;
+
+    setIsLoading(true);
+    try {
+      const updateData: Partial<Track> = {
+        title: formData.title,
+        artist: formData.artist,
+        manual_bpm: formData.manual_bpm ? parseFloat(formData.manual_bpm) : null,
+        manual_key: formData.manual_key || null,
+        tags: formData.tags,
+        updated_at: new Date().toISOString()
+      };
+
+      const { data, error } = await supabase
+        .from('tracks')
+        .update(updateData)
+        .eq('id', track.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // If beat pack is selected, add track to beat pack
+      if (formData.selectedBeatPack) {
+        await supabase
+          .from('beat_pack_tracks')
+          .insert({
+            beat_pack_id: formData.selectedBeatPack,
+            track_id: track.id,
+            position: 0
+          });
+      }
+
+      // Call learning function if BPM or key was manually set
+      if (formData.manual_bpm || formData.manual_key) {
+        await supabase.functions.invoke('learn-from-corrections', {
+          body: {
+            track_id: track.id,
+            detected_bpm: track.detected_bpm,
+            detected_key: track.detected_key,
+            manual_bpm: formData.manual_bpm ? parseFloat(formData.manual_bpm) : null,
+            manual_key: formData.manual_key || null
+          }
+        });
+      }
+
+      onTrackUpdated(data);
+      onOpenChange(false);
+      toast({
+        title: "Success",
+        description: "Track metadata updated successfully",
+      });
+    } catch (error) {
+      console.error('Error updating track:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update track metadata",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const addTag = (tag: string) => {
+    if (tag && !formData.tags.includes(tag)) {
+      setFormData(prev => ({
+        ...prev,
+        tags: [...prev.tags, tag]
+      }));
+    }
+  };
+
+  const removeTag = (tagToRemove: string) => {
+    setFormData(prev => ({
+      ...prev,
+      tags: prev.tags.filter(tag => tag !== tagToRemove)
+    }));
+  };
+
+  if (!track) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Edit Track Metadata</DialogTitle>
+        </DialogHeader>
+        
+        <div className="grid gap-4 py-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="title">Title</Label>
+              <Input
+                id="title"
+                value={formData.title}
+                onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="artist">Artist/Producer</Label>
+              <Input
+                id="artist"
+                value={formData.artist}
+                onChange={(e) => setFormData(prev => ({ ...prev, artist: e.target.value }))}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="bpm">BPM</Label>
+              <Input
+                id="bpm"
+                type="number"
+                placeholder={track.detected_bpm?.toString() || "120"}
+                value={formData.manual_bpm}
+                onChange={(e) => setFormData(prev => ({ ...prev, manual_bpm: e.target.value }))}
+              />
+              {track.detected_bpm && (
+                <p className="text-xs text-muted-foreground">
+                  Detected: {track.detected_bpm} BPM
+                </p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="key">Musical Key</Label>
+              <Select value={formData.manual_key} onValueChange={(value) => setFormData(prev => ({ ...prev, manual_key: value }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder={track.detected_key || "Select key"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {musicalKeys.map((key) => (
+                    <SelectItem key={key} value={key}>{key}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {track.detected_key && (
+                <p className="text-xs text-muted-foreground">
+                  Detected: {track.detected_key}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="beatpack">Add to Beat Pack</Label>
+            <Select value={formData.selectedBeatPack} onValueChange={(value) => setFormData(prev => ({ ...prev, selectedBeatPack: value }))}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select beat pack" />
+              </SelectTrigger>
+              <SelectContent>
+                {beatPacks.map((pack) => (
+                  <SelectItem key={pack.id} value={pack.id}>{pack.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Tags</Label>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {formData.tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="inline-flex items-center gap-1 bg-primary/10 text-primary px-2 py-1 rounded-md text-sm cursor-pointer"
+                  onClick={() => removeTag(tag)}
+                >
+                  {tag} ×
+                </span>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              {['vocals', 'drums', 'bass', 'melody', 'fx', 'trap', 'hip-hop', 'pop'].map((suggestedTag) => (
+                <Button
+                  key={suggestedTag}
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => addTag(suggestedTag)}
+                  disabled={formData.tags.includes(suggestedTag)}
+                >
+                  {suggestedTag}
+                </Button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave} disabled={isLoading}>
+            {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+            Save Changes
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
