@@ -6,7 +6,6 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AppLayout } from "./components/layout/AppLayout";
 import { RoleBasedSidebar } from "./components/layout/RoleBasedSidebar";
 import { AudioProvider } from "./contexts/AudioContext";
-import { ProtectedRoute } from "./components/ProtectedRoute";
 import { RoleProtectedRoute } from "./components/RoleProtectedRoute";
 import Dashboard from "./pages/Dashboard";
 import ArtistDashboard from "./pages/ArtistDashboard";
@@ -46,7 +45,7 @@ const App = () => (
             
             {/* Protected routes with role-based sidebar */}
             <Route path="/dashboard" element={
-              <ProtectedRoute>
+              <RoleProtectedRoute allowedRoles={['artist', 'producer']}>
                 <AudioProvider>
                   <div className="flex min-h-screen w-full">
                     <RoleBasedSidebar />
@@ -55,47 +54,47 @@ const App = () => (
                     </main>
                   </div>
                 </AudioProvider>
-              </ProtectedRoute>
+              </RoleProtectedRoute>
             } />
             <Route path="/artist-dashboard" element={
-              <ProtectedRoute>
+              <RoleProtectedRoute allowedRoles={['artist']}>
                 <div className="flex min-h-screen w-full">
                   <RoleBasedSidebar />
                   <main className="flex-1 p-6 overflow-auto">
                     <ArtistDashboard />
                   </main>
                 </div>
-              </ProtectedRoute>
+              </RoleProtectedRoute>
             } />
             <Route path="/producer-dashboard" element={
-              <ProtectedRoute>
+              <RoleProtectedRoute allowedRoles={['producer']}>
                 <div className="flex min-h-screen w-full">
                   <RoleBasedSidebar />
                   <main className="flex-1 p-6 overflow-auto">
                     <ProducerDashboard />
                   </main>
                 </div>
-              </ProtectedRoute>
+              </RoleProtectedRoute>
             } />
             <Route path="/messages" element={
-              <ProtectedRoute>
+              <RoleProtectedRoute allowedRoles={['artist', 'producer']}>
                 <div className="flex min-h-screen w-full">
                   <RoleBasedSidebar />
                   <main className="flex-1 overflow-hidden">
                     <Messages />
                   </main>
                 </div>
-              </ProtectedRoute>
+              </RoleProtectedRoute>
             } />
             <Route path="/profile" element={
-              <ProtectedRoute>
+              <RoleProtectedRoute allowedRoles={['artist', 'producer']}>
                 <div className="flex min-h-screen w-full">
                   <RoleBasedSidebar />
                   <main className="flex-1 p-6 overflow-auto">
                     <Profile />
                   </main>
                 </div>
-              </ProtectedRoute>
+              </RoleProtectedRoute>
             } />
             <Route path="/beat-packs" element={
               <RoleProtectedRoute allowedRoles={['producer']}>
@@ -108,14 +107,14 @@ const App = () => (
               </RoleProtectedRoute>
             } />
             <Route path="/notifications" element={
-              <ProtectedRoute>
+              <RoleProtectedRoute allowedRoles={['artist', 'producer']}>
                 <div className="flex min-h-screen w-full">
                   <RoleBasedSidebar />
                   <main className="flex-1 p-6 overflow-auto">
                     <Notifications />
                   </main>
                 </div>
-              </ProtectedRoute>
+              </RoleProtectedRoute>
             } />
             <Route path="/library" element={
               <RoleProtectedRoute allowedRoles={['producer']}>
@@ -130,34 +129,34 @@ const App = () => (
               </RoleProtectedRoute>
             } />
             <Route path="/projects" element={
-              <ProtectedRoute>
+              <RoleProtectedRoute allowedRoles={['artist', 'producer']}>
                 <div className="flex min-h-screen w-full">
                   <RoleBasedSidebar />
                   <main className="flex-1 p-6 overflow-auto">
                     <Projects />
                   </main>
                 </div>
-              </ProtectedRoute>
+              </RoleProtectedRoute>
             } />
             <Route path="/paperwork" element={
-              <ProtectedRoute>
+              <RoleProtectedRoute allowedRoles={['artist', 'producer']}>
                 <div className="flex min-h-screen w-full">
                   <RoleBasedSidebar />
                   <main className="flex-1 p-6 overflow-auto">
                     <Paperwork />
                   </main>
                 </div>
-              </ProtectedRoute>
+              </RoleProtectedRoute>
             } />
             <Route path="/explore" element={
-              <ProtectedRoute>
+              <RoleProtectedRoute allowedRoles={['artist', 'producer']}>
                 <div className="flex min-h-screen w-full">
                   <RoleBasedSidebar />
                   <main className="flex-1 p-6 overflow-auto">
                     <BrowseProducers />
                   </main>
                 </div>
-              </ProtectedRoute>
+              </RoleProtectedRoute>
             } />
             <Route path="/upload" element={
               <RoleProtectedRoute allowedRoles={['producer']}>
@@ -172,7 +171,7 @@ const App = () => (
               </RoleProtectedRoute>
             } />
             <Route path="/shared" element={
-              <ProtectedRoute>
+              <RoleProtectedRoute allowedRoles={['artist', 'producer']}>
                 <div className="flex min-h-screen w-full">
                   <RoleBasedSidebar />
                   <main className="flex-1 p-6 overflow-auto">
@@ -185,20 +184,20 @@ const App = () => (
                     </div>
                   </main>
                 </div>
-              </ProtectedRoute>
+              </RoleProtectedRoute>
             } />
             <Route path="/account" element={
-              <ProtectedRoute>
+              <RoleProtectedRoute allowedRoles={['artist', 'producer']}>
                 <div className="flex min-h-screen w-full">
                   <RoleBasedSidebar />
                   <main className="flex-1 p-6 overflow-auto">
                     <Account />
                   </main>
                 </div>
-              </ProtectedRoute>
+              </RoleProtectedRoute>
             } />
             <Route path="/settings" element={
-              <ProtectedRoute>
+              <RoleProtectedRoute allowedRoles={['artist', 'producer']}>
                 <div className="flex min-h-screen w-full">
                   <RoleBasedSidebar />
                   <main className="flex-1 p-6 overflow-auto">
@@ -211,12 +210,12 @@ const App = () => (
                     </div>
                   </main>
                 </div>
-              </ProtectedRoute>
+              </RoleProtectedRoute>
             } />
             
             {/* Catch-all routes */}
             <Route path="/analytics" element={
-              <ProtectedRoute>
+              <RoleProtectedRoute allowedRoles={['artist', 'producer']}>
                 <div className="flex min-h-screen w-full">
                   <RoleBasedSidebar />
                   <main className="flex-1 p-6 overflow-auto">
@@ -229,10 +228,10 @@ const App = () => (
                     </div>
                   </main>
                 </div>
-              </ProtectedRoute>
+              </RoleProtectedRoute>
             } />
             <Route path="/financials" element={
-              <ProtectedRoute>
+              <RoleProtectedRoute allowedRoles={['artist', 'producer']}>
                 <div className="flex min-h-screen w-full">
                   <RoleBasedSidebar />
                   <main className="flex-1 p-6 overflow-auto">
@@ -245,10 +244,10 @@ const App = () => (
                     </div>
                   </main>
                 </div>
-              </ProtectedRoute>
+              </RoleProtectedRoute>
             } />
             <Route path="/sales" element={
-              <ProtectedRoute>
+              <RoleProtectedRoute allowedRoles={['producer']}>
                 <div className="flex min-h-screen w-full">
                   <RoleBasedSidebar />
                   <main className="flex-1 p-6 overflow-auto">
@@ -261,10 +260,10 @@ const App = () => (
                     </div>
                   </main>
                 </div>
-              </ProtectedRoute>
+              </RoleProtectedRoute>
             } />
             <Route path="/opportunities" element={
-              <ProtectedRoute>
+              <RoleProtectedRoute allowedRoles={['artist', 'producer']}>
                 <div className="flex min-h-screen w-full">
                   <RoleBasedSidebar />
                   <main className="flex-1 p-6 overflow-auto">
@@ -277,7 +276,7 @@ const App = () => (
                     </div>
                   </main>
                 </div>
-              </ProtectedRoute>
+              </RoleProtectedRoute>
             } />
             <Route path="*" element={<NotFound />} />
           </Routes>
