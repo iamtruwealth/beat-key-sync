@@ -334,6 +334,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          beat_pack_count: number | null
           bio: string | null
           created_at: string
           first_name: string | null
@@ -341,15 +342,19 @@ export type Database = {
           home_town: string | null
           id: string
           last_name: string | null
+          plan: string | null
           producer_logo_url: string | null
           producer_name: string | null
           public_profile_enabled: boolean | null
           role: Database["public"]["Enums"]["user_role"] | null
           social_links: Json | null
+          stripe_customer_id: string | null
+          track_upload_count: number | null
           updated_at: string
           verification_status: string | null
         }
         Insert: {
+          beat_pack_count?: number | null
           bio?: string | null
           created_at?: string
           first_name?: string | null
@@ -357,15 +362,19 @@ export type Database = {
           home_town?: string | null
           id: string
           last_name?: string | null
+          plan?: string | null
           producer_logo_url?: string | null
           producer_name?: string | null
           public_profile_enabled?: boolean | null
           role?: Database["public"]["Enums"]["user_role"] | null
           social_links?: Json | null
+          stripe_customer_id?: string | null
+          track_upload_count?: number | null
           updated_at?: string
           verification_status?: string | null
         }
         Update: {
+          beat_pack_count?: number | null
           bio?: string | null
           created_at?: string
           first_name?: string | null
@@ -373,11 +382,14 @@ export type Database = {
           home_town?: string | null
           id?: string
           last_name?: string | null
+          plan?: string | null
           producer_logo_url?: string | null
           producer_name?: string | null
           public_profile_enabled?: boolean | null
           role?: Database["public"]["Enums"]["user_role"] | null
           social_links?: Json | null
+          stripe_customer_id?: string | null
+          track_upload_count?: number | null
           updated_at?: string
           verification_status?: string | null
         }
