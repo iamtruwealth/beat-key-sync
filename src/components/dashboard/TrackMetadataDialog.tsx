@@ -128,6 +128,71 @@ export function TrackMetadataDialog({ track, open, onOpenChange, onTrackUpdated 
           }
         }
 
+        // If a beat pack was selected, mirror this beat into the tracks table and link it
+        if (formData.selectedBeatPack) {
+          try {
+            // Try to find an existing mirrored track by source_beat_id
+            const { data: existingMirror } = await supabase
+              .from('tracks')
+              .select('*')
+              .eq('user_id', (track as any).user_id)
+              .contains('metadata', { source_beat_id: track.id })
+              .maybeSingle();
+
+            let mirroredTrackId = existingMirror?.id as string | undefined;
+
+            if (!mirroredTrackId) {
+              // Create a minimal track record pointing to the beat's audio
+              const mirrorInsert: Partial<Track> = {
+                user_id: (track as any).user_id,
+                title: formData.title,
+                artist: formData.artist,
+                file_url: (track as any).file_url,
+                duration: null,
+                manual_bpm: formData.manual_bpm ? parseFloat(formData.manual_bpm) : null,
+                manual_key: formData.manual_key || null,
+                detected_bpm: null,
+                detected_key: null,
+                tags: formData.tags,
+                metadata: {
+                  ...(track.metadata as any),
+                  source_beat_id: track.id,
+                  source_type: 'beat'
+                } as any
+              };
+
+              const { data: mirror, error: mirrorErr } = await supabase
+                .from('tracks')
+                .insert(mirrorInsert)
+                .select()
+                .single();
+
+              if (mirrorErr) throw mirrorErr;
+              mirroredTrackId = mirror.id as string;
+            }
+
+            // Link to beat pack (avoid duplicate)
+            const { data: existingLink } = await supabase
+              .from('beat_pack_tracks')
+              .select('id')
+              .eq('beat_pack_id', formData.selectedBeatPack)
+              .eq('track_id', mirroredTrackId!)
+              .maybeSingle();
+
+            if (!existingLink) {
+              await supabase
+                .from('beat_pack_tracks')
+                .insert({
+                  beat_pack_id: formData.selectedBeatPack,
+                  track_id: mirroredTrackId!,
+                  position: 0
+                });
+            }
+          } catch (linkErr) {
+            console.error('Error linking beat to beat pack via mirrored track:', linkErr);
+          }
+        }
+
         // Convert back to track format for the callback
         const updatedTrack = {
           ...track,
