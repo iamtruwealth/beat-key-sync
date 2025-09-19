@@ -291,7 +291,7 @@ export default function BeatPackPage() {
   const progressPercent = duration ? (currentTime / duration) * 100 : 0;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-white">
       <div className="container mx-auto px-4 py-8">
         {/* Beat Pack Header */}
         <div className="mb-8">
