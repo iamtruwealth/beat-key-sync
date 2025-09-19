@@ -115,7 +115,7 @@ export function TrackCard({ track, onTrackUpdated, onTrackDeleted }: BeatCardPro
     }
   };
 
-  const handleTrackUpdated = (updatedTrack: Track) => {
+  const handleTrackUpdated = (updatedTrack: Beat) => {
     onTrackUpdated?.(updatedTrack);
   };
 

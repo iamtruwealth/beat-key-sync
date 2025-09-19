@@ -1,60 +1,64 @@
-import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import React, { useEffect, useState } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { Tables } from "@/integrations/supabase/types";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, DollarSign } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { Tables } from "@/integrations/supabase/types";
+import { Badge } from "@/components/ui/badge";
+import { X } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-type Track = Tables<"tracks">;
+type Beat = Tables<"beats">;
 type BeatPack = Tables<"beat_packs">;
 
 interface TrackMetadataDialogProps {
-  track: Track & { is_beat?: boolean } | null;
+  track: Beat;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onTrackUpdated: (updatedTrack: Track) => void;
+  onTrackUpdated: (updatedTrack: Beat) => void;
 }
 
-const musicalKeys = [
-  "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
-  "Cm", "C#m", "Dm", "D#m", "Em", "Fm", "F#m", "Gm", "G#m", "Am", "A#m", "Bm"
-];
-
 export function TrackMetadataDialog({ track, open, onOpenChange, onTrackUpdated }: TrackMetadataDialogProps) {
-  const [isLoading, setIsLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [beatPacks, setBeatPacks] = useState<BeatPack[]>([]);
-  const [formData, setFormData] = useState({
-    title: "",
-    artist: "",
-    manual_bpm: "",
-    manual_key: "",
-    tags: [] as string[],
-    selectedBeatPack: "" as string,
-    price: "",
-    isFree: true
-  });
   const { toast } = useToast();
+  
+  const [formData, setFormData] = useState({
+    title: track.title || '',
+    artist: track.artist || '',
+    genre: track.genre || '',
+    manual_bpm: track.manual_bpm?.toString() || '',
+    manual_key: track.manual_key || '',
+    tags: track.tags || [],
+    newTag: '',
+    selectedBeatPack: '',
+    description: track.description || '',
+    is_free: track.is_free || false,
+    price_cents: track.price_cents?.toString() || '0'
+  });
 
   useEffect(() => {
-    if (track && open) {
-      const isBeat = track.is_beat;
-      const beatMetadata = track.metadata as any;
-      
+    if (open) {
       setFormData({
-        title: track.title || "",
-        artist: track.artist || "",
-        manual_bpm: track.manual_bpm?.toString() || "",
-        manual_key: track.manual_key || "",
+        title: track.title || '',
+        artist: track.artist || '',
+        genre: track.genre || '',
+        manual_bpm: track.manual_bpm?.toString() || '',
+        manual_key: track.manual_key || '',
         tags: track.tags || [],
-        selectedBeatPack: "",
-        price: isBeat && beatMetadata?.price_cents ? (beatMetadata.price_cents / 100).toFixed(2) : "0.00",
-        isFree: isBeat ? (beatMetadata?.is_free || false) : true
+        newTag: '',
+        selectedBeatPack: '',
+        description: track.description || '',
+        is_free: track.is_free || false,
+        price_cents: track.price_cents?.toString() || '0'
       });
       fetchBeatPacks();
     }
@@ -69,321 +73,292 @@ export function TrackMetadataDialog({ track, open, onOpenChange, onTrackUpdated 
         .from('beat_packs')
         .select('*')
         .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+        .order('name');
 
-      if (error) throw error;
-      setBeatPacks(data || []);
-    } catch (error) {
-      console.error('Error fetching beat packs:', error);
-    }
-  };
-
-  const handleSave = async () => {
-    if (!track) return;
-
-    setIsLoading(true);
-    try {
-      const isBeat = track.is_beat;
-      
-      if (isBeat) {
-        // Handle beat update
-        const priceCents = formData.isFree ? 0 : Math.round(parseFloat(formData.price || "0") * 100);
-        
-        const { data, error } = await supabase
-          .from('beats')
-          .update({
-            title: formData.title,
-            description: formData.artist,
-            bpm: formData.manual_bpm ? parseInt(formData.manual_bpm) : null,
-            key: formData.manual_key || null,
-            tags: formData.tags,
-            price_cents: priceCents,
-            is_free: formData.isFree,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', track.id)
-          .select()
-          .single();
-
-        if (error) throw error;
-
-        // Create or update Stripe product if price is set
-        if (!formData.isFree && priceCents > 0) {
-          try {
-            const { error: productError } = await supabase.functions.invoke('create-beat-product', {
-              body: {
-                beatId: track.id,
-                title: formData.title,
-                description: formData.artist,
-                priceCents: priceCents
-              }
-            });
-            
-            if (productError) {
-              console.error('Error creating Stripe product:', productError);
-              // Don't fail the entire operation if Stripe fails
-            }
-          } catch (productError) {
-            console.error('Error calling create-beat-product:', productError);
-          }
-        }
-
-        // No need to mirror beats into tracks anymore since they're the same table
-
-        // Convert back to track format for the callback
-        const updatedTrack = {
-          ...track,
-          title: data.title,
-          artist: data.description,
-          manual_bpm: data.bpm,
-          manual_key: data.key,
-          tags: data.tags,
-          metadata: {
-            ...((track.metadata as any) || {}),
-            price_cents: data.price_cents,
-            is_free: data.is_free
-          }
-        } as Track;
-        
-        onTrackUpdated(updatedTrack);
+      if (error) {
+        console.error('Error fetching beat packs:', error);
       } else {
-        // Handle regular track update
-        const updateData: Partial<Track> = {
-          title: formData.title,
-          artist: formData.artist,
-          manual_bpm: formData.manual_bpm ? parseFloat(formData.manual_bpm) : null,
-          manual_key: formData.manual_key || null,
-          tags: formData.tags,
-          updated_at: new Date().toISOString()
-        };
-
-        const { data, error } = await supabase
-          .from('beats')
-          .update(updateData)
-          .eq('id', track.id)
-          .select()
-          .single();
-
-        if (error) throw error;
-
-        // If beat pack is selected, add track to beat pack (avoid duplicates)
-        if (formData.selectedBeatPack) {
-          // Check if already exists to avoid duplicate key error
-          const { data: existing } = await supabase
-            .from('beat_pack_tracks')
-            .select('id')
-            .eq('beat_pack_id', formData.selectedBeatPack)
-            .eq('track_id', track.id)
-            .single();
-
-          if (!existing) {
-            await supabase
-              .from('beat_pack_tracks')
-              .insert({
-                beat_pack_id: formData.selectedBeatPack,
-                track_id: track.id,
-                position: 0
-              });
-          }
-        }
-
-        // Call learning function if BPM or key was manually set
-        if (formData.manual_bpm || formData.manual_key) {
-          await supabase.functions.invoke('learn-from-corrections', {
-            body: {
-              track_id: track.id,
-              detected_bpm: track.detected_bpm,
-              detected_key: track.detected_key,
-              manual_bpm: formData.manual_bpm ? parseFloat(formData.manual_bpm) : null,
-              manual_key: formData.manual_key || null
-            }
-          });
-        }
-
-        onTrackUpdated(data);
+        setBeatPacks(data || []);
       }
-
-      onOpenChange(false);
-      toast({
-        title: "Success",
-        description: `${isBeat ? 'Beat' : 'Track'} metadata updated successfully`,
-      });
     } catch (error) {
-      console.error('Error updating track:', error);
-      toast({
-        title: "Error",
-        description: `Failed to update ${track.is_beat ? 'beat' : 'track'} metadata`,
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
+      console.error('Error:', error);
     }
   };
 
-  const addTag = (tag: string) => {
-    if (tag && !formData.tags.includes(tag)) {
+  const handleInputChange = (field: string, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleAddTag = () => {
+    if (formData.newTag.trim() && !formData.tags.includes(formData.newTag.trim())) {
       setFormData(prev => ({
         ...prev,
-        tags: [...prev.tags, tag]
+        tags: [...prev.tags, prev.newTag.trim()],
+        newTag: ''
       }));
     }
   };
 
-  const removeTag = (tagToRemove: string) => {
+  const handleRemoveTag = (tagToRemove: string) => {
     setFormData(prev => ({
       ...prev,
       tags: prev.tags.filter(tag => tag !== tagToRemove)
     }));
   };
 
-  if (!track) return null;
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddTag();
+    }
+  };
+
+  const handleSave = async () => {
+    setLoading(true);
+    try {
+      // Update beat metadata
+      const updateData: Partial<Beat> = {
+        title: formData.title,
+        artist: formData.artist,
+        genre: formData.genre,
+        manual_bpm: formData.manual_bpm ? parseFloat(formData.manual_bpm) : null,
+        manual_key: formData.manual_key || null,
+        tags: formData.tags,
+        description: formData.description,
+        is_free: formData.is_free,
+        price_cents: formData.is_free ? 0 : parseInt(formData.price_cents) || 0
+      };
+
+      // Create Stripe product if not free and doesn't have one
+      if (!formData.is_free && !track.stripe_product_id) {
+        try {
+          const { data: productResult } = await supabase.functions.invoke('create-beat-product', {
+            body: {
+              beatId: track.id,
+              title: formData.title,
+              description: formData.description,
+              priceCents: parseInt(formData.price_cents) || 100
+            }
+          });
+
+          if (productResult?.productId && productResult?.priceId) {
+            updateData.stripe_product_id = productResult.productId;
+            updateData.stripe_price_id = productResult.priceId;
+          }
+        } catch (productError) {
+          console.error('Error creating Stripe product:', productError);
+        }
+      }
+
+      const { data, error } = await supabase
+        .from('beats')
+        .update(updateData)
+        .eq('id', track.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Add to beat pack if selected
+      if (formData.selectedBeatPack) {
+        const { data: existing } = await supabase
+          .from('beat_pack_tracks')
+          .select('id')
+          .eq('beat_pack_id', formData.selectedBeatPack)
+          .eq('track_id', track.id)
+          .maybeSingle();
+
+        if (!existing) {
+          await supabase
+            .from('beat_pack_tracks')
+            .insert({
+              beat_pack_id: formData.selectedBeatPack,
+              track_id: track.id,
+              position: 0
+            });
+        }
+      }
+
+      onTrackUpdated(data);
+      onOpenChange(false);
+      
+      toast({
+        title: "Success",
+        description: "Beat metadata updated successfully"
+      });
+    } catch (error) {
+      console.error('Error updating beat:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update beat metadata",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit {track.is_beat ? 'Beat' : 'Track'} Metadata</DialogTitle>
+          <DialogTitle>Edit Beat Metadata</DialogTitle>
         </DialogHeader>
         
-        <div className="grid gap-4 py-4">
+        <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="title">Title</Label>
               <Input
                 id="title"
                 value={formData.title}
-                onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                onChange={(e) => handleInputChange('title', e.target.value)}
+                placeholder="Beat title"
               />
             </div>
+            
             <div className="space-y-2">
               <Label htmlFor="artist">Artist/Producer</Label>
               <Input
                 id="artist"
                 value={formData.artist}
-                onChange={(e) => setFormData(prev => ({ ...prev, artist: e.target.value }))}
+                onChange={(e) => handleInputChange('artist', e.target.value)}
+                placeholder="Artist name"
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
+              value={formData.description}
+              onChange={(e) => handleInputChange('description', e.target.value)}
+              placeholder="Describe your beat..."
+              rows={3}
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="genre">Genre</Label>
+              <Input
+                id="genre"
+                value={formData.genre}
+                onChange={(e) => handleInputChange('genre', e.target.value)}
+                placeholder="e.g. Hip Hop"
+              />
+            </div>
+            
             <div className="space-y-2">
               <Label htmlFor="bpm">BPM</Label>
               <Input
                 id="bpm"
                 type="number"
-                placeholder={track.detected_bpm?.toString() || "120"}
                 value={formData.manual_bpm}
-                onChange={(e) => setFormData(prev => ({ ...prev, manual_bpm: e.target.value }))}
+                onChange={(e) => handleInputChange('manual_bpm', e.target.value)}
+                placeholder="120"
               />
-              {track.detected_bpm && (
-                <p className="text-xs text-muted-foreground">
-                  Detected: {track.detected_bpm} BPM
-                </p>
-              )}
             </div>
+            
             <div className="space-y-2">
-              <Label htmlFor="key">Musical Key</Label>
-              <Select value={formData.manual_key} onValueChange={(value) => setFormData(prev => ({ ...prev, manual_key: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder={track.detected_key || "Select key"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {musicalKeys.map((key) => (
-                    <SelectItem key={key} value={key}>{key}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {track.detected_key && (
-                <p className="text-xs text-muted-foreground">
-                  Detected: {track.detected_key}
-                </p>
+              <Label htmlFor="key">Key</Label>
+              <Input
+                id="key"
+                value={formData.manual_key}
+                onChange={(e) => handleInputChange('manual_key', e.target.value)}
+                placeholder="C Major"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Pricing</Label>
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  checked={formData.is_free}
+                  onChange={() => handleInputChange('is_free', true)}
+                />
+                Free
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  checked={!formData.is_free}
+                  onChange={() => handleInputChange('is_free', false)}
+                />
+                Paid
+              </label>
+              {!formData.is_free && (
+                <div className="flex items-center gap-2">
+                  <span>$</span>
+                  <Input
+                    type="number"
+                    value={(parseInt(formData.price_cents) / 100).toFixed(2)}
+                    onChange={(e) => handleInputChange('price_cents', (parseFloat(e.target.value) * 100).toString())}
+                    placeholder="9.99"
+                    className="w-20"
+                  />
+                </div>
               )}
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="beatpack">Add to Beat Pack</Label>
-            <Select value={formData.selectedBeatPack} onValueChange={(value) => setFormData(prev => ({ ...prev, selectedBeatPack: value }))}>
+            <Label>Tags</Label>
+            <div className="flex gap-2 mb-2">
+              <Input
+                value={formData.newTag}
+                onChange={(e) => handleInputChange('newTag', e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Add a tag..."
+              />
+              <Button type="button" onClick={handleAddTag} variant="outline">
+                Add
+              </Button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {formData.tags.map((tag, index) => (
+                <Badge key={index} variant="secondary" className="flex items-center gap-1">
+                  {tag}
+                  <button
+                    onClick={() => handleRemoveTag(tag)}
+                    className="ml-1 hover:text-destructive"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </Badge>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="beatPack">Add to Beat Pack</Label>
+            <Select value={formData.selectedBeatPack} onValueChange={(value) => handleInputChange('selectedBeatPack', value)}>
               <SelectTrigger>
-                <SelectValue placeholder="Select beat pack" />
+                <SelectValue placeholder="Select a beat pack (optional)" />
               </SelectTrigger>
               <SelectContent>
                 {beatPacks.map((pack) => (
-                  <SelectItem key={pack.id} value={pack.id}>{pack.name}</SelectItem>
+                  <SelectItem key={pack.id} value={pack.id}>
+                    {pack.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
-          {/* Pricing Controls */}
-          <div className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="isFree"
-                checked={formData.isFree}
-                onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isFree: checked }))}
-              />
-              <Label htmlFor="isFree">Free Download</Label>
-            </div>
-
-            {!formData.isFree && (
-              <div className="space-y-2">
-                <Label htmlFor="price" className="flex items-center gap-2">
-                  <DollarSign className="h-4 w-4" />
-                  Price (USD)
-                </Label>
-                <Input
-                  id="price"
-                  type="number"
-                  step="0.01"
-                  min="0.99"
-                  value={formData.price}
-                  onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
-                  placeholder="9.99"
-                />
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label>Tags</Label>
-            <div className="flex flex-wrap gap-2 mb-2">
-              {formData.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="inline-flex items-center gap-1 bg-primary/10 text-primary px-2 py-1 rounded-md text-sm cursor-pointer"
-                  onClick={() => removeTag(tag)}
-                >
-                  {tag} ×
-                </span>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              {['vocals', 'drums', 'bass', 'melody', 'fx', 'trap', 'hip-hop', 'pop'].map((suggestedTag) => (
-                <Button
-                  key={suggestedTag}
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => addTag(suggestedTag)}
-                  disabled={formData.tags.includes(suggestedTag)}
-                >
-                  {suggestedTag}
-                </Button>
-              ))}
-            </div>
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSave} disabled={loading}>
+              {loading ? "Saving..." : "Save Changes"}
+            </Button>
           </div>
         </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave} disabled={isLoading}>
-            {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-            Save Changes
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
