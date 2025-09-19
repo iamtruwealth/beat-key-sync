@@ -20,10 +20,7 @@ import {
   MessageSquare, 
   FileText, 
   Music, 
-  DollarSign, 
-  BarChart3, 
   User as UserIcon, 
-  Compass,
   Bell,
   Upload,
   Library,
@@ -31,8 +28,7 @@ import {
   Settings,
   LogOut,
   Headphones,
-  Mic,
-  FolderOpen
+  Mic
 } from "lucide-react";
 
 type UserRole = 'artist' | 'producer';

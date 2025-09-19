@@ -7,6 +7,7 @@ import { AppLayout } from "./components/layout/AppLayout";
 import { RoleBasedSidebar } from "./components/layout/RoleBasedSidebar";
 import { AudioProvider } from "./contexts/AudioContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { RoleProtectedRoute } from "./components/RoleProtectedRoute";
 import Dashboard from "./pages/Dashboard";
 import ArtistDashboard from "./pages/ArtistDashboard";
 import ProducerDashboard from "./pages/ProducerDashboard";
@@ -97,14 +98,14 @@ const App = () => (
               </ProtectedRoute>
             } />
             <Route path="/beat-packs" element={
-              <ProtectedRoute>
+              <RoleProtectedRoute allowedRoles={['producer']}>
                 <div className="flex min-h-screen w-full">
                   <RoleBasedSidebar />
                   <main className="flex-1 p-6 overflow-auto">
                     <BeatPacks />
                   </main>
                 </div>
-              </ProtectedRoute>
+              </RoleProtectedRoute>
             } />
             <Route path="/notifications" element={
               <ProtectedRoute>
@@ -117,7 +118,7 @@ const App = () => (
               </ProtectedRoute>
             } />
             <Route path="/library" element={
-              <ProtectedRoute>
+              <RoleProtectedRoute allowedRoles={['producer']}>
                 <AudioProvider>
                   <div className="flex min-h-screen w-full">
                     <RoleBasedSidebar />
@@ -126,7 +127,7 @@ const App = () => (
                     </main>
                   </div>
                 </AudioProvider>
-              </ProtectedRoute>
+              </RoleProtectedRoute>
             } />
             <Route path="/projects" element={
               <ProtectedRoute>
@@ -159,7 +160,7 @@ const App = () => (
               </ProtectedRoute>
             } />
             <Route path="/upload" element={
-              <ProtectedRoute>
+              <RoleProtectedRoute allowedRoles={['producer']}>
                 <AudioProvider>
                   <div className="flex min-h-screen w-full">
                     <RoleBasedSidebar />
@@ -168,7 +169,7 @@ const App = () => (
                     </main>
                   </div>
                 </AudioProvider>
-              </ProtectedRoute>
+              </RoleProtectedRoute>
             } />
             <Route path="/shared" element={
               <ProtectedRoute>
