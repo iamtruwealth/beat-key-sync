@@ -88,13 +88,7 @@ export default function BeatPackPage() {
         // For auto-generated packs, get beats by tag
         const { data: beatsData, error: beatsError } = await supabase
           .from('beats')
-          .select(`
-            *,
-            profiles!beats_producer_id_fkey (
-              producer_name,
-              producer_logo_url
-            )
-          `)
+          .select('*')
           .contains('tags', [packData.auto_tag]);
 
         if (beatsError) throw beatsError;
@@ -102,7 +96,7 @@ export default function BeatPackPage() {
         beats = (beatsData || []).map(beat => ({
           ...beat,
           artist: beat.artist || 'Unknown Artist',
-          producer_name: beat.profiles?.producer_name || beat.artist || 'Unknown Producer',
+          producer_name: beat.artist || 'Unknown Producer',
           audio_file_url: beat.file_url,
           bpm: beat.manual_bpm || beat.detected_bpm,
           key: beat.manual_key || beat.detected_key
@@ -123,20 +117,14 @@ export default function BeatPackPage() {
           // Fetch all beats from the single beats table
           const { data: beatsData } = await supabase
             .from('beats')
-            .select(`
-              *,
-              profiles!beats_producer_id_fkey (
-                producer_name,
-                producer_logo_url
-              )
-            `)
+            .select('*')
             .in('id', beatIds);
 
           // Transform beat data to match Beat interface
           const allItems = (beatsData || []).map(beat => ({
             ...beat,
             artist: beat.artist || 'Unknown Artist',
-            producer_name: beat.profiles?.producer_name || beat.artist || 'Unknown Producer',
+            producer_name: beat.artist || 'Unknown Producer',
             audio_file_url: beat.file_url,
             bpm: beat.manual_bpm || beat.detected_bpm,
             key: beat.manual_key || beat.detected_key
