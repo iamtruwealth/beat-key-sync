@@ -32,8 +32,8 @@ interface UploadedFile {
   // Beat pricing fields
   price: string;
   isFree: boolean;
-  genre?: string;
-  description?: string;
+  genre: string;
+  description: string;
 }
 
 export default function UploadPage() {
@@ -104,7 +104,9 @@ export default function UploadPage() {
       progress: 0,
       status: 'pending' as const,
       price: "9.99",
-      isFree: false
+      isFree: false,
+      genre: "",
+      description: ""
     }));
     setUploadedFiles(prev => [...prev, ...newFiles]);
     

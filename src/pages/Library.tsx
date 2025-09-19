@@ -10,10 +10,12 @@ import { Tables } from "@/integrations/supabase/types";
 import { TrackCard } from "@/components/dashboard/TrackCard";
 
 type Track = Tables<"tracks">;
+type Beat = Tables<"beats">;
 type BeatPack = Tables<"beat_packs">;
 
 export default function Library() {
   const [tracks, setTracks] = useState<Track[]>([]);
+  const [beats, setBeats] = useState<Beat[]>([]);
   const [beatPacks, setBeatPacks] = useState<BeatPack[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All Files");
@@ -39,6 +41,29 @@ export default function Library() {
       toast({
         title: "Error",
         description: "Failed to load tracks",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const fetchBeats = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('beats')
+        .select('*')
+        .eq('producer_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setBeats(data || []);
+    } catch (error) {
+      console.error('Error fetching beats:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load beats",
         variant: "destructive",
       });
     }
@@ -70,7 +95,7 @@ export default function Library() {
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
-      await Promise.all([fetchTracks(), fetchBeatPacks()]);
+      await Promise.all([fetchTracks(), fetchBeats(), fetchBeatPacks()]);
       setIsLoading(false);
     };
     loadData();
@@ -92,6 +117,26 @@ export default function Library() {
           ));
         } else if (payload.eventType === 'INSERT') {
           setTracks(prev => [payload.new as Track, ...prev]);
+        }
+      })
+      .subscribe();
+
+    const beatsChannel = supabase
+      .channel('beats-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'beats'
+      }, (payload) => {
+        console.log('Beat change detected:', payload);
+        if (payload.eventType === 'DELETE') {
+          setBeats(prev => prev.filter(beat => beat.id !== payload.old.id));
+        } else if (payload.eventType === 'UPDATE') {
+          setBeats(prev => prev.map(beat => 
+            beat.id === payload.new.id ? payload.new as Beat : beat
+          ));
+        } else if (payload.eventType === 'INSERT') {
+          setBeats(prev => [payload.new as Beat, ...prev]);
         }
       })
       .subscribe();
@@ -118,6 +163,7 @@ export default function Library() {
 
     return () => {
       supabase.removeChannel(tracksChannel);
+      supabase.removeChannel(beatsChannel);
       supabase.removeChannel(beatPacksChannel);
     };
   }, []);
@@ -260,6 +306,65 @@ export default function Library() {
             </div>
           )}
 
+          {/* Beats Section */}
+          {beats.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <Music className="w-5 h-5 text-green-500" />
+                <h2 className="text-xl font-semibold">Beats for Sale</h2>
+                <Badge variant="secondary">{beats.length}</Badge>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {beats.map((beat) => (
+                  <Card key={beat.id} className="group hover:shadow-lg transition-shadow">
+                    <CardContent className="p-4">
+                      <div className="aspect-square bg-gradient-to-br from-green-500/20 to-green-500/10 rounded-lg mb-3 flex items-center justify-center relative overflow-hidden">
+                        {beat.artwork_url ? (
+                          <img 
+                            src={beat.artwork_url} 
+                            alt={beat.title}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <Music className="w-8 h-8 text-green-500/60" />
+                        )}
+                        <Button
+                          size="sm"
+                          className="absolute inset-0 bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <Play className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      <h3 className="font-medium text-sm truncate">{beat.title}</h3>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground mt-1">
+                        <span>{beat.genre || 'No genre'}</span>
+                        <span className="font-medium text-green-600">
+                          {beat.is_free ? 'FREE' : `$${(beat.price_cents / 100).toFixed(2)}`}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-2">
+                        {beat.bpm && (
+                          <Badge variant="outline" className="text-xs">{beat.bpm} BPM</Badge>
+                        )}
+                        {beat.key && (
+                          <Badge variant="outline" className="text-xs">{beat.key}</Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between mt-2">
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(beat.created_at).toLocaleDateString()}
+                        </span>
+                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                          <MoreHorizontal className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Tracks Section */}
           {filteredTracks.length > 0 ? (
             <div>
@@ -320,7 +425,7 @@ export default function Library() {
                 </div>
               )}
             </div>
-          ) : tracks.length === 0 && beatPacks.length === 0 ? (
+          ) : tracks.length === 0 && beats.length === 0 && beatPacks.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Upload className="w-12 h-12 mx-auto mb-4 opacity-50" />
               <h3 className="text-lg font-medium mb-2">No audio files yet</h3>
