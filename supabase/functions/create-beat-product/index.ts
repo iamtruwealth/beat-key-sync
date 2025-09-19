@@ -45,13 +45,10 @@ serve(async (req) => {
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
-    // Get beat and producer info
+    // Get beat owned by the user
     const { data: beat, error: beatError } = await supabaseClient
       .from("beats")
-      .select(`
-        *,
-        profiles!beats_producer_id_fkey(stripe_account_id, producer_name)
-      `)
+      .select("*")
       .eq("id", beatId)
       .eq("producer_id", user.id)
       .single();
@@ -77,7 +74,14 @@ serve(async (req) => {
 
     // For now, create products on the main platform account instead of connected accounts
     // Later this can be enhanced to support connected accounts for direct payouts
-    const useConnectedAccount = false; // beat.profiles?.stripe_account_id && false;
+    const useConnectedAccount = false; // future: support connected accounts
+
+    // Fetch producer profile for display metadata (optional)
+    const { data: profile } = await supabaseClient
+      .from("profiles")
+      .select("producer_name, stripe_account_id")
+      .eq("id", user.id)
+      .maybeSingle();
 
     logStep("Creating Stripe product", { 
       title: title || beat.title,
@@ -87,7 +91,7 @@ serve(async (req) => {
     // Create Stripe product (on main platform account for now)
     const product = await stripe.products.create({
       name: title || beat.title,
-      description: description || beat.description || `Beat by ${beat.profiles?.producer_name || 'Unknown Producer'}`,
+      description: description || beat.description || `Beat by ${profile?.producer_name || 'Unknown Producer'}`,
       metadata: { 
         beat_id: beatId, 
         producer_id: user.id 

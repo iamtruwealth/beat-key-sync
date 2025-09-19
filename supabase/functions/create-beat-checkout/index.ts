@@ -21,7 +21,8 @@ serve(async (req) => {
 
   const supabaseClient = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_ANON_KEY") ?? ""
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+    { auth: { persistSession: false } }
   );
 
   try {
@@ -80,62 +81,55 @@ serve(async (req) => {
       });
     }
 
-    // Get producer details for paid beats
+    // Get producer details for paid beats (optional)
     const { data: producer, error: producerError } = await supabaseClient
       .from("profiles")
       .select("stripe_account_id, producer_name")
       .eq("id", beat.producer_id)
-      .single();
-
-    if (producerError || !producer?.stripe_account_id) {
-      throw new Error("Producer Stripe account not configured");
-    }
+      .maybeSingle();
 
     const platformFee = Math.floor(beat.price_cents * (PLATFORM_FEE_PERCENT / 100));
-    
-    logStep("Creating checkout session", { 
-      price: beat.price_cents, 
+
+    logStep("Creating checkout session", {
+      price: beat.price_cents,
       platformFee,
-      stripeAccount: producer.stripe_account_id 
+      stripeAccount: producer?.stripe_account_id || null,
     });
 
-    const session = await stripe.checkout.sessions.create({
-      mode: "payment",
-      line_items: [{
-        price_data: {
-          currency: "usd",
-          product_data: {
-            name: beat.title,
-            description: `Beat by ${producer.producer_name || 'Unknown Producer'}`,
-            metadata: {
-              beat_id: beatId,
-              producer_id: beat.producer_id
-            }
+    const lineItems = beat.stripe_price_id
+      ? [{ price: beat.stripe_price_id as string, quantity: 1 }]
+      : [{
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: beat.title,
+              description: `Beat by ${producer?.producer_name || 'Unknown Producer'}`,
+              metadata: { beat_id: beatId, producer_id: beat.producer_id }
+            },
+            unit_amount: beat.price_cents,
           },
-          unit_amount: beat.price_cents,
-        },
-        quantity: 1,
-      }],
+          quantity: 1,
+        }];
+
+    const baseParams: any = {
+      mode: "payment",
+      line_items: lineItems,
       customer_email: buyerEmail,
-      payment_intent_data: {
-        application_fee_amount: platformFee,
-        transfer_data: {
-          destination: producer.stripe_account_id,
-        },
-        metadata: {
-          beat_id: beatId,
-          producer_id: beat.producer_id,
-          buyer_email: buyerEmail,
-        }
-      },
       success_url: `${req.headers.get("origin")}/beat-purchase-success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${req.headers.get("origin")}/beats/${beatId}`,
-      metadata: {
-        beat_id: beatId,
-        producer_id: beat.producer_id,
-        buyer_email: buyerEmail,
-      }
-    });
+      metadata: { beat_id: beatId, producer_id: beat.producer_id, buyer_email: buyerEmail },
+    };
+
+    // If producer has a connected account, route funds via transfer_data
+    if (producer?.stripe_account_id) {
+      baseParams.payment_intent_data = {
+        application_fee_amount: platformFee,
+        transfer_data: { destination: producer.stripe_account_id },
+        metadata: { beat_id: beatId, producer_id: beat.producer_id, buyer_email: buyerEmail },
+      };
+    }
+
+    const session = await stripe.checkout.sessions.create(baseParams);
 
     logStep("Checkout session created", { sessionId: session.id, url: session.url });
 
@@ -143,7 +137,6 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
-
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep("ERROR in create-beat-checkout", { message: errorMessage });
