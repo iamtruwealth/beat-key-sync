@@ -67,11 +67,13 @@ serve(async (req) => {
     const customerId = customers.data[0].id;
     logStep("Found Stripe customer", { customerId });
 
-    // Update user profile with customer ID
+    // Store customer ID in secure payment info table
     await supabaseClient
-      .from("profiles")
-      .update({ stripe_customer_id: customerId })
-      .eq("id", user.id);
+      .from("user_payment_info")
+      .upsert({ 
+        user_id: user.id, 
+        stripe_customer_id: customerId 
+      });
 
     const subscriptions = await stripe.subscriptions.list({
       customer: customerId,

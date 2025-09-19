@@ -348,7 +348,6 @@ export type Database = {
           public_profile_enabled: boolean | null
           role: Database["public"]["Enums"]["user_role"] | null
           social_links: Json | null
-          stripe_customer_id: string | null
           track_upload_count: number | null
           updated_at: string
           verification_status: string | null
@@ -368,7 +367,6 @@ export type Database = {
           public_profile_enabled?: boolean | null
           role?: Database["public"]["Enums"]["user_role"] | null
           social_links?: Json | null
-          stripe_customer_id?: string | null
           track_upload_count?: number | null
           updated_at?: string
           verification_status?: string | null
@@ -388,7 +386,6 @@ export type Database = {
           public_profile_enabled?: boolean | null
           role?: Database["public"]["Enums"]["user_role"] | null
           social_links?: Json | null
-          stripe_customer_id?: string | null
           track_upload_count?: number | null
           updated_at?: string
           verification_status?: string | null
@@ -580,6 +577,30 @@ export type Database = {
           updated_at?: string
           user_id?: string
           waveform_data?: Json | null
+        }
+        Relationships: []
+      }
+      user_payment_info: {
+        Row: {
+          created_at: string
+          id: string
+          stripe_customer_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          stripe_customer_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          stripe_customer_id?: string | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
