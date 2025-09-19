@@ -7,7 +7,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// This should match your actual Stripe product ID for pro plan
+// Your actual Stripe product ID for pro plan
 const PRO_PRODUCT_ID = "prod_T56eWAaDmlFdSl";
 
 const logStep = (step: string, details?: any) => {
