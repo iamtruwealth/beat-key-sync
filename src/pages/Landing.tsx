@@ -35,28 +35,28 @@ function LandingContent() {
   const featuredProducers = [{
     id: 1,
     name: "SoundWave",
-    image: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=150&h=150&fit=crop&crop=face",
+    image: "https://images.unsplash.com/photo-1598300042247-d088f8ab3a91?w=300&h=300&fit=crop", // DJ/Producer logo/brand image
     packTitle: "Trap Vibes Vol. 3",
     plays: "2.1K",
     preview_url: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav" // Demo audio
   }, {
     id: 2,
     name: "BeatMaker Pro",
-    image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face",
+    image: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=300&h=300&fit=crop", // Music studio/brand logo
     packTitle: "R&B Essentials",
     plays: "3.4K",
     preview_url: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav" // Demo audio
   }, {
     id: 3,
     name: "DrumlineKing",
-    image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face",
+    image: "https://images.unsplash.com/photo-1571974599782-87ce066fde8b?w=300&h=300&fit=crop", // Music equipment/producer setup
     packTitle: "Hip Hop Heat",
     plays: "1.8K",
     preview_url: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav" // Demo audio
   }, {
     id: 4,
     name: "MelodyMaster",
-    image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face",
+    image: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300&h=300&fit=crop", // Music production/brand aesthetic
     packTitle: "Chill Vibes",
     plays: "4.2K",
     preview_url: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav" // Demo audio
