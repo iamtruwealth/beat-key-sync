@@ -23,6 +23,7 @@ interface Track {
   id: string;
   title: string;
   artist: string;
+  producer_name?: string;
   duration: number;
   file_url: string;
   detected_key?: string;
@@ -361,7 +362,7 @@ export function SpotifyPlayer({ beatPack }: SpotifyPlayerProps) {
                 <div className={`font-medium ${index === currentTrackIndex ? 'text-[#1db954]' : 'text-white'}`}>
                   {track.title}
                 </div>
-                <div className="text-sm text-[#b3b3b3]">{track.artist}</div>
+                <div className="text-sm text-[#b3b3b3]">{track.producer_name || track.artist}</div>
               </div>
               
               <div className="col-span-2 text-[#b3b3b3] text-sm">

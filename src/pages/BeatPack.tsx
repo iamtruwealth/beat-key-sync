@@ -8,6 +8,7 @@ interface Track {
   id: string;
   title: string;
   artist: string;
+  producer_name?: string;
   duration: number;
   file_url: string;
   detected_key?: string;
@@ -53,13 +54,16 @@ export default function BeatPackPage() {
       let tracksQuery;
       
       if (packData.creation_type === 'auto_tag' && packData.auto_tag) {
-        // For auto-generated packs, get tracks by tag
+        // For auto-generated packs, get tracks by tag with producer info
         tracksQuery = supabase
           .from('tracks')
-          .select('*')
+          .select(`
+            *,
+            profiles!tracks_user_id_fkey(producer_name)
+          `)
           .contains('tags', [packData.auto_tag]);
       } else {
-        // For manual packs, get tracks from junction table
+        // For manual packs, get tracks from junction table with producer info
         tracksQuery = supabase
           .from('beat_pack_tracks')
           .select(`
@@ -71,7 +75,8 @@ export default function BeatPackPage() {
               detected_key,
               detected_bpm,
               manual_key,
-              manual_bpm
+              manual_bpm,
+              profiles!tracks_user_id_fkey(producer_name)
             )
           `)
           .eq('beat_pack_id', packId)
@@ -87,12 +92,14 @@ export default function BeatPackPage() {
       if (packData.creation_type === 'auto_tag') {
         tracks = (tracksData || []).map(track => ({
           ...track,
-          artist: 'Producer' // Default artist name
+          artist: track.artist || 'Unknown Artist',
+          producer_name: track.profiles?.producer_name || 'Unknown Producer'
         }));
       } else {
         tracks = (tracksData || []).map((item: any) => ({
           ...item.tracks,
-          artist: 'Producer' // Default artist name
+          artist: item.tracks.artist || 'Unknown Artist',
+          producer_name: item.tracks.profiles?.producer_name || 'Unknown Producer'
         }));
       }
 
