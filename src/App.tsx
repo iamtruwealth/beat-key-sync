@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AppLayout } from "./components/layout/AppLayout";
 import { RoleBasedSidebar } from "./components/layout/RoleBasedSidebar";
+import { AudioProvider } from "./contexts/AudioContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import Dashboard from "./pages/Dashboard";
 import ArtistDashboard from "./pages/ArtistDashboard";
@@ -45,12 +46,14 @@ const App = () => (
             {/* Protected routes with role-based sidebar */}
             <Route path="/dashboard" element={
               <ProtectedRoute>
-                <div className="flex min-h-screen w-full">
-                  <RoleBasedSidebar />
-                  <main className="flex-1 p-6 overflow-auto">
-                    <Dashboard />
-                  </main>
-                </div>
+                <AudioProvider>
+                  <div className="flex min-h-screen w-full">
+                    <RoleBasedSidebar />
+                    <main className="flex-1 p-6 overflow-auto">
+                      <Dashboard />
+                    </main>
+                  </div>
+                </AudioProvider>
               </ProtectedRoute>
             } />
             <Route path="/artist-dashboard" element={
@@ -115,12 +118,14 @@ const App = () => (
             } />
             <Route path="/library" element={
               <ProtectedRoute>
-                <div className="flex min-h-screen w-full">
-                  <RoleBasedSidebar />
-                  <main className="flex-1 p-6 overflow-auto">
-                    <Library />
-                  </main>
-                </div>
+                <AudioProvider>
+                  <div className="flex min-h-screen w-full">
+                    <RoleBasedSidebar />
+                    <main className="flex-1 p-6 overflow-auto">
+                      <Library />
+                    </main>
+                  </div>
+                </AudioProvider>
               </ProtectedRoute>
             } />
             <Route path="/projects" element={
