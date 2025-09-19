@@ -25,6 +25,7 @@ import {
   Play
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 
 interface BeatPack {
   id: string;
@@ -53,6 +54,7 @@ export default function BeatPacksPage() {
     download_enabled: false
   });
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     loadBeatPacks();
@@ -189,6 +191,27 @@ export default function BeatPacksPage() {
     pack.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     pack.description?.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const copyPackLink = async (packId: string) => {
+    const url = `${window.location.origin}/pack/${packId}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      toast({
+        title: "Success",
+        description: "Pack link copied to clipboard"
+      });
+    } catch (error) {
+      toast({
+        title: "Error", 
+        description: "Failed to copy link",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const navigateToBeatPack = (packId: string) => {
+    navigate(`/pack/${packId}`);
+  };
 
   if (loading) {
     return (
@@ -328,7 +351,7 @@ export default function BeatPacksPage() {
       {/* Beat Packs Grid */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {filteredBeatPacks.map((pack) => (
-          <Card key={pack.id} className="group hover:shadow-lg transition-shadow">
+          <Card key={pack.id} className="group hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigateToBeatPack(pack.id)}>
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div className="flex-1">
@@ -370,15 +393,28 @@ export default function BeatPacksPage() {
                 </div>
               </div>
 
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline" className="flex-1">
+              <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="flex-1"
+                  onClick={() => navigate('/library')}
+                >
                   <Upload className="w-4 h-4 mr-2" />
                   Add Beats
                 </Button>
-                <Button size="sm" variant="outline">
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={() => setEditingPack(pack)}
+                >
                   <Edit className="w-4 h-4" />
                 </Button>
-                <Button size="sm" variant="outline">
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={() => copyPackLink(pack.id)}
+                >
                   <Share className="w-4 h-4" />
                 </Button>
                 <Button 
@@ -413,6 +449,62 @@ export default function BeatPacksPage() {
             </Button>
           )}
         </div>
+      )}
+
+      {/* Edit Dialog */}
+      {editingPack && (
+        <Dialog open={!!editingPack} onOpenChange={() => setEditingPack(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Beat Pack</DialogTitle>
+              <DialogDescription>
+                Update your beat pack details
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="edit-pack-name">Pack Name</Label>
+                <Input
+                  id="edit-pack-name"
+                  value={editingPack.name}
+                  onChange={(e) => setEditingPack({ ...editingPack, name: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-pack-description">Description</Label>
+                <Textarea
+                  id="edit-pack-description"
+                  value={editingPack.description || ""}
+                  onChange={(e) => setEditingPack({ ...editingPack, description: e.target.value })}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="edit-is-public">Make Public</Label>
+                <Switch
+                  id="edit-is-public"
+                  checked={editingPack.is_public}
+                  onCheckedChange={(checked) => setEditingPack({ ...editingPack, is_public: checked })}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="edit-download-enabled">Enable Downloads</Label>
+                <Switch
+                  id="edit-download-enabled"
+                  checked={editingPack.download_enabled}
+                  onCheckedChange={(checked) => setEditingPack({ ...editingPack, download_enabled: checked })}
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setEditingPack(null)}>
+                  Cancel
+                </Button>
+                <Button onClick={() => updateBeatPack(editingPack)}>
+                  Save Changes
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );
