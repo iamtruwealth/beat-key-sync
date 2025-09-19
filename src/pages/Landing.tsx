@@ -36,6 +36,27 @@ function LandingContent() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const navigateToUserDashboard = async () => {
+    if (!user) {
+      navigate("/auth");
+      return;
+    }
+
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      const role = profile?.role || 'artist';
+      navigate(role === 'producer' ? '/producer-dashboard' : '/artist-dashboard');
+    } catch (error) {
+      // Fallback to artist dashboard if profile fetch fails
+      navigate('/artist-dashboard');
+    }
+  };
   const featuredProducers = [{
     id: 1,
     name: "SoundWave",
@@ -97,7 +118,7 @@ function LandingContent() {
               {user && (
                 <Button 
                   variant="ghost" 
-                  onClick={() => navigate("/dashboard")} 
+                  onClick={navigateToUserDashboard} 
                   className="text-brand-blue hover:text-brand-blue-glow font-semibold"
                 >
                   Dashboard
@@ -108,7 +129,7 @@ function LandingContent() {
             <div className="flex items-center space-x-4">
               {user ? (
                 <Button 
-                  onClick={() => navigate("/dashboard")} 
+                  onClick={navigateToUserDashboard} 
                   className="bg-gradient-to-r from-brand-blue-deep to-brand-blue hover:from-brand-blue hover:to-brand-blue-glow text-white font-semibold px-6"
                 >
                   Go to Dashboard
@@ -151,7 +172,7 @@ function LandingContent() {
               {user ? (
                 <Button 
                   size="lg" 
-                  onClick={() => navigate("/dashboard")} 
+                  onClick={navigateToUserDashboard} 
                   className="bg-gradient-to-r from-brand-blue-deep to-brand-blue hover:from-brand-blue hover:to-brand-blue-glow text-white font-semibold px-8 py-4 text-lg shadow-lg shadow-brand-blue/30"
                 >
                   Go to Dashboard
