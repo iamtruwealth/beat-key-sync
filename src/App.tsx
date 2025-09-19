@@ -43,7 +43,11 @@ const App = () => (
             <Route path="/auth" element={<AuthPage />} />
             
             {/* Public beat pack sharing */}
-            <Route path="/pack/:id" element={<BeatPackPage />} />
+            <Route path="/pack/:id" element={
+              <AudioProvider>
+                <BeatPackPage />
+              </AudioProvider>
+            } />
             
             {/* Protected routes with role-based sidebar */}
             <Route path="/dashboard" element={
