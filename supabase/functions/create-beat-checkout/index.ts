@@ -96,20 +96,39 @@ serve(async (req) => {
       stripeAccount: producer?.stripe_account_id || null,
     });
 
-    const lineItems = beat.stripe_price_id
-      ? [{ price: beat.stripe_price_id as string, quantity: 1 }]
-      : [{
-          price_data: {
-            currency: "usd",
-            product_data: {
-              name: beat.title,
-              description: `Beat by ${producer?.producer_name || 'Unknown Producer'}`,
-              metadata: { beat_id: beatId, producer_id: beat.producer_id }
-            },
-            unit_amount: beat.price_cents,
+    // Create line items: beat + service fee
+    const lineItems = [];
+    
+    // Add the beat as the first line item
+    if (beat.stripe_price_id) {
+      lineItems.push({ price: beat.stripe_price_id as string, quantity: 1 });
+    } else {
+      lineItems.push({
+        price_data: {
+          currency: "usd",
+          product_data: {
+            name: beat.title,
+            description: `Beat by ${producer?.producer_name || 'Unknown Producer'}`,
+            metadata: { beat_id: beatId, producer_id: beat.producer_id }
           },
-          quantity: 1,
-        }];
+          unit_amount: beat.price_cents,
+        },
+        quantity: 1,
+      });
+    }
+    
+    // Add the 12% service fee as a separate line item
+    lineItems.push({
+      price_data: {
+        currency: "usd",
+        product_data: {
+          name: "Service Fee",
+          description: "Platform service fee (12%)",
+        },
+        unit_amount: platformFee,
+      },
+      quantity: 1,
+    });
 
     const baseParams: any = {
       mode: "payment",
