@@ -23,3 +23,15 @@ verify_jwt = false
 
 [functions.check-ip-limits]
 verify_jwt = false
+
+[functions.create-beat-checkout]
+verify_jwt = false
+
+[functions.beat-webhook-handler]
+verify_jwt = false
+
+[functions.create-beat-product]
+verify_jwt = true
+
+[functions.request-payout]
+verify_jwt = true

@@ -204,6 +204,96 @@ export type Database = {
         }
         Relationships: []
       }
+      beat_sales: {
+        Row: {
+          amount_received: number
+          beat_id: string
+          buyer_email: string
+          created_at: string
+          id: string
+          platform_fee: number
+          producer_id: string
+          stripe_payment_intent_id: string | null
+        }
+        Insert: {
+          amount_received: number
+          beat_id: string
+          buyer_email: string
+          created_at?: string
+          id?: string
+          platform_fee: number
+          producer_id: string
+          stripe_payment_intent_id?: string | null
+        }
+        Update: {
+          amount_received?: number
+          beat_id?: string
+          buyer_email?: string
+          created_at?: string
+          id?: string
+          platform_fee?: number
+          producer_id?: string
+          stripe_payment_intent_id?: string | null
+        }
+        Relationships: []
+      }
+      beats: {
+        Row: {
+          artwork_url: string | null
+          audio_file_url: string
+          bpm: number | null
+          created_at: string
+          description: string | null
+          genre: string | null
+          id: string
+          is_free: boolean | null
+          key: string | null
+          price_cents: number | null
+          producer_id: string
+          stripe_price_id: string | null
+          stripe_product_id: string | null
+          tags: string[] | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          artwork_url?: string | null
+          audio_file_url: string
+          bpm?: number | null
+          created_at?: string
+          description?: string | null
+          genre?: string | null
+          id?: string
+          is_free?: boolean | null
+          key?: string | null
+          price_cents?: number | null
+          producer_id: string
+          stripe_price_id?: string | null
+          stripe_product_id?: string | null
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          artwork_url?: string | null
+          audio_file_url?: string
+          bpm?: number | null
+          created_at?: string
+          description?: string | null
+          genre?: string | null
+          id?: string
+          is_free?: boolean | null
+          key?: string | null
+          price_cents?: number | null
+          producer_id?: string
+          stripe_price_id?: string | null
+          stripe_product_id?: string | null
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       collab_room_members: {
         Row: {
           id: string
@@ -332,8 +422,42 @@ export type Database = {
         }
         Relationships: []
       }
+      payout_requests: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          id: string
+          payout_details: Json | null
+          payout_method: string
+          processed_at: string | null
+          producer_id: string
+          status: string | null
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string
+          id?: string
+          payout_details?: Json | null
+          payout_method: string
+          processed_at?: string | null
+          producer_id: string
+          status?: string | null
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          id?: string
+          payout_details?: Json | null
+          payout_method?: string
+          processed_at?: string | null
+          producer_id?: string
+          status?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
+          available_balance_cents: number | null
           beat_pack_count: number | null
           bio: string | null
           created_at: string
@@ -343,17 +467,21 @@ export type Database = {
           id: string
           ip_address: string | null
           last_name: string | null
+          payout_info: Json | null
           plan: string | null
           producer_logo_url: string | null
           producer_name: string | null
           public_profile_enabled: boolean | null
           role: Database["public"]["Enums"]["user_role"] | null
           social_links: Json | null
+          stripe_account_id: string | null
+          total_earnings_cents: number | null
           track_upload_count: number | null
           updated_at: string
           verification_status: string | null
         }
         Insert: {
+          available_balance_cents?: number | null
           beat_pack_count?: number | null
           bio?: string | null
           created_at?: string
@@ -363,17 +491,21 @@ export type Database = {
           id: string
           ip_address?: string | null
           last_name?: string | null
+          payout_info?: Json | null
           plan?: string | null
           producer_logo_url?: string | null
           producer_name?: string | null
           public_profile_enabled?: boolean | null
           role?: Database["public"]["Enums"]["user_role"] | null
           social_links?: Json | null
+          stripe_account_id?: string | null
+          total_earnings_cents?: number | null
           track_upload_count?: number | null
           updated_at?: string
           verification_status?: string | null
         }
         Update: {
+          available_balance_cents?: number | null
           beat_pack_count?: number | null
           bio?: string | null
           created_at?: string
@@ -383,12 +515,15 @@ export type Database = {
           id?: string
           ip_address?: string | null
           last_name?: string | null
+          payout_info?: Json | null
           plan?: string | null
           producer_logo_url?: string | null
           producer_name?: string | null
           public_profile_enabled?: boolean | null
           role?: Database["public"]["Enums"]["user_role"] | null
           social_links?: Json | null
+          stripe_account_id?: string | null
+          total_earnings_cents?: number | null
           track_upload_count?: number | null
           updated_at?: string
           verification_status?: string | null
