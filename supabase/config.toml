@@ -1,1 +1,25 @@
 project_id = "lascsucrozzhbvlsddxg"
+
+[functions.check-subscription]
+verify_jwt = true
+
+[functions.create-checkout]
+verify_jwt = true
+
+[functions.can-create-beatpack]
+verify_jwt = true
+
+[functions.can-upload-track]
+verify_jwt = true
+
+[functions.learn-from-corrections]
+verify_jwt = true
+
+[functions.signup-with-ip-guard]
+verify_jwt = false
+
+[functions.stripe-webhook-sync-plan]
+verify_jwt = false
+
+[functions.check-ip-limits]
+verify_jwt = false

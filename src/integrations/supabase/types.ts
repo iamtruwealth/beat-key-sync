@@ -341,6 +341,7 @@ export type Database = {
           genres: string[] | null
           home_town: string | null
           id: string
+          ip_address: string | null
           last_name: string | null
           plan: string | null
           producer_logo_url: string | null
@@ -360,6 +361,7 @@ export type Database = {
           genres?: string[] | null
           home_town?: string | null
           id: string
+          ip_address?: string | null
           last_name?: string | null
           plan?: string | null
           producer_logo_url?: string | null
@@ -379,6 +381,7 @@ export type Database = {
           genres?: string[] | null
           home_town?: string | null
           id?: string
+          ip_address?: string | null
           last_name?: string | null
           plan?: string | null
           producer_logo_url?: string | null
@@ -425,6 +428,30 @@ export type Database = {
           status?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      signup_attempts: {
+        Row: {
+          attempted_at: string
+          id: string
+          ip_address: string
+          success: boolean | null
+          user_agent: string | null
+        }
+        Insert: {
+          attempted_at?: string
+          id?: string
+          ip_address: string
+          success?: boolean | null
+          user_agent?: string | null
+        }
+        Update: {
+          attempted_at?: string
+          id?: string
+          ip_address?: string
+          success?: boolean | null
+          user_agent?: string | null
         }
         Relationships: []
       }
