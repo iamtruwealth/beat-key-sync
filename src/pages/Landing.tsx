@@ -79,7 +79,7 @@ function LandingContent() {
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <img src="/placeholder.svg" alt="BeatPackz Logo" className="w-8 h-8" />
+              <video src="/logo.mp4" className="w-8 h-8" autoPlay loop muted playsInline />
               <span className="text-2xl font-bold text-foreground">BeatPackz</span>
             </div>
             
