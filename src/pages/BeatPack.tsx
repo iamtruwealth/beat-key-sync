@@ -61,7 +61,7 @@ export default function BeatPackPage() {
   const [shuffle, setShuffle] = useState(false);
   const [repeat, setRepeat] = useState<'none' | 'one' | 'all'>('none');
   const { toast } = useToast();
-  const { currentTrack, isPlaying, playTrack, currentTime, duration, seekTo } = useAudio();
+  const { currentTrack, isPlaying, playTrack, pauseTrack, togglePlayPause, currentTime, duration, seekTo } = useAudio();
 
   useEffect(() => {
     if (id) {
@@ -325,7 +325,7 @@ export default function BeatPackPage() {
                 <Button
                   variant="default"
                   size="icon"
-                  onClick={() => isPlaying ? undefined : handlePlayBeat(beatPack.beats[currentTrackIndex])}
+                  onClick={() => isPlaying ? pauseTrack() : handlePlayBeat(beatPack.beats[currentTrackIndex])}
                   className="h-12 w-12 rounded-full"
                 >
                   {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6 ml-0.5" />}
