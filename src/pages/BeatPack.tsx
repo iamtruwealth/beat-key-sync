@@ -66,54 +66,85 @@ export default function BeatPackPage() {
 
       if (packError) throw packError;
 
-      // Fetch tracks for this beat pack
-      let tracksQuery;
+      // Fetch items for this beat pack
+      let tracks: Track[] = [];
       
       if (packData.creation_type === 'auto_tag' && packData.auto_tag) {
-        // For auto-generated packs, get tracks by tag (include artist)
-        tracksQuery = supabase
+        // For auto-generated packs, get tracks by tag
+        const { data: tracksData, error: tracksError } = await supabase
           .from('tracks')
           .select('*')
           .contains('tags', [packData.auto_tag]);
-      } else {
-        // For manual packs, get tracks from junction table (include artist)
-        tracksQuery = supabase
-          .from('beat_pack_tracks')
-          .select(`
-            tracks (
-              id,
-              title,
-              artist,
-              file_url,
-              duration,
-              detected_key,
-              detected_bpm,
-              manual_key,
-              manual_bpm
-            )
-          `)
-          .eq('beat_pack_id', packId)
-          .order('position');
-      }
 
-      const { data: tracksData, error: tracksError } = await tracksQuery;
+        if (tracksError) throw tracksError;
 
-      if (tracksError) throw tracksError;
-
-      // Transform tracks data
-      let tracks: Track[];
-      if (packData.creation_type === 'auto_tag') {
         tracks = (tracksData || []).map(track => ({
           ...track,
           artist: track.artist || 'Unknown Artist',
           producer_name: track.artist || 'Unknown Producer'
         }));
       } else {
-        tracks = (tracksData || []).map((item: any) => ({
-          ...item.tracks,
-          artist: item.tracks.artist || 'Unknown Artist',
-          producer_name: item.tracks.artist || 'Unknown Producer'
-        }));
+        // For manual packs, get both tracks and beats from junction table
+        const { data: packTracksData, error: packTracksError } = await supabase
+          .from('beat_pack_tracks')
+          .select('track_id, position')
+          .eq('beat_pack_id', packId)
+          .order('position');
+
+        if (packTracksError) throw packTracksError;
+
+        if (packTracksData && packTracksData.length > 0) {
+          const trackIds = packTracksData.map(pt => pt.track_id);
+
+          // Try to fetch from tracks table first
+          const { data: tracksData } = await supabase
+            .from('tracks')
+            .select('*')
+            .in('id', trackIds);
+
+          // Try to fetch from beats table
+          const { data: beatsData } = await supabase
+            .from('beats')
+            .select('*')
+            .in('id', trackIds);
+
+          // Combine and transform data
+          const allItems = [
+            ...(tracksData || []).map(track => ({
+              id: track.id,
+              title: track.title,
+              artist: track.artist || 'Unknown Artist',
+              producer_name: track.artist || 'Unknown Producer',
+              duration: track.duration || 0,
+              file_url: track.file_url,
+              detected_key: track.detected_key,
+              detected_bpm: track.detected_bpm,
+              manual_key: track.manual_key,
+              manual_bpm: track.manual_bpm,
+              type: 'track'
+            })),
+            ...(beatsData || []).map(beat => ({
+              id: beat.id,
+              title: beat.title,
+              artist: 'Unknown Artist',
+              producer_name: 'Unknown Producer',
+              duration: 120, // Default duration for beats
+              file_url: beat.audio_file_url,
+              detected_key: beat.key,
+              detected_bpm: beat.bpm,
+              manual_key: beat.key,
+              manual_bpm: beat.bpm,
+              type: 'beat'
+            }))
+          ];
+
+          // Sort by position from beat_pack_tracks
+          tracks = allItems.sort((a, b) => {
+            const aPosition = packTracksData.find(pt => pt.track_id === a.id)?.position || 0;
+            const bPosition = packTracksData.find(pt => pt.track_id === b.id)?.position || 0;
+            return aPosition - bPosition;
+          });
+        }
       }
 
       setBeatPack({
