@@ -54,29 +54,26 @@ export default function BeatPackPage() {
       let tracksQuery;
       
       if (packData.creation_type === 'auto_tag' && packData.auto_tag) {
-        // For auto-generated packs, get tracks by tag with producer info
+        // For auto-generated packs, get tracks by tag (include artist)
         tracksQuery = supabase
           .from('tracks')
-          .select(`
-            *,
-            profiles!tracks_user_id_fkey(producer_name)
-          `)
+          .select('*')
           .contains('tags', [packData.auto_tag]);
       } else {
-        // For manual packs, get tracks from junction table with producer info
+        // For manual packs, get tracks from junction table (include artist)
         tracksQuery = supabase
           .from('beat_pack_tracks')
           .select(`
             tracks (
               id,
               title,
+              artist,
               file_url,
               duration,
               detected_key,
               detected_bpm,
               manual_key,
-              manual_bpm,
-              profiles!tracks_user_id_fkey(producer_name)
+              manual_bpm
             )
           `)
           .eq('beat_pack_id', packId)
@@ -93,13 +90,13 @@ export default function BeatPackPage() {
         tracks = (tracksData || []).map(track => ({
           ...track,
           artist: track.artist || 'Unknown Artist',
-          producer_name: track.profiles?.producer_name || 'Unknown Producer'
+          producer_name: track.artist || 'Unknown Producer'
         }));
       } else {
         tracks = (tracksData || []).map((item: any) => ({
           ...item.tracks,
           artist: item.tracks.artist || 'Unknown Artist',
-          producer_name: item.tracks.profiles?.producer_name || 'Unknown Producer'
+          producer_name: item.tracks.artist || 'Unknown Producer'
         }));
       }
 
