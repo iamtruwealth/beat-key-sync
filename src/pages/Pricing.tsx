@@ -3,10 +3,48 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Check, Star } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import beatpackzLogo from "@/assets/beatpackz-logo.png";
 
 export default function Pricing() {
   const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const handleProPlanClick = async () => {
+    try {
+      // Check if user is authenticated
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        navigate("/auth");
+        return;
+      }
+
+      // Create checkout session
+      const { data, error } = await supabase.functions.invoke('create-checkout');
+      
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Failed to create checkout session. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (data.url) {
+        window.open(data.url, '_blank');
+      }
+    } catch (error) {
+      console.error('Checkout error:', error);
+      toast({
+        title: "Error",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const plans = [
     {
@@ -132,9 +170,9 @@ export default function Pricing() {
                           : 'border-brand-blue text-brand-blue hover:bg-gradient-to-r hover:from-brand-blue-deep hover:to-brand-blue hover:text-white'
                       }`}
                       variant={plan.isPopular ? "default" : "outline"}
-                      onClick={() => navigate("/auth")}
+                      onClick={plan.isPopular ? handleProPlanClick : () => navigate("/auth")}
                     >
-                      Get Started as Producer
+                      {plan.isPopular ? "Start Pro Subscription" : "Get Started as Producer"}
                     </Button>
                   </CardContent>
                 </Card>
