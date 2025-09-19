@@ -1,20 +1,34 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { SpotifyPlayer } from "@/components/SpotifyPlayer";
+import { BeatCard } from "@/components/beats/BeatCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAudio } from "@/contexts/AudioContext";
 
-interface Track {
+interface Beat {
   id: string;
   title: string;
   artist: string;
   producer_name?: string;
   duration: number;
   file_url: string;
+  audio_file_url: string;
   detected_key?: string;
   detected_bpm?: number;
   manual_key?: string;
   manual_bpm?: number;
+  artwork_url?: string;
+  tags?: string[];
+  genre?: string;
+  is_free: boolean;
+  price_cents: number;
+  description?: string;
+  bpm?: number;
+  key?: string;
+  profiles?: {
+    producer_name?: string;
+    producer_logo_url?: string;
+  };
 }
 
 interface BeatPack {
@@ -22,7 +36,7 @@ interface BeatPack {
   name: string;
   description?: string;
   artwork_url?: string;
-  tracks: Track[];
+  beats: Beat[];
 }
 
 export default function BeatPackPage() {
@@ -30,6 +44,7 @@ export default function BeatPackPage() {
   const [beatPack, setBeatPack] = useState<BeatPack | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { currentTrack, isPlaying, playTrack } = useAudio();
 
   useEffect(() => {
     if (id) {
@@ -67,21 +82,30 @@ export default function BeatPackPage() {
       if (packError) throw packError;
 
       // Fetch items for this beat pack
-      let tracks: Track[] = [];
+      let beats: Beat[] = [];
       
       if (packData.creation_type === 'auto_tag' && packData.auto_tag) {
         // For auto-generated packs, get beats by tag
         const { data: beatsData, error: beatsError } = await supabase
           .from('beats')
-          .select('*')
+          .select(`
+            *,
+            profiles!beats_producer_id_fkey (
+              producer_name,
+              producer_logo_url
+            )
+          `)
           .contains('tags', [packData.auto_tag]);
 
         if (beatsError) throw beatsError;
 
-        tracks = (beatsData || []).map(beat => ({
+        beats = (beatsData || []).map(beat => ({
           ...beat,
           artist: beat.artist || 'Unknown Artist',
-          producer_name: beat.artist || 'Unknown Producer'
+          producer_name: beat.profiles?.producer_name || beat.artist || 'Unknown Producer',
+          audio_file_url: beat.file_url,
+          bpm: beat.manual_bpm || beat.detected_bpm,
+          key: beat.manual_key || beat.detected_key
         }));
       } else {
         // For manual packs, get beats from junction table
@@ -99,30 +123,27 @@ export default function BeatPackPage() {
           // Fetch all beats from the single beats table
           const { data: beatsData } = await supabase
             .from('beats')
-            .select('*')
+            .select(`
+              *,
+              profiles!beats_producer_id_fkey (
+                producer_name,
+                producer_logo_url
+              )
+            `)
             .in('id', beatIds);
 
-          // Transform beat data to match Track interface
+          // Transform beat data to match Beat interface
           const allItems = (beatsData || []).map(beat => ({
-            id: beat.id,
-            title: beat.title,
+            ...beat,
             artist: beat.artist || 'Unknown Artist',
-            producer_name: beat.artist || 'Unknown Producer',
-            duration: beat.duration || 0,
-            file_url: beat.file_url,
-            detected_key: beat.detected_key,
-            detected_bpm: beat.detected_bpm,
-            manual_key: beat.manual_key,
-            manual_bpm: beat.manual_bpm,
-            artwork_url: beat.artwork_url,
-            tags: beat.tags || [],
-            genre: beat.genre,
-            is_free: beat.is_free,
-            price_cents: beat.price_cents
+            producer_name: beat.profiles?.producer_name || beat.artist || 'Unknown Producer',
+            audio_file_url: beat.file_url,
+            bpm: beat.manual_bpm || beat.detected_bpm,
+            key: beat.manual_key || beat.detected_key
           }));
 
           // Sort by position from beat_pack_tracks
-          tracks = allItems.sort((a, b) => {
+          beats = allItems.sort((a, b) => {
             const aPosition = packBeatsData.find(pt => pt.track_id === a.id)?.position || 0;
             const bPosition = packBeatsData.find(pt => pt.track_id === b.id)?.position || 0;
             return aPosition - bPosition;
@@ -132,7 +153,7 @@ export default function BeatPackPage() {
 
       setBeatPack({
         ...packData,
-        tracks
+        beats
       });
 
     } catch (error) {
@@ -149,7 +170,7 @@ export default function BeatPackPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#121212] text-white flex items-center justify-center">
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
         <div className="text-xl">Loading beat pack...</div>
       </div>
     );
@@ -157,14 +178,70 @@ export default function BeatPackPage() {
 
   if (!beatPack) {
     return (
-      <div className="min-h-screen bg-[#121212] text-white flex items-center justify-center">
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-2">Beat Pack Not Found</h1>
-          <p className="text-[#b3b3b3]">The beat pack you're looking for doesn't exist.</p>
+          <p className="text-muted-foreground">The beat pack you're looking for doesn't exist.</p>
         </div>
       </div>
     );
   }
 
-  return <SpotifyPlayer beatPack={beatPack} />;
+  const handlePlayBeat = (beat: Beat) => {
+    const audioTrack = {
+      id: beat.id,
+      title: beat.title,
+      artist: beat.producer_name || beat.artist || 'Unknown Artist',
+      file_url: beat.file_url,
+      artwork_url: beat.artwork_url,
+      duration: beat.duration,
+      detected_key: beat.detected_key,
+      detected_bpm: beat.detected_bpm,
+      manual_key: beat.manual_key,
+      manual_bpm: beat.manual_bpm,
+    };
+    playTrack(audioTrack);
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 py-8">
+        {/* Beat Pack Header */}
+        <div className="mb-8">
+          <div className="flex items-start gap-6 mb-6">
+            {beatPack.artwork_url && (
+              <img 
+                src={beatPack.artwork_url} 
+                alt={beatPack.name}
+                className="w-48 h-48 object-cover rounded-lg shadow-lg"
+              />
+            )}
+            <div className="flex-1">
+              <h1 className="text-4xl font-bold mb-4">{beatPack.name}</h1>
+              {beatPack.description && (
+                <p className="text-lg text-muted-foreground mb-4">{beatPack.description}</p>
+              )}
+              <p className="text-muted-foreground">
+                {beatPack.beats.length} {beatPack.beats.length === 1 ? 'beat' : 'beats'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Beats List */}
+        <div className="space-y-4">
+          {beatPack.beats.map((beat) => (
+            <BeatCard
+              key={beat.id}
+              beat={beat}
+              isPlaying={currentTrack?.id === beat.id && isPlaying}
+              onPlay={() => handlePlayBeat(beat)}
+              onPause={() => {/* pause handled by audio context */}}
+              showPurchase={true}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }
