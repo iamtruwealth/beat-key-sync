@@ -235,7 +235,15 @@ export type Database = {
           producer_id?: string
           stripe_payment_intent_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "beat_sales_beat_id_fkey"
+            columns: ["beat_id"]
+            isOneToOne: false
+            referencedRelation: "beats"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       beats: {
         Row: {
