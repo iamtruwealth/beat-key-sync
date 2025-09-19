@@ -50,9 +50,9 @@ export function DeleteTrackDialog({ track, open, onOpenChange, onTrackDeleted }:
         }
       }
 
-      // Delete the track record
+      // Delete the beat record
       const { error } = await supabase
-        .from('tracks')
+        .from('beats')
         .delete()
         .eq('id', track.id);
 

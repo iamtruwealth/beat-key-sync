@@ -5,25 +5,25 @@ import { Play, Pause, Share2, MoreHorizontal, Clock, Music2, Users, Loader2, Edi
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tables } from "@/integrations/supabase/types";
 import { useAudio } from "@/contexts/AudioContext";
-import { TrackMetadataDialog } from "./TrackMetadataDialog";
-import { DeleteTrackDialog } from "./DeleteTrackDialog";
+import { TrackMetadataDialog } from "./BeatMetadataDialog";
+import { DeleteTrackDialog } from "./DeleteBeatDialog";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 
-type Track = Tables<"tracks">;
+type Beat = Tables<"beats">;
 
-interface TrackCardProps {
-  track: Track & {
+interface BeatCardProps {
+  track: Beat & {
     formattedDuration?: string;
     formattedSize?: string;
     lastModified?: string;
     is_beat?: boolean;
   };
-  onTrackUpdated?: (updatedTrack: Track) => void;
+  onTrackUpdated?: (updatedTrack: Beat) => void;
   onTrackDeleted?: (trackId: string) => void;
 }
 
-export function TrackCard({ track, onTrackUpdated, onTrackDeleted }: TrackCardProps) {
+export function TrackCard({ track, onTrackUpdated, onTrackDeleted }: BeatCardProps) {
   const { currentTrack, isPlaying, loading, playTrack } = useAudio();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);

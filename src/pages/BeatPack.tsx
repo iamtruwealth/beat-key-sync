@@ -70,78 +70,61 @@ export default function BeatPackPage() {
       let tracks: Track[] = [];
       
       if (packData.creation_type === 'auto_tag' && packData.auto_tag) {
-        // For auto-generated packs, get tracks by tag
-        const { data: tracksData, error: tracksError } = await supabase
-          .from('tracks')
+        // For auto-generated packs, get beats by tag
+        const { data: beatsData, error: beatsError } = await supabase
+          .from('beats')
           .select('*')
           .contains('tags', [packData.auto_tag]);
 
-        if (tracksError) throw tracksError;
+        if (beatsError) throw beatsError;
 
-        tracks = (tracksData || []).map(track => ({
-          ...track,
-          artist: track.artist || 'Unknown Artist',
-          producer_name: track.artist || 'Unknown Producer'
+        tracks = (beatsData || []).map(beat => ({
+          ...beat,
+          artist: beat.artist || 'Unknown Artist',
+          producer_name: beat.artist || 'Unknown Producer'
         }));
       } else {
-        // For manual packs, get both tracks and beats from junction table
-        const { data: packTracksData, error: packTracksError } = await supabase
+        // For manual packs, get beats from junction table
+        const { data: packBeatsData, error: packBeatsError } = await supabase
           .from('beat_pack_tracks')
           .select('track_id, position')
           .eq('beat_pack_id', packId)
           .order('position');
 
-        if (packTracksError) throw packTracksError;
+        if (packBeatsError) throw packBeatsError;
 
-        if (packTracksData && packTracksData.length > 0) {
-          const trackIds = packTracksData.map(pt => pt.track_id);
+        if (packBeatsData && packBeatsData.length > 0) {
+          const beatIds = packBeatsData.map(pt => pt.track_id);
 
-          // Try to fetch from tracks table first
-          const { data: tracksData } = await supabase
-            .from('tracks')
-            .select('*')
-            .in('id', trackIds);
-
-          // Try to fetch from beats table
+          // Fetch all beats from the single beats table
           const { data: beatsData } = await supabase
             .from('beats')
             .select('*')
-            .in('id', trackIds);
+            .in('id', beatIds);
 
-          // Combine and transform data
-          const allItems = [
-            ...(tracksData || []).map(track => ({
-              id: track.id,
-              title: track.title,
-              artist: track.artist || 'Unknown Artist',
-              producer_name: track.artist || 'Unknown Producer',
-              duration: track.duration || 0,
-              file_url: track.file_url,
-              detected_key: track.detected_key,
-              detected_bpm: track.detected_bpm,
-              manual_key: track.manual_key,
-              manual_bpm: track.manual_bpm,
-              type: 'track'
-            })),
-            ...(beatsData || []).map(beat => ({
-              id: beat.id,
-              title: beat.title,
-              artist: 'Unknown Artist',
-              producer_name: 'Unknown Producer',
-              duration: 120, // Default duration for beats
-              file_url: beat.audio_file_url,
-              detected_key: beat.key,
-              detected_bpm: beat.bpm,
-              manual_key: beat.key,
-              manual_bpm: beat.bpm,
-              type: 'beat'
-            }))
-          ];
+          // Transform beat data to match Track interface
+          const allItems = (beatsData || []).map(beat => ({
+            id: beat.id,
+            title: beat.title,
+            artist: beat.artist || 'Unknown Artist',
+            producer_name: beat.artist || 'Unknown Producer',
+            duration: beat.duration || 0,
+            file_url: beat.file_url,
+            detected_key: beat.detected_key,
+            detected_bpm: beat.detected_bpm,
+            manual_key: beat.manual_key,
+            manual_bpm: beat.manual_bpm,
+            artwork_url: beat.artwork_url,
+            tags: beat.tags || [],
+            genre: beat.genre,
+            is_free: beat.is_free,
+            price_cents: beat.price_cents
+          }));
 
           // Sort by position from beat_pack_tracks
           tracks = allItems.sort((a, b) => {
-            const aPosition = packTracksData.find(pt => pt.track_id === a.id)?.position || 0;
-            const bPosition = packTracksData.find(pt => pt.track_id === b.id)?.position || 0;
+            const aPosition = packBeatsData.find(pt => pt.track_id === a.id)?.position || 0;
+            const bPosition = packBeatsData.find(pt => pt.track_id === b.id)?.position || 0;
             return aPosition - bPosition;
           });
         }

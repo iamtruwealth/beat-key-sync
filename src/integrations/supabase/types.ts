@@ -239,58 +239,97 @@ export type Database = {
       }
       beats: {
         Row: {
+          artist: string | null
           artwork_url: string | null
           audio_file_url: string
           bpm: number | null
           created_at: string
           description: string | null
+          detected_bpm: number | null
+          detected_key: string | null
+          duration: number | null
+          file_size: number | null
+          file_url: string
+          format: string | null
           genre: string | null
           id: string
           is_free: boolean | null
           key: string | null
+          manual_bpm: number | null
+          manual_key: string | null
+          metadata: Json | null
           price_cents: number | null
           producer_id: string
+          sample_rate: number | null
+          stems: string[] | null
           stripe_price_id: string | null
           stripe_product_id: string | null
           tags: string[] | null
           title: string
           updated_at: string
+          waveform_data: Json | null
         }
         Insert: {
+          artist?: string | null
           artwork_url?: string | null
           audio_file_url: string
           bpm?: number | null
           created_at?: string
           description?: string | null
+          detected_bpm?: number | null
+          detected_key?: string | null
+          duration?: number | null
+          file_size?: number | null
+          file_url: string
+          format?: string | null
           genre?: string | null
           id?: string
           is_free?: boolean | null
           key?: string | null
+          manual_bpm?: number | null
+          manual_key?: string | null
+          metadata?: Json | null
           price_cents?: number | null
           producer_id: string
+          sample_rate?: number | null
+          stems?: string[] | null
           stripe_price_id?: string | null
           stripe_product_id?: string | null
           tags?: string[] | null
           title: string
           updated_at?: string
+          waveform_data?: Json | null
         }
         Update: {
+          artist?: string | null
           artwork_url?: string | null
           audio_file_url?: string
           bpm?: number | null
           created_at?: string
           description?: string | null
+          detected_bpm?: number | null
+          detected_key?: string | null
+          duration?: number | null
+          file_size?: number | null
+          file_url?: string
+          format?: string | null
           genre?: string | null
           id?: string
           is_free?: boolean | null
           key?: string | null
+          manual_bpm?: number | null
+          manual_key?: string | null
+          metadata?: Json | null
           price_cents?: number | null
           producer_id?: string
+          sample_rate?: number | null
+          stems?: string[] | null
           stripe_price_id?: string | null
           stripe_product_id?: string | null
           tags?: string[] | null
           title?: string
           updated_at?: string
+          waveform_data?: Json | null
         }
         Relationships: []
       }

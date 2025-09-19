@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Tables } from "@/integrations/supabase/types";
-import { TrackCard } from "@/components/dashboard/TrackCard";
+import { TrackCard } from "@/components/dashboard/BeatCard";
 
 type Track = Tables<"tracks">;
 type Beat = Tables<"beats">;
@@ -29,9 +29,9 @@ export default function Library() {
       if (!user) return;
 
       const { data, error } = await supabase
-        .from('tracks')
+        .from('beats')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('producer_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
