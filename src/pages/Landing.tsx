@@ -131,7 +131,7 @@ function LandingContent() {
       {/* Hero Section */}
       <section className="relative pt-20 pb-32 overflow-hidden">
         <div className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-20" style={{
-        backgroundImage: "url('https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=1920&h=1080&fit=crop')"
+        backgroundImage: "url('/assets/hip-hop-collage-bg.png')"
       }} />
         <div className="absolute inset-0 bg-gradient-to-br from-background/90 via-background/70 to-card/50" />
         
