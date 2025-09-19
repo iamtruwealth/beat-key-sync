@@ -35,12 +35,13 @@ serve(async (req) => {
     const user = data.user;
     if (!user) throw new Error("User not authenticated");
 
-    const { beatId } = await req.json();
+    const body = await req.json();
+    const { beatId, title, description, priceCents } = body;
     if (!beatId) {
       throw new Error("Missing beatId");
     }
 
-    logStep("User authenticated", { userId: user.id, beatId });
+    logStep("User authenticated", { userId: user.id, beatId, title, priceCents });
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
@@ -74,37 +75,31 @@ serve(async (req) => {
       });
     }
 
-    if (!beat.profiles?.stripe_account_id) {
-      throw new Error("Producer Stripe account not configured");
-    }
+    // For now, create products on the main platform account instead of connected accounts
+    // Later this can be enhanced to support connected accounts for direct payouts
+    const useConnectedAccount = false; // beat.profiles?.stripe_account_id && false;
 
     logStep("Creating Stripe product", { 
-      title: beat.title,
-      stripeAccount: beat.profiles.stripe_account_id 
+      title: title || beat.title,
+      useConnectedAccount
     });
 
-    // Create Stripe product on connected account
-    const product = await stripe.products.create(
-      {
-        name: beat.title,
-        description: beat.description || `Beat by ${beat.profiles.producer_name || 'Unknown Producer'}`,
-        metadata: { 
-          beat_id: beatId, 
-          producer_id: user.id 
-        }
-      },
-      { stripeAccount: beat.profiles.stripe_account_id }
-    );
+    // Create Stripe product (on main platform account for now)
+    const product = await stripe.products.create({
+      name: title || beat.title,
+      description: description || beat.description || `Beat by ${beat.profiles?.producer_name || 'Unknown Producer'}`,
+      metadata: { 
+        beat_id: beatId, 
+        producer_id: user.id 
+      }
+    });
 
-    // Create Stripe price on connected account
-    const price = await stripe.prices.create(
-      {
-        product: product.id,
-        unit_amount: beat.is_free ? 0 : beat.price_cents,
-        currency: "usd"
-      },
-      { stripeAccount: beat.profiles.stripe_account_id }
-    );
+    // Create Stripe price (on main platform account for now)
+    const price = await stripe.prices.create({
+      product: product.id,
+      unit_amount: priceCents || (beat.is_free ? 0 : beat.price_cents),
+      currency: "usd"
+    });
 
     logStep("Stripe product and price created", { 
       productId: product.id, 

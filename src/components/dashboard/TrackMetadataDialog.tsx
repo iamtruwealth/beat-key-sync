@@ -107,6 +107,27 @@ export function TrackMetadataDialog({ track, open, onOpenChange, onTrackUpdated 
 
         if (error) throw error;
 
+        // Create or update Stripe product if price is set
+        if (!formData.isFree && priceCents > 0) {
+          try {
+            const { error: productError } = await supabase.functions.invoke('create-beat-product', {
+              body: {
+                beatId: track.id,
+                title: formData.title,
+                description: formData.artist,
+                priceCents: priceCents
+              }
+            });
+            
+            if (productError) {
+              console.error('Error creating Stripe product:', productError);
+              // Don't fail the entire operation if Stripe fails
+            }
+          } catch (productError) {
+            console.error('Error calling create-beat-product:', productError);
+          }
+        }
+
         // Convert back to track format for the callback
         const updatedTrack = {
           ...track,
@@ -143,15 +164,25 @@ export function TrackMetadataDialog({ track, open, onOpenChange, onTrackUpdated 
 
         if (error) throw error;
 
-        // If beat pack is selected, add track to beat pack
+        // If beat pack is selected, add track to beat pack (avoid duplicates)
         if (formData.selectedBeatPack) {
-          await supabase
+          // Check if already exists to avoid duplicate key error
+          const { data: existing } = await supabase
             .from('beat_pack_tracks')
-            .insert({
-              beat_pack_id: formData.selectedBeatPack,
-              track_id: track.id,
-              position: 0
-            });
+            .select('id')
+            .eq('beat_pack_id', formData.selectedBeatPack)
+            .eq('track_id', track.id)
+            .single();
+
+          if (!existing) {
+            await supabase
+              .from('beat_pack_tracks')
+              .insert({
+                beat_pack_id: formData.selectedBeatPack,
+                track_id: track.id,
+                position: 0
+              });
+          }
         }
 
         // Call learning function if BPM or key was manually set

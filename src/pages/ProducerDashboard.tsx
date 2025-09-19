@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BeatUploadForm } from "@/components/beats/BeatUploadForm";
 import { RevenueTracker } from "@/components/beats/RevenueTracker";
 import { PayoutRequestForm } from "@/components/beats/PayoutRequestForm";
+import { BeatSalesTracker } from "@/components/beats/BeatSalesTracker";
 import { 
   Bell, 
   MessageSquare, 
@@ -273,7 +274,10 @@ export default function ProducerDashboard() {
         </TabsContent>
 
         <TabsContent value="revenue">
-          <RevenueTracker />
+          <div className="space-y-6">
+            <BeatSalesTracker />
+            <RevenueTracker />
+          </div>
         </TabsContent>
 
         <TabsContent value="payouts">
