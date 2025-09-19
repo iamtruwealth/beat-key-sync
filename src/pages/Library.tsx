@@ -315,52 +315,46 @@ export default function Library() {
                 <Badge variant="secondary">{beats.length}</Badge>
               </div>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {beats.map((beat) => (
-                  <Card key={beat.id} className="group hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4">
-                      <div className="aspect-square bg-gradient-to-br from-green-500/20 to-green-500/10 rounded-lg mb-3 flex items-center justify-center relative overflow-hidden">
-                        {beat.artwork_url ? (
-                          <img 
-                            src={beat.artwork_url} 
-                            alt={beat.title}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <Music className="w-8 h-8 text-green-500/60" />
-                        )}
-                        <Button
-                          size="sm"
-                          className="absolute inset-0 bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <Play className="w-4 h-4" />
-                        </Button>
-                      </div>
-                      <h3 className="font-medium text-sm truncate">{beat.title}</h3>
-                      <div className="flex items-center justify-between text-xs text-muted-foreground mt-1">
-                        <span>{beat.genre || 'No genre'}</span>
-                        <span className="font-medium text-green-600">
-                          {beat.is_free ? 'FREE' : `$${(beat.price_cents / 100).toFixed(2)}`}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 mt-2">
-                        {beat.bpm && (
-                          <Badge variant="outline" className="text-xs">{beat.bpm} BPM</Badge>
-                        )}
-                        {beat.key && (
-                          <Badge variant="outline" className="text-xs">{beat.key}</Badge>
-                        )}
-                      </div>
-                      <div className="flex items-center justify-between mt-2">
-                        <span className="text-xs text-muted-foreground">
-                          {new Date(beat.created_at).toLocaleDateString()}
-                        </span>
-                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                          <MoreHorizontal className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                {beats.map((beat) => {
+                  // Convert beat to track-like format for TrackCard
+                  const trackLikeBeat = {
+                    id: beat.id,
+                    title: beat.title,
+                    artist: beat.description || '',
+                    file_url: beat.audio_file_url,
+                    artwork_url: beat.artwork_url,
+                    detected_key: beat.key,
+                    detected_bpm: beat.bpm,
+                    manual_key: null,
+                    manual_bpm: null,
+                    duration: null,
+                    created_at: beat.created_at,
+                    updated_at: beat.updated_at,
+                    user_id: beat.producer_id,
+                    stems: null,
+                    tags: beat.tags,
+                    sample_rate: null,
+                    file_size: null,
+                    metadata: {
+                      genre: beat.genre,
+                      price_cents: beat.price_cents,
+                      is_free: beat.is_free,
+                      stripe_product_id: beat.stripe_product_id,
+                      stripe_price_id: beat.stripe_price_id
+                    },
+                    waveform_data: null,
+                    format: null,
+                    // Mark this as a beat for special handling in TrackCard
+                    is_beat: true
+                  } as Track & { is_beat?: boolean };
+
+                  return (
+                    <TrackCard 
+                      key={beat.id} 
+                      track={trackLikeBeat}
+                    />
+                  );
+                })}
               </div>
             </div>
           )}

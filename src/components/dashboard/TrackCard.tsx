@@ -17,6 +17,7 @@ interface TrackCardProps {
     formattedDuration?: string;
     formattedSize?: string;
     lastModified?: string;
+    is_beat?: boolean;
   };
   onTrackUpdated?: (updatedTrack: Track) => void;
   onTrackDeleted?: (trackId: string) => void;
@@ -53,6 +54,13 @@ export function TrackCard({ track, onTrackUpdated, onTrackDeleted }: TrackCardPr
 
   const displayBpm = track.manual_bpm || track.detected_bpm;
   const displayKey = track.manual_key || track.detected_key;
+  
+  // Handle beat-specific data
+  const isBeat = track.is_beat;
+  const beatMetadata = track.metadata as any;
+  const price = beatMetadata?.price_cents || 0;
+  const isFree = beatMetadata?.is_free || false;
+  const genre = beatMetadata?.genre;
 
   const handlePlayClick = () => {
     if (!track.file_url) return;
@@ -140,7 +148,10 @@ export function TrackCard({ track, onTrackUpdated, onTrackDeleted }: TrackCardPr
                 {track.title}
               </CardTitle>
               <CardDescription className="text-muted-foreground">
-                {track.stems?.length || 0} stems • 1 collaborator
+                {isBeat 
+                  ? `${genre || 'Beat'} • For Sale`
+                  : `${track.stems?.length || 0} stems • 1 collaborator`
+                }
               </CardDescription>
             </div>
           </div>
@@ -190,9 +201,15 @@ export function TrackCard({ track, onTrackUpdated, onTrackDeleted }: TrackCardPr
               </Badge>
             )}
             {/* Price Badge */}
-            <Badge variant="outline" className="border-green-500/30 text-green-600">
-              FREE
-            </Badge>
+            {isBeat ? (
+              <Badge variant="outline" className={isFree ? "border-green-500/30 text-green-600" : "border-blue-500/30 text-blue-600"}>
+                {isFree ? 'FREE' : `$${(price / 100).toFixed(2)}`}
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="border-green-500/30 text-green-600">
+                FREE
+              </Badge>
+            )}
           </div>
           
           <div className="flex items-center gap-1 text-sm text-muted-foreground">
