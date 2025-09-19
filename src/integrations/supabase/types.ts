@@ -122,7 +122,7 @@ export type Database = {
             foreignKeyName: "beat_pack_tracks_track_id_fkey"
             columns: ["track_id"]
             isOneToOne: false
-            referencedRelation: "tracks"
+            referencedRelation: "beats"
             referencedColumns: ["id"]
           },
         ]
