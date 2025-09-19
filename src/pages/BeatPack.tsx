@@ -1,9 +1,23 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { BeatCard } from "@/components/beats/BeatCard";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAudio } from "@/contexts/AudioContext";
+import { 
+  Play, 
+  Pause, 
+  SkipBack, 
+  SkipForward, 
+  Shuffle, 
+  Repeat, 
+  Volume2,
+  Download,
+  Copy,
+  Music
+} from "lucide-react";
 
 interface Beat {
   id: string;
@@ -43,8 +57,11 @@ export default function BeatPackPage() {
   const { id } = useParams<{ id: string }>();
   const [beatPack, setBeatPack] = useState<BeatPack | null>(null);
   const [loading, setLoading] = useState(true);
+  const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
+  const [shuffle, setShuffle] = useState(false);
+  const [repeat, setRepeat] = useState<'none' | 'one' | 'all'>('none');
   const { toast } = useToast();
-  const { currentTrack, isPlaying, playTrack } = useAudio();
+  const { currentTrack, isPlaying, playTrack, currentTime, duration, seekTo } = useAudio();
 
   useEffect(() => {
     if (id) {
@@ -189,7 +206,68 @@ export default function BeatPackPage() {
       manual_bpm: beat.manual_bpm,
     };
     playTrack(audioTrack);
+    
+    // Update current track index
+    const trackIndex = beatPack.beats.findIndex(b => b.id === beat.id);
+    if (trackIndex !== -1) {
+      setCurrentTrackIndex(trackIndex);
+    }
   };
+
+  const formatTime = (seconds: number) => {
+    if (!seconds) return "0:00";
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const handlePrevious = () => {
+    if (!beatPack) return;
+    const newIndex = currentTrackIndex > 0 ? currentTrackIndex - 1 : beatPack.beats.length - 1;
+    setCurrentTrackIndex(newIndex);
+    handlePlayBeat(beatPack.beats[newIndex]);
+  };
+
+  const handleNext = () => {
+    if (!beatPack) return;
+    
+    if (repeat === 'one') {
+      handlePlayBeat(beatPack.beats[currentTrackIndex]);
+      return;
+    }
+
+    let newIndex;
+    if (shuffle) {
+      newIndex = Math.floor(Math.random() * beatPack.beats.length);
+    } else {
+      newIndex = currentTrackIndex + 1;
+      if (newIndex >= beatPack.beats.length) {
+        newIndex = repeat === 'all' ? 0 : currentTrackIndex;
+      }
+    }
+    
+    setCurrentTrackIndex(newIndex);
+    handlePlayBeat(beatPack.beats[newIndex]);
+  };
+
+  const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const newTime = (clickX / rect.width) * duration;
+    seekTo(newTime);
+  };
+
+  const copyPackLink = () => {
+    const url = `${window.location.origin}/pack/${beatPack?.id}`;
+    navigator.clipboard.writeText(url);
+    toast({
+      title: "Link copied",
+      description: "Beat pack link copied to clipboard"
+    });
+  };
+
+  const progressPercent = duration ? (currentTime / duration) * 100 : 0;
 
   return (
     <div className="min-h-screen bg-background">
@@ -197,36 +275,152 @@ export default function BeatPackPage() {
         {/* Beat Pack Header */}
         <div className="mb-8">
           <div className="flex items-start gap-6 mb-6">
-            {beatPack.artwork_url && (
+            {beatPack.artwork_url ? (
               <img 
                 src={beatPack.artwork_url} 
                 alt={beatPack.name}
                 className="w-48 h-48 object-cover rounded-lg shadow-lg"
               />
+            ) : (
+              <div className="w-48 h-48 bg-muted rounded-lg shadow-lg flex items-center justify-center">
+                <Music className="w-16 h-16 text-muted-foreground" />
+              </div>
             )}
             <div className="flex-1">
               <h1 className="text-4xl font-bold mb-4">{beatPack.name}</h1>
               {beatPack.description && (
                 <p className="text-lg text-muted-foreground mb-4">{beatPack.description}</p>
               )}
-              <p className="text-muted-foreground">
-                {beatPack.beats.length} {beatPack.beats.length === 1 ? 'beat' : 'beats'}
-              </p>
+              <div className="flex items-center gap-4 mb-4">
+                <p className="text-muted-foreground">
+                  {beatPack.beats.length} {beatPack.beats.length === 1 ? 'beat' : 'beats'}
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={copyPackLink}
+                >
+                  <Copy className="w-4 h-4 mr-2" />
+                  Copy Link
+                </Button>
+              </div>
             </div>
           </div>
         </div>
 
+        {/* Audio Player Controls */}
+        {currentTrack && (
+          <div className="sticky top-0 bg-background/95 backdrop-blur-sm border border-border rounded-lg p-4 mb-6 z-10">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-4">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handlePrevious}
+                  className="h-10 w-10"
+                >
+                  <SkipBack className="w-5 h-5" />
+                </Button>
+                
+                <Button
+                  variant="default"
+                  size="icon"
+                  onClick={() => isPlaying ? undefined : handlePlayBeat(beatPack.beats[currentTrackIndex])}
+                  className="h-12 w-12 rounded-full"
+                >
+                  {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6 ml-0.5" />}
+                </Button>
+                
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleNext}
+                  className="h-10 w-10"
+                >
+                  <SkipForward className="w-5 h-5" />
+                </Button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setShuffle(!shuffle)}
+                  className={shuffle ? "text-primary" : ""}
+                >
+                  <Shuffle className="w-4 h-4" />
+                </Button>
+                
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setRepeat(prev => 
+                    prev === 'none' ? 'all' : prev === 'all' ? 'one' : 'none'
+                  )}
+                  className={repeat !== 'none' ? "text-primary" : ""}
+                >
+                  <Repeat className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Now Playing Info */}
+            <div className="flex items-center gap-3 mb-3">
+              {currentTrack.artwork_url ? (
+                <img 
+                  src={currentTrack.artwork_url} 
+                  alt={currentTrack.title}
+                  className="w-12 h-12 object-cover rounded"
+                />
+              ) : (
+                <div className="w-12 h-12 bg-muted rounded flex items-center justify-center">
+                  <Music className="w-6 h-6 text-muted-foreground" />
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="font-medium truncate">{currentTrack.title}</p>
+                <p className="text-sm text-muted-foreground truncate">{currentTrack.artist}</p>
+              </div>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground w-12 text-right">
+                {formatTime(currentTime)}
+              </span>
+              <div 
+                className="flex-1 h-2 bg-muted rounded-full cursor-pointer group"
+                onClick={handleSeek}
+              >
+                <div 
+                  className="h-full bg-primary rounded-full relative"
+                  style={{ width: `${progressPercent}%` }}
+                >
+                  <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-primary rounded-full opacity-0 group-hover:opacity-100" />
+                </div>
+              </div>
+              <span className="text-xs text-muted-foreground w-12">
+                {formatTime(duration || 0)}
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Beats List */}
         <div className="space-y-4">
-          {beatPack.beats.map((beat) => (
-            <BeatCard
+          {beatPack.beats.map((beat, index) => (
+            <div 
               key={beat.id}
-              beat={beat}
-              isPlaying={currentTrack?.id === beat.id && isPlaying}
-              onPlay={() => handlePlayBeat(beat)}
-              onPause={() => {/* pause handled by audio context */}}
-              showPurchase={true}
-            />
+              className={`${currentTrack?.id === beat.id ? 'ring-2 ring-primary' : ''}`}
+            >
+              <BeatCard
+                beat={beat}
+                isPlaying={currentTrack?.id === beat.id && isPlaying}
+                onPlay={() => handlePlayBeat(beat)}
+                onPause={() => {/* pause handled by audio context */}}
+                showPurchase={true}
+              />
+            </div>
           ))}
         </div>
       </div>
