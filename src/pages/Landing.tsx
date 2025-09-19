@@ -6,6 +6,10 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { useAudio, AudioProvider } from "@/contexts/AudioContext";
+import soundwaveLogo from "@/assets/soundwave-logo.jpg";
+import beatmakerLogo from "@/assets/beatmaker-logo.jpg";
+import drumlinekingLogo from "@/assets/drumlineking-logo.jpg";
+import melodymasterLogo from "@/assets/melodymaster-logo.jpg";
 export default function Landing() {
   return (
     <AudioProvider>
@@ -35,28 +39,28 @@ function LandingContent() {
   const featuredProducers = [{
     id: 1,
     name: "SoundWave",
-    image: "https://images.unsplash.com/photo-1598300042247-d088f8ab3a91?w=300&h=300&fit=crop", // DJ/Producer logo/brand image
+    image: soundwaveLogo,
     packTitle: "Trap Vibes Vol. 3",
     plays: "2.1K",
     preview_url: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav" // Demo audio
   }, {
     id: 2,
     name: "BeatMaker Pro",
-    image: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=300&h=300&fit=crop", // Music studio/brand logo
+    image: beatmakerLogo,
     packTitle: "R&B Essentials",
     plays: "3.4K",
     preview_url: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav" // Demo audio
   }, {
     id: 3,
     name: "DrumlineKing",
-    image: "https://images.unsplash.com/photo-1571974599782-87ce066fde8b?w=300&h=300&fit=crop", // Music equipment/producer setup
+    image: drumlinekingLogo,
     packTitle: "Hip Hop Heat",
     plays: "1.8K",
     preview_url: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav" // Demo audio
   }, {
     id: 4,
     name: "MelodyMaster",
-    image: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300&h=300&fit=crop", // Music production/brand aesthetic
+    image: melodymasterLogo,
     packTitle: "Chill Vibes",
     plays: "4.2K",
     preview_url: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav" // Demo audio
