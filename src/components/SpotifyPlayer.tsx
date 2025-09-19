@@ -18,6 +18,7 @@ import {
   Copy
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Track {
   id: string;
@@ -164,6 +165,9 @@ export function SpotifyPlayer({ beatPack }: SpotifyPlayerProps) {
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
       
+      // Track download
+      await trackDownload();
+      
       toast({
         title: "Download started",
         description: `Downloading ${track.title}`
@@ -182,6 +186,20 @@ export function SpotifyPlayer({ beatPack }: SpotifyPlayerProps) {
       await downloadTrack(track);
       // Add small delay between downloads
       await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  };
+
+  const trackDownload = async () => {
+    try {
+      await supabase
+        .from('beat_pack_downloads')
+        .insert({
+          beat_pack_id: beatPack.id,
+          ip_address: null
+        });
+    } catch (error) {
+      // Silently fail - don't impact user experience
+      console.debug('Download tracking error:', error);
     }
   };
 

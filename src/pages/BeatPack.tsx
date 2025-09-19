@@ -34,8 +34,24 @@ export default function BeatPackPage() {
   useEffect(() => {
     if (id) {
       fetchBeatPack(id);
+      // Track view
+      trackView(id);
     }
   }, [id]);
+
+  const trackView = async (packId: string) => {
+    try {
+      await supabase
+        .from('beat_pack_views')
+        .insert({
+          beat_pack_id: packId,
+          ip_address: null // We could implement IP tracking if needed
+        });
+    } catch (error) {
+      // Silently fail - don't impact user experience
+      console.debug('View tracking error:', error);
+    }
+  };
 
   const fetchBeatPack = async (packId: string) => {
     try {

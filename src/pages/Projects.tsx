@@ -47,7 +47,9 @@ export default function Projects() {
         .from('beat_packs')
         .select(`
           *,
-          beat_pack_tracks(count)
+          beat_pack_tracks(count),
+          beat_pack_views(count),
+          beat_pack_downloads(count)
         `)
         .order('created_at', { ascending: false });
 
@@ -55,7 +57,9 @@ export default function Projects() {
 
       const packsWithCount = data?.map(pack => ({
         ...pack,
-        track_count: pack.beat_pack_tracks?.[0]?.count || 0
+        track_count: pack.beat_pack_tracks?.[0]?.count || 0,
+        views_count: pack.beat_pack_views?.[0]?.count || 0,
+        downloads_count: pack.beat_pack_downloads?.[0]?.count || 0
       })) || [];
 
       setBeatPacks(packsWithCount);

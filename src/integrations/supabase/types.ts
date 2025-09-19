@@ -56,6 +56,38 @@ export type Database = {
         }
         Relationships: []
       }
+      beat_pack_downloads: {
+        Row: {
+          beat_pack_id: string
+          created_at: string
+          id: string
+          ip_address: unknown | null
+          user_id: string | null
+        }
+        Insert: {
+          beat_pack_id: string
+          created_at?: string
+          id?: string
+          ip_address?: unknown | null
+          user_id?: string | null
+        }
+        Update: {
+          beat_pack_id?: string
+          created_at?: string
+          id?: string
+          ip_address?: unknown | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "beat_pack_downloads_beat_pack_id_fkey"
+            columns: ["beat_pack_id"]
+            isOneToOne: false
+            referencedRelation: "beat_packs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       beat_pack_tracks: {
         Row: {
           beat_pack_id: string
@@ -91,6 +123,38 @@ export type Database = {
             columns: ["track_id"]
             isOneToOne: false
             referencedRelation: "tracks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      beat_pack_views: {
+        Row: {
+          beat_pack_id: string
+          created_at: string
+          id: string
+          ip_address: unknown | null
+          user_id: string | null
+        }
+        Insert: {
+          beat_pack_id: string
+          created_at?: string
+          id?: string
+          ip_address?: unknown | null
+          user_id?: string | null
+        }
+        Update: {
+          beat_pack_id?: string
+          created_at?: string
+          id?: string
+          ip_address?: unknown | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "beat_pack_views_beat_pack_id_fkey"
+            columns: ["beat_pack_id"]
+            isOneToOne: false
+            referencedRelation: "beat_packs"
             referencedColumns: ["id"]
           },
         ]

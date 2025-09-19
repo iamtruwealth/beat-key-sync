@@ -69,19 +69,21 @@ export default function BeatPacksPage() {
         .from('beat_packs')
         .select(`
           *,
-          beat_pack_tracks(count)
+          beat_pack_tracks(count),
+          beat_pack_views(count),
+          beat_pack_downloads(count)
         `)
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      // Transform data to include track counts
+      // Transform data to include real counts
       const packsWithCounts = data?.map(pack => ({
         ...pack,
-        track_count: pack.beat_pack_tracks?.length || 0,
-        downloads_count: Math.floor(Math.random() * 100), // Mock data
-        plays_count: Math.floor(Math.random() * 1000) // Mock data
+        track_count: pack.beat_pack_tracks?.[0]?.count || 0,
+        downloads_count: pack.beat_pack_downloads?.[0]?.count || 0,
+        plays_count: pack.beat_pack_views?.[0]?.count || 0
       })) || [];
 
       setBeatPacks(packsWithCounts);
