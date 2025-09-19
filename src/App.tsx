@@ -23,6 +23,7 @@ import AuthPage from "./pages/Auth";
 import Account from "./pages/Account";
 import NotFound from "./pages/NotFound";
 import Landing from "./pages/Landing";
+import Pricing from "./pages/Pricing";
 import Paperwork from "./pages/Paperwork";
 import { SidebarProvider } from "@/components/ui/sidebar";
 
@@ -38,6 +39,7 @@ const App = () => (
           <Routes>
             {/* Public landing page */}
             <Route path="/" element={<Landing />} />
+            <Route path="/pricing" element={<Pricing />} />
             <Route path="/auth" element={<AuthPage />} />
             
             {/* Public beat pack sharing */}
