@@ -103,7 +103,7 @@ export default function ProfilePage() {
       // Upload new logo if selected
       if (logoFile) {
         const fileExt = logoFile.name.split('.').pop();
-        const fileName = `${profile.id}-${Date.now()}.${fileExt}`;
+        const fileName = `${profile.id}/${profile.id}-${Date.now()}.${fileExt}`;
         
         const { error: uploadError } = await supabase.storage
           .from('artwork')
