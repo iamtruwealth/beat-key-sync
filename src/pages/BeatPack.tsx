@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { BeatCard } from "@/components/beats/BeatCard";
+import { BeatPackManager } from "@/components/beats/BeatPackManager";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
@@ -60,6 +61,7 @@ export default function BeatPackPage() {
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
   const [shuffle, setShuffle] = useState(false);
   const [repeat, setRepeat] = useState<'none' | 'one' | 'all'>('none');
+  const [isOwner, setIsOwner] = useState(false);
   const { toast } = useToast();
   const { currentTrack, isPlaying, playTrack, pauseTrack, togglePlayPause, currentTime, duration, seekTo } = useAudio();
 
@@ -68,6 +70,8 @@ export default function BeatPackPage() {
       fetchBeatPack(id);
       // Track view
       trackView(id);
+      // Check if user owns this pack
+      checkOwnership(id);
     }
   }, [id]);
 
@@ -82,6 +86,23 @@ export default function BeatPackPage() {
     } catch (error) {
       // Silently fail - don't impact user experience
       console.debug('View tracking error:', error);
+    }
+  };
+
+  const checkOwnership = async (packId: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: packData } = await supabase
+        .from('beat_packs')
+        .select('user_id')
+        .eq('id', packId)
+        .single();
+
+      setIsOwner(packData?.user_id === user.id);
+    } catch (error) {
+      console.debug('Ownership check error:', error);
     }
   };
 
@@ -303,6 +324,12 @@ export default function BeatPackPage() {
                   <Copy className="w-4 h-4 mr-2" />
                   Copy Link
                 </Button>
+                {isOwner && (
+                  <BeatPackManager
+                    beatPack={beatPack}
+                    onUpdate={() => fetchBeatPack(id!)}
+                  />
+                )}
               </div>
             </div>
           </div>

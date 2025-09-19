@@ -42,10 +42,7 @@ serve(async (req) => {
     // Get beat details
     const { data: beat, error: beatError } = await supabaseClient
       .from("beats")
-      .select(`
-        *,
-        profiles!beats_producer_id_fkey(stripe_account_id, producer_name)
-      `)
+      .select("*")
       .eq("id", beatId)
       .single();
 
@@ -83,8 +80,14 @@ serve(async (req) => {
       });
     }
 
-    // For paid beats, create Stripe checkout
-    if (!beat.profiles?.stripe_account_id) {
+    // Get producer details for paid beats
+    const { data: producer, error: producerError } = await supabaseClient
+      .from("profiles")
+      .select("stripe_account_id, producer_name")
+      .eq("id", beat.producer_id)
+      .single();
+
+    if (producerError || !producer?.stripe_account_id) {
       throw new Error("Producer Stripe account not configured");
     }
 
@@ -93,7 +96,7 @@ serve(async (req) => {
     logStep("Creating checkout session", { 
       price: beat.price_cents, 
       platformFee,
-      stripeAccount: beat.profiles.stripe_account_id 
+      stripeAccount: producer.stripe_account_id 
     });
 
     const session = await stripe.checkout.sessions.create({
@@ -103,7 +106,7 @@ serve(async (req) => {
           currency: "usd",
           product_data: {
             name: beat.title,
-            description: `Beat by ${beat.profiles.producer_name || 'Unknown Producer'}`,
+            description: `Beat by ${producer.producer_name || 'Unknown Producer'}`,
             metadata: {
               beat_id: beatId,
               producer_id: beat.producer_id
@@ -117,7 +120,7 @@ serve(async (req) => {
       payment_intent_data: {
         application_fee_amount: platformFee,
         transfer_data: {
-          destination: beat.profiles.stripe_account_id,
+          destination: producer.stripe_account_id,
         },
         metadata: {
           beat_id: beatId,
