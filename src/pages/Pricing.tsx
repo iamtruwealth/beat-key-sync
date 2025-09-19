@@ -5,7 +5,7 @@ import { Check, Star } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import beatpackzLogo from "@/assets/beatpackz-logo.png";
+import beatpackzLogo from "@/assets/beatpackz-logo-new.png";
 
 export default function Pricing() {
   const navigate = useNavigate();
