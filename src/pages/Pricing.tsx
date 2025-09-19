@@ -69,7 +69,7 @@ export default function Pricing() {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-black">
       {/* Navigation */}
       <nav className="fixed top-0 w-full z-50 bg-background/95 backdrop-blur-md border-b border-border">
         <div className="container mx-auto px-6 py-4">
