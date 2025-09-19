@@ -160,12 +160,14 @@ const App = () => (
             } />
             <Route path="/upload" element={
               <ProtectedRoute>
-                <div className="flex min-h-screen w-full">
-                  <RoleBasedSidebar />
-                  <main className="flex-1 p-6 overflow-auto">
-                    <UploadPage />
-                  </main>
-                </div>
+                <AudioProvider>
+                  <div className="flex min-h-screen w-full">
+                    <RoleBasedSidebar />
+                    <main className="flex-1 p-6 overflow-auto">
+                      <UploadPage />
+                    </main>
+                  </div>
+                </AudioProvider>
               </ProtectedRoute>
             } />
             <Route path="/shared" element={

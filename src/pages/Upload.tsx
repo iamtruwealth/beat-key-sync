@@ -12,7 +12,9 @@ import { Upload, X, Plus, Music, FileAudio, CheckCircle, Image } from "lucide-re
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { User } from "@supabase/supabase-js";
-import { detectBPM, detectKey, getCompatibleKeys, AudioAnalysisResult, analyzeAudioFile } from "@/lib/audioAnalysis";
+import { AudioAnalysisResult, getCompatibleKeys } from "@/lib/audioAnalysis";
+import { useOptimizedAudioAnalysis } from "@/hooks/useOptimizedAudioAnalysis";
+import { Progress } from "@/components/ui/progress";
 
 interface UploadedFile {
   file: File;
@@ -37,8 +39,9 @@ export default function UploadPage() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { analyzeFile, isAnalyzing, progress: analysisProgress, error: analysisError, clearCache } = useOptimizedAudioAnalysis();
 
-  // Define analyzeAudioFile function first to avoid hoisting issues
+  // Optimized analysis function with caching
   const analyzeAudioFileLocal = async (fileData: UploadedFile, index: number) => {
     try {
       setUploadedFiles(prev => 
@@ -47,8 +50,8 @@ export default function UploadPage() {
         )
       );
 
-      // Use the new analyzeAudioFile function
-      const analysis = await analyzeAudioFile(fileData.file);
+      // Use the optimized analyzeFile hook
+      const analysis = await analyzeFile(fileData.file);
 
       setUploadedFiles(prev => 
         prev.map((file, i) => 
@@ -461,14 +464,19 @@ export default function UploadPage() {
                         )}
                       </p>
                   </div>
-                  <Badge variant={
-                    fileData.status === 'complete' ? 'default' :
-                    fileData.status === 'error' ? 'destructive' :
-                    'secondary'
-                  }>
-                    {fileData.status}
-                  </Badge>
-                </div>
+                  <div className="flex items-center gap-2">
+                    {fileData.status === 'analyzing' && isAnalyzing && (
+                      <Progress value={analysisProgress} className="w-16 h-2" />
+                    )}
+                     <Badge variant={
+                       fileData.status === 'complete' ? 'default' :
+                       fileData.status === 'error' ? 'destructive' :
+                       'secondary'
+                     }>
+                       {fileData.status === 'analyzing' ? 'Analyzing...' : fileData.status}
+                     </Badge>
+                   </div>
+                 </div>
               </CardHeader>
               
               <CardContent className="space-y-4">
@@ -626,7 +634,10 @@ export default function UploadPage() {
             </Card>
           ))}
           
-          <div className="flex justify-end">
+          <div className="flex justify-between items-center">
+            <Button variant="outline" onClick={clearCache} className="px-4">
+              Clear Analysis Cache
+            </Button>
             <Button onClick={uploadFiles} className="px-8">
               Upload All Files
             </Button>

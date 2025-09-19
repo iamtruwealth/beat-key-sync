@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ export default function ProducerDashboard() {
   const [recentMessages, setRecentMessages] = useState<any[]>([]);
   const [beatPacks, setBeatPacks] = useState<any[]>([]);
   const [recentSales, setRecentSales] = useState<any[]>([]);
+  const navigate = useNavigate();
 
   useEffect(() => {
     loadDashboardData();
@@ -84,9 +86,9 @@ export default function ProducerDashboard() {
           <h1 className="text-3xl font-bold">Producer Dashboard</h1>
           <p className="text-muted-foreground">Manage your beats, track sales, and connect with artists.</p>
         </div>
-        <Button>
+        <Button onClick={() => navigate('/upload')}>
           <Plus className="w-4 h-4 mr-2" />
-          New Beat Pack
+          Upload Beats
         </Button>
       </div>
 
@@ -280,7 +282,7 @@ export default function ProducerDashboard() {
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-4">
-            <Button variant="outline" className="h-20 flex flex-col gap-2">
+            <Button variant="outline" className="h-20 flex flex-col gap-2" onClick={() => navigate('/upload')}>
               <Plus className="w-6 h-6" />
               Upload Beats
             </Button>
