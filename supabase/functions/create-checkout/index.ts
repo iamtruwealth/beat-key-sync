@@ -46,8 +46,8 @@ serve(async (req) => {
       logStep("Creating new customer");
     }
 
-    // TODO: Replace with your actual Stripe price ID for the Pro plan
-    const PRICE_ID = "price_REPLACE_WITH_ACTUAL_PRICE_ID";
+    // Use the actual Stripe price ID for the Pro plan
+    const PRICE_ID = "price_1S8wR3Hw8C4yNPFH2gzt3KCO";
 
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
