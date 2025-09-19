@@ -65,15 +65,33 @@ export function SpotifyPlayer({ beatPack }: SpotifyPlayerProps) {
 
     const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
     const handleEnded = () => handleNext();
+    const handleLoadedData = () => {
+      // Auto-play when a new track is loaded and playing state is true
+      if (isPlaying) {
+        audio.play().catch(console.error);
+      }
+    };
 
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('ended', handleEnded);
+    audio.addEventListener('loadeddata', handleLoadedData);
 
     return () => {
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('ended', handleEnded);
+      audio.removeEventListener('loadeddata', handleLoadedData);
     };
-  }, [currentTrackIndex]);
+  }, [currentTrackIndex, isPlaying]);
+
+  // Load new track when currentTrackIndex changes
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !currentTrack) return;
+
+    audio.src = currentTrack.file_url;
+    audio.load();
+    setCurrentTime(0);
+  }, [currentTrackIndex, currentTrack]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -84,16 +102,22 @@ export function SpotifyPlayer({ beatPack }: SpotifyPlayerProps) {
   const getKey = (track: Track) => track.manual_key || track.detected_key || 'Unknown';
   const getBPM = (track: Track) => track.manual_bpm || track.detected_bpm || 0;
 
-  const togglePlay = () => {
+  const togglePlay = async () => {
     const audio = audioRef.current;
     if (!audio) return;
 
     if (isPlaying) {
       audio.pause();
+      setIsPlaying(false);
     } else {
-      audio.play();
+      try {
+        await audio.play();
+        setIsPlaying(true);
+      } catch (error) {
+        console.error('Error playing audio:', error);
+        setIsPlaying(false);
+      }
     }
-    setIsPlaying(!isPlaying);
   };
 
   const handlePrevious = () => {
@@ -125,10 +149,23 @@ export function SpotifyPlayer({ beatPack }: SpotifyPlayerProps) {
     setCurrentTime(0);
   };
 
-  const handleTrackSelect = (index: number) => {
+  const handleTrackSelect = async (index: number) => {
     setCurrentTrackIndex(index);
     setCurrentTime(0);
-    setIsPlaying(true);
+    
+    // Wait a moment for the new track to load, then play
+    setTimeout(async () => {
+      const audio = audioRef.current;
+      if (audio) {
+        try {
+          await audio.play();
+          setIsPlaying(true);
+        } catch (error) {
+          console.error('Error playing selected track:', error);
+          setIsPlaying(false);
+        }
+      }
+    }, 100);
   };
 
   const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -210,7 +247,6 @@ export function SpotifyPlayer({ beatPack }: SpotifyPlayerProps) {
       {/* Hidden audio element */}
       <audio
         ref={audioRef}
-        src={currentTrack.file_url}
       />
 
       {/* Header with beat pack info */}
