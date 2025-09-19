@@ -189,6 +189,10 @@ export function TrackCard({ track, onTrackUpdated, onTrackDeleted }: TrackCardPr
                 {displayBpm} BPM
               </Badge>
             )}
+            {/* Price Badge */}
+            <Badge variant="outline" className="border-green-500/30 text-green-600">
+              FREE
+            </Badge>
           </div>
           
           <div className="flex items-center gap-1 text-sm text-muted-foreground">

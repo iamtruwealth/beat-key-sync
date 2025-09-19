@@ -4,11 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Tables } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, DollarSign } from "lucide-react";
 
 type Track = Tables<"tracks">;
 type BeatPack = Tables<"beat_packs">;
@@ -34,7 +35,9 @@ export function TrackMetadataDialog({ track, open, onOpenChange, onTrackUpdated 
     manual_bpm: "",
     manual_key: "",
     tags: [] as string[],
-    selectedBeatPack: "" as string
+    selectedBeatPack: "" as string,
+    price: "",
+    isFree: true
   });
   const { toast } = useToast();
 
@@ -46,7 +49,9 @@ export function TrackMetadataDialog({ track, open, onOpenChange, onTrackUpdated 
         manual_bpm: track.manual_bpm?.toString() || "",
         manual_key: track.manual_key || "",
         tags: track.tags || [],
-        selectedBeatPack: ""
+        selectedBeatPack: "",
+        price: "0.00",
+        isFree: true
       });
       fetchBeatPacks();
     }
@@ -228,6 +233,36 @@ export function TrackMetadataDialog({ track, open, onOpenChange, onTrackUpdated 
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Pricing Controls */}
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="isFree"
+                checked={formData.isFree}
+                onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isFree: checked }))}
+              />
+              <Label htmlFor="isFree">Free Download</Label>
+            </div>
+
+            {!formData.isFree && (
+              <div className="space-y-2">
+                <Label htmlFor="price" className="flex items-center gap-2">
+                  <DollarSign className="h-4 w-4" />
+                  Price (USD)
+                </Label>
+                <Input
+                  id="price"
+                  type="number"
+                  step="0.01"
+                  min="0.99"
+                  value={formData.price}
+                  onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
+                  placeholder="9.99"
+                />
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">
