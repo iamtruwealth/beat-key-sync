@@ -91,9 +91,6 @@ function LandingContent() {
               <a href="#discover" className="text-muted-foreground hover:text-foreground transition-colors">
                 Discover Beats
               </a>
-              <a href="#producers" className="text-muted-foreground hover:text-foreground transition-colors">
-                Producers
-              </a>
               <a href="#pricing" className="text-muted-foreground hover:text-foreground transition-colors">
                 Pricing
               </a>
