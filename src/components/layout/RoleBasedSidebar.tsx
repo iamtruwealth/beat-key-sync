@@ -97,31 +97,23 @@ export function RoleBasedSidebar() {
 
   const artistNavigation: NavigationItem[] = [
     { title: "Dashboard", url: "/artist-dashboard", icon: LayoutDashboard },
+    { title: "Browse Producers", url: "/explore", icon: Users },
     { title: "Messages", url: "/messages", icon: MessageSquare },
     { title: "Paperwork", url: "/paperwork", icon: FileText },
-    { title: "Projects", url: "/projects", icon: FolderOpen },
-    { title: "Financials", url: "/financials", icon: DollarSign },
-    { title: "Analytics", url: "/analytics", icon: BarChart3 },
-    { title: "Profile", url: "/profile", icon: UserIcon },
-    { title: "Opportunities", url: "/opportunities", icon: Compass },
   ];
 
   const producerNavigation: NavigationItem[] = [
     { title: "Dashboard", url: "/producer-dashboard", icon: LayoutDashboard },
+    { title: "Beat Packs", url: "/beat-packs", icon: Music },
+    { title: "Upload", url: "/upload", icon: Upload },
+    { title: "Library", url: "/library", icon: Library },
     { title: "Messages", url: "/messages", icon: MessageSquare },
     { title: "Paperwork", url: "/paperwork", icon: FileText },
-    { title: "Beat Packs", url: "/beat-packs", icon: Music },
-    { title: "Sales", url: "/sales", icon: DollarSign },
-    { title: "Analytics", url: "/analytics", icon: BarChart3 },
-    { title: "Profile", url: "/profile", icon: UserIcon },
-    { title: "Opportunities", url: "/opportunities", icon: Compass },
   ];
 
   const sharedTools: NavigationItem[] = [
-    { title: "Upload", url: "/upload", icon: Upload },
-    { title: "Library", url: "/library", icon: Library },
-    { title: "Explore", url: "/explore", icon: Users },
     { title: "Notifications", url: "/notifications", icon: Bell },
+    { title: "Profile", url: "/profile", icon: UserIcon },
     { title: "Settings", url: "/settings", icon: Settings },
   ];
 

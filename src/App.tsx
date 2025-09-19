@@ -16,7 +16,7 @@ import BeatPacks from "./pages/BeatPacks";
 import Notifications from "./pages/Notifications";
 import Library from "./pages/Library";
 import Projects from "./pages/Projects";
-import Explore from "./pages/Explore";
+import BrowseProducers from "./pages/BrowseProducers";
 import UploadPage from "./pages/Upload";
 import BeatPackPage from "./pages/BeatPack";
 import AuthPage from "./pages/Auth";
@@ -153,7 +153,7 @@ const App = () => (
                 <div className="flex min-h-screen w-full">
                   <RoleBasedSidebar />
                   <main className="flex-1 p-6 overflow-auto">
-                    <Explore />
+                    <BrowseProducers />
                   </main>
                 </div>
               </ProtectedRoute>

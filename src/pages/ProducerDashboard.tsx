@@ -83,7 +83,7 @@ export default function ProducerDashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Producer Dashboard</h1>
+          <h1 className="text-3xl font-bold">Producer Account</h1>
           <p className="text-muted-foreground">Manage your beats, track sales, and connect with artists.</p>
         </div>
         <Button onClick={() => navigate('/upload')}>
