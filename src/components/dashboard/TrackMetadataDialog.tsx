@@ -15,7 +15,7 @@ type Track = Tables<"tracks">;
 type BeatPack = Tables<"beat_packs">;
 
 interface TrackMetadataDialogProps {
-  track: Track | null;
+  track: Track & { is_beat?: boolean } | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onTrackUpdated: (updatedTrack: Track) => void;
@@ -43,6 +43,9 @@ export function TrackMetadataDialog({ track, open, onOpenChange, onTrackUpdated 
 
   useEffect(() => {
     if (track && open) {
+      const isBeat = track.is_beat;
+      const beatMetadata = track.metadata as any;
+      
       setFormData({
         title: track.title || "",
         artist: track.artist || "",
@@ -50,8 +53,8 @@ export function TrackMetadataDialog({ track, open, onOpenChange, onTrackUpdated 
         manual_key: track.manual_key || "",
         tags: track.tags || [],
         selectedBeatPack: "",
-        price: "0.00",
-        isFree: true
+        price: isBeat && beatMetadata?.price_cents ? (beatMetadata.price_cents / 100).toFixed(2) : "0.00",
+        isFree: isBeat ? (beatMetadata?.is_free || false) : true
       });
       fetchBeatPacks();
     }
@@ -80,59 +83,103 @@ export function TrackMetadataDialog({ track, open, onOpenChange, onTrackUpdated 
 
     setIsLoading(true);
     try {
-      const updateData: Partial<Track> = {
-        title: formData.title,
-        artist: formData.artist,
-        manual_bpm: formData.manual_bpm ? parseFloat(formData.manual_bpm) : null,
-        manual_key: formData.manual_key || null,
-        tags: formData.tags,
-        updated_at: new Date().toISOString()
-      };
+      const isBeat = track.is_beat;
+      
+      if (isBeat) {
+        // Handle beat update
+        const priceCents = formData.isFree ? 0 : Math.round(parseFloat(formData.price || "0") * 100);
+        
+        const { data, error } = await supabase
+          .from('beats')
+          .update({
+            title: formData.title,
+            description: formData.artist,
+            bpm: formData.manual_bpm ? parseInt(formData.manual_bpm) : null,
+            key: formData.manual_key || null,
+            tags: formData.tags,
+            price_cents: priceCents,
+            is_free: formData.isFree,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', track.id)
+          .select()
+          .single();
 
-      const { data, error } = await supabase
-        .from('tracks')
-        .update(updateData)
-        .eq('id', track.id)
-        .select()
-        .single();
+        if (error) throw error;
 
-      if (error) throw error;
-
-      // If beat pack is selected, add track to beat pack
-      if (formData.selectedBeatPack) {
-        await supabase
-          .from('beat_pack_tracks')
-          .insert({
-            beat_pack_id: formData.selectedBeatPack,
-            track_id: track.id,
-            position: 0
-          });
-      }
-
-      // Call learning function if BPM or key was manually set
-      if (formData.manual_bpm || formData.manual_key) {
-        await supabase.functions.invoke('learn-from-corrections', {
-          body: {
-            track_id: track.id,
-            detected_bpm: track.detected_bpm,
-            detected_key: track.detected_key,
-            manual_bpm: formData.manual_bpm ? parseFloat(formData.manual_bpm) : null,
-            manual_key: formData.manual_key || null
+        // Convert back to track format for the callback
+        const updatedTrack = {
+          ...track,
+          title: data.title,
+          artist: data.description,
+          manual_bpm: data.bpm,
+          manual_key: data.key,
+          tags: data.tags,
+          metadata: {
+            ...((track.metadata as any) || {}),
+            price_cents: data.price_cents,
+            is_free: data.is_free
           }
-        });
+        } as Track;
+        
+        onTrackUpdated(updatedTrack);
+      } else {
+        // Handle regular track update
+        const updateData: Partial<Track> = {
+          title: formData.title,
+          artist: formData.artist,
+          manual_bpm: formData.manual_bpm ? parseFloat(formData.manual_bpm) : null,
+          manual_key: formData.manual_key || null,
+          tags: formData.tags,
+          updated_at: new Date().toISOString()
+        };
+
+        const { data, error } = await supabase
+          .from('tracks')
+          .update(updateData)
+          .eq('id', track.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        // If beat pack is selected, add track to beat pack
+        if (formData.selectedBeatPack) {
+          await supabase
+            .from('beat_pack_tracks')
+            .insert({
+              beat_pack_id: formData.selectedBeatPack,
+              track_id: track.id,
+              position: 0
+            });
+        }
+
+        // Call learning function if BPM or key was manually set
+        if (formData.manual_bpm || formData.manual_key) {
+          await supabase.functions.invoke('learn-from-corrections', {
+            body: {
+              track_id: track.id,
+              detected_bpm: track.detected_bpm,
+              detected_key: track.detected_key,
+              manual_bpm: formData.manual_bpm ? parseFloat(formData.manual_bpm) : null,
+              manual_key: formData.manual_key || null
+            }
+          });
+        }
+
+        onTrackUpdated(data);
       }
 
-      onTrackUpdated(data);
       onOpenChange(false);
       toast({
         title: "Success",
-        description: "Track metadata updated successfully",
+        description: `${isBeat ? 'Beat' : 'Track'} metadata updated successfully`,
       });
     } catch (error) {
       console.error('Error updating track:', error);
       toast({
         title: "Error",
-        description: "Failed to update track metadata",
+        description: `Failed to update ${track.is_beat ? 'beat' : 'track'} metadata`,
         variant: "destructive",
       });
     } finally {
@@ -162,7 +209,7 @@ export function TrackMetadataDialog({ track, open, onOpenChange, onTrackUpdated 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Edit Track Metadata</DialogTitle>
+          <DialogTitle>Edit {track.is_beat ? 'Beat' : 'Track'} Metadata</DialogTitle>
         </DialogHeader>
         
         <div className="grid gap-4 py-4">
