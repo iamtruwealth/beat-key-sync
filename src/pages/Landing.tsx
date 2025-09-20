@@ -11,45 +11,48 @@ import beatmakerLogo from "@/assets/beatmaker-logo.jpg";
 import drumlinekingLogo from "@/assets/drumlineking-logo.jpg";
 import melodymasterLogo from "@/assets/melodymaster-logo.jpg";
 export default function Landing() {
-  return (
-    <AudioProvider>
+  return <AudioProvider>
       <LandingContent />
-    </AudioProvider>
-  );
+    </AudioProvider>;
 }
-
 function LandingContent() {
   const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
-  const { currentTrack, isPlaying, loading, playTrack } = useAudio();
-
+  const {
+    currentTrack,
+    isPlaying,
+    loading,
+    playTrack
+  } = useAudio();
   useEffect(() => {
     // Check current session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({
+      data: {
+        session
+      }
+    }) => {
       setUser(session?.user ?? null);
     });
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const {
+      data: {
+        subscription
+      }
+    } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
     });
-
     return () => subscription.unsubscribe();
   }, []);
-
   const navigateToUserDashboard = async () => {
     if (!user) {
       navigate("/auth");
       return;
     }
-
     try {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-
+      const {
+        data: profile
+      } = await supabase.from('profiles').select('role').eq('id', user.id).single();
       const role = profile?.role || 'artist';
       navigate(role === 'producer' ? '/producer-dashboard' : '/artist-dashboard');
     } catch (error) {
@@ -86,16 +89,14 @@ function LandingContent() {
     plays: "4.2K",
     preview_url: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav" // Demo audio
   }];
-
   const handleProducerPlay = (producer: typeof featuredProducers[0]) => {
     const audioTrack = {
       id: producer.id.toString(),
       title: producer.packTitle,
       artist: producer.name,
       file_url: producer.preview_url,
-      artwork_url: producer.image,
+      artwork_url: producer.image
     };
-    
     playTrack(audioTrack);
   };
   return <div className="min-h-screen bg-background">
@@ -115,35 +116,22 @@ function LandingContent() {
               <a href="/pricing" className="text-muted-foreground hover:text-foreground transition-colors">
                 Pricing
               </a>
-              {user && (
-                <Button 
-                  variant="ghost" 
-                  onClick={navigateToUserDashboard} 
-                  className="text-brand-blue hover:text-brand-blue-glow font-semibold"
-                >
+              {user && <Button variant="ghost" onClick={navigateToUserDashboard} className="text-brand-blue hover:text-brand-blue-glow font-semibold">
                   Dashboard
-                </Button>
-              )}
+                </Button>}
             </div>
 
             <div className="flex items-center space-x-4">
-              {user ? (
-                <Button 
-                  onClick={navigateToUserDashboard} 
-                  className="bg-gradient-to-r from-brand-blue-deep to-brand-blue hover:from-brand-blue hover:to-brand-blue-glow text-white font-semibold px-6"
-                >
+              {user ? <Button onClick={navigateToUserDashboard} className="bg-gradient-to-r from-brand-blue-deep to-brand-blue hover:from-brand-blue hover:to-brand-blue-glow text-white font-semibold px-6">
                   Go to Dashboard
-                </Button>
-              ) : (
-                <>
+                </Button> : <>
                   <Button variant="ghost" onClick={() => navigate("/auth")} className="text-foreground hover:text-brand-blue">
                     Log In
                   </Button>
                   <Button onClick={() => navigate("/auth")} className="bg-gradient-to-r from-brand-blue-deep to-brand-blue hover:from-brand-blue hover:to-brand-blue-glow text-white font-semibold px-6">
                     Sign Up Free
                   </Button>
-                </>
-              )}
+                </>}
             </div>
           </div>
         </div>
@@ -164,29 +152,19 @@ function LandingContent() {
               Create.
             </h1>
             
-            <p className="text-xl md:text-2xl text-muted-foreground mb-12 max-w-2xl mx-auto leading-relaxed">
-              Producers send beat packs. Artists find their sound. All on BeatPackz.
-            </p>
+            <p className="text-xl md:text-2xl text-muted-foreground mb-12 max-w-2xl mx-auto leading-relaxed">Interactive beat packs, AI analysis, and instant payouts — built for producers.</p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              {user ? (
-                <Button 
-                  size="lg" 
-                  onClick={navigateToUserDashboard} 
-                  className="bg-gradient-to-r from-brand-blue-deep to-brand-blue hover:from-brand-blue hover:to-brand-blue-glow text-white font-semibold px-8 py-4 text-lg shadow-lg shadow-brand-blue/30"
-                >
+              {user ? <Button size="lg" onClick={navigateToUserDashboard} className="bg-gradient-to-r from-brand-blue-deep to-brand-blue hover:from-brand-blue hover:to-brand-blue-glow text-white font-semibold px-8 py-4 text-lg shadow-lg shadow-brand-blue/30">
                   Go to Dashboard
-                </Button>
-              ) : (
-                <>
+                </Button> : <>
                   <Button size="lg" onClick={() => navigate("/auth")} className="bg-gradient-to-r from-brand-blue-deep to-brand-blue hover:from-brand-blue hover:to-brand-blue-glow text-white font-semibold px-8 py-4 text-lg shadow-lg shadow-brand-blue/30">
                     Sign Up Free
                   </Button>
                   <Button size="lg" variant="outline" onClick={() => navigate("/auth")} className="border-brand-blue text-brand-blue hover:bg-gradient-to-r hover:from-brand-blue-deep hover:to-brand-blue hover:text-white px-8 py-4 text-lg">
                     Log In
                   </Button>
-                </>
-              )}
+                </>}
             </div>
           </div>
         </div>
@@ -206,28 +184,15 @@ function LandingContent() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {featuredProducers.map(producer => {
-              const isCurrentTrack = currentTrack?.id === producer.id.toString();
-              const showPlayButton = !isCurrentTrack || !isPlaying;
-              
-              return (
-                <Card key={producer.id} className="group cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg border-border bg-card/80 backdrop-blur-sm">
+            const isCurrentTrack = currentTrack?.id === producer.id.toString();
+            const showPlayButton = !isCurrentTrack || !isPlaying;
+            return <Card key={producer.id} className="group cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg border-border bg-card/80 backdrop-blur-sm">
                   <CardContent className="p-6">
                     <div className="relative mb-4">
                       <img src={producer.image} alt={producer.name} className="w-full h-48 object-cover rounded-lg" />
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg flex items-center justify-center">
-                        <Button 
-                          size="icon" 
-                          className="bg-gradient-to-r from-brand-blue-deep to-brand-blue hover:from-brand-blue hover:to-brand-blue-glow"
-                          onClick={() => handleProducerPlay(producer)}
-                          disabled={loading && isCurrentTrack}
-                        >
-                          {loading && isCurrentTrack ? (
-                            <Loader2 className="w-6 h-6 text-white animate-spin" />
-                          ) : showPlayButton ? (
-                            <Play className="w-6 h-6 text-white" />
-                          ) : (
-                            <Pause className="w-6 h-6 text-white" />
-                          )}
+                        <Button size="icon" className="bg-gradient-to-r from-brand-blue-deep to-brand-blue hover:from-brand-blue hover:to-brand-blue-glow" onClick={() => handleProducerPlay(producer)} disabled={loading && isCurrentTrack}>
+                          {loading && isCurrentTrack ? <Loader2 className="w-6 h-6 text-white animate-spin" /> : showPlayButton ? <Play className="w-6 h-6 text-white" /> : <Pause className="w-6 h-6 text-white" />}
                         </Button>
                       </div>
                     </div>
@@ -247,9 +212,8 @@ function LandingContent() {
                       </div>
                     </div>
                   </CardContent>
-                </Card>
-              );
-            })}
+                </Card>;
+          })}
           </div>
         </div>
       </section>
