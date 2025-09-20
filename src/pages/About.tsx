@@ -1,0 +1,66 @@
+import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
+
+export default function About() {
+  const navigate = useNavigate();
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted">
+      {/* Hero Banner */}
+      <section className="relative py-20 px-4 text-center bg-gradient-to-r from-brand-blue-deep to-brand-blue overflow-hidden">
+        <div className="absolute inset-0 bg-black/20"></div>
+        <div className="relative z-10 max-w-4xl mx-auto">
+          <h1 className="text-4xl md:text-6xl font-bold text-white mb-6">
+            About BeatPackz
+          </h1>
+          <p className="text-xl md:text-2xl text-white/90 mb-8">
+            The Ultimate Platform for Music Producers
+          </p>
+          <Button 
+            size="lg" 
+            variant="outline"
+            onClick={() => navigate("/auth")} 
+            className="bg-white/10 border-white/30 text-white hover:bg-white/20 font-semibold px-8 py-3"
+          >
+            Get Started Today
+          </Button>
+        </div>
+      </section>
+
+      {/* About Section */}
+      <section className="py-20 px-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-card rounded-2xl p-8 md:p-12 shadow-xl border">
+            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-8 text-center">
+              Our Story
+            </h2>
+            <div className="prose prose-lg max-w-none text-muted-foreground leading-relaxed">
+              <p className="text-lg md:text-xl mb-6">
+                Beatpackz is the ultimate platform for music producers to showcase, sell, and share their beats professionally. Upload your beats and beat packs once, and our AI automatically analyzes each file to detect BPM and key, making your music easier to discover.
+              </p>
+              <p className="text-lg md:text-xl mb-6">
+                Set your own prices or offer free downloads, and share interactive beat pack links that work seamlessly on phones, tablets, and computers — complete with an audio player, pricing, and download availability.
+              </p>
+              <p className="text-lg md:text-xl mb-6">
+                Track your sales and revenue in real-time, request payouts through Stripe, PayPal, Venmo, or Cash App, and network with other producers via our messaging system.
+              </p>
+              <p className="text-lg md:text-xl font-semibold text-foreground">
+                Beatpackz.store turns simple file sharing into a professional, automated, revenue-generating storefront, saving you time, boosting sales, and giving your music the exposure it deserves.
+              </p>
+            </div>
+            
+            <div className="text-center mt-12">
+              <Button 
+                size="lg" 
+                onClick={() => navigate("/auth")}
+                className="bg-gradient-to-r from-brand-blue-deep to-brand-blue hover:from-brand-blue hover:to-brand-blue-glow text-white font-semibold px-12 py-4 text-xl shadow-xl shadow-brand-blue/40"
+              >
+                Join BeatPackz Today
+              </Button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
