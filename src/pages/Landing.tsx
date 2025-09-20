@@ -314,9 +314,9 @@ function LandingContent() {
             <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
               Why Choose BeatPackz?
             </h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              The complete platform for music collaboration and discovery
-            </p>
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+            Upload your beats, set your price, share interactive beat packs, and get paid — all while tracking sales and connecting with other producers.
+          </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
