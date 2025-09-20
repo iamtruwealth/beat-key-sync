@@ -403,7 +403,7 @@ function LandingContent() {
             <div>
               <h4 className="text-lg font-semibold text-foreground mb-4">Legal</h4>
               <ul className="space-y-2">
-                <li><a href="#" className="text-muted-foreground hover:text-foreground transition-colors">Terms</a></li>
+                <li><a href="/terms" className="text-muted-foreground hover:text-foreground transition-colors">Terms</a></li>
                 <li><a href="#" className="text-muted-foreground hover:text-foreground transition-colors">Privacy</a></li>
                 <li><a href="#" className="text-muted-foreground hover:text-foreground transition-colors">Cookies</a></li>
               </ul>

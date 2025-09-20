@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Music, Upload, AlertCircle, User, Headphones } from "lucide-react";
 
@@ -19,6 +20,7 @@ export default function AuthPage() {
   const [artistLogo, setArtistLogo] = useState<File | null>(null);
   const [resetLoading, setResetLoading] = useState(false);
   const [userRole, setUserRole] = useState<UserRole>('artist');
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -73,6 +75,16 @@ export default function AuthPage() {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!termsAccepted) {
+      toast({
+        title: "Terms acceptance required",
+        description: "Please accept the Terms of Service to continue",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setLoading(true);
 
     try {
@@ -324,7 +336,31 @@ export default function AuthPage() {
                       </p>
                     )}
                   </div>
-                  <Button type="submit" className="w-full" disabled={loading}>
+                  <div className="flex items-start space-x-3">
+                    <Checkbox 
+                      id="terms" 
+                      checked={termsAccepted}
+                      onCheckedChange={(checked) => setTermsAccepted(checked as boolean)}
+                      required
+                    />
+                    <div className="space-y-1 leading-none">
+                      <Label
+                        htmlFor="terms"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        I agree to the{" "}
+                        <Link 
+                          to="/terms" 
+                          className="text-primary hover:underline"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          Terms of Service
+                        </Link>
+                      </Label>
+                    </div>
+                  </div>
+                  <Button type="submit" className="w-full" disabled={loading || !termsAccepted}>
                     {loading ? "Creating Account..." : `Create ${userRole === 'artist' ? 'Artist' : 'Producer'} Account`}
                   </Button>
                 </form>

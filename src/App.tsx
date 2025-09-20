@@ -26,6 +26,7 @@ import Landing from "./pages/Landing";
 import Pricing from "./pages/Pricing";
 import About from "./pages/About";
 import FAQ from "./pages/FAQ";
+import Terms from "./pages/Terms";
 import Paperwork from "./pages/Paperwork";
 import SettingsPage from "./pages/Settings";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -43,8 +44,9 @@ const App = () => (
             {/* Public landing page */}
             <Route path="/" element={<Landing />} />
             <Route path="/pricing" element={<Pricing />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/faq" element={<FAQ />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/faq" element={<FAQ />} />
+          <Route path="/terms" element={<Terms />} />
             <Route path="/auth" element={<AuthPage />} />
             
             {/* Public beat pack sharing */}
