@@ -400,6 +400,38 @@ export type Database = {
         }
         Relationships: []
       }
+      featured_beat_packs: {
+        Row: {
+          added_by: string
+          beat_pack_id: string
+          created_at: string
+          id: string
+          position: number
+        }
+        Insert: {
+          added_by: string
+          beat_pack_id: string
+          created_at?: string
+          id?: string
+          position?: number
+        }
+        Update: {
+          added_by?: string
+          beat_pack_id?: string
+          created_at?: string
+          id?: string
+          position?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "featured_beat_packs_beat_pack_id_fkey"
+            columns: ["beat_pack_id"]
+            isOneToOne: true
+            referencedRelation: "beat_packs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           content: string

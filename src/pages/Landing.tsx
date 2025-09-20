@@ -10,6 +10,7 @@ import soundwaveLogo from "@/assets/soundwave-logo.jpg";
 import beatmakerLogo from "@/assets/beatmaker-logo.jpg";
 import drumlinekingLogo from "@/assets/drumlineking-logo.jpg";
 import melodymasterLogo from "@/assets/melodymaster-logo.jpg";
+import { FeaturedPacksManager } from "@/components/admin/FeaturedPacksManager";
 export default function Landing() {
   return <AudioProvider>
       <LandingContent />
@@ -19,6 +20,7 @@ function LandingContent() {
   const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [featuredProducers, setFeaturedProducers] = useState<any[]>([]);
+  const [isMasterAccount, setIsMasterAccount] = useState(false);
   const {
     currentTrack,
     isPlaying,
@@ -32,7 +34,9 @@ function LandingContent() {
         session
       }
     }) => {
-      setUser(session?.user ?? null);
+      const sessionUser = session?.user ?? null;
+      setUser(sessionUser);
+      setIsMasterAccount(sessionUser?.email === 'iamtruwealth@gmail.com');
     });
 
     // Listen for auth changes
@@ -41,7 +45,9 @@ function LandingContent() {
         subscription
       }
     } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user ?? null);
+      const sessionUser = session?.user ?? null;
+      setUser(sessionUser);
+      setIsMasterAccount(sessionUser?.email === 'iamtruwealth@gmail.com');
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -254,9 +260,12 @@ function LandingContent() {
       <section id="discover" className="py-20 bg-card/50">
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
-              Featured Beat Packs
-            </h2>
+            <div className="flex items-center justify-center gap-4 mb-4">
+              <h2 className="text-4xl md:text-5xl font-bold text-foreground">
+                Featured Beat Packs
+              </h2>
+              {isMasterAccount && <FeaturedPacksManager />}
+            </div>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
               Discover the hottest beats from top producers in the game
             </p>

@@ -93,6 +93,7 @@ export const AudioProvider: React.FC<AudioProviderProps> = ({ children }) => {
     if (!audioRef.current) return;
 
     const audio = audioRef.current;
+    console.log('AudioContext: Attempting to play track:', track.title, track.file_url);
 
     // If it's the same track, just toggle play/pause
     if (currentTrack?.id === track.id) {
@@ -106,10 +107,12 @@ export const AudioProvider: React.FC<AudioProviderProps> = ({ children }) => {
     audio.src = track.file_url;
     
     try {
+      console.log('AudioContext: Loading audio from:', track.file_url);
       await audio.play();
+      console.log('AudioContext: Successfully started playing');
       setIsPlaying(true);
     } catch (error) {
-      console.error('Failed to play audio:', error);
+      console.error('AudioContext: Failed to play audio:', error);
       setIsPlaying(false);
       setLoading(false);
     }
