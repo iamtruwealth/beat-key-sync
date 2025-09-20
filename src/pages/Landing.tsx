@@ -144,7 +144,9 @@ function LandingContent() {
 
     fetchFeaturedPacks();
   }, []);
-  const handleProducerPlay = (producer: typeof featuredProducers[0]) => {
+  const handleProducerPlay = (producer: typeof featuredProducers[0], event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent card click when clicking play button
+    console.log('Playing producer track:', producer.preview_url);
     const audioTrack = {
       id: producer.id.toString(),
       title: producer.packTitle,
@@ -153,6 +155,10 @@ function LandingContent() {
       artwork_url: producer.image
     };
     playTrack(audioTrack);
+  };
+
+  const handleCardClick = (producer: typeof featuredProducers[0]) => {
+    navigate(`/beat-pack/${producer.id}`);
   };
   return <div className="min-h-screen bg-background">
       {/* Navigation */}
@@ -241,12 +247,12 @@ function LandingContent() {
             {featuredProducers.map(producer => {
             const isCurrentTrack = currentTrack?.id === producer.id.toString();
             const showPlayButton = !isCurrentTrack || !isPlaying;
-            return <Card key={producer.id} className="group cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg border-border bg-card/80 backdrop-blur-sm">
+            return <Card key={producer.id} className="group cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg border-border bg-card/80 backdrop-blur-sm" onClick={() => handleCardClick(producer)}>
                   <CardContent className="p-6">
                     <div className="relative mb-4">
                       <img src={producer.image} alt={producer.name} className="w-full h-48 object-cover rounded-lg" />
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg flex items-center justify-center">
-                        <Button size="icon" className="bg-gradient-to-r from-brand-blue-deep to-brand-blue hover:from-brand-blue hover:to-brand-blue-glow" onClick={() => handleProducerPlay(producer)} disabled={loading && isCurrentTrack}>
+                        <Button size="icon" className="bg-gradient-to-r from-brand-blue-deep to-brand-blue hover:from-brand-blue hover:to-brand-blue-glow" onClick={(e) => handleProducerPlay(producer, e)} disabled={loading && isCurrentTrack}>
                           {loading && isCurrentTrack ? <Loader2 className="w-6 h-6 text-white animate-spin" /> : showPlayButton ? <Play className="w-6 h-6 text-white" /> : <Pause className="w-6 h-6 text-white" />}
                         </Button>
                       </div>
