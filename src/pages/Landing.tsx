@@ -62,31 +62,31 @@ function LandingContent() {
   };
   const featuredProducers = [{
     id: 1,
+    name: "TruWealth",
+    image: soundwaveLogo, // Using existing logo as placeholder
+    packTitle: "Trap Pack",
+    plays: "5.2K",
+    preview_url: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav" // Demo audio
+  }, {
+    id: 2,
     name: "SoundWave",
     image: soundwaveLogo,
     packTitle: "Trap Vibes Vol. 3",
     plays: "2.1K",
     preview_url: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav" // Demo audio
   }, {
-    id: 2,
+    id: 3,
     name: "BeatMaker Pro",
     image: beatmakerLogo,
     packTitle: "R&B Essentials",
     plays: "3.4K",
     preview_url: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav" // Demo audio
   }, {
-    id: 3,
+    id: 4,
     name: "DrumlineKing",
     image: drumlinekingLogo,
     packTitle: "Hip Hop Heat",
     plays: "1.8K",
-    preview_url: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav" // Demo audio
-  }, {
-    id: 4,
-    name: "MelodyMaster",
-    image: melodymasterLogo,
-    packTitle: "Chill Vibes",
-    plays: "4.2K",
     preview_url: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav" // Demo audio
   }];
   const handleProducerPlay = (producer: typeof featuredProducers[0]) => {
