@@ -43,6 +43,30 @@ serve(async (req) => {
     if (!user?.email) throw new Error("User not authenticated or email not available");
     logStep("User authenticated", { userId: user.id, email: user.email });
 
+    // Master account with permanent active subscription
+    if (user.email === "iamtruwealth@gmail.com") {
+      logStep("Master account detected, granting permanent subscription");
+      
+      // Update user profile with master plan
+      await supabaseClient
+        .from("profiles")
+        .update({ plan: "master" })
+        .eq("id", user.id);
+        
+      const oneYearFromNow = new Date();
+      oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+      
+      return new Response(JSON.stringify({
+        subscribed: true,
+        plan: "master",
+        product_id: "master_account",
+        subscription_end: oneYearFromNow.toISOString()
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
+
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     
