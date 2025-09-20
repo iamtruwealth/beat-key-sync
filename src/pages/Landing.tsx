@@ -18,6 +18,7 @@ export default function Landing() {
 function LandingContent() {
   const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
+  const [featuredProducers, setFeaturedProducers] = useState<any[]>([]);
   const {
     currentTrack,
     isPlaying,
@@ -60,35 +61,62 @@ function LandingContent() {
       navigate('/artist-dashboard');
     }
   };
-  const featuredProducers = [{
-    id: 1,
-    name: "TruWealth",
-    image: soundwaveLogo, // Using existing logo as placeholder
-    packTitle: "Trap Pack",
-    plays: "5.2K",
-    preview_url: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav" // Demo audio
-  }, {
-    id: 2,
-    name: "SoundWave",
-    image: soundwaveLogo,
-    packTitle: "Trap Vibes Vol. 3",
-    plays: "2.1K",
-    preview_url: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav" // Demo audio
-  }, {
-    id: 3,
-    name: "BeatMaker Pro",
-    image: beatmakerLogo,
-    packTitle: "R&B Essentials",
-    plays: "3.4K",
-    preview_url: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav" // Demo audio
-  }, {
-    id: 4,
-    name: "DrumlineKing",
-    image: drumlinekingLogo,
-    packTitle: "Hip Hop Heat",
-    plays: "1.8K",
-    preview_url: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav" // Demo audio
-  }];
+  useEffect(() => {
+    // Fetch featured beat packs
+    const fetchFeaturedPacks = async () => {
+      try {
+        const { data: beatPacks } = await supabase
+          .from('beat_packs')
+          .select(`
+            id,
+            name,
+            artwork_url,
+            user_id,
+            profiles!inner(producer_name, first_name)
+          `)
+          .eq('is_public', true)
+          .order('created_at', { ascending: false })
+          .limit(4);
+
+        if (beatPacks) {
+          const formattedPacks = beatPacks.map((pack, index) => ({
+            id: pack.id,
+            name: (pack.profiles as any)?.producer_name || (pack.profiles as any)?.first_name || 'Producer',
+            image: pack.artwork_url || soundwaveLogo,
+            packTitle: pack.name,
+            plays: `${Math.floor(Math.random() * 5000 + 1000)}`, // Demo play count
+            preview_url: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav" // Demo audio
+          }));
+          
+          // Ensure trap pack is first if it exists
+          const trapPackIndex = formattedPacks.findIndex(pack => 
+            pack.packTitle.toLowerCase().includes('trap')
+          );
+          if (trapPackIndex > 0) {
+            const trapPack = formattedPacks.splice(trapPackIndex, 1)[0];
+            formattedPacks.unshift(trapPack);
+          }
+          
+          setFeaturedProducers(formattedPacks);
+        }
+      } catch (error) {
+        console.error('Error fetching beat packs:', error);
+        // Fallback to hardcoded data if fetch fails
+        setFeaturedProducers([
+          {
+            id: 1,
+            name: "TruWealth",
+            image: soundwaveLogo,
+            packTitle: "Trap Pack",
+            plays: "5.2K",
+            preview_url: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav"
+          }
+        ]);
+      }
+    };
+
+    fetchFeaturedPacks();
+  }, []);
   const handleProducerPlay = (producer: typeof featuredProducers[0]) => {
     const audioTrack = {
       id: producer.id.toString(),
