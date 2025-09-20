@@ -82,28 +82,30 @@ function LandingContent() {
             .in('id', userIds);
 
           // Get first track from each beat pack for audio preview
-          const packIds = beatPacks.map(pack => pack.id);
-          const { data: beatPackTracks } = await supabase
-            .from('beat_pack_tracks')
-            .select(`
-              beat_pack_id,
-              tracks!inner(id, title, file_url)
-            `)
-            .in('beat_pack_id', packIds)
-            .order('position', { ascending: true });
-
-          const formattedPacks = beatPacks.map((pack, index) => {
+          const formattedPacks = await Promise.all(beatPacks.map(async (pack, index) => {
             const profile = profiles?.find(p => p.id === pack.user_id);
-            const firstTrack = beatPackTracks?.find(bpt => bpt.beat_pack_id === pack.id);
+            
+            // Get the first track from this beat pack
+            const { data: packTracks } = await supabase
+              .from('beat_pack_tracks')
+              .select(`
+                tracks!inner(id, title, file_url, artwork_url)
+              `)
+              .eq('beat_pack_id', pack.id)
+              .order('position', { ascending: true })
+              .limit(1);
+
+            const firstTrack = packTracks?.[0]?.tracks as any;
+            
             return {
               id: pack.id,
               name: profile?.producer_name || profile?.first_name || 'Producer',
               image: pack.artwork_url || soundwaveLogo,
               packTitle: pack.name,
               plays: `${Math.floor(Math.random() * 5000 + 1000)}`, // Demo play count
-              preview_url: (firstTrack?.tracks as any)?.file_url || "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav"
+              preview_url: firstTrack?.file_url || "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav"
             };
-          });
+          }));
           
           // Ensure trap pack is first if it exists
           const trapPackIndex = formattedPacks.findIndex(pack => 
@@ -123,10 +125,10 @@ function LandingContent() {
           {
             id: 1,
             name: "TruWealth",
-            image: soundwaveLogo,
+            image: "https://lascsucrozzhbvlsddxg.supabase.co/storage/v1/object/public/artwork/d3ac8cb7-916a-47fe-bb66-9a541981809f/beat-packs/1343acc3-43c9-4cbb-a6eb-4d409e763832/artwork-1758171615448.gif",
             packTitle: "Trap Pack",
             plays: "5.2K",
-            preview_url: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav"
+            preview_url: "https://lascsucrozzhbvlsddxg.supabase.co/storage/v1/object/public/audio-files/d3ac8cb7-916a-47fe-bb66-9a541981809f/1758219057579-1%20elevated%20vibes%20196bpm%20c#m.mp3"
           },
           {
             id: 2,
@@ -134,7 +136,7 @@ function LandingContent() {
             image: soundwaveLogo,
             packTitle: "Trap Vibes Vol. 3",
             plays: "2.1K",
-            preview_url: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav"
+            preview_url: "https://lascsucrozzhbvlsddxg.supabase.co/storage/v1/object/public/audio-files/d3ac8cb7-916a-47fe-bb66-9a541981809f/1758219057579-1%20elevated%20vibes%20196bpm%20c#m.mp3"
           }
         ]);
       }
