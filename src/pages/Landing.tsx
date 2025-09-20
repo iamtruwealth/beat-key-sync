@@ -226,7 +226,7 @@ function LandingContent() {
               Why Choose BeatPackz?
             </h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              The complete platform for music collaboration and discovery
+              Upload your beats, set your price, share interactive beat packs, and get paid — all while tracking sales and connecting with other producers.
             </p>
           </div>
 
