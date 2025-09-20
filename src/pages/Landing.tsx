@@ -65,13 +65,32 @@ function LandingContent() {
     // Fetch featured beat packs
     const fetchFeaturedPacks = async () => {
       try {
-        // First get the beat packs
-        const { data: beatPacks } = await supabase
-          .from('beat_packs')
-          .select('id, name, artwork_url, user_id')
-          .eq('is_public', true)
-          .order('created_at', { ascending: false })
+        // Try to load curated featured packs first
+        let beatPacks: any[] = [];
+        const { data: featured } = await supabase
+          .from('featured_beat_packs')
+          .select('beat_pack_id, position, created_at')
+          .order('position', { ascending: true })
+          .order('created_at', { ascending: true })
           .limit(4);
+
+        if (featured && featured.length > 0) {
+          const ids = featured.map(f => f.beat_pack_id);
+          const { data: packs } = await supabase
+            .from('beat_packs')
+            .select('id, name, artwork_url, user_id')
+            .in('id', ids)
+            .eq('is_public', true);
+          beatPacks = ids.map(id => packs?.find(p => p.id === id)).filter(Boolean) as any[];
+        } else {
+          const { data: packs } = await supabase
+            .from('beat_packs')
+            .select('id, name, artwork_url, user_id')
+            .eq('is_public', true)
+            .order('created_at', { ascending: false })
+            .limit(4);
+          beatPacks = packs || [];
+        }
 
         if (beatPacks && beatPacks.length > 0) {
           // Get profiles for the users
@@ -158,7 +177,7 @@ function LandingContent() {
   };
 
   const handleCardClick = (producer: typeof featuredProducers[0]) => {
-    navigate(`/beat-pack/${producer.id}`);
+    navigate(`/pack/${producer.id}`);
   };
   return <div className="min-h-screen bg-background">
       {/* Navigation */}
