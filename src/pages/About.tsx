@@ -1,13 +1,82 @@
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { User } from "@supabase/supabase-js";
 
 export default function About() {
   const navigate = useNavigate();
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    // Check current session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const navigateToUserDashboard = () => {
+    if (user?.user_metadata?.role === 'artist') {
+      navigate('/artist-dashboard');
+    } else {
+      navigate('/producer-dashboard');
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted">
+    <div className="min-h-screen bg-background">
+      {/* Navigation */}
+      <nav className="fixed top-0 w-full z-50 bg-background/95 backdrop-blur-md border-b border-border">
+        <div className="container mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2 cursor-pointer" onClick={() => navigate("/")}>
+              <video src="/logo.mp4" className="w-8 h-8" autoPlay loop muted playsInline />
+              <span className="text-2xl font-bold text-foreground">BeatPackz</span>
+            </div>
+            
+            <div className="hidden md:flex items-center space-x-8">
+              <a href="/#discover" className="text-muted-foreground hover:text-foreground transition-colors">
+                Discover Beats
+              </a>
+              <a href="/pricing" className="text-muted-foreground hover:text-foreground transition-colors">
+                Pricing
+              </a>
+              {user && (
+                <Button variant="ghost" onClick={navigateToUserDashboard} className="text-brand-blue hover:text-brand-blue-glow font-semibold">
+                  Dashboard
+                </Button>
+              )}
+            </div>
+
+            <div className="flex items-center space-x-4">
+              {user ? (
+                <Button onClick={navigateToUserDashboard} className="bg-gradient-to-r from-brand-blue-deep to-brand-blue hover:from-brand-blue hover:to-brand-blue-glow text-white font-semibold px-6">
+                  Go to Dashboard
+                </Button>
+              ) : (
+                <>
+                  <Button variant="ghost" onClick={() => navigate("/auth")} className="text-foreground hover:text-brand-blue">
+                    Log In
+                  </Button>
+                  <Button onClick={() => navigate("/auth")} className="bg-gradient-to-r from-brand-blue-deep to-brand-blue hover:from-brand-blue hover:to-brand-blue-glow text-white font-semibold px-6">
+                    Sign Up Free
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </nav>
+
       {/* Hero Banner */}
-      <section className="relative py-20 px-4 text-center bg-gradient-to-r from-brand-blue-deep to-brand-blue overflow-hidden">
+      <section className="relative py-20 px-4 text-center bg-gradient-to-r from-brand-blue-deep to-brand-blue overflow-hidden mt-16">
         <div className="absolute inset-0 bg-black/20"></div>
         <div className="relative z-10 max-w-4xl mx-auto">
           <h1 className="text-4xl md:text-6xl font-bold text-white mb-6">
