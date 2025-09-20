@@ -25,6 +25,7 @@ import NotFound from "./pages/NotFound";
 import Landing from "./pages/Landing";
 import Pricing from "./pages/Pricing";
 import Paperwork from "./pages/Paperwork";
+import SettingsPage from "./pages/Settings";
 import { SidebarProvider } from "@/components/ui/sidebar";
 
 const queryClient = new QueryClient();
@@ -203,17 +204,11 @@ const App = () => (
               </RoleProtectedRoute>
             } />
             <Route path="/settings" element={
-              <RoleProtectedRoute allowedRoles={['artist', 'producer']}>
+              <RoleProtectedRoute allowedRoles={['producer']}>
                 <div className="flex min-h-screen w-full">
                   <RoleBasedSidebar />
                   <main className="flex-1 p-6 overflow-auto">
-                    <div className="space-y-6">
-                      <h1 className="text-3xl font-bold">Settings</h1>
-                      <p className="text-muted-foreground">Manage your account preferences and privacy settings</p>
-                      <div className="text-center py-12">
-                        <p className="text-muted-foreground">Settings page coming soon...</p>
-                      </div>
-                    </div>
+                    <SettingsPage />
                   </main>
                 </div>
               </RoleProtectedRoute>
