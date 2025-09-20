@@ -65,28 +65,45 @@ function LandingContent() {
     // Fetch featured beat packs
     const fetchFeaturedPacks = async () => {
       try {
+        // First get the beat packs
         const { data: beatPacks } = await supabase
           .from('beat_packs')
-          .select(`
-            id,
-            name,
-            artwork_url,
-            user_id,
-            profiles!inner(producer_name, first_name)
-          `)
+          .select('id, name, artwork_url, user_id')
           .eq('is_public', true)
           .order('created_at', { ascending: false })
           .limit(4);
 
-        if (beatPacks) {
-          const formattedPacks = beatPacks.map((pack, index) => ({
-            id: pack.id,
-            name: (pack.profiles as any)?.producer_name || (pack.profiles as any)?.first_name || 'Producer',
-            image: pack.artwork_url || soundwaveLogo,
-            packTitle: pack.name,
-            plays: `${Math.floor(Math.random() * 5000 + 1000)}`, // Demo play count
-            preview_url: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav" // Demo audio
-          }));
+        if (beatPacks && beatPacks.length > 0) {
+          // Get profiles for the users
+          const userIds = beatPacks.map(pack => pack.user_id);
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id, producer_name, first_name')
+            .in('id', userIds);
+
+          // Get first track from each beat pack for audio preview
+          const packIds = beatPacks.map(pack => pack.id);
+          const { data: beatPackTracks } = await supabase
+            .from('beat_pack_tracks')
+            .select(`
+              beat_pack_id,
+              tracks!inner(id, title, file_url)
+            `)
+            .in('beat_pack_id', packIds)
+            .order('position', { ascending: true });
+
+          const formattedPacks = beatPacks.map((pack, index) => {
+            const profile = profiles?.find(p => p.id === pack.user_id);
+            const firstTrack = beatPackTracks?.find(bpt => bpt.beat_pack_id === pack.id);
+            return {
+              id: pack.id,
+              name: profile?.producer_name || profile?.first_name || 'Producer',
+              image: pack.artwork_url || soundwaveLogo,
+              packTitle: pack.name,
+              plays: `${Math.floor(Math.random() * 5000 + 1000)}`, // Demo play count
+              preview_url: (firstTrack?.tracks as any)?.file_url || "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav"
+            };
+          });
           
           // Ensure trap pack is first if it exists
           const trapPackIndex = formattedPacks.findIndex(pack => 
@@ -109,6 +126,14 @@ function LandingContent() {
             image: soundwaveLogo,
             packTitle: "Trap Pack",
             plays: "5.2K",
+            preview_url: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav"
+          },
+          {
+            id: 2,
+            name: "SoundWave",
+            image: soundwaveLogo,
+            packTitle: "Trap Vibes Vol. 3",
+            plays: "2.1K",
             preview_url: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav"
           }
         ]);
