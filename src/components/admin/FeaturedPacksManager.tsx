@@ -2,15 +2,17 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Star, Plus, X, ArrowUp, ArrowDown } from "lucide-react";
+import { Star, Plus, X, ArrowUp, ArrowDown, Search } from "lucide-react";
 
 interface BeatPack {
   id: string;
   name: string;
   artwork_url?: string;
   user_id: string;
+  created_at: string;
   profiles?: {
     producer_name?: string;
     first_name?: string;
@@ -36,14 +38,15 @@ interface FeaturedPack {
 export function FeaturedPacksManager() {
   const [isOpen, setIsOpen] = useState(false);
   const [featuredPacks, setFeaturedPacks] = useState<FeaturedPack[]>([]);
-  const [availablePacks, setAvailablePacks] = useState<BeatPack[]>([]);
+  const [allPacks, setAllPacks] = useState<BeatPack[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     if (isOpen) {
       fetchFeaturedPacks();
-      fetchAvailablePacks();
+      fetchAllPacks();
     }
   }, [isOpen]);
 
@@ -72,14 +75,8 @@ export function FeaturedPacksManager() {
     }
   };
 
-  const fetchAvailablePacks = async () => {
+  const fetchAllPacks = async () => {
     try {
-      const { data: featured } = await supabase
-        .from('featured_beat_packs')
-        .select('beat_pack_id');
-
-      const featuredIds = featured?.map(f => f.beat_pack_id) || [];
-
       const { data, error } = await supabase
         .from('beat_packs')
         .select(`
@@ -87,18 +84,31 @@ export function FeaturedPacksManager() {
           name,
           artwork_url,
           user_id,
+          created_at,
           profiles!inner(producer_name, first_name)
         `)
         .eq('is_public', true)
-        .not('id', 'in', featuredIds.length > 0 ? `(${featuredIds.join(',')})` : '()')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setAvailablePacks((data as any) || []);
+      setAllPacks((data as any) || []);
     } catch (error) {
-      console.error('Error fetching available packs:', error);
+      console.error('Error fetching all packs:', error);
     }
   };
+
+  // Filter packs based on search term
+  const filteredPacks = allPacks.filter(pack => {
+    const packName = pack.name.toLowerCase();
+    const producerName = ((pack.profiles as any)?.producer_name || (pack.profiles as any)?.first_name || '').toLowerCase();
+    const search = searchTerm.toLowerCase();
+    
+    return packName.includes(search) || producerName.includes(search);
+  });
+
+  // Separate featured and non-featured packs
+  const featuredIds = featuredPacks.map(f => f.beat_pack_id);
+  const nonFeaturedPacks = filteredPacks.filter(pack => !featuredIds.includes(pack.id));
 
   const addToFeatured = async (beatPackId: string) => {
     setLoading(true);
@@ -124,7 +134,7 @@ export function FeaturedPacksManager() {
       });
 
       await fetchFeaturedPacks();
-      await fetchAvailablePacks();
+      await fetchAllPacks();
     } catch (error) {
       console.error('Error adding to featured:', error);
       toast({
@@ -153,7 +163,7 @@ export function FeaturedPacksManager() {
       });
 
       await fetchFeaturedPacks();
-      await fetchAvailablePacks();
+      await fetchAllPacks();
     } catch (error) {
       console.error('Error removing from featured:', error);
       toast({
@@ -275,13 +285,78 @@ export function FeaturedPacksManager() {
             </div>
           </div>
 
-          {/* Available Packs */}
-          {featuredPacks.length < 4 && (
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Available Beat Packs</h3>
-              <div className="space-y-2 max-h-60 overflow-y-auto">
-                {availablePacks.map((pack) => (
-                  <div key={pack.id} className="flex items-center gap-3 p-3 border rounded-lg">
+          {/* Search and Browse All Packs */}
+          <div>
+            <div className="flex items-center gap-4 mb-4">
+              <h3 className="text-lg font-semibold">All Beat Packs ({allPacks.length})</h3>
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                <Input
+                  placeholder="Search by pack name or producer..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+
+            {/* Show currently featured packs in search results */}
+            {searchTerm && featuredPacks.some(pack => {
+              const packName = pack.beat_packs.name.toLowerCase();
+              const producerName = ((pack.beat_packs.profiles as any)?.producer_name || (pack.beat_packs.profiles as any)?.first_name || '').toLowerCase();
+              return packName.includes(searchTerm.toLowerCase()) || producerName.includes(searchTerm.toLowerCase());
+            }) && (
+              <div className="mb-4">
+                <p className="text-sm text-muted-foreground mb-2">Currently Featured:</p>
+                <div className="space-y-2 max-h-32 overflow-y-auto">
+                  {featuredPacks
+                    .filter(pack => {
+                      const packName = pack.beat_packs.name.toLowerCase();
+                      const producerName = ((pack.beat_packs.profiles as any)?.producer_name || (pack.beat_packs.profiles as any)?.first_name || '').toLowerCase();
+                      return packName.includes(searchTerm.toLowerCase()) || producerName.includes(searchTerm.toLowerCase());
+                    })
+                    .map((pack) => (
+                      <div key={pack.id} className="flex items-center gap-3 p-3 border rounded-lg bg-blue-50">
+                        <Badge variant="secondary">Featured #{pack.position + 1}</Badge>
+                        
+                        {pack.beat_packs.artwork_url && (
+                          <img 
+                            src={pack.beat_packs.artwork_url} 
+                            alt={pack.beat_packs.name}
+                            className="w-12 h-12 object-cover rounded"
+                          />
+                        )}
+                        
+                        <div className="flex-1">
+                          <p className="font-medium">{pack.beat_packs.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            by {(pack.beat_packs.profiles as any)?.producer_name || (pack.beat_packs.profiles as any)?.first_name || 'Unknown'}
+                          </p>
+                        </div>
+
+                        <Button 
+                          size="sm" 
+                          variant="destructive"
+                          onClick={() => removeFromFeatured(pack.id)}
+                          disabled={loading}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {/* Available packs */}
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {nonFeaturedPacks.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  {searchTerm ? 'No packs found matching your search.' : 'No available packs to feature.'}
+                </p>
+              ) : (
+                nonFeaturedPacks.map((pack) => (
+                  <div key={pack.id} className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50">
                     {pack.artwork_url && (
                       <img 
                         src={pack.artwork_url} 
@@ -295,21 +370,24 @@ export function FeaturedPacksManager() {
                       <p className="text-sm text-muted-foreground">
                         by {(pack.profiles as any)?.producer_name || (pack.profiles as any)?.first_name || 'Unknown'}
                       </p>
+                      <p className="text-xs text-muted-foreground">
+                        Created: {new Date(pack.created_at).toLocaleDateString()}
+                      </p>
                     </div>
 
                     <Button 
                       size="sm"
                       onClick={() => addToFeatured(pack.id)}
-                      disabled={loading}
+                      disabled={loading || featuredPacks.length >= 4}
                     >
                       <Plus className="w-4 h-4 mr-2" />
-                      Add
+                      {featuredPacks.length >= 4 ? 'Full' : 'Add'}
                     </Button>
                   </div>
-                ))}
-              </div>
+                ))
+              )}
             </div>
-          )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>
