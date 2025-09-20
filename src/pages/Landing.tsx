@@ -360,7 +360,7 @@ function LandingContent() {
             Join BeatPackz Today
           </h2>
           <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Where Producers & Artists Meet
+            Turn your beats into revenue — share, sell, and track your music all in one professional platform.
           </p>
           <Button size="lg" onClick={() => navigate("/auth")} className="bg-gradient-to-r from-brand-blue-deep to-brand-blue hover:from-brand-blue hover:to-brand-blue-glow text-white font-semibold px-12 py-4 text-xl shadow-xl shadow-brand-blue/40">
             Get Started Free
