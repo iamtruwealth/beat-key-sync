@@ -142,8 +142,8 @@ const Terms = () => {
                 <div>
                   <h3 className="text-xl font-semibold mb-3">11. Governing Law</h3>
                   <div className="space-y-2 text-muted-foreground">
-                    <p>11.1 These Terms are governed by and construed under the laws of [Your State/Country].</p>
-                    <p>11.2 Any disputes will be resolved in the appropriate courts of [Your State/Country].</p>
+                    <p>11.1 These Terms are governed by and construed under the laws of Atlanta, Georgia.</p>
+                    <p>11.2 Any disputes will be resolved in the appropriate courts of Atlanta, Georgia.</p>
                   </div>
                 </div>
 
