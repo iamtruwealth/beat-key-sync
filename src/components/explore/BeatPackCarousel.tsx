@@ -55,7 +55,7 @@ export default function BeatPackCarousel() {
         const formattedData = data?.map(pack => ({
           ...pack,
           user: Array.isArray(pack.profiles) ? pack.profiles[0] : pack.profiles,
-          track_count: Array.isArray(pack.beat_pack_tracks) ? pack.beat_pack_tracks.length : 0
+          track_count: pack.beat_pack_tracks?.[0]?.count || 0
         })) || [];
 
         setBeatPacks(formattedData);
@@ -153,7 +153,7 @@ export default function BeatPackCarousel() {
                   </div>
                   
                   <CardContent className="p-4">
-                    <Link to={`/beat-pack/${pack.id}`}>
+                    <Link to={`/pack/${pack.id}`}>
                       <h3 className="font-semibold hover:text-primary transition-colors">
                         {pack.name}
                       </h3>

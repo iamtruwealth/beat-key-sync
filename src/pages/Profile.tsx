@@ -418,9 +418,11 @@ export default function ProfilePage() {
                 <p className="text-muted-foreground mb-4">
                   Your public profile will show your bio, genres, and recent work
                 </p>
-                <Button variant="outline">
-                  <ExternalLink className="w-4 h-4 mr-2" />
-                  View Public Profile
+                <Button variant="outline" asChild>
+                  <a href={`/producer/${profile.id}`} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    View Public Profile
+                  </a>
                 </Button>
               </div>
             </CardContent>
@@ -433,9 +435,51 @@ export default function ProfilePage() {
               <CardTitle>Profile Settings</CardTitle>
               <CardDescription>Privacy and account preferences</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="text-center py-12">
-                <p className="text-muted-foreground">Profile settings coming soon...</p>
+            <CardContent className="space-y-6">
+              {/* Banner Upload Section */}
+              <div>
+                <Label htmlFor="banner">Banner Image</Label>
+                <div className="mt-2">
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    id="banner-upload"
+                    className="hidden"
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={() => document.getElementById('banner-upload')?.click()}
+                    disabled={!isEditing}
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Upload Banner
+                  </Button>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Recommended size: 1920x480px. This will be displayed on your public profile.
+                  </p>
+                </div>
+              </div>
+              
+              <Separator />
+              
+              {/* Privacy Settings */}
+              <div>
+                <h4 className="font-medium mb-3">Privacy Settings</h4>
+                <div className="space-y-2">
+                  <label className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={profile.public_profile_enabled}
+                      onChange={(e) => updateProfile({ public_profile_enabled: e.target.checked })}
+                      disabled={!isEditing}
+                      className="rounded"
+                    />
+                    <span className="text-sm">Enable public profile</span>
+                  </label>
+                  <p className="text-xs text-muted-foreground ml-6">
+                    Allow others to discover and view your profile
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>

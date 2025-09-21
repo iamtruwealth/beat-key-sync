@@ -31,6 +31,7 @@ import Terms from "./pages/Terms";
 import Paperwork from "./pages/Paperwork";
 import SettingsPage from "./pages/Settings";
 import NewExplore from "./pages/NewExplore";
+import ProducerProfile from "./pages/ProducerProfile";
 import { SidebarProvider } from "@/components/ui/sidebar";
 
 const queryClient = new QueryClient();
@@ -59,8 +60,21 @@ const App = () => (
               </AudioProvider>
             } />
             
+            {/* Public producer profile */}
+            <Route path="/producer/:id" element={
+              <AudioProvider>
+                <ProducerProfile />
+              </AudioProvider>
+            } />
+            
             {/* Public beat pack sharing */}
             <Route path="/pack/:id" element={
+              <AudioProvider>
+                <BeatPackPage />
+              </AudioProvider>
+            } />
+            
+            <Route path="/beat-pack/:id" element={
               <AudioProvider>
                 <BeatPackPage />
               </AudioProvider>
