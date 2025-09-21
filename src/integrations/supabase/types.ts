@@ -171,6 +171,7 @@ export type Database = {
           id: string
           is_public: boolean | null
           name: string
+          play_count: number | null
           track_order: string[] | null
           updated_at: string
           user_id: string
@@ -186,6 +187,7 @@ export type Database = {
           id?: string
           is_public?: boolean | null
           name: string
+          play_count?: number | null
           track_order?: string[] | null
           updated_at?: string
           user_id: string
@@ -201,6 +203,7 @@ export type Database = {
           id?: string
           is_public?: boolean | null
           name?: string
+          play_count?: number | null
           track_order?: string[] | null
           updated_at?: string
           user_id?: string
@@ -266,6 +269,7 @@ export type Database = {
           description: string | null
           detected_bpm: number | null
           detected_key: string | null
+          download_count: number | null
           duration: number | null
           file_size: number | null
           file_url: string
@@ -277,6 +281,7 @@ export type Database = {
           manual_bpm: number | null
           manual_key: string | null
           metadata: Json | null
+          play_count: number | null
           price_cents: number | null
           producer_id: string
           sample_rate: number | null
@@ -297,6 +302,7 @@ export type Database = {
           description?: string | null
           detected_bpm?: number | null
           detected_key?: string | null
+          download_count?: number | null
           duration?: number | null
           file_size?: number | null
           file_url: string
@@ -308,6 +314,7 @@ export type Database = {
           manual_bpm?: number | null
           manual_key?: string | null
           metadata?: Json | null
+          play_count?: number | null
           price_cents?: number | null
           producer_id: string
           sample_rate?: number | null
@@ -328,6 +335,7 @@ export type Database = {
           description?: string | null
           detected_bpm?: number | null
           detected_key?: string | null
+          download_count?: number | null
           duration?: number | null
           file_size?: number | null
           file_url?: string
@@ -339,6 +347,7 @@ export type Database = {
           manual_bpm?: number | null
           manual_key?: string | null
           metadata?: Json | null
+          play_count?: number | null
           price_cents?: number | null
           producer_id?: string
           sample_rate?: number | null
@@ -349,6 +358,39 @@ export type Database = {
           title?: string
           updated_at?: string
           waveform_data?: Json | null
+        }
+        Relationships: []
+      }
+      cart_items: {
+        Row: {
+          created_at: string | null
+          id: string
+          item_id: string
+          item_type: string
+          price_cents: number
+          quantity: number | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          item_id: string
+          item_type: string
+          price_cents: number
+          quantity?: number | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          item_id?: string
+          item_type?: string
+          price_cents?: number
+          quantity?: number | null
+          updated_at?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -548,6 +590,7 @@ export type Database = {
       profiles: {
         Row: {
           available_balance_cents: number | null
+          banner_url: string | null
           beat_pack_count: number | null
           bio: string | null
           created_at: string
@@ -572,6 +615,7 @@ export type Database = {
         }
         Insert: {
           available_balance_cents?: number | null
+          banner_url?: string | null
           beat_pack_count?: number | null
           bio?: string | null
           created_at?: string
@@ -596,6 +640,7 @@ export type Database = {
         }
         Update: {
           available_balance_cents?: number | null
+          banner_url?: string | null
           beat_pack_count?: number | null
           bio?: string | null
           created_at?: string
