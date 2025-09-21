@@ -167,6 +167,7 @@ export type Database = {
           creation_type: string | null
           description: string | null
           download_enabled: boolean
+          genre: string | null
           id: string
           is_public: boolean | null
           name: string
@@ -181,6 +182,7 @@ export type Database = {
           creation_type?: string | null
           description?: string | null
           download_enabled?: boolean
+          genre?: string | null
           id?: string
           is_public?: boolean | null
           name: string
@@ -195,6 +197,7 @@ export type Database = {
           creation_type?: string | null
           description?: string | null
           download_enabled?: boolean
+          genre?: string | null
           id?: string
           is_public?: boolean | null
           name?: string

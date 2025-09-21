@@ -31,6 +31,7 @@ interface BeatPack {
   id: string;
   name: string;
   description?: string;
+  genre?: string;
   artwork_url?: string;
   is_public: boolean;
   download_enabled: boolean;
@@ -50,9 +51,12 @@ export default function BeatPacksPage() {
   const [newPack, setNewPack] = useState({
     name: "",
     description: "",
+    genre: "",
+    artwork_url: "",
     is_public: true,
     download_enabled: false
   });
+  const [uploadingArtwork, setUploadingArtwork] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -104,17 +108,28 @@ export default function BeatPacksPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Get user profile for fallback artwork
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('producer_logo_url')
+        .eq('id', user.id)
+        .single();
+
+      const packData = {
+        ...newPack,
+        user_id: user.id,
+        // Use uploaded artwork or fallback to user's profile logo
+        artwork_url: newPack.artwork_url || profile?.producer_logo_url || null
+      };
+
       const { error } = await supabase
         .from('beat_packs')
-        .insert({
-          ...newPack,
-          user_id: user.id
-        });
+        .insert(packData);
 
       if (error) throw error;
 
       setShowCreateDialog(false);
-      setNewPack({ name: "", description: "", is_public: true, download_enabled: false });
+      setNewPack({ name: "", description: "", genre: "", artwork_url: "", is_public: true, download_enabled: false });
       await loadBeatPacks();
 
       toast({
@@ -138,6 +153,8 @@ export default function BeatPacksPage() {
         .update({
           name: pack.name,
           description: pack.description,
+          genre: pack.genre,
+          artwork_url: pack.artwork_url,
           is_public: pack.is_public,
           download_enabled: pack.download_enabled
         })
@@ -191,8 +208,53 @@ export default function BeatPacksPage() {
 
   const filteredBeatPacks = beatPacks.filter(pack =>
     pack.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    pack.description?.toLowerCase().includes(searchQuery.toLowerCase())
+    pack.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    pack.genre?.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const uploadArtwork = async (file: File) => {
+    try {
+      setUploadingArtwork(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `artwork-${Date.now()}.${fileExt}`;
+      const filePath = `${user.id}/beat-packs/artwork/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('artwork')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage
+        .from('artwork')
+        .getPublicUrl(filePath);
+
+      return data.publicUrl;
+    } catch (error) {
+      console.error('Error uploading artwork:', error);
+      toast({
+        title: "Error",
+        description: "Failed to upload artwork",
+        variant: "destructive"
+      });
+      return null;
+    } finally {
+      setUploadingArtwork(false);
+    }
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const artworkUrl = await uploadArtwork(file);
+    if (artworkUrl) {
+      setNewPack({ ...newPack, artwork_url: artworkUrl });
+    }
+  };
 
   const copyPackLink = async (packId: string) => {
     const url = `${window.location.origin}/pack/${packId}`;
@@ -247,7 +309,7 @@ export default function BeatPacksPage() {
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <Label htmlFor="pack-name">Pack Name</Label>
+                <Label htmlFor="pack-name">Pack Name *</Label>
                 <Input
                   id="pack-name"
                   value={newPack.name}
@@ -263,6 +325,39 @@ export default function BeatPacksPage() {
                   onChange={(e) => setNewPack({ ...newPack, description: e.target.value })}
                   placeholder="Describe your beat pack..."
                 />
+              </div>
+              <div>
+                <Label htmlFor="pack-genre">Genre</Label>
+                <Input
+                  id="pack-genre"
+                  value={newPack.genre}
+                  onChange={(e) => setNewPack({ ...newPack, genre: e.target.value })}
+                  placeholder="e.g., Trap, Hip Hop, R&B"
+                />
+              </div>
+              <div>
+                <Label htmlFor="pack-artwork">Beat Pack Image</Label>
+                <div className="space-y-2">
+                  <Input
+                    id="pack-artwork"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileUpload}
+                    disabled={uploadingArtwork}
+                  />
+                  {uploadingArtwork && (
+                    <p className="text-sm text-muted-foreground">Uploading image...</p>
+                  )}
+                  {newPack.artwork_url && (
+                    <div className="flex items-center gap-2">
+                      <img src={newPack.artwork_url} alt="Preview" className="w-12 h-12 object-cover rounded" />
+                      <p className="text-sm text-muted-foreground">Image uploaded successfully</p>
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    If no image is uploaded, your profile photo will be used as fallback
+                  </p>
+                </div>
               </div>
               <div className="flex items-center justify-between">
                 <Label htmlFor="is-public">Make Public</Label>
@@ -358,8 +453,12 @@ export default function BeatPacksPage() {
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <CardTitle className="flex items-center gap-2">
-                    <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-                      <Music className="w-6 h-6" />
+                    <div className="w-12 h-12 rounded-lg overflow-hidden bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
+                      {pack.artwork_url ? (
+                        <img src={pack.artwork_url} alt={pack.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <Music className="w-6 h-6" />
+                      )}
                     </div>
                     <div>
                       <h3 className="font-semibold">{pack.name}</h3>
@@ -369,7 +468,8 @@ export default function BeatPacksPage() {
                     </div>
                   </CardTitle>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 flex-wrap">
+                  {pack.genre && <Badge variant="outline">{pack.genre}</Badge>}
                   {pack.is_public && <Badge variant="secondary">Public</Badge>}
                   {pack.download_enabled && <Badge variant="outline">Downloads</Badge>}
                 </div>
@@ -478,6 +578,14 @@ export default function BeatPacksPage() {
                   id="edit-pack-description"
                   value={editingPack.description || ""}
                   onChange={(e) => setEditingPack({ ...editingPack, description: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-pack-genre">Genre</Label>
+                <Input
+                  id="edit-pack-genre"
+                  value={editingPack.genre || ""}
+                  onChange={(e) => setEditingPack({ ...editingPack, genre: e.target.value })}
                 />
               </div>
               <div className="flex items-center justify-between">

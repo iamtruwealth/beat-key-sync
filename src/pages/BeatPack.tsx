@@ -4,9 +4,11 @@ import { BeatCard } from "@/components/beats/BeatCard";
 import { BeatPackManager } from "@/components/beats/BeatPackManager";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAudio } from "@/contexts/AudioContext";
+import { MetaTags } from "@/components/MetaTags";
 import { Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Volume2, Download, Copy, Music } from "lucide-react";
 interface Beat {
   id: string;
@@ -37,8 +39,12 @@ interface BeatPack {
   id: string;
   name: string;
   description?: string;
+  genre?: string;
   artwork_url?: string;
+  user_id: string;
   beats: Beat[];
+  producer_name?: string;
+  producer_logo_url?: string;
 }
 export default function BeatPackPage() {
   const {
@@ -105,11 +111,21 @@ export default function BeatPackPage() {
     try {
       setLoading(true);
 
-      // Fetch beat pack details
+      // Fetch beat pack details with producer info
       const {
         data: packData,
         error: packError
-      } = await supabase.from('beat_packs').select('*').eq('id', packId).single();
+      } = await supabase
+        .from('beat_packs')
+        .select(`
+          *,
+          profiles!beat_packs_user_id_fkey (
+            producer_name,
+            producer_logo_url
+          )
+        `)
+        .eq('id', packId)
+        .single();
       if (packError) throw packError;
 
       // Fetch items for this beat pack
@@ -164,7 +180,9 @@ export default function BeatPackPage() {
       }
       setBeatPack({
         ...packData,
-        beats
+        beats,
+        producer_name: packData.profiles?.producer_name,
+        producer_logo_url: packData.profiles?.producer_logo_url
       });
     } catch (error) {
       console.error('Error fetching beat pack:', error);
@@ -257,18 +275,40 @@ export default function BeatPackPage() {
     });
   };
   const progressPercent = duration ? currentTime / duration * 100 : 0;
+
+  // Get fallback artwork - use pack artwork or producer logo
+  const getArtworkUrl = () => {
+    return beatPack?.artwork_url || beatPack?.producer_logo_url || null;
+  };
+
+  const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
+
   return <div className="min-h-screen bg-white">
+      {beatPack && (
+        <MetaTags
+          title={beatPack.name}
+          description={beatPack.description || `Beat pack by ${beatPack.producer_name || 'Unknown Producer'}`}
+          image={getArtworkUrl() || undefined}
+          url={currentUrl}
+        />
+      )}
       <div className="container mx-auto px-4 py-8">
         {/* Beat Pack Header */}
         <div className="mb-8">
           <div className="flex items-start gap-6 mb-6">
-            {beatPack.artwork_url ? <img src={beatPack.artwork_url} alt={beatPack.name} className="w-48 h-48 object-cover rounded-lg shadow-lg" /> : <div className="w-48 h-48 bg-muted rounded-lg shadow-lg flex items-center justify-center">
+            {getArtworkUrl() ? <img src={getArtworkUrl()!} alt={beatPack.name} className="w-48 h-48 object-cover rounded-lg shadow-lg" /> : <div className="w-48 h-48 bg-muted rounded-lg shadow-lg flex items-center justify-center">
                 <Music className="w-16 h-16 text-muted-foreground" />
               </div>}
             <div className="flex-1">
-              <h1 className="text-4xl font-bold mb-4 text-zinc-950">{beatPack.name}</h1>
+              <h1 className="text-4xl font-bold mb-2 text-zinc-950">{beatPack.name}</h1>
+              {beatPack.producer_name && (
+                <p className="text-lg text-muted-foreground mb-4">by {beatPack.producer_name}</p>
+              )}
               {beatPack.description && <p className="text-lg text-muted-foreground mb-4">{beatPack.description}</p>}
-              <div className="flex items-center gap-4 mb-4">
+              <div className="flex items-center gap-4 mb-4 flex-wrap">
+                {beatPack.genre && (
+                  <Badge variant="secondary">{beatPack.genre}</Badge>
+                )}
                 <p className="text-muted-foreground">
                   {beatPack.beats.length} {beatPack.beats.length === 1 ? 'beat' : 'beats'}
                 </p>
