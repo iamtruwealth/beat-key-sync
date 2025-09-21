@@ -117,23 +117,52 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      const { error } = await supabase
+      // First check if item already exists
+      const { data: existingItems } = await supabase
         .from('cart_items')
-        .upsert({
-          user_id: user.id,
-          item_type: item.item_type,
-          item_id: item.item_id,
-          quantity: item.quantity,
-          price_cents: item.price_cents
-        });
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('item_type', item.item_type)
+        .eq('item_id', item.item_id)
+        .single();
 
-      if (error) throw error;
+      if (existingItems) {
+        // Update quantity if item exists
+        const { error } = await supabase
+          .from('cart_items')
+          .update({ 
+            quantity: existingItems.quantity + item.quantity,
+            price_cents: item.price_cents // Update price in case it changed
+          })
+          .eq('id', existingItems.id);
+
+        if (error) throw error;
+        
+        toast({
+          title: "Updated cart",
+          description: `${item.title} quantity updated in your cart`
+        });
+      } else {
+        // Insert new item
+        const { error } = await supabase
+          .from('cart_items')
+          .insert({
+            user_id: user.id,
+            item_type: item.item_type,
+            item_id: item.item_id,
+            quantity: item.quantity,
+            price_cents: item.price_cents
+          });
+
+        if (error) throw error;
+        
+        toast({
+          title: "Added to cart",
+          description: `${item.title} has been added to your cart`
+        });
+      }
 
       await loadCart();
-      toast({
-        title: "Added to cart",
-        description: `${item.title} has been added to your cart`
-      });
     } catch (error) {
       console.error('Error adding to cart:', error);
       toast({
