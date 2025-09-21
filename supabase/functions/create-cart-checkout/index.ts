@@ -20,15 +20,17 @@ serve(async (req) => {
   try {
     logStep("Cart checkout started");
 
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? ""
-    );
-
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("No authorization header provided");
-
     const token = authHeader.replace("Bearer ", "");
+
+    // Create Supabase client that runs queries with the user's JWT (RLS-aware)
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      { auth: { persistSession: false }, global: { headers: { Authorization: authHeader } } }
+    );
+
     const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
     if (userError) throw new Error(`Authentication error: ${userError.message}`);
     

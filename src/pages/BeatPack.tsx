@@ -331,7 +331,7 @@ export default function BeatPackPage() {
 
   const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
 
-  return <div className="min-h-screen bg-white">
+  return <div className="min-h-screen bg-background text-foreground">
       {beatPack && (
         <MetaTags
           title={beatPack.name}
@@ -348,7 +348,7 @@ export default function BeatPackPage() {
                 <Music className="w-16 h-16 text-muted-foreground" />
               </div>}
             <div className="flex-1">
-              <h1 className="text-4xl font-bold mb-2 text-zinc-950">{beatPack.name}</h1>
+              <h1 className="text-4xl font-bold mb-2">{beatPack.name}</h1>
               {beatPack.producer_name && (
                 <p className="text-lg text-muted-foreground mb-4">by {beatPack.producer_name}</p>
               )}

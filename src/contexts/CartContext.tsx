@@ -124,7 +124,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .eq('user_id', user.id)
         .eq('item_type', item.item_type)
         .eq('item_id', item.item_id)
-        .single();
+        .maybeSingle();
 
       if (existingItems) {
         // Update quantity if item exists
