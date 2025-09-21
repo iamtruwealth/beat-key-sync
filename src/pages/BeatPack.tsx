@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAudio } from "@/contexts/AudioContext";
 import { useCart } from "@/contexts/CartContext";
 import { MetaTags } from "@/components/MetaTags";
+import StickyHeader from "@/components/layout/StickyHeader";
 import { Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Volume2, Download, Copy, Music, ShoppingCart } from "lucide-react";
 interface Beat {
   id: string;
@@ -331,15 +332,18 @@ export default function BeatPackPage() {
 
   const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
 
-  return <div className="min-h-screen bg-background text-foreground">
-      {beatPack && (
-        <MetaTags
-          title={beatPack.name}
-          description={beatPack.description || `Beat pack by ${beatPack.producer_name || 'Unknown Producer'}`}
-          image={getArtworkUrl() || undefined}
-          url={currentUrl}
-        />
-      )}
+  return (
+    <>
+      <StickyHeader />
+      <div className="min-h-screen bg-background text-foreground">
+        {beatPack && (
+          <MetaTags
+            title={beatPack.name}
+            description={beatPack.description || `Beat pack by ${beatPack.producer_name || 'Unknown Producer'}`}
+            image={getArtworkUrl() || undefined}
+            url={currentUrl}
+          />
+        )}
       <div className="container mx-auto px-4 py-8">
         {/* Beat Pack Header */}
         <div className="mb-8">
@@ -497,5 +501,6 @@ export default function BeatPackPage() {
           ))}
         </div>
       </div>
-    </div>;
+    </>
+  );
 }
