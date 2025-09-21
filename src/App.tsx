@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AppLayout } from "./components/layout/AppLayout";
 import { RoleBasedSidebar } from "./components/layout/RoleBasedSidebar";
 import { AudioProvider } from "./contexts/AudioContext";
+import { CartProvider } from "./contexts/CartContext";
 import { RoleProtectedRoute } from "./components/RoleProtectedRoute";
 import Dashboard from "./pages/Dashboard";
 import ArtistDashboard from "./pages/ArtistDashboard";
@@ -29,6 +30,7 @@ import FAQ from "./pages/FAQ";
 import Terms from "./pages/Terms";
 import Paperwork from "./pages/Paperwork";
 import SettingsPage from "./pages/Settings";
+import NewExplore from "./pages/NewExplore";
 import { SidebarProvider } from "@/components/ui/sidebar";
 
 const queryClient = new QueryClient();
@@ -36,18 +38,26 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <SidebarProvider>
+      <CartProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <SidebarProvider>
           <Routes>
             {/* Public landing page */}
             <Route path="/" element={<Landing />} />
             <Route path="/pricing" element={<Pricing />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/faq" element={<FAQ />} />
-          <Route path="/terms" element={<Terms />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/faq" element={<FAQ />} />
+            <Route path="/terms" element={<Terms />} />
             <Route path="/auth" element={<AuthPage />} />
+            
+            {/* Public explore page */}
+            <Route path="/explore" element={
+              <AudioProvider>
+                <NewExplore />
+              </AudioProvider>
+            } />
             
             {/* Public beat pack sharing */}
             <Route path="/pack/:id" element={
@@ -161,7 +171,7 @@ const App = () => (
                 </div>
               </RoleProtectedRoute>
             } />
-            <Route path="/explore" element={
+            <Route path="/browse" element={
               <RoleProtectedRoute allowedRoles={['artist', 'producer']}>
                 <div className="flex min-h-screen w-full">
                   <RoleBasedSidebar />
@@ -287,8 +297,9 @@ const App = () => (
             } />
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </SidebarProvider>
-      </BrowserRouter>
+          </SidebarProvider>
+        </BrowserRouter>
+      </CartProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );

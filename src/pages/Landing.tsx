@@ -196,7 +196,7 @@ function LandingContent() {
             </div>
             
             <div className="hidden md:flex items-center space-x-8">
-              <a href="#discover" className="text-muted-foreground hover:text-foreground transition-colors">
+              <a href="/explore" className="text-muted-foreground hover:text-foreground transition-colors">
                 Discover Beats
               </a>
               <a href="/pricing" className="text-muted-foreground hover:text-foreground transition-colors">
