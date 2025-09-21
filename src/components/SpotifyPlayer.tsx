@@ -196,7 +196,14 @@ export function SpotifyPlayer({ beatPack }: SpotifyPlayerProps) {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${track.title}.mp3`;
+      
+      // Create filename with key and BPM
+      const key = getKey(track);
+      const bpm = getBPM(track);
+      const keyBpmSuffix = [key, bpm ? `${bpm}BPM` : ''].filter(Boolean).join('_');
+      const filename = keyBpmSuffix ? `${track.title}_${keyBpmSuffix}.mp3` : `${track.title}.mp3`;
+      
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

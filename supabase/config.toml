@@ -35,3 +35,6 @@ verify_jwt = true
 
 [functions.request-payout]
 verify_jwt = true
+
+[functions.create-cart-checkout]
+verify_jwt = true

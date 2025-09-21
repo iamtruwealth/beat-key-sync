@@ -6,13 +6,16 @@ import { Badge } from '@/components/ui/badge';
 import { Menu, ShoppingCart, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useCart } from '@/contexts/CartContext';
+import { useToast } from '@/hooks/use-toast';
 
 export default function StickyHeader() {
   const [user, setUser] = useState<any>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
   const navigate = useNavigate();
   const { items, totalItems, totalPrice, removeFromCart, updateQuantity } = useCart();
+  const { toast } = useToast();
 
   useEffect(() => {
     const getUser = async () => {
@@ -38,6 +41,30 @@ export default function StickyHeader() {
 
   const formatPrice = (cents: number) => {
     return `$${(cents / 100).toFixed(2)}`;
+  };
+
+  const handleCheckout = async () => {
+    if (isCheckingOut || totalItems === 0) return;
+    
+    setIsCheckingOut(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-cart-checkout');
+      
+      if (error) throw error;
+      
+      if (data?.url) {
+        window.open(data.url, '_blank');
+      }
+    } catch (error) {
+      console.error('Checkout error:', error);
+      toast({
+        title: "Checkout failed",
+        description: "Unable to process checkout. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsCheckingOut(false);
+    }
   };
 
   return (
@@ -144,8 +171,12 @@ export default function StickyHeader() {
                       <div className="flex justify-between items-center font-semibold">
                         <span>Total: {formatPrice(totalPrice)}</span>
                       </div>
-                      <Button className="w-full mt-4">
-                        Checkout
+                      <Button 
+                        className="w-full mt-4" 
+                        onClick={handleCheckout}
+                        disabled={isCheckingOut}
+                      >
+                        {isCheckingOut ? 'Processing...' : 'Checkout'}
                       </Button>
                     </div>
                   )}

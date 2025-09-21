@@ -8,8 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAudio } from "@/contexts/AudioContext";
+import { useCart } from "@/contexts/CartContext";
 import { MetaTags } from "@/components/MetaTags";
-import { Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Volume2, Download, Copy, Music } from "lucide-react";
+import { Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Volume2, Download, Copy, Music, ShoppingCart } from "lucide-react";
 interface Beat {
   id: string;
   title: string;
@@ -71,6 +72,7 @@ export default function BeatPackPage() {
     duration,
     seekTo
   } = useAudio();
+  const { addToCart } = useCart();
   useEffect(() => {
     if (id) {
       fetchBeatPack(id);
@@ -274,6 +276,52 @@ export default function BeatPackPage() {
       description: "Beat pack link copied to clipboard"
     });
   };
+
+  const handleAddToCart = async (beat: Beat) => {
+    await addToCart({
+      item_type: 'beat',
+      item_id: beat.id,
+      quantity: 1,
+      price_cents: beat.price_cents,
+      title: beat.title,
+      image_url: beat.artwork_url,
+      producer_name: beat.producer_name || beat.artist
+    });
+  };
+
+  const downloadBeat = async (beat: Beat) => {
+    try {
+      const response = await fetch(beat.file_url);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      
+      // Create filename with key and BPM
+      const key = beat.manual_key || beat.detected_key || '';
+      const bpm = beat.manual_bpm || beat.detected_bpm || beat.bpm || '';
+      const keyBpmSuffix = [key, bpm ? `${bpm}BPM` : ''].filter(Boolean).join('_');
+      const filename = keyBpmSuffix ? `${beat.title}_${keyBpmSuffix}.mp3` : `${beat.title}.mp3`;
+      
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      
+      toast({
+        title: "Download started",
+        description: `${beat.title} is downloading`
+      });
+    } catch (error) {
+      console.error('Download error:', error);
+      toast({
+        title: "Download failed",
+        description: "Unable to download beat",
+        variant: "destructive"
+      });
+    }
+  };
   const progressPercent = duration ? currentTime / duration * 100 : 0;
 
   // Get fallback artwork - use pack artwork or producer logo
@@ -381,9 +429,72 @@ export default function BeatPackPage() {
 
         {/* Beats List */}
         <div className="space-y-4">
-          {beatPack.beats.map((beat, index) => <div key={beat.id} className={`${currentTrack?.id === beat.id ? 'ring-2 ring-primary' : ''}`}>
-              <BeatCard beat={beat} isPlaying={currentTrack?.id === beat.id && isPlaying} onPlay={() => handlePlayBeat(beat)} onPause={() => {/* pause handled by audio context */}} showPurchase={true} />
-            </div>)}
+          {beatPack.beats.map((beat, index) => (
+            <div key={beat.id} className={`${currentTrack?.id === beat.id ? 'ring-2 ring-primary' : ''} group`}>
+              <div className="p-4 border rounded-lg hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-4">
+                  {/* Play Button */}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handlePlayBeat(beat)}
+                    className="w-12 h-12 rounded-full"
+                  >
+                    {currentTrack?.id === beat.id && isPlaying ? (
+                      <Pause className="w-6 h-6" />
+                    ) : (
+                      <Play className="w-6 h-6" />
+                    )}
+                  </Button>
+
+                  {/* Beat Info */}
+                  <div className="flex-1">
+                    <h3 className="font-semibold">{beat.title}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {beat.producer_name || beat.artist}
+                    </p>
+                    <div className="flex gap-2 mt-1">
+                      {beat.genre && (
+                        <Badge variant="secondary" className="text-xs">
+                          {beat.genre}
+                        </Badge>
+                      )}
+                      {(beat.manual_bpm || beat.detected_bpm || beat.bpm) && (
+                        <Badge variant="outline" className="text-xs">
+                          {beat.manual_bpm || beat.detected_bpm || beat.bpm} BPM
+                        </Badge>
+                      )}
+                      {(beat.manual_key || beat.detected_key || beat.key) && (
+                        <Badge variant="outline" className="text-xs">
+                          {beat.manual_key || beat.detected_key || beat.key}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-2">
+                    {beat.is_free ? (
+                      <Button size="sm" onClick={() => downloadBeat(beat)}>
+                        <Download className="w-4 h-4 mr-1" />
+                        Free Download
+                      </Button>
+                    ) : (
+                      <>
+                        <div className="text-lg font-bold mr-2">
+                          ${(beat.price_cents / 100).toFixed(2)}
+                        </div>
+                        <Button size="sm" onClick={() => handleAddToCart(beat)}>
+                          <ShoppingCart className="w-4 h-4 mr-1" />
+                          Add to Cart
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>;
