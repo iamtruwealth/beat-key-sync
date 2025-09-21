@@ -210,6 +210,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "beat_packs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "fk_beat_packs_user_id"
             columns: ["user_id"]
             isOneToOne: false
@@ -359,7 +366,15 @@ export type Database = {
           updated_at?: string
           waveform_data?: Json | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "beats_producer_id_fkey"
+            columns: ["producer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       cart_items: {
         Row: {

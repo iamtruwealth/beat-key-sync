@@ -33,10 +33,16 @@ interface TopBeatsListProps {
   showFilters?: boolean;
 }
 
+interface FilterState {
+  genre: string;
+  bpm: string;
+  sort: string;
+}
+
 export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeatsListProps) {
   const [beats, setBeats] = useState<Beat[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState<FilterState>({
     genre: '',
     bpm: '',
     sort: 'popularity'
@@ -63,7 +69,7 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
             play_count,
             download_count,
             is_free,
-            producer:profiles!beats_producer_id_fkey(
+            profiles!beats_producer_id_fkey(
               id,
               producer_name,
               producer_logo_url
@@ -73,6 +79,20 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
         // Apply filters
         if (filters.genre) {
           query = query.eq('genre', filters.genre);
+        }
+
+        if (filters.bpm) {
+          switch (filters.bpm) {
+            case 'slow':
+              query = query.gte('bpm', 60).lte('bpm', 90);
+              break;
+            case 'medium':
+              query = query.gte('bpm', 90).lte('bpm', 130);
+              break;
+            case 'fast':
+              query = query.gte('bpm', 130);
+              break;
+          }
         }
 
         // Apply sorting
@@ -97,7 +117,7 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
         
         const formattedData = data?.map(beat => ({
           ...beat,
-          producer: Array.isArray(beat.producer) ? beat.producer[0] : beat.producer
+          producer: Array.isArray(beat.profiles) ? beat.profiles[0] : beat.profiles
         })) || [];
         
         setBeats(formattedData);
@@ -177,7 +197,7 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
             <select 
               value={filters.genre}
               onChange={(e) => setFilters(prev => ({ ...prev, genre: e.target.value }))}
-              className="px-3 py-2 border rounded-md bg-background"
+              className="px-3 py-2 border rounded-md bg-background text-foreground"
             >
               <option value="">All Genres</option>
               <option value="Hip Hop">Hip Hop</option>
@@ -185,12 +205,25 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
               <option value="R&B">R&B</option>
               <option value="Pop">Pop</option>
               <option value="Electronic">Electronic</option>
+              <option value="Lofi">Lofi</option>
+              <option value="Ambient">Ambient</option>
+            </select>
+
+            <select 
+              value={filters.bpm}
+              onChange={(e) => setFilters(prev => ({ ...prev, bpm: e.target.value }))}
+              className="px-3 py-2 border rounded-md bg-background text-foreground"
+            >
+              <option value="">All BPM</option>
+              <option value="slow">Slow (60-90 BPM)</option>
+              <option value="medium">Medium (90-130 BPM)</option>
+              <option value="fast">Fast (130+ BPM)</option>
             </select>
 
             <select 
               value={filters.sort}
               onChange={(e) => setFilters(prev => ({ ...prev, sort: e.target.value }))}
-              className="px-3 py-2 border rounded-md bg-background"
+              className="px-3 py-2 border rounded-md bg-background text-foreground"
             >
               <option value="popularity">Most Popular</option>
               <option value="downloads">Most Downloaded</option>

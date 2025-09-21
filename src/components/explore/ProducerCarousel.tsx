@@ -78,29 +78,32 @@ export default function ProducerCarousel() {
               <CarouselItem key={producer.id} className="pl-2 md:pl-4 basis-1/2 md:basis-1/4 lg:basis-1/7">
                 <Link to={`/producer/${producer.id}`} className="block group">
                   <div className="relative">
-                    {/* Compact Disk Background */}
+                    {/* Golden Vinyl Disk with Producer Photo */}
                     <div className="w-24 h-24 mx-auto mb-3 relative">
-                      <div className="absolute inset-0 rounded-full bg-gradient-to-r from-primary/20 to-primary/40 p-1">
-                        <div className="w-full h-full rounded-full bg-gradient-to-br from-primary/10 to-primary/30 p-1">
-                          <div className="w-full h-full rounded-full overflow-hidden bg-background border-2 border-primary/20">
-                            {producer.producer_logo_url ? (
-                              <img 
-                                src={producer.producer_logo_url} 
-                                alt={producer.producer_name}
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center">
-                                <div className="text-xl font-bold text-primary">
-                                  {producer.producer_name?.charAt(0) || 'P'}
-                                </div>
+                      {/* Golden vinyl background */}
+                      <div className="absolute inset-0 rounded-full bg-gradient-to-br from-yellow-400 via-yellow-500 to-yellow-600 shadow-lg">
+                        {/* Vinyl texture lines */}
+                        <div className="absolute inset-2 rounded-full border border-yellow-600/30"></div>
+                        <div className="absolute inset-4 rounded-full border border-yellow-600/20"></div>
+                        {/* Producer photo in center */}
+                        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-16 h-16 rounded-full overflow-hidden border-2 border-yellow-600/50">
+                          {producer.producer_logo_url ? (
+                            <img 
+                              src={producer.producer_logo_url} 
+                              alt={producer.producer_name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-gradient-to-br from-muted to-muted-foreground/20 flex items-center justify-center">
+                              <div className="text-lg font-bold text-muted-foreground">
+                                {producer.producer_name?.charAt(0) || 'P'}
                               </div>
-                            )}
-                          </div>
+                            </div>
+                          )}
                         </div>
+                        {/* Center hole */}
+                        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-yellow-800/80" />
                       </div>
-                      {/* Center hole effect */}
-                      <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-background border border-border" />
                     </div>
                     
                     <div className="text-center">

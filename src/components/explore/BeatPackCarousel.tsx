@@ -39,12 +39,12 @@ export default function BeatPackCarousel() {
             artwork_url,
             genre,
             play_count,
-            user:profiles!beat_packs_user_id_fkey(
+            profiles!beat_packs_user_id_fkey(
               id,
               producer_name,
               producer_logo_url
             ),
-            track_count:beat_pack_tracks(count)
+            beat_pack_tracks(count)
           `)
           .eq('is_public', true)
           .order('play_count', { ascending: false })
@@ -54,8 +54,8 @@ export default function BeatPackCarousel() {
 
         const formattedData = data?.map(pack => ({
           ...pack,
-          user: Array.isArray(pack.user) ? pack.user[0] : pack.user,
-          track_count: Array.isArray(pack.track_count) ? pack.track_count[0]?.count || 0 : 0
+          user: Array.isArray(pack.profiles) ? pack.profiles[0] : pack.profiles,
+          track_count: Array.isArray(pack.beat_pack_tracks) ? pack.beat_pack_tracks.length : 0
         })) || [];
 
         setBeatPacks(formattedData);
