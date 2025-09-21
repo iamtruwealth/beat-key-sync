@@ -66,12 +66,6 @@ export default function StickyHeader() {
               Beat Packs
             </Link>
             <Link 
-              to="/library" 
-              className="text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Library
-            </Link>
-            <Link 
               to="/about" 
               className="text-muted-foreground hover:text-foreground transition-colors"
             >
@@ -189,13 +183,6 @@ export default function StickyHeader() {
                     onClick={() => setIsOpen(false)}
                   >
                     Beat Packs
-                  </Link>
-                  <Link 
-                    to="/library" 
-                    className="text-foreground hover:text-primary transition-colors"
-                    onClick={() => setIsOpen(false)}
-                  >
-                    Library
                   </Link>
                   <Link 
                     to="/about" 
