@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -277,7 +278,13 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold truncate">{beat.title}</h3>
                     <p className="text-sm text-muted-foreground">
-                      {beat.artist || beat.producer?.producer_name || 'Unknown Artist'}
+                      by{' '}
+                      <Link 
+                        to={`/producer/${beat.producer?.id}`}
+                        className="hover:text-primary transition-colors"
+                      >
+                        {beat.producer?.producer_name || beat.artist || 'Unknown Artist'}
+                      </Link>
                     </p>
                   </div>
 

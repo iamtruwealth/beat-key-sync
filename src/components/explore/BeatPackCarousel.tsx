@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { Play, Download, ShoppingCart } from 'lucide-react';
@@ -20,6 +21,8 @@ interface BeatPack {
     producer_logo_url: string;
   };
   track_count: number;
+  sample_bpm?: number;
+  sample_key?: string;
 }
 
 export default function BeatPackCarousel() {
@@ -52,11 +55,29 @@ export default function BeatPackCarousel() {
 
         if (error) throw error;
 
-        const formattedData = data?.map(pack => ({
-          ...pack,
-          user: Array.isArray(pack.profiles) ? pack.profiles[0] : pack.profiles,
-          track_count: pack.beat_pack_tracks?.[0]?.count || 0
-        })) || [];
+        // Get a sample track for BPM and key info
+        const formattedData = await Promise.all((data || []).map(async (pack) => {
+          const { data: sampleTrack } = await supabase
+            .from('beat_pack_tracks')
+            .select(`
+              tracks(detected_bpm, manual_bpm, detected_key, manual_key)
+            `)
+            .eq('beat_pack_id', pack.id)
+            .limit(1)
+            .single();
+          
+          const track = sampleTrack?.tracks as any;
+          const bpm = track?.manual_bpm || track?.detected_bpm;
+          const key = track?.manual_key || track?.detected_key;
+          
+          return {
+            ...pack,
+            user: Array.isArray(pack.profiles) ? pack.profiles[0] : pack.profiles,
+            track_count: pack.beat_pack_tracks?.[0]?.count || 0,
+            sample_bpm: bpm,
+            sample_key: key
+          };
+        }));
 
         setBeatPacks(formattedData);
       } catch (error) {
@@ -181,17 +202,33 @@ export default function BeatPackCarousel() {
                       </Link>
                     </div>
                     
-                    <div className="flex items-center justify-between mt-3 text-sm text-muted-foreground">
-                      <span>{pack.track_count} tracks</span>
-                      {pack.genre && <span>{pack.genre}</span>}
-                    </div>
-                    
-                    <div className="flex items-center justify-between mt-3">
-                      <span className="text-sm font-medium">{pack.play_count} plays</span>
-                      <Button size="sm" onClick={() => handleAddToCart(pack)}>
-                        Add to Cart
-                      </Button>
-                    </div>
+                     <div className="flex items-center justify-between mt-3 text-sm text-muted-foreground">
+                       <span>{pack.track_count} tracks</span>
+                       {pack.genre && <span>{pack.genre}</span>}
+                     </div>
+                     
+                     {/* BPM and Key tags */}
+                     {(pack.sample_bpm || pack.sample_key) && (
+                       <div className="flex flex-wrap gap-2 mt-2">
+                         {pack.sample_bpm && (
+                           <Badge variant="outline" className="text-xs">
+                             {pack.sample_bpm} BPM
+                           </Badge>
+                         )}
+                         {pack.sample_key && (
+                           <Badge variant="outline" className="text-xs">
+                             {pack.sample_key}
+                           </Badge>
+                         )}
+                       </div>
+                     )}
+                     
+                     <div className="flex items-center justify-between mt-3">
+                       <span className="text-sm font-medium">{pack.play_count} plays</span>
+                       <Button size="sm" onClick={() => handleAddToCart(pack)}>
+                         Add to Cart
+                       </Button>
+                     </div>
                   </CardContent>
                 </Card>
               </CarouselItem>

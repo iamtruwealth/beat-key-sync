@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { BeatCard } from "@/components/beats/BeatCard";
 import { BeatPackManager } from "@/components/beats/BeatPackManager";
 import { Button } from "@/components/ui/button";
@@ -353,7 +353,15 @@ export default function BeatPackPage() {
               <div className="flex-1">
                 <h1 className="text-4xl font-bold mb-2">{beatPack.name}</h1>
                 {beatPack.producer_name && (
-                  <p className="text-lg text-muted-foreground mb-4">by {beatPack.producer_name}</p>
+                  <p className="text-lg text-muted-foreground mb-4">
+                    by{' '}
+                    <Link 
+                      to={`/producer/${beatPack.user_id}`}
+                      className="hover:text-primary transition-colors"
+                    >
+                      {beatPack.producer_name}
+                    </Link>
+                  </p>
                 )}
                 {beatPack.description && <p className="text-lg text-muted-foreground mb-4">{beatPack.description}</p>}
                 <div className="flex items-center gap-4 mb-4 flex-wrap">

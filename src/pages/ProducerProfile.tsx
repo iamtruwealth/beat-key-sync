@@ -267,14 +267,17 @@ export default function ProducerProfile() {
                         )}
                       </div>
                       
-                      <div className="flex items-center justify-between text-sm text-muted-foreground">
-                        <span>{pack.track_count} tracks</span>
-                        <span>{pack.play_count} plays</span>
-                      </div>
-                      
-                      {pack.genre && (
-                        <Badge variant="secondary">{pack.genre}</Badge>
-                      )}
+                       <div className="flex items-center justify-between text-sm text-muted-foreground">
+                         <span>{pack.track_count} tracks</span>
+                         <span>{pack.play_count} plays</span>
+                       </div>
+                       
+                       <div className="flex flex-wrap gap-2 mt-2">
+                         {pack.genre && (
+                           <Badge variant="secondary">{pack.genre}</Badge>
+                         )}
+                         {/* Add sample BPM and key from first track */}
+                       </div>
                     </div>
                   </CardContent>
                 </Card>
