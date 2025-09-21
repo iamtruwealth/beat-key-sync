@@ -333,9 +333,8 @@ export default function BeatPackPage() {
   const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
 
   return (
-    <>
+    <div className="min-h-screen bg-background text-foreground">
       <StickyHeader />
-      <div className="min-h-screen bg-background text-foreground">
         {beatPack && (
           <MetaTags
             title={beatPack.name}
@@ -375,7 +374,7 @@ export default function BeatPackPage() {
           </div>
 
           {/* Audio Player Controls */}
-          {currentTrack && <div className="sticky top-0 bg-background/95 backdrop-blur-sm border border-border rounded-lg p-4 mb-6 z-10">
+          {currentTrack && <div className="sticky top-16 bg-background/95 backdrop-blur-sm border border-border rounded-lg p-4 mb-6 z-10">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-4">
                   <Button variant="ghost" size="icon" onClick={handlePrevious} className="h-10 w-10">
@@ -502,6 +501,5 @@ export default function BeatPackPage() {
           </div>
         </div>
       </div>
-    </>
   );
 }
