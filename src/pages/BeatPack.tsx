@@ -344,161 +344,162 @@ export default function BeatPackPage() {
             url={currentUrl}
           />
         )}
-      <div className="container mx-auto px-4 py-8">
-        {/* Beat Pack Header */}
-        <div className="mb-8">
-          <div className="flex items-start gap-6 mb-6">
-            {getArtworkUrl() ? <img src={getArtworkUrl()!} alt={beatPack.name} className="w-48 h-48 object-cover rounded-lg shadow-lg" /> : <div className="w-48 h-48 bg-muted rounded-lg shadow-lg flex items-center justify-center">
-                <Music className="w-16 h-16 text-muted-foreground" />
-              </div>}
-            <div className="flex-1">
-              <h1 className="text-4xl font-bold mb-2">{beatPack.name}</h1>
-              {beatPack.producer_name && (
-                <p className="text-lg text-muted-foreground mb-4">by {beatPack.producer_name}</p>
-              )}
-              {beatPack.description && <p className="text-lg text-muted-foreground mb-4">{beatPack.description}</p>}
-              <div className="flex items-center gap-4 mb-4 flex-wrap">
-                {beatPack.genre && (
-                  <Badge variant="secondary">{beatPack.genre}</Badge>
+        <div className="container mx-auto px-4 py-8">
+          {/* Beat Pack Header */}
+          <div className="mb-8">
+            <div className="flex items-start gap-6 mb-6">
+              {getArtworkUrl() ? <img src={getArtworkUrl()!} alt={beatPack.name} className="w-48 h-48 object-cover rounded-lg shadow-lg" /> : <div className="w-48 h-48 bg-muted rounded-lg shadow-lg flex items-center justify-center">
+                  <Music className="w-16 h-16 text-muted-foreground" />
+                </div>}
+              <div className="flex-1">
+                <h1 className="text-4xl font-bold mb-2">{beatPack.name}</h1>
+                {beatPack.producer_name && (
+                  <p className="text-lg text-muted-foreground mb-4">by {beatPack.producer_name}</p>
                 )}
-                <p className="text-muted-foreground">
-                  {beatPack.beats.length} {beatPack.beats.length === 1 ? 'beat' : 'beats'}
-                </p>
-                <Button variant="outline" size="sm" onClick={copyPackLink}>
-                  <Copy className="w-4 h-4 mr-2" />
-                  Copy Link
-                </Button>
-                {isOwner && <BeatPackManager beatPack={beatPack} onUpdate={() => fetchBeatPack(id!)} />}
+                {beatPack.description && <p className="text-lg text-muted-foreground mb-4">{beatPack.description}</p>}
+                <div className="flex items-center gap-4 mb-4 flex-wrap">
+                  {beatPack.genre && (
+                    <Badge variant="secondary">{beatPack.genre}</Badge>
+                  )}
+                  <p className="text-muted-foreground">
+                    {beatPack.beats.length} {beatPack.beats.length === 1 ? 'beat' : 'beats'}
+                  </p>
+                  <Button variant="outline" size="sm" onClick={copyPackLink}>
+                    <Copy className="w-4 h-4 mr-2" />
+                    Copy Link
+                  </Button>
+                  {isOwner && <BeatPackManager beatPack={beatPack} onUpdate={() => fetchBeatPack(id!)} />}
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Audio Player Controls */}
-        {currentTrack && <div className="sticky top-0 bg-background/95 backdrop-blur-sm border border-border rounded-lg p-4 mb-6 z-10">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-4">
-                <Button variant="ghost" size="icon" onClick={handlePrevious} className="h-10 w-10">
-                  <SkipBack className="w-5 h-5" />
-                </Button>
-                
-                <Button variant="default" size="icon" onClick={() => isPlaying ? pauseTrack() : handlePlayBeat(beatPack.beats[currentTrackIndex])} className="h-12 w-12 rounded-full">
-                  {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6 ml-0.5" />}
-                </Button>
-                
-                <Button variant="ghost" size="icon" onClick={handleNext} className="h-10 w-10">
-                  <SkipForward className="w-5 h-5" />
-                </Button>
-              </div>
+          {/* Audio Player Controls */}
+          {currentTrack && <div className="sticky top-0 bg-background/95 backdrop-blur-sm border border-border rounded-lg p-4 mb-6 z-10">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-4">
+                  <Button variant="ghost" size="icon" onClick={handlePrevious} className="h-10 w-10">
+                    <SkipBack className="w-5 h-5" />
+                  </Button>
+                  
+                  <Button variant="default" size="icon" onClick={() => isPlaying ? pauseTrack() : handlePlayBeat(beatPack.beats[currentTrackIndex])} className="h-12 w-12 rounded-full">
+                    {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6 ml-0.5" />}
+                  </Button>
+                  
+                  <Button variant="ghost" size="icon" onClick={handleNext} className="h-10 w-10">
+                    <SkipForward className="w-5 h-5" />
+                  </Button>
+                </div>
 
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" onClick={() => setShuffle(!shuffle)} className={shuffle ? "text-primary" : ""}>
-                  <Shuffle className="w-4 h-4" />
-                </Button>
-                
-                <Button variant="ghost" size="icon" onClick={() => setRepeat(prev => prev === 'none' ? 'all' : prev === 'all' ? 'one' : 'none')} className={repeat !== 'none' ? "text-primary" : ""}>
-                  <Repeat className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-
-            {/* Now Playing Info */}
-            <div className="flex items-center gap-3 mb-3">
-              {currentTrack.artwork_url ? <img src={currentTrack.artwork_url} alt={currentTrack.title} className="w-12 h-12 object-cover rounded" /> : <div className="w-12 h-12 bg-muted rounded flex items-center justify-center">
-                  <Music className="w-6 h-6 text-muted-foreground" />
-                </div>}
-              <div className="flex-1 min-w-0">
-                <p className="font-medium truncate">{currentTrack.title}</p>
-                <p className="text-sm text-muted-foreground truncate">{currentTrack.artist}</p>
-              </div>
-            </div>
-
-            {/* Progress Bar */}
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground w-12 text-right">
-                {formatTime(currentTime)}
-              </span>
-              <div className="flex-1 h-2 bg-muted rounded-full cursor-pointer group" onClick={handleSeek}>
-                <div className="h-full bg-primary rounded-full relative" style={{
-              width: `${progressPercent}%`
-            }}>
-                  <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-primary rounded-full opacity-0 group-hover:opacity-100" />
+                <div className="flex items-center gap-2">
+                  <Button variant="ghost" size="icon" onClick={() => setShuffle(!shuffle)} className={shuffle ? "text-primary" : ""}>
+                    <Shuffle className="w-4 h-4" />
+                  </Button>
+                  
+                  <Button variant="ghost" size="icon" onClick={() => setRepeat(prev => prev === 'none' ? 'all' : prev === 'all' ? 'one' : 'none')} className={repeat !== 'none' ? "text-primary" : ""}>
+                    <Repeat className="w-4 h-4" />
+                  </Button>
                 </div>
               </div>
-              <span className="text-xs text-muted-foreground w-12">
-                {formatTime(duration || 0)}
-              </span>
-            </div>
-          </div>}
 
-        {/* Beats List */}
-        <div className="space-y-4">
-          {beatPack.beats.map((beat, index) => (
-            <div key={beat.id} className={`${currentTrack?.id === beat.id ? 'ring-2 ring-primary' : ''} group`}>
-              <div className="p-4 border rounded-lg hover:shadow-md transition-shadow">
-                <div className="flex items-center gap-4">
-                  {/* Play Button */}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handlePlayBeat(beat)}
-                    className="w-12 h-12 rounded-full"
-                  >
-                    {currentTrack?.id === beat.id && isPlaying ? (
-                      <Pause className="w-6 h-6" />
-                    ) : (
-                      <Play className="w-6 h-6" />
-                    )}
-                  </Button>
+              {/* Now Playing Info */}
+              <div className="flex items-center gap-3 mb-3">
+                {currentTrack.artwork_url ? <img src={currentTrack.artwork_url} alt={currentTrack.title} className="w-12 h-12 object-cover rounded" /> : <div className="w-12 h-12 bg-muted rounded flex items-center justify-center">
+                    <Music className="w-6 h-6 text-muted-foreground" />
+                  </div>}
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium truncate">{currentTrack.title}</p>
+                  <p className="text-sm text-muted-foreground truncate">{currentTrack.artist}</p>
+                </div>
+              </div>
 
-                  {/* Beat Info */}
-                  <div className="flex-1">
-                    <h3 className="font-semibold">{beat.title}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {beat.producer_name || beat.artist}
-                    </p>
-                    <div className="flex gap-2 mt-1">
-                      {beat.genre && (
-                        <Badge variant="secondary" className="text-xs">
-                          {beat.genre}
-                        </Badge>
+              {/* Progress Bar */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground w-12 text-right">
+                  {formatTime(currentTime)}
+                </span>
+                <div className="flex-1 h-2 bg-muted rounded-full cursor-pointer group" onClick={handleSeek}>
+                  <div className="h-full bg-primary rounded-full relative" style={{
+                width: `${progressPercent}%`
+              }}>
+                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-primary rounded-full opacity-0 group-hover:opacity-100" />
+                  </div>
+                </div>
+                <span className="text-xs text-muted-foreground w-12">
+                  {formatTime(duration || 0)}
+                </span>
+              </div>
+            </div>}
+
+          {/* Beats List */}
+          <div className="space-y-4">
+            {beatPack.beats.map((beat, index) => (
+              <div key={beat.id} className={`${currentTrack?.id === beat.id ? 'ring-2 ring-primary' : ''} group`}>
+                <div className="p-4 border rounded-lg hover:shadow-md transition-shadow">
+                  <div className="flex items-center gap-4">
+                    {/* Play Button */}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handlePlayBeat(beat)}
+                      className="w-12 h-12 rounded-full"
+                    >
+                      {currentTrack?.id === beat.id && isPlaying ? (
+                        <Pause className="w-6 h-6" />
+                      ) : (
+                        <Play className="w-6 h-6" />
                       )}
-                      {(beat.manual_bpm || beat.detected_bpm || beat.bpm) && (
-                        <Badge variant="outline" className="text-xs">
-                          {beat.manual_bpm || beat.detected_bpm || beat.bpm} BPM
-                        </Badge>
-                      )}
-                      {(beat.manual_key || beat.detected_key || beat.key) && (
-                        <Badge variant="outline" className="text-xs">
-                          {beat.manual_key || beat.detected_key || beat.key}
-                        </Badge>
+                    </Button>
+
+                    {/* Beat Info */}
+                    <div className="flex-1">
+                      <h3 className="font-semibold">{beat.title}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {beat.producer_name || beat.artist}
+                      </p>
+                      <div className="flex gap-2 mt-1">
+                        {beat.genre && (
+                          <Badge variant="secondary" className="text-xs">
+                            {beat.genre}
+                          </Badge>
+                        )}
+                        {(beat.manual_bpm || beat.detected_bpm || beat.bpm) && (
+                          <Badge variant="outline" className="text-xs">
+                            {beat.manual_bpm || beat.detected_bpm || beat.bpm} BPM
+                          </Badge>
+                        )}
+                        {(beat.manual_key || beat.detected_key || beat.key) && (
+                          <Badge variant="outline" className="text-xs">
+                            {beat.manual_key || beat.detected_key || beat.key}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex gap-2">
+                      {beat.is_free ? (
+                        <Button size="sm" onClick={() => downloadBeat(beat)}>
+                          <Download className="w-4 h-4 mr-1" />
+                          Free Download
+                        </Button>
+                      ) : (
+                        <>
+                          <div className="text-lg font-bold mr-2">
+                            ${(beat.price_cents / 100).toFixed(2)}
+                          </div>
+                          <Button size="sm" onClick={() => handleAddToCart(beat)}>
+                            <ShoppingCart className="w-4 h-4 mr-1" />
+                            Add to Cart
+                          </Button>
+                        </>
                       )}
                     </div>
                   </div>
-
-                  {/* Actions */}
-                  <div className="flex gap-2">
-                    {beat.is_free ? (
-                      <Button size="sm" onClick={() => downloadBeat(beat)}>
-                        <Download className="w-4 h-4 mr-1" />
-                        Free Download
-                      </Button>
-                    ) : (
-                      <>
-                        <div className="text-lg font-bold mr-2">
-                          ${(beat.price_cents / 100).toFixed(2)}
-                        </div>
-                        <Button size="sm" onClick={() => handleAddToCart(beat)}>
-                          <ShoppingCart className="w-4 h-4 mr-1" />
-                          Add to Cart
-                        </Button>
-                      </>
-                    )}
-                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     </>
