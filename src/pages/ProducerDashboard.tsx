@@ -9,6 +9,7 @@ import { BeatUploadForm } from "@/components/beats/BeatUploadForm";
 import { RevenueTracker } from "@/components/beats/RevenueTracker";
 import { PayoutRequestForm } from "@/components/beats/PayoutRequestForm";
 import { BeatSalesTracker } from "@/components/beats/BeatSalesTracker";
+import { UserVerificationManager } from "@/components/admin/UserVerificationManager";
 import { 
   Bell, 
   MessageSquare, 
@@ -24,7 +25,8 @@ import {
   TrendingUp,
   Eye,
   Upload,
-  CreditCard
+  CreditCard,
+  Shield
 } from "lucide-react";
 
 export default function ProducerDashboard() {
@@ -34,6 +36,7 @@ export default function ProducerDashboard() {
   const [beats, setBeats] = useState<any[]>([]);
   const [recentSales, setRecentSales] = useState<any[]>([]);
   const [totalEarnings, setTotalEarnings] = useState(0);
+  const [isMasterAccount, setIsMasterAccount] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -43,6 +46,9 @@ export default function ProducerDashboard() {
   const loadDashboardData = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
+
+    // Check if user is master account
+    setIsMasterAccount(user.email === 'iamtruwealth@gmail.com');
 
     // Load notifications
     const { data: notificationsData } = await supabase
@@ -173,7 +179,7 @@ export default function ProducerDashboard() {
 
       {/* Main Content */}
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className={`grid w-full ${isMasterAccount ? 'grid-cols-5' : 'grid-cols-4'}`}>
           <TabsTrigger value="overview" className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4" />
             Overview
@@ -190,6 +196,12 @@ export default function ProducerDashboard() {
             <CreditCard className="h-4 w-4" />
             Payouts
           </TabsTrigger>
+          {isMasterAccount && (
+            <TabsTrigger value="admin" className="flex items-center gap-2">
+              <Shield className="h-4 w-4" />
+              Admin
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -283,6 +295,12 @@ export default function ProducerDashboard() {
         <TabsContent value="payouts">
           <PayoutRequestForm />
         </TabsContent>
+
+        {isMasterAccount && (
+          <TabsContent value="admin">
+            <UserVerificationManager />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

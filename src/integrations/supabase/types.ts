@@ -928,6 +928,21 @@ export type Database = {
         Args: { username_param: string }
         Returns: boolean
       }
+      get_all_profiles_for_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          created_at: string
+          first_name: string
+          id: string
+          last_name: string
+          producer_logo_url: string
+          producer_name: string
+          public_profile_enabled: boolean
+          role: Database["public"]["Enums"]["user_role"]
+          username: string
+          verification_status: string
+        }[]
+      }
       get_profile_by_username: {
         Args: { username_param: string }
         Returns: {
@@ -990,6 +1005,10 @@ export type Database = {
       increment_beat_play_count: {
         Args: { beat_id: string }
         Returns: undefined
+      }
+      update_user_verification: {
+        Args: { user_id_param: string; verification_status_param: string }
+        Returns: boolean
       }
     }
     Enums: {
