@@ -10,6 +10,7 @@ import { FuturisticBeatPackCarousel } from "@/components/futuristic/FuturisticBe
 import { FuturisticProducerCarousel } from "@/components/futuristic/FuturisticProducerCarousel";
 import { GlassMorphismSection } from "@/components/futuristic/GlassMorphismSection";
 import { ScrollAnimationWrapper } from "@/components/futuristic/ScrollAnimationWrapper";
+import { PromoVideoSection } from "@/components/futuristic/PromoVideoSection";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { 
@@ -83,6 +84,7 @@ function FuturisticLandingContent() {
 
       <FuturisticNavigation />
       <FuturisticHero />
+      <PromoVideoSection />
 
       {/* Featured Beats Section */}
       <section className="py-20 relative">
