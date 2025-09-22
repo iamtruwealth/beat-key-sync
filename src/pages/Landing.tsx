@@ -86,61 +86,6 @@ function FuturisticLandingContent() {
       <FuturisticHero />
       <PromoVideoSection />
 
-      {/* Featured Beats Section */}
-      <section className="py-20 relative">
-        <div className="container mx-auto px-6 relative z-10">
-          <ScrollAnimationWrapper>
-            <div className="text-center mb-16">
-              <h2 className="text-4xl md:text-6xl font-bold mb-6">
-                <span className="gradient-text">Featured</span>{" "}
-                <span className="text-neon-cyan">Producers</span>
-              </h2>
-              <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-                Discover the hottest tracks from our top-rated producers
-              </p>
-            </div>
-          </ScrollAnimationWrapper>
-
-          {loadingFeatured ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {[...Array(6)].map((_, i) => (
-                <div key={i} className="h-64 glass-morphism rounded-2xl animate-pulse" />
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {featuredBeats.map((beat, index) => (
-                <ScrollAnimationWrapper 
-                  key={beat.id} 
-                  animation="scale-in" 
-                  delay={index * 100}
-                >
-                  <InteractiveBeatPreview 
-                    beat={{
-                      id: beat.id,
-                      title: beat.title,
-                      producer: beat.producer?.display_name || "Unknown Producer",
-                      price: beat.price || 0,
-                      preview_url: beat.preview_url,
-                      artwork_url: beat.artwork_url
-                    }}
-                  />
-                </ScrollAnimationWrapper>
-              ))}
-            </div>
-          )}
-
-          <ScrollAnimationWrapper className="text-center mt-12">
-            <Button 
-              size="lg"
-              onClick={() => navigate("/explore")}
-              className="bg-gradient-to-r from-neon-magenta to-neon-purple hover:from-neon-magenta-glow hover:to-neon-purple text-white neon-glow-hover transform hover:scale-105 transition-all duration-300 px-8 py-4 text-lg"
-            >
-              Explore All Beats
-            </Button>
-          </ScrollAnimationWrapper>
-        </div>
-      </section>
 
       <FuturisticProducerCarousel />
       <FuturisticBeatPackCarousel />
