@@ -350,7 +350,7 @@ export function FeedContainer({ producerId, showUploadButton = false }: FeedCont
   }
 
   return (
-    <div className="relative w-full h-screen">
+    <div className="relative w-full h-screen overflow-x-hidden">
       {/* Upload Button - Fixed position */}
       {showUploadButton && (
         <Button
@@ -365,7 +365,7 @@ export function FeedContainer({ producerId, showUploadButton = false }: FeedCont
       {/* Posts Container */}
       <div
         ref={containerRef}
-        className="w-full h-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide"
+        className="w-full h-full overflow-y-scroll overflow-x-hidden snap-y snap-mandatory scrollbar-hide"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
         {posts.map((post, index) => (

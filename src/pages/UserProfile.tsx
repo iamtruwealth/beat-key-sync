@@ -523,7 +523,7 @@ export default function UserProfile() {
           </TabsContent>
           
           <TabsContent value="feed" className="mt-0">
-            <div className="h-[80vh] -mx-4 sm:-mx-6 lg:-mx-8">
+            <div className="h-[80vh] mx-0 sm:-mx-6 lg:-mx-8 overflow-x-hidden">
               <FeedContainer producerId={profile?.id} />
             </div>
           </TabsContent>
