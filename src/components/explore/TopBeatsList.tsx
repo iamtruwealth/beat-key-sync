@@ -241,7 +241,7 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
   }
 
   return (
-    <section className="container mx-auto px-4">
+    <div>
       <div className="space-y-8">
         {/* Header with filtering */}
         <div className="flex flex-col gap-4">
@@ -325,6 +325,6 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
           )}
         </div>
       </div>
-    </section>
+    </div>
   );
 }

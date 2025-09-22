@@ -130,11 +130,10 @@ export default function NewExplore() {
           </section>
         </ScrollAnimationWrapper>
 
-        {/* Top Beats Section */}
         <ScrollAnimationWrapper>
           <section className="py-16 relative">
             <div className="absolute inset-0 bg-gradient-to-b from-transparent via-muted/5 to-transparent" />
-            <div className="container mx-auto px-6 relative z-10">
+            <div className="container mx-auto px-4 relative z-10">
               <div className="text-center mb-12">
                 <h2 className="text-3xl md:text-5xl font-bold mb-4">
                   <span className="text-neon-cyan">Trending</span>{" "}
