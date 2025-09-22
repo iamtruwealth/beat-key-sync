@@ -105,23 +105,6 @@ export function FeedContainer({ producerId, showUploadButton = false }: FeedCont
               producer_name,
               producer_logo_url,
               verification_status
-            ),
-            original_post:posts!posts_repost_of_fkey(
-              id,
-              producer_id,
-              type,
-              beat_id,
-              media_url,
-              cover_url,
-              caption,
-              bpm,
-              key,
-              created_at,
-              producer:profiles!posts_producer_id_fkey(
-                producer_name,
-                producer_logo_url,
-                verification_status
-              )
             )
           `);
 
@@ -188,25 +171,8 @@ export function FeedContainer({ producerId, showUploadButton = false }: FeedCont
             ...post,
             repost_count: 0, // Will be calculated below
             producer: Array.isArray(post.producer) ? post.producer[0] : post.producer,
-            original_post: undefined
+            original_post: undefined // For now, we'll handle reposts later
           };
-
-          // Handle original_post if it exists (for reposts) 
-          if (post.original_post) {
-            // Supabase might return it as an array or object
-            const originalPostData = Array.isArray(post.original_post) 
-              ? post.original_post[0] 
-              : post.original_post;
-              
-            if (originalPostData) {
-              normalizedPost.original_post = {
-                ...originalPostData,
-                producer: Array.isArray(originalPostData.producer) 
-                  ? originalPostData.producer[0] 
-                  : originalPostData.producer
-              };
-            }
-          }
 
           return normalizedPost;
         });
