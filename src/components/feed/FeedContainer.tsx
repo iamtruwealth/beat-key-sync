@@ -56,40 +56,109 @@ export function FeedContainer({ producerId, showUploadButton = false }: FeedCont
     getCurrentUser();
   }, []);
 
-  // Fetch posts
+  // Fetch posts and historical beats
   useEffect(() => {
-    const fetchPosts = async () => {
+    const fetchFeedContent = async () => {
       try {
-        let query = supabase
+        // Fetch posts
+        let postsQuery = supabase
           .from('posts')
           .select(`
-            *,
+            id,
+            producer_id,
+            type,
+            beat_id,
+            media_url,
+            cover_url,
+            caption,
+            bpm,
+            key,
+            likes,
+            comments,
+            created_at,
             producer:profiles!posts_producer_id_fkey(
               producer_name,
               producer_logo_url,
               verification_status
             )
-          `)
-          .order('created_at', { ascending: false });
+          `);
 
         // Filter by producer if specified
         if (producerId) {
-          query = query.eq('producer_id', producerId);
+          postsQuery = postsQuery.eq('producer_id', producerId);
         }
 
-        const { data, error } = await query;
-        
-        if (error) throw error;
-        setPosts(data || []);
+        // Fetch beats as historical posts
+        let beatsQuery = supabase
+          .from('beats')
+          .select(`
+            id,
+            producer_id,
+            title,
+            file_url,
+            artwork_url,
+            bpm,
+            key,
+            genre,
+            description,
+            created_at,
+            producer:profiles!beats_producer_id_fkey(
+              producer_name,
+              producer_logo_url,
+              verification_status
+            )
+          `);
+
+        // Filter by producer if specified
+        if (producerId) {
+          beatsQuery = beatsQuery.eq('producer_id', producerId);
+        }
+
+        const [postsResult, beatsResult] = await Promise.all([
+          postsQuery,
+          beatsQuery
+        ]);
+
+        if (postsResult.error) throw postsResult.error;
+        if (beatsResult.error) throw beatsResult.error;
+
+        // Transform beats into post format
+        const transformedBeats: Post[] = (beatsResult.data || []).map(beat => ({
+          id: beat.id,
+          producer_id: beat.producer_id,
+          type: 'audio' as const,
+          beat_id: beat.id,
+          media_url: beat.file_url,
+          cover_url: beat.artwork_url,
+          caption: beat.description || `${beat.title}${beat.genre ? ` • ${beat.genre}` : ''}`,
+          bpm: beat.bpm,
+          key: beat.key,
+          likes: 0, // Historical beats start with 0 likes in feed context
+          comments: 0,
+          created_at: beat.created_at,
+          producer: Array.isArray(beat.producer) ? beat.producer[0] : beat.producer
+        }));
+
+        // Ensure posts also have proper producer format
+        const normalizedPosts: Post[] = (postsResult.data || []).map(post => ({
+          ...post,
+          producer: Array.isArray(post.producer) ? post.producer[0] : post.producer
+        }));
+
+        // Combine and sort by creation date
+        const allContent = [...normalizedPosts, ...transformedBeats]
+          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+        setPosts(allContent);
       } catch (error) {
-        console.error('Error fetching posts:', error);
-        toast.error('Failed to load posts');
+        console.error('Error fetching feed content:', error);
+        toast.error('Failed to load feed');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchPosts();
+    fetchFeedContent();
   }, [producerId]);
 
   // Set up intersection observer for auto-play
