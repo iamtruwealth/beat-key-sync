@@ -509,48 +509,46 @@ export default function BeatPackPage() {
             {filteredBeats.map((beat, index) => (
               <div key={beat.id} className={`${currentTrack?.id === beat.id ? 'ring-2 ring-primary' : ''} group`}>
                 <div className="p-4 border rounded-lg hover:shadow-md transition-shadow">
-                   <div className="flex items-center gap-4">
-                     {/* Play Button with Artwork */}
-                     <div className="relative flex-shrink-0">
-                       {/* Album Artwork or Producer Profile Picture */}
-                       <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center overflow-hidden">
-                         {beat.artwork_url ? (
-                           <img 
-                             src={beat.artwork_url} 
-                             alt={beat.title}
-                             className="w-full h-full object-cover"
-                           />
-                         ) : beat.profiles?.producer_logo_url ? (
-                           <img 
-                             src={beat.profiles.producer_logo_url} 
-                             alt={beat.profiles.producer_name || 'Producer'}
-                             className="w-full h-full object-cover"
-                           />
-                         ) : beatPack.producer_logo_url ? (
-                           <img 
-                             src={beatPack.producer_logo_url} 
-                             alt={beatPack.producer_name || 'Producer'}
-                             className="w-full h-full object-cover"
-                           />
-                         ) : (
-                           <Music className="h-6 w-6 text-muted-foreground" />
-                         )}
-                       </div>
-                       
-                       {/* Play/Pause Button Overlay */}
-                       <Button
-                         variant="secondary"
-                         size="icon"
-                         onClick={() => handlePlayBeat(beat)}
-                         className="absolute inset-0 w-full h-full bg-black/50 hover:bg-black/70 text-white opacity-0 group-hover:opacity-100 transition-opacity rounded-lg"
-                       >
-                         {currentTrack?.id === beat.id && isPlaying ? (
-                           <Pause className="w-6 h-6" />
-                         ) : (
-                           <Play className="w-6 h-6" />
-                         )}
-                       </Button>
-                     </div>
+                  <div className="flex items-center gap-4">
+                    {/* Play Button with Artwork */}
+                    <div className="relative flex-shrink-0">
+                      <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center overflow-hidden">
+                        {beat.artwork_url ? (
+                          <img 
+                            src={beat.artwork_url} 
+                            alt={beat.title}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : beat.profiles?.producer_logo_url ? (
+                          <img 
+                            src={beat.profiles.producer_logo_url} 
+                            alt={beat.profiles.producer_name || 'Producer'}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : beatPack.producer_logo_url ? (
+                          <img 
+                            src={beatPack.producer_logo_url} 
+                            alt={beatPack.producer_name || 'Producer'}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <Music className="h-6 w-6 text-muted-foreground" />
+                        )}
+                      </div>
+                      
+                      <Button
+                        variant="secondary"
+                        size="icon"
+                        onClick={() => handlePlayBeat(beat)}
+                        className="absolute inset-0 w-full h-full bg-black/50 hover:bg-black/70 text-white opacity-0 group-hover:opacity-100 transition-opacity rounded-lg"
+                      >
+                        {currentTrack?.id === beat.id && isPlaying ? (
+                          <Pause className="w-6 h-6" />
+                        ) : (
+                          <Play className="w-6 h-6" />
+                        )}
+                      </Button>
+                    </div>
 
                     {/* Beat Info */}
                     <div className="flex-1">
@@ -558,7 +556,7 @@ export default function BeatPackPage() {
                       <p className="text-sm text-muted-foreground">
                         {beat.producer_name || beat.artist}
                       </p>
-                      <div className="flex gap-2 mt-1">
+                      <div className="flex gap-2 mt-2">
                         {beat.genre && (
                           <Badge variant="secondary" className="text-xs">
                             {beat.genre}
