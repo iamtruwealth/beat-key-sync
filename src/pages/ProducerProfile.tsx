@@ -15,6 +15,7 @@ import StickyHeader from '@/components/layout/StickyHeader';
 import { MetaTags } from '@/components/MetaTags';
 import verifiedBadge from '@/assets/verified-badge.png';
 import BeatPackGrid from '@/components/beats/BeatPackGrid';
+import hipHopCollageFallback from '@/assets/hip-hop-collage-fallback.png';
 
 interface Profile {
   id: string;
@@ -264,14 +265,12 @@ export default function ProducerProfile() {
       
       {/* Hero Section */}
       <section className="relative h-96 bg-gradient-to-br from-primary/20 via-primary/10 to-background overflow-hidden">
-        {profile.banner_url && (
-          <div 
-            className="absolute inset-0 bg-cover bg-center"
-            style={{ backgroundImage: `url(${profile.banner_url})` }}
-          >
-            <div className="absolute inset-0 bg-black/50" />
-          </div>
-        )}
+        <div 
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: `url(${profile.banner_url || hipHopCollageFallback})` }}
+        >
+          <div className="absolute inset-0 bg-black/50" />
+        </div>
         
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-end pb-12">
           <div className="flex items-end gap-6">
