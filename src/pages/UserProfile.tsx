@@ -452,8 +452,12 @@ export default function UserProfile() {
 
                       {/* Beat Details */}
                       <div className="hidden md:flex items-center gap-4 text-sm text-muted-foreground">
-                        <span>{beat.manual_bpm || beat.detected_bpm || beat.bpm} BPM</span>
-                        <span>{beat.manual_key || beat.detected_key || beat.key}</span>
+                        {(beat.manual_bpm || beat.detected_bpm || beat.bpm) && (
+                          <span>{beat.manual_bpm || beat.detected_bpm || beat.bpm} BPM</span>
+                        )}
+                        {(beat.manual_key || beat.detected_key || beat.key) && (
+                          <span>{beat.manual_key || beat.detected_key || beat.key}</span>
+                        )}
                         {beat.genre && <Badge variant="secondary">{beat.genre}</Badge>}
                       </div>
 
