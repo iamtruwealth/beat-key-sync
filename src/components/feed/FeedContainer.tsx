@@ -77,6 +77,8 @@ export function FeedContainer({
   const containerRef = useRef<HTMLDivElement>(null);
   const { currentTrack, playTrack, pauseTrack } = useAudio();
   const lastControlRef = useRef<{ id: string | null; mode: 'audio' | 'video' | null }>({ id: null, mode: null });
+  const lastIndexRef = useRef<number>(-1);
+  const ratiosRef = useRef<Record<number, number>>({});
 
   // Get current user
   useEffect(() => {
@@ -257,28 +259,49 @@ export function FeedContainer({
 
   // Set up intersection observer for auto-play
   useEffect(() => {
-    if (!containerRef.current) return;
+    const rootEl = containerRef.current;
+    if (!rootEl) return;
 
-    const options = {
-      root: containerRef.current,
+    const options: IntersectionObserverInit = {
+      root: rootEl,
       rootMargin: '0px',
-      threshold: 0.9
+      threshold: [0, 0.25, 0.5, 0.75, 1]
     };
+
+    // Reset ratios when posts change
+    ratiosRef.current = {};
 
     observer.current = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          const index = parseInt(entry.target.getAttribute('data-index') || '0');
-          console.log('FeedContainer: visible index ->', index);
-          setVisiblePostIndex(index);
+        const indexAttr = (entry.target as HTMLElement).getAttribute('data-index') || '0';
+        const idx = parseInt(indexAttr);
+        ratiosRef.current[idx] = entry.intersectionRatio;
+      });
+
+      // Pick the index with highest visibility ratio
+      let bestIdx = lastIndexRef.current;
+      let bestRatio = -1;
+      Object.entries(ratiosRef.current).forEach(([k, v]) => {
+        const idx = parseInt(k);
+        const ratio = v as number;
+        if (ratio > bestRatio) {
+          bestRatio = ratio;
+          bestIdx = idx;
         }
       });
+
+      if (bestIdx !== -1 && bestIdx !== lastIndexRef.current) {
+        lastIndexRef.current = bestIdx;
+        setVisiblePostIndex(bestIdx);
+      }
     }, options);
 
+    // Attach to all items
+    const items = rootEl.querySelectorAll('[data-index]');
+    items.forEach((el) => observer.current?.observe(el));
+
     return () => {
-      if (observer.current) {
-        observer.current.disconnect();
-      }
+      observer.current?.disconnect();
     };
   }, [posts]);
 
