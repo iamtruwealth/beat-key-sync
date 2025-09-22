@@ -994,6 +994,10 @@ export type Database = {
           waveform_data: Json
         }[]
       }
+      increment_beat_and_pack_download_count: {
+        Args: { beat_id: string }
+        Returns: undefined
+      }
       increment_beat_download_count: {
         Args: { beat_id: string }
         Returns: undefined
