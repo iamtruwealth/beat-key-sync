@@ -13,7 +13,7 @@ interface BeatPack {
   artwork_url?: string;
   user_id: string;
   created_at: string;
-  profiles?: {
+  profiles: {
     producer_name?: string;
     first_name?: string;
   };
@@ -28,7 +28,7 @@ interface FeaturedPack {
     name: string;
     artwork_url?: string;
     user_id: string;
-    profiles?: {
+    profiles: {
       producer_name?: string;
       first_name?: string;
     };
@@ -58,18 +58,27 @@ export function FeaturedPacksManager() {
           id,
           beat_pack_id,
           position,
-          beat_packs!inner(
+          beat_packs(
             id,
             name,
             artwork_url,
             user_id,
-            profiles!inner(producer_name, first_name)
+            profiles!beat_packs_user_id_fkey(producer_name, first_name)
           )
         `)
         .order('position', { ascending: true });
 
       if (error) throw error;
-      setFeaturedPacks((data as any) || []);
+      console.log('Featured packs data:', data);
+      // Transform the data to match our interface
+      const transformedData = (data || []).map((item: any) => ({
+        ...item,
+        beat_packs: {
+          ...item.beat_packs,
+          profiles: Array.isArray(item.beat_packs.profiles) ? item.beat_packs.profiles[0] : item.beat_packs.profiles
+        }
+      }));
+      setFeaturedPacks(transformedData);
     } catch (error) {
       console.error('Error fetching featured packs:', error);
     }
@@ -85,13 +94,19 @@ export function FeaturedPacksManager() {
           artwork_url,
           user_id,
           created_at,
-          profiles!inner(producer_name, first_name)
+          profiles!beat_packs_user_id_fkey(producer_name, first_name)
         `)
         .eq('is_public', true)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setAllPacks((data as any) || []);
+      console.log('All packs data:', data);
+      // Transform the data to match our interface
+      const transformedData = (data || []).map((item: any) => ({
+        ...item,
+        profiles: Array.isArray(item.profiles) ? item.profiles[0] : item.profiles
+      }));
+      setAllPacks(transformedData);
     } catch (error) {
       console.error('Error fetching all packs:', error);
     }
@@ -100,7 +115,7 @@ export function FeaturedPacksManager() {
   // Filter packs based on search term
   const filteredPacks = allPacks.filter(pack => {
     const packName = pack.name.toLowerCase();
-    const producerName = ((pack.profiles as any)?.producer_name || (pack.profiles as any)?.first_name || '').toLowerCase();
+    const producerName = (pack.profiles?.producer_name || pack.profiles?.first_name || '').toLowerCase();
     const search = searchTerm.toLowerCase();
     
     return packName.includes(search) || producerName.includes(search);
@@ -250,7 +265,7 @@ export function FeaturedPacksManager() {
                   <div className="flex-1">
                     <p className="font-medium">{pack.beat_packs.name}</p>
                     <p className="text-sm text-muted-foreground">
-                      by {(pack.beat_packs.profiles as any)?.producer_name || (pack.beat_packs.profiles as any)?.first_name || 'Unknown'}
+                      by {pack.beat_packs.profiles?.producer_name || pack.beat_packs.profiles?.first_name || 'Unknown'}
                     </p>
                   </div>
 
@@ -303,7 +318,7 @@ export function FeaturedPacksManager() {
             {/* Show currently featured packs in search results */}
             {searchTerm && featuredPacks.some(pack => {
               const packName = pack.beat_packs.name.toLowerCase();
-              const producerName = ((pack.beat_packs.profiles as any)?.producer_name || (pack.beat_packs.profiles as any)?.first_name || '').toLowerCase();
+              const producerName = (pack.beat_packs.profiles?.producer_name || pack.beat_packs.profiles?.first_name || '').toLowerCase();
               return packName.includes(searchTerm.toLowerCase()) || producerName.includes(searchTerm.toLowerCase());
             }) && (
               <div className="mb-4">
@@ -312,7 +327,7 @@ export function FeaturedPacksManager() {
                   {featuredPacks
                     .filter(pack => {
                       const packName = pack.beat_packs.name.toLowerCase();
-                      const producerName = ((pack.beat_packs.profiles as any)?.producer_name || (pack.beat_packs.profiles as any)?.first_name || '').toLowerCase();
+                      const producerName = (pack.beat_packs.profiles?.producer_name || pack.beat_packs.profiles?.first_name || '').toLowerCase();
                       return packName.includes(searchTerm.toLowerCase()) || producerName.includes(searchTerm.toLowerCase());
                     })
                     .map((pack) => (
@@ -330,7 +345,7 @@ export function FeaturedPacksManager() {
                         <div className="flex-1">
                           <p className="font-medium">{pack.beat_packs.name}</p>
                           <p className="text-sm text-muted-foreground">
-                            by {(pack.beat_packs.profiles as any)?.producer_name || (pack.beat_packs.profiles as any)?.first_name || 'Unknown'}
+                            by {pack.beat_packs.profiles?.producer_name || pack.beat_packs.profiles?.first_name || 'Unknown'}
                           </p>
                         </div>
 
@@ -368,7 +383,7 @@ export function FeaturedPacksManager() {
                     <div className="flex-1">
                       <p className="font-medium">{pack.name}</p>
                       <p className="text-sm text-muted-foreground">
-                        by {(pack.profiles as any)?.producer_name || (pack.profiles as any)?.first_name || 'Unknown'}
+                        by {pack.profiles?.producer_name || pack.profiles?.first_name || 'Unknown'}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         Created: {new Date(pack.created_at).toLocaleDateString()}
