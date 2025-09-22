@@ -21,6 +21,7 @@ interface Post {
   comments: number;
   created_at: string;
   repost_of?: string;
+  play_count?: number;
   producer: {
     producer_name: string;
     producer_logo_url?: string;
@@ -37,6 +38,7 @@ interface Post {
     bpm?: number;
     key?: string;
     created_at: string;
+    play_count?: number;
     producer: {
       producer_name: string;
       producer_logo_url?: string;
@@ -69,6 +71,7 @@ export function FeedPost({
   const [isLiked, setIsLiked] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [showFullCaption, setShowFullCaption] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const { currentTrack, playTrack, pauseTrack, isPlaying: globalIsPlaying } = useAudio();
@@ -242,9 +245,9 @@ export function FeedPost({
   };
 
   return (
-    <div className="relative w-full h-screen bg-background snap-start overflow-hidden">
+    <div className="relative w-full h-[85vh] sm:h-screen bg-background snap-start overflow-hidden rounded-lg sm:rounded-none mx-2 sm:mx-0 my-2 sm:my-0">
       {/* Background Media */}
-      <div className="absolute inset-0">
+      <div className="absolute inset-0 rounded-lg sm:rounded-none overflow-hidden">
         {displayPost.type === 'video' ? (
           <video
             ref={videoRef}
@@ -320,23 +323,44 @@ export function FeedPost({
           </div>
         )}
         
-        {/* Top: Producer Info */}
-        <div className="flex items-center gap-2 sm:gap-3 text-white pointer-events-auto">
-          <Avatar className="w-8 h-8 sm:w-10 sm:h-10 border-2 border-white/50">
-            <AvatarImage src={displayPost.producer.producer_logo_url} />
-            <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-              {displayPost.producer.producer_name?.[0] || 'P'}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex items-center gap-1">
-            <p className="font-semibold text-xs sm:text-sm">{displayPost.producer.producer_name}</p>
-            {displayPost.producer.verification_status === 'verified' && (
-              <img 
-                src={verifiedBadge} 
-                alt="Verified" 
-                className="w-4 h-4 sm:w-5 sm:h-5"
-              />
-            )}
+        {/* Top Section: Producer Info & Play Count */}
+        <div className="flex items-start justify-between text-white pointer-events-auto">
+          {/* Left: Producer Info & Follow Button */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Avatar className="w-8 h-8 sm:w-10 sm:h-10 border-2 border-white/50">
+              <AvatarImage src={displayPost.producer.producer_logo_url} />
+              <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                {displayPost.producer.producer_name?.[0] || 'P'}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
+                <p className="font-semibold text-xs sm:text-sm">{displayPost.producer.producer_name}</p>
+                {displayPost.producer.verification_status === 'verified' && (
+                  <img 
+                    src={verifiedBadge} 
+                    alt="Verified" 
+                    className="w-4 h-4 sm:w-5 sm:h-5"
+                  />
+                )}
+              </div>
+              {/* Follow Button - placeholder for now */}
+              {currentUser && displayPost.producer_id !== currentUser.id && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-6 px-2 text-xs bg-white/10 border-white/30 text-white hover:bg-white/20"
+                >
+                  Follow
+                </Button>
+              )}
+            </div>
+          </div>
+          
+          {/* Right: Play Count */}
+          <div className="flex items-center gap-1 bg-black/30 px-2 py-1 rounded-full text-xs text-white/90">
+            <Play className="w-3 h-3" />
+            <span>{displayPost.play_count || 0}</span>
           </div>
         </div>
 
@@ -344,13 +368,29 @@ export function FeedPost({
         <div className="flex items-end justify-between gap-3 sm:gap-4">
           {/* Left: Content Info */}
           <div className="flex-1 text-white pointer-events-auto pr-2">
-            {displayPost.caption && (
-              <p className="text-xs sm:text-sm mb-2 leading-relaxed line-clamp-3">{displayPost.caption}</p>
-            )}
-            <div className="flex items-center gap-3 sm:gap-4 text-xs text-white/80">
+            <div className="flex items-center gap-3 sm:gap-4 text-xs text-white/80 mb-2">
               {displayPost.bpm && <span className="bg-black/30 px-2 py-1 rounded-full">{displayPost.bpm} BPM</span>}
               {displayPost.key && <span className="bg-black/30 px-2 py-1 rounded-full">Key: {displayPost.key}</span>}
             </div>
+            {displayPost.caption && (
+              <div className="text-xs sm:text-sm leading-relaxed">
+                {showFullCaption ? (
+                  <p onClick={() => setShowFullCaption(false)} className="cursor-pointer">
+                    {displayPost.caption}
+                  </p>
+                ) : (
+                  <p 
+                    onClick={() => setShowFullCaption(true)} 
+                    className="cursor-pointer line-clamp-2"
+                  >
+                    {displayPost.caption.length > 100 
+                      ? `${displayPost.caption.substring(0, 100)}...` 
+                      : displayPost.caption
+                    }
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Right: Action Buttons - Mobile Optimized */}
