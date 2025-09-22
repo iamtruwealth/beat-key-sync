@@ -13,6 +13,7 @@ import { useTrackPlay } from '@/hooks/useTrackPlay';
 import { useTrackDownload } from '@/hooks/useTrackDownload';
 import verifiedBadge from '@/assets/verified-badge.png';
 import { BeatCard } from '@/components/beats/BeatCard';
+import { BeatRow } from '@/components/beats/BeatRow';
 
 interface Beat {
   id: string;
@@ -301,117 +302,25 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
             </div>
           ) : (
             filteredBeats.map((beat, index) => (
-              <Card key={beat.id} className="hover:bg-muted/30 transition-colors">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-4">
-                    {/* Rank */}
-                    <div className="w-8 text-center text-muted-foreground font-mono">
-                      {index + 1}
-                    </div>
-
-                    {/* Play Button */}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handlePlay(beat)}
-                      className="w-12 h-12 rounded-full hover:bg-primary/10"
-                    >
-                      {currentTrack?.id === beat.id && isPlaying ? (
-                        <Pause className="w-5 h-5" />
-                      ) : (
-                        <Play className="w-5 h-5 ml-0.5" />
-                      )}
-                    </Button>
-
-                    {/* Artwork with Play Overlay */}
-                    <div className="relative w-16 h-16 rounded overflow-hidden bg-muted group/artwork cursor-pointer" onClick={() => handlePlay(beat)}>
-                      {beat.artwork_url || beat.producer?.producer_logo_url ? (
-                        <img 
-                          src={beat.artwork_url || beat.producer?.producer_logo_url} 
-                          alt={beat.title}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-primary/20 flex items-center justify-center">
-                          <div className="text-sm font-bold text-primary">
-                            {beat.title.charAt(0)}
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* Elegant Play/Pause Overlay */}
-                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover/artwork:opacity-100 transition-all duration-300">
-                        <div className="w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center transform scale-75 group-hover/artwork:scale-100 transition-transform duration-300 shadow-lg">
-                          {currentTrack?.id === beat.id && isPlaying ? (
-                            <Pause className="w-4 h-4 text-black ml-0" />
-                          ) : (
-                            <Play className="w-4 h-4 text-black ml-0.5" />
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Beat Info */}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold truncate">{beat.title}</h3>
-                      <p className="text-sm text-muted-foreground flex items-center gap-1">
-                        {beat.artist || beat.producer?.producer_name}
-                        {beat.producer?.verification_status === 'verified' && (
-                          <img 
-                            src={verifiedBadge} 
-                            alt="Verified"
-                            className="w-3 h-3"
-                          />
-                        )}
-                      </p>
-                    </div>
-
-                    {/* Beat Details */}
-                    <div className="hidden md:flex items-center gap-4 text-sm text-muted-foreground">
-                      {beat.bpm && (
-                        <span>{beat.bpm} BPM</span>
-                      )}
-                      {(beat.manual_key || beat.detected_key || beat.key) && (
-                        <span>{beat.manual_key || beat.detected_key || beat.key}</span>
-                      )}
-                      {beat.genre && <Badge variant="secondary">{beat.genre}</Badge>}
-                    </div>
-
-                    {/* Stats */}
-                    <div className="hidden lg:flex items-center gap-4 text-sm text-muted-foreground">
-                      <span>{beat.play_count || 0} plays</span>
-                      <span>{beat.download_count || 0} downloads</span>
-                    </div>
-
-                    {/* Price & Actions */}
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold">
-                        {beat.is_free ? 'Free download' : formatPrice(beat.price_cents)}
-                      </span>
-                      
-                      {beat.is_free && (
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => handleDownload(beat)}
-                          aria-label="Download free beat"
-                        >
-                          <Download className="w-4 h-4" />
-                        </Button>
-                      )}
-                      
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => handleAddToCart(beat)}
-                        aria-label="Add to cart"
-                      >
-                        <ShoppingCart className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              <BeatRow
+                key={beat.id}
+                index={index + 1}
+                title={beat.title}
+                artworkUrl={beat.artwork_url || beat.producer?.producer_logo_url}
+                producerName={beat.artist || beat.producer?.producer_name}
+                verified={beat.producer?.verification_status === 'verified'}
+                bpm={beat.bpm as number | null}
+                keyText={(beat.manual_key || beat.detected_key || beat.key) as string | null}
+                genre={beat.genre}
+                playCount={beat.play_count}
+                downloadCount={beat.download_count}
+                isFree={beat.is_free}
+                priceCents={beat.price_cents}
+                isPlaying={currentTrack?.id === beat.id && isPlaying}
+                onPlay={() => handlePlay(beat)}
+                onDownload={() => handleDownload(beat)}
+                onAddToCart={() => handleAddToCart(beat)}
+              />
             ))
           )}
         </div>
