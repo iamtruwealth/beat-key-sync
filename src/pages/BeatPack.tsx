@@ -5,6 +5,7 @@ import { BeatPackManager } from "@/components/beats/BeatPackManager";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { SortByKey } from "@/components/ui/sort-by-key";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -35,6 +36,8 @@ interface Beat {
   description?: string;
   bpm?: number;
   key?: string;
+  play_count?: number;
+  download_count?: number;
   profiles?: {
     producer_name?: string;
     producer_logo_url?: string;
@@ -504,42 +507,136 @@ export default function BeatPackPage() {
             </div>
           </div>
 
-          {/* Beats List */}
-          <div className="space-y-4">
-            {filteredBeats.map((beat) => {
-              const unifiedBeat = {
-                id: beat.id,
-                title: beat.title,
-                description: beat.description,
-                audio_file_url: (beat as any).audio_file_url || beat.file_url,
-                artwork_url: beat.artwork_url || beatPack.producer_logo_url,
-                price_cents: beat.price_cents,
-                is_free: beat.is_free,
-                genre: beat.genre,
-                bpm: beat.manual_bpm || beat.detected_bpm || beat.bpm,
-                key: beat.manual_key || beat.detected_key || beat.key,
-                tags: beat.tags,
-                producer_id: beatPack.user_id,
-                profiles: {
-                  producer_name: beatPack.producer_name,
-                  producer_logo_url: beatPack.producer_logo_url,
-                  verification_status: beatPack.verification_status,
-                },
-              };
-              const playing = currentTrack?.id === beat.id && isPlaying;
+            <div className="space-y-2">
+              {filteredBeats.length === 0 ? (
+                <div className="text-center py-12">
+                  <h3 className="text-xl font-semibold text-muted-foreground">No beats found</h3>
+                  <p className="text-muted-foreground mt-2">
+                    {keyFilter && keyFilter !== 'all' ? `No beats found in key "${keyFilter}"` : 'No beats available'}
+                  </p>
+                </div>
+              ) : (
+                filteredBeats.map((beat, index) => (
+                  <Card key={beat.id} className="hover:bg-muted/30 transition-colors">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-4">
+                        {/* Rank */}
+                        <div className="w-8 text-center text-muted-foreground font-mono">
+                          {index + 1}
+                        </div>
 
-              return (
-                <BeatCard
-                  key={beat.id}
-                  beat={unifiedBeat as any}
-                  isPlaying={playing}
-                  onPlay={() => handlePlayBeat(beat)}
-                  onPause={() => pauseTrack()}
-                  showPurchase
-                />
-              );
-            })}
-          </div>
+                        {/* Play Button */}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handlePlayBeat(beat)}
+                          className="w-10 h-10 p-0"
+                        >
+                          {currentTrack?.id === beat.id && isPlaying ? (
+                            <Pause className="w-4 h-4" />
+                          ) : (
+                            <Play className="w-4 h-4" />
+                          )}
+                        </Button>
+
+                        {/* Artwork */}
+                        <div className="w-16 h-16 rounded overflow-hidden bg-muted">
+                          {beat.artwork_url ? (
+                            <img 
+                              src={beat.artwork_url} 
+                              alt={beat.title}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : beatPack.producer_logo_url ? (
+                            <img 
+                              src={beatPack.producer_logo_url} 
+                              alt={beatPack.producer_name || 'Producer'}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-primary/20 flex items-center justify-center">
+                              <div className="text-sm font-bold text-primary">
+                                {beat.title.charAt(0)}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Beat Info */}
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold truncate">{beat.title}</h3>
+                          <p className="text-sm text-muted-foreground flex items-center gap-1">
+                            {beat.producer_name || beat.artist || beatPack.producer_name}
+                            {beatPack.verification_status === 'verified' && (
+                              <img 
+                                src={verifiedBadge} 
+                                alt="Verified"
+                                className="w-3 h-3"
+                              />
+                            )}
+                          </p>
+                        </div>
+
+                        {/* Beat Details */}
+                        <div className="hidden md:flex items-center gap-4 text-sm text-muted-foreground">
+                          {(beat.manual_bpm || beat.detected_bpm || beat.bpm) && (
+                            <span>{beat.manual_bpm || beat.detected_bpm || beat.bpm} BPM</span>
+                          )}
+                          {(beat.manual_key || beat.detected_key || beat.key) && (
+                            <span>{beat.manual_key || beat.detected_key || beat.key}</span>
+                          )}
+                          {beat.genre && <Badge variant="secondary">{beat.genre}</Badge>}
+                        </div>
+
+                        {/* Stats */}
+                        <div className="hidden lg:flex items-center gap-4 text-sm text-muted-foreground">
+                          <span>{beat.play_count || 0} plays</span>
+                          <span>{beat.download_count || 0} downloads</span>
+                        </div>
+
+                        {/* Price & Actions */}
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold">
+                            {beat.is_free ? 'Free download' : `$${(beat.price_cents / 100).toFixed(2)}`}
+                          </span>
+                          
+                          {beat.is_free && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => downloadBeat(beat)}
+                              aria-label="Download free beat"
+                            >
+                              <Download className="w-4 h-4" />
+                            </Button>
+                          )}
+                          
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleAddToCart(beat)}
+                            aria-label="Add to cart"
+                          >
+                            <ShoppingCart className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Tags */}
+                      {beat.tags && beat.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-3 ml-20">
+                          {beat.tags.slice(0, 5).map((tag) => (
+                            <Badge key={tag} variant="outline" className="text-xs">
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
         </div>
       </div>
   );
