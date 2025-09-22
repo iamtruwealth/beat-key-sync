@@ -5,15 +5,18 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { SortByKey } from '@/components/ui/sort-by-key';
+import { ShareProfile } from '@/components/ShareProfile';
 import { Play, Pause, Download, ShoppingCart, MapPin, Users, Music2, Filter } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useCart } from '@/contexts/CartContext';
 import { useAudio } from '@/contexts/AudioContext';
 import { useTrackPlay } from '@/hooks/useTrackPlay';
 import StickyHeader from '@/components/layout/StickyHeader';
+import { MetaTags } from '@/components/MetaTags';
 
 interface Profile {
   id: string;
+  username: string;
   producer_name: string;
   producer_logo_url: string;
   banner_url: string;
@@ -21,6 +24,7 @@ interface Profile {
   home_town: string;
   genres: string[];
   total_earnings_cents: number;
+  verification_status: string;
 }
 
 interface BeatPack {
@@ -69,7 +73,7 @@ export default function ProducerProfile() {
         // Fetch producer profile
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
-          .select('*')
+          .select('id, username, producer_name, producer_logo_url, banner_url, bio, home_town, genres, total_earnings_cents, verification_status')
           .eq('id', id)
           .single();
 
@@ -198,8 +202,17 @@ export default function ProducerProfile() {
     );
   }
 
+  const profileUrl = `${window.location.origin}/${profile.username || `producer/${id}`}`;
+
   return (
     <div className="min-h-screen bg-background">
+      <MetaTags
+        title={`${profile.producer_name} - Producer | BeatPackz`}
+        description={profile.bio || `Check out ${profile.producer_name}'s beats and production skills on BeatPackz`}
+        image={profile.producer_logo_url || profile.banner_url}
+        url={profileUrl}
+      />
+      
       <StickyHeader />
       
       {/* Hero Section */}
@@ -222,8 +235,20 @@ export default function ProducerProfile() {
               </AvatarFallback>
             </Avatar>
             
-            <div className="text-white space-y-2">
-              <h1 className="text-4xl font-bold">{profile.producer_name}</h1>
+            <div className="text-white space-y-2 flex-1">
+              <div className="flex items-center justify-between">
+                <h1 className="text-4xl font-bold">{profile.producer_name}</h1>
+                {profile.username && (
+                  <ShareProfile username={profile.username} producerName={profile.producer_name} />
+                )}
+              </div>
+              
+              {profile.verification_status === 'verified' && (
+                <Badge className="bg-blue-500/20 text-blue-300 border-blue-400/30">
+                  ✓ Verified Producer
+                </Badge>
+              )}
+              
               {profile.home_town && (
                 <div className="flex items-center gap-2 text-white/80">
                   <MapPin className="w-4 h-4" />
