@@ -23,13 +23,13 @@ export function FollowButton({
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  // Don't show follow button for own profile
-  if (!currentUserId || currentUserId === targetUserId) {
-    return null;
-  }
-
   // Check if already following
   useEffect(() => {
+    // Don't run effect if conditions aren't met
+    if (!currentUserId || currentUserId === targetUserId) {
+      return;
+    }
+
     const checkFollowStatus = async () => {
       try {
         const { data, error } = await supabase
@@ -48,6 +48,11 @@ export function FollowButton({
 
     checkFollowStatus();
   }, [currentUserId, targetUserId]);
+
+  // Don't show follow button for own profile - AFTER hooks are called
+  if (!currentUserId || currentUserId === targetUserId) {
+    return null;
+  }
 
   const handleFollow = async () => {
     if (!currentUserId) {
