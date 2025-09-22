@@ -232,28 +232,12 @@ export default function BeatPackCarousel() {
                        {pack.genre && <span>{pack.genre}</span>}
                      </div>
                      
-                     {/* BPM and Key tags */}
-                     {(pack.sample_bpm || pack.sample_key) && (
-                       <div className="flex flex-wrap gap-2 mt-2">
-                         {pack.sample_bpm && (
-                           <Badge variant="outline" className="text-xs">
-                             {pack.sample_bpm} BPM
-                           </Badge>
-                         )}
-                         {pack.sample_key && (
-                           <Badge variant="outline" className="text-xs">
-                             {pack.sample_key}
-                           </Badge>
-                         )}
-                       </div>
-                     )}
-                     
-                      <div className="flex items-center justify-between mt-3">
-                        <span className="text-sm font-medium">{pack.total_play_count} plays</span>
-                        <Button size="sm" onClick={() => handleAddToCart(pack)}>
-                          ${(pack.total_price_cents / 100).toFixed(2)}
-                        </Button>
-                      </div>
+                     <div className="flex items-center justify-between mt-3">
+                       <span className="text-sm font-medium">{pack.total_play_count} plays</span>
+                       <Button size="sm" onClick={() => handleAddToCart(pack)}>
+                         ${(pack.total_price_cents / 100).toFixed(2)}
+                       </Button>
+                     </div>
                   </CardContent>
                 </Card>
               </CarouselItem>
