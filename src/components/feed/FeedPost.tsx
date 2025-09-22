@@ -1,11 +1,21 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Heart, MessageCircle, Bookmark, Share2, Play, Pause, Repeat2 } from 'lucide-react';
+import { Heart, MessageCircle, Bookmark, Share2, Play, Pause, Repeat2, ShoppingCart, Download } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAudio } from '@/contexts/AudioContext';
+import { useCart } from '@/contexts/CartContext';
 import { toast } from 'sonner';
 import verifiedBadge from '@/assets/verified-badge.png';
+
+interface Beat {
+  id: string;
+  title: string;
+  price_cents: number;
+  is_free: boolean;
+  artwork_url?: string;
+  producer_id: string;
+}
 
 interface Post {
   id: string;
@@ -74,9 +84,11 @@ export function FeedPost({
   const [isSaved, setIsSaved] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showFullCaption, setShowFullCaption] = useState(false);
+  const [beatData, setBeatData] = useState<Beat | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const { currentTrack, playTrack, pauseTrack, isPlaying: globalIsPlaying } = useAudio();
+  const { addToCart } = useCart();
 
   // Get the display post (original post if this is a repost, otherwise current post)
   const displayPost = post.original_post || post;
@@ -117,6 +129,25 @@ export function FeedPost({
 
     checkUserInteractions();
   }, [currentUser, post.id]);
+
+  // Fetch beat data if beat_id exists
+  useEffect(() => {
+    if (displayPost.beat_id) {
+      const fetchBeatData = async () => {
+        const { data, error } = await supabase
+          .from('beats')
+          .select('id, title, price_cents, is_free, artwork_url, producer_id')
+          .eq('id', displayPost.beat_id)
+          .maybeSingle();
+        
+        if (data && !error) {
+          setBeatData(data);
+        }
+      };
+      
+      fetchBeatData();
+    }
+  }, [displayPost.beat_id]);
 
   // Auto-play based on visibility
   useEffect(() => {
@@ -244,6 +275,37 @@ export function FeedPost({
     }
 
     onRepost(isRepost ? post.repost_of! : post.id);
+  };
+
+  const handlePurchaseOrDownload = async () => {
+    if (!beatData) return;
+
+    if (beatData.is_free) {
+      // Handle free download
+      if (!currentUser) {
+        toast.error('Please sign in to download');
+        return;
+      }
+      
+      toast.success('Free download started!');
+      // TODO: Implement actual download functionality
+    } else {
+      // Handle paid beat - add to cart
+      if (!currentUser) {
+        toast.error('Please sign in to purchase');
+        return;
+      }
+
+      await addToCart({
+        item_type: 'beat',
+        item_id: beatData.id,
+        quantity: 1,
+        price_cents: beatData.price_cents,
+        title: beatData.title,
+        image_url: beatData.artwork_url || getFallbackImage(),
+        producer_name: displayPost.producer.producer_name
+      });
+    }
   };
 
   return (
@@ -397,6 +459,27 @@ export function FeedPost({
 
           {/* Right: Action Buttons - Mobile Optimized */}
           <div className="flex flex-col items-center gap-3 sm:gap-4 pointer-events-auto">
+            {/* Purchase/Download Button */}
+            {beatData && (
+              <div className="flex flex-col items-center">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-primary/20 backdrop-blur-sm border border-primary/30 hover:bg-primary/30 transition-all hover:scale-110"
+                  onClick={handlePurchaseOrDownload}
+                >
+                  {beatData.is_free ? (
+                    <Download className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+                  ) : (
+                    <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+                  )}
+                </Button>
+                <span className="text-xs text-white/80 mt-1">
+                  {beatData.is_free ? 'Free' : `$${(beatData.price_cents / 100).toFixed(2)}`}
+                </span>
+              </div>
+            )}
+
             <div className="flex flex-col items-center">
               <Button
                 variant="ghost"
