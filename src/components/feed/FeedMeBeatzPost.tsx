@@ -172,6 +172,7 @@ export function FeedMeBeatzPost({
       setIsPlaying(true);
     } else if (displayPost.type === 'audio' || (displayPost.type === 'photo' && displayPost.media_url?.toLowerCase().includes('.mp3'))) {
       // Auto-play audio posts when visible
+      console.log('FeedMeBeatz: Auto-playing audio for post:', displayPost.id, 'URL:', displayPost.media_url);
       if (currentTrack?.id !== displayPost.id || !globalIsPlaying) {
         playTrack({
           id: displayPost.id,
