@@ -23,6 +23,8 @@ interface BeatPack {
   track_count: number;
   sample_bpm?: number;
   sample_key?: string;
+  total_price_cents: number;
+  total_play_count: number;
 }
 
 export default function BeatPackCarousel() {
@@ -55,27 +57,47 @@ export default function BeatPackCarousel() {
 
         if (error) throw error;
 
-        // Get a sample track for BPM and key info
+        // Get beats data for each pack to calculate total price and play count
         const formattedData = await Promise.all((data || []).map(async (pack) => {
-          const { data: sampleTrack } = await supabase
+          const { data: packBeats } = await supabase
             .from('beat_pack_tracks')
             .select(`
-              tracks(detected_bpm, manual_bpm, detected_key, manual_key)
+              tracks(detected_bpm, manual_bpm, detected_key, manual_key),
+              beats(price_cents, play_count)
             `)
-            .eq('beat_pack_id', pack.id)
-            .limit(1)
-            .single();
+            .eq('beat_pack_id', pack.id);
           
-          const track = sampleTrack?.tracks as any;
-          const bpm = track?.manual_bpm || track?.detected_bpm;
-          const key = track?.manual_key || track?.detected_key;
+          // Calculate totals from all beats in the pack
+          let totalPriceCents = 0;
+          let totalPlayCount = 0;
+          let sampleBpm = null;
+          let sampleKey = null;
+
+          if (packBeats && packBeats.length > 0) {
+            packBeats.forEach((item) => {
+              const beat = Array.isArray(item.beats) ? item.beats[0] : item.beats;
+              if (beat) {
+                totalPriceCents += beat.price_cents || 0;
+                totalPlayCount += beat.play_count || 0;
+              }
+              
+              // Use first track for sample BPM/key
+              if (!sampleBpm && item.tracks) {
+                const track = item.tracks as any;
+                sampleBpm = track?.manual_bpm || track?.detected_bpm;
+                sampleKey = track?.manual_key || track?.detected_key;
+              }
+            });
+          }
           
           return {
             ...pack,
             user: Array.isArray(pack.profiles) ? pack.profiles[0] : pack.profiles,
             track_count: pack.beat_pack_tracks?.[0]?.count || 0,
-            sample_bpm: bpm,
-            sample_key: key
+            sample_bpm: sampleBpm,
+            sample_key: sampleKey,
+            total_price_cents: totalPriceCents,
+            total_play_count: totalPlayCount
           };
         }));
 
@@ -95,7 +117,7 @@ export default function BeatPackCarousel() {
       item_type: 'beat_pack',
       item_id: beatPack.id,
       quantity: 1,
-      price_cents: 2999, // Default price, should come from beat pack data
+      price_cents: beatPack.total_price_cents,
       title: beatPack.name,
       image_url: beatPack.artwork_url,
       producer_name: beatPack.user?.producer_name
@@ -223,12 +245,12 @@ export default function BeatPackCarousel() {
                        </div>
                      )}
                      
-                     <div className="flex items-center justify-between mt-3">
-                       <span className="text-sm font-medium">{pack.play_count} plays</span>
-                       <Button size="sm" onClick={() => handleAddToCart(pack)}>
-                         Add to Cart
-                       </Button>
-                     </div>
+                      <div className="flex items-center justify-between mt-3">
+                        <span className="text-sm font-medium">{pack.total_play_count} plays</span>
+                        <Button size="sm" onClick={() => handleAddToCart(pack)}>
+                          ${(pack.total_price_cents / 100).toFixed(2)}
+                        </Button>
+                      </div>
                   </CardContent>
                 </Card>
               </CarouselItem>
