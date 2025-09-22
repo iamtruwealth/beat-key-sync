@@ -67,20 +67,22 @@ interface FeedMeBeatzPostProps {
   onSave: (postId: string, isSaved: boolean) => void;
   onShare: (postId: string) => void;
   onRepost: (postId: string) => void;
-  repostCount?: number;
-}
+   repostCount?: number;
+   onFocus?: () => void;
+ }
 
-export function FeedMeBeatzPost({ 
-  post, 
-  isVisible, 
-  currentUser, 
-  onLike, 
-  onComment, 
-  onSave, 
-  onShare,
-  onRepost,
-  repostCount = 0
-}: FeedMeBeatzPostProps) {
+ export function FeedMeBeatzPost({ 
+   post, 
+   isVisible, 
+   currentUser, 
+   onLike, 
+   onComment, 
+   onSave, 
+   onShare,
+   onRepost,
+   repostCount = 0,
+   onFocus
+ }: FeedMeBeatzPostProps) {
   const [isLiked, setIsLiked] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -170,33 +172,34 @@ export function FeedMeBeatzPost({
     }
   }, [currentTrack, globalIsPlaying, displayPost.id]);
 
-  const handlePlayPause = () => {
-    console.log('FeedMeBeatz: Play button clicked for:', displayPost.id, displayPost.type, displayPost.media_url);
-    
-    if (displayPost.type === 'audio' || (displayPost.type === 'photo' && displayPost.media_url)) {
-      if (currentTrack?.id === displayPost.id && globalIsPlaying) {
-        console.log('FeedMeBeatz: Pausing current track');
-        pauseTrack();
-      } else {
-        console.log('FeedMeBeatz: Playing track:', displayPost.media_url);
-        playTrack({
-          id: displayPost.id,
-          title: displayPost.caption || `${displayPost.producer.producer_name} Beat`,
-          artist: displayPost.producer.producer_name,
-          file_url: displayPost.media_url,
-          artwork_url: getFallbackImage()
-        });
-      }
-    } else if (displayPost.type === 'video' && videoRef.current) {
-      if (isPlaying) {
-        videoRef.current.pause();
-      } else {
-        videoRef.current.play().catch(console.error);
-      }
-      setIsPlaying(!isPlaying);
-    }
-  };
-
+   const handlePlayPause = () => {
+     onFocus?.();
+     console.log('FeedMeBeatz: Play button clicked for:', displayPost.id, displayPost.type, displayPost.media_url);
+     
+     if (displayPost.type === 'audio' || (displayPost.type === 'photo' && displayPost.media_url)) {
+       if (currentTrack?.id === displayPost.id && globalIsPlaying) {
+         console.log('FeedMeBeatz: Pausing current track');
+         pauseTrack();
+       } else {
+         console.log('FeedMeBeatz: Playing track:', displayPost.media_url);
+         playTrack({
+           id: displayPost.id,
+           title: displayPost.caption || `${displayPost.producer.producer_name} Beat`,
+           artist: displayPost.producer.producer_name,
+           file_url: displayPost.media_url,
+           artwork_url: getFallbackImage()
+         });
+       }
+     } else if (displayPost.type === 'video' && videoRef.current) {
+       // ensure this post is focused
+       if (isPlaying) {
+         videoRef.current.pause();
+       } else {
+         videoRef.current.play().catch(console.error);
+       }
+       setIsPlaying(!isPlaying);
+     }
+   };
   const handleMuteToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
     setIsMuted(!isMuted);

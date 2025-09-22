@@ -429,145 +429,154 @@ export function FeedContainer({
     toast.success('Post uploaded successfully!');
   };
 
-  const handleRepost = async (originalPostId: string) => {
-    if (!currentUser) {
-      toast.error('Please sign in to repost');
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('posts')
-        .insert({
-          producer_id: currentUser.id,
-          type: 'audio', // Reposts are treated as audio type
-          media_url: '', // Empty for reposts since they reference original
-          repost_of: originalPostId,
-          likes: 0,
-          comments: 0
-        });
-
-      if (error) throw error;
-
-      // Update repost count locally
-      setRepostCounts(prev => ({
-        ...prev,
-        [originalPostId]: (prev[originalPostId] || 0) + 1
-      }));
-
-      toast.success('Post reposted to your feed!');
-      
-      // Refresh the feed to show the new repost
-      window.location.reload();
-    } catch (error) {
-      console.error('Error reposting:', error);
-      toast.error('Failed to repost');
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="w-full h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (posts.length === 0) {
-    return (
-      <div className="w-full h-screen flex flex-col items-center justify-center bg-background text-center p-8">
-        <h3 className="text-xl font-semibold text-muted-foreground mb-2">
-          No posts yet
-        </h3>
-        <p className="text-muted-foreground mb-6">
-          {producerId ? 'This producer hasn\'t posted anything yet.' : 'Be the first to share your beats!'}
-        </p>
-        {showUploadButton && (
-          <Button onClick={() => setShowUpload(true)} className="gap-2">
-            <Plus className="w-4 h-4" />
-            Upload Your First Post
-          </Button>
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <div className="relative w-full h-full overflow-x-hidden">
-      {/* Upload Button - Fixed position */}
-      {showUploadButton && (
-        <Button
-          onClick={() => setShowUpload(true)}
-          className="fixed top-20 right-4 z-50 rounded-full w-12 h-12 p-0 shadow-lg"
-          size="sm"
-        >
-          <Plus className="w-5 h-5" />
-        </Button>
-      )}
-
-      {/* Posts Container */}
-      <div
-        ref={containerRef}
-        className="w-full h-full overflow-y-scroll overflow-x-hidden snap-y snap-mandatory scrollbar-hide"
-        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-      >
-        {posts.map((post, index) => (
-            <div
-              key={post.id}
-              data-index={index}
-              ref={(el) => {
-                if (el && observer.current) {
-                  observer.current.observe(el);
-                }
-              }}
-              className={`w-screen h-[85vh] snap-start flex justify-start items-center px-0`}
-            >
-            {useFeedMeBeatzPost ? (
-              <FeedMeBeatzPost
-                post={post}
-                isVisible={index === visiblePostIndex}
-                currentUser={currentUser}
-                onLike={handleLike}
-                onComment={handleComment}
-                onSave={handleSave}
-                onShare={handleShare}
-                onRepost={handleRepost}
-                repostCount={repostCounts[post.id] || 0}
-              />
-            ) : (
-              <FeedPost
-                post={post}
-                isVisible={index === visiblePostIndex}
-                currentUser={currentUser}
-                onLike={handleLike}
-                onComment={handleComment}
-                onSave={handleSave}
-                onShare={handleShare}
-                onRepost={handleRepost}
-                repostCount={repostCounts[post.id] || 0}
-                slim={slim}
-              />
-            )}
-          </div>
-        ))}
-      </div>
-
-      {/* Upload Dialog */}
-      <PostUploadDialog
-        open={showUpload}
-        onOpenChange={setShowUpload}
-        onPostUploaded={handlePostUploaded}
-      />
-
-      {/* Comments Dialog */}
-      <FeedCommentsDialog
-        open={showComments}
-        onOpenChange={setShowComments}
-        postId={selectedPostId}
-        postProducer={selectedPostProducer}
-        currentUser={currentUser}
-        onCommentAdded={handleCommentAdded}
-      />
-    </div>
-  );
-}
+   const handleRepost = async (originalPostId: string) => {
+     if (!currentUser) {
+       toast.error('Please sign in to repost');
+       return;
+     }
+ 
+     try {
+       const { error } = await supabase
+         .from('posts')
+         .insert({
+           producer_id: currentUser.id,
+           type: 'audio', // Reposts are treated as audio type
+           media_url: '', // Empty for reposts since they reference original
+           repost_of: originalPostId,
+           likes: 0,
+           comments: 0
+         });
+ 
+       if (error) throw error;
+ 
+       // Update repost count locally
+       setRepostCounts(prev => ({
+         ...prev,
+         [originalPostId]: (prev[originalPostId] || 0) + 1
+       }));
+ 
+       toast.success('Post reposted to your feed!');
+       
+       // Refresh the feed to show the new repost
+       window.location.reload();
+     } catch (error) {
+       console.error('Error reposting:', error);
+       toast.error('Failed to repost');
+     }
+   };
+ 
+   const focusPost = (index: number) => {
+     try {
+       setVisiblePostIndex(index);
+       const el = containerRef.current?.querySelector(`[data-index="${index}"]`) as HTMLElement | null;
+       el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+     } catch {}
+   };
+ 
+   if (loading) {
+     return (
+       <div className="w-full h-screen flex items-center justify-center bg-background">
+         <Loader2 className="w-8 h-8 animate-spin text-primary" />
+       </div>
+     );
+   }
+ 
+   if (posts.length === 0) {
+     return (
+       <div className="w-full h-screen flex flex-col items-center justify-center bg-background text-center p-8">
+         <h3 className="text-xl font-semibold text-muted-foreground mb-2">
+           No posts yet
+         </h3>
+         <p className="text-muted-foreground mb-6">
+           {producerId ? 'This producer isn\'t posted anything yet.' : 'Be the first to share your beats!'}
+         </p>
+         {showUploadButton && (
+           <Button onClick={() => setShowUpload(true)} className="gap-2">
+             <Plus className="w-4 h-4" />
+             Upload Your First Post
+           </Button>
+         )}
+       </div>
+     );
+   }
+ 
+   return (
+     <div className="relative w-full h-full overflow-x-hidden">
+       {/* Upload Button - Fixed position */}
+       {showUploadButton && (
+         <Button
+           onClick={() => setShowUpload(true)}
+           className="fixed top-20 right-4 z-50 rounded-full w-12 h-12 p-0 shadow-lg"
+           size="sm"
+         >
+           <Plus className="w-5 h-5" />
+         </Button>
+       )}
+ 
+       {/* Posts Container */}
+       <div
+         ref={containerRef}
+         className="w-full h-full overflow-y-scroll overflow-x-hidden snap-y snap-mandatory scrollbar-hide"
+         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+       >
+         {posts.map((post, index) => (
+             <div
+               key={post.id}
+               data-index={index}
+               ref={(el) => {
+                 if (el && observer.current) {
+                   observer.current.observe(el);
+                 }
+               }}
+               className={`w-screen h-[85vh] snap-start flex justify-start items-center px-0`}
+             >
+             {useFeedMeBeatzPost ? (
+               <FeedMeBeatzPost
+                 post={post}
+                 isVisible={index === visiblePostIndex}
+                 currentUser={currentUser}
+                 onLike={handleLike}
+                 onComment={handleComment}
+                 onSave={handleSave}
+                 onShare={handleShare}
+                 onRepost={handleRepost}
+                 repostCount={repostCounts[post.id] || 0}
+                 onFocus={() => focusPost(index)}
+               />
+             ) : (
+               <FeedPost
+                 post={post}
+                 isVisible={index === visiblePostIndex}
+                 currentUser={currentUser}
+                 onLike={handleLike}
+                 onComment={handleComment}
+                 onSave={handleSave}
+                 onShare={handleShare}
+                 onRepost={handleRepost}
+                 repostCount={repostCounts[post.id] || 0}
+                 slim={slim}
+               />
+             )}
+           </div>
+         ))}
+       </div>
+ 
+       {/* Upload Dialog */}
+       <PostUploadDialog
+         open={showUpload}
+         onOpenChange={setShowUpload}
+         onPostUploaded={handlePostUploaded}
+       />
+ 
+       {/* Comments Dialog */}
+       <FeedCommentsDialog
+         open={showComments}
+         onOpenChange={setShowComments}
+         postId={selectedPostId}
+         postProducer={selectedPostProducer}
+         currentUser={currentUser}
+         onCommentAdded={handleCommentAdded}
+       />
+     </div>
+   );
+ }
