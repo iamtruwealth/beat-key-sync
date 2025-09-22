@@ -1,105 +1,37 @@
-import { Search, Plus, Filter } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { ProjectCard } from "@/components/dashboard/ProjectCard";
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { MetaTags } from "@/components/MetaTags";
 
-// Mock data for demonstration
-const mockProjects = [
-  {
-    id: "1",
-    name: "Summer Vibes",
-    bpm: 128,
-    key: "C Major",
-    stems: 8,
-    lastModified: "2 hours ago",
-    duration: "3:42",
-    collaborators: 2,
-  },
-  {
-    id: "2",
-    name: "Dark Synthwave",
-    bpm: 140,
-    key: "A Minor",
-    stems: 12,
-    lastModified: "1 day ago",
-    duration: "4:15",
-    collaborators: 1,
-  },
-  {
-    id: "3",
-    name: "Lo-Fi Beats",
-    bpm: 85,
-    key: "F Major",
-    stems: 6,
-    lastModified: "3 days ago",
-    duration: "2:58",
-    collaborators: 3,
-  },
-  {
-    id: "4",
-    name: "Electronic Dreams",
-    bpm: 132,
-    key: "E Minor",
-    stems: 10,
-    lastModified: "1 week ago",
-    duration: "5:21",
-    collaborators: 2,
-  },
-];
+export default function DashboardRedirect() {
+  const navigate = useNavigate();
 
-export default function Dashboard() {
+  useEffect(() => {
+    const go = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        navigate("/auth", { replace: true });
+        return;
+      }
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+      const role = (profile as any)?.role || "artist";
+      navigate(role === "producer" ? "/producer-dashboard" : "/artist-dashboard", { replace: true });
+    };
+    go();
+  }, [navigate]);
+
   return (
-    <div className="p-6 space-y-6">
+    <div className="min-h-[50vh] flex items-center justify-center">
       <MetaTags 
-        title="Dashboard | BeatPackz - Manage Your Music Production"
-        description="Access your BeatPackz dashboard to upload beats, manage projects, track performance, and connect with collaborators. Your central hub for music production."
+        title="Redirecting to Dashboard | BeatPackz"
+        description="Taking you to the right dashboard based on your role."
         image="/assets/beat-packz-social-image.png"
       />
-      {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-          <p className="text-muted-foreground">
-            Welcome back! Here's what's happening with your music projects.
-          </p>
-        </div>
-        
-        <Button variant="producer" size="lg">
-          <Plus className="w-4 h-4" />
-          New Project
-        </Button>
-      </div>
-
-      {/* Search and Filters */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="flex-1 max-w-md">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-            <Input
-              placeholder="Search projects, stems, or collaborators..."
-              className="pl-10 bg-background/50 border-border/50"
-            />
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
-            <Filter className="w-4 h-4" />
-            Filter
-          </Button>
-        </div>
-      </div>
-
-      {/* Recent Projects */}
-      <div className="space-y-4">
-        <h2 className="text-xl font-semibold text-foreground">Recent Projects</h2>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {mockProjects.map((project) => (
-            <ProjectCard key={project.id} project={project} />
-          ))}
-        </div>
-      </div>
+      <p className="text-muted-foreground">Redirecting to your dashboard…</p>
     </div>
   );
 }

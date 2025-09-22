@@ -32,6 +32,18 @@ export function FuturisticNavigation() {
     return () => subscription.unsubscribe();
   }, []);
 
+  const goToDashboard = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { navigate('/auth'); return; }
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+    const role = (profile as any)?.role || 'artist';
+    navigate(role === 'producer' ? '/producer-dashboard' : '/artist-dashboard');
+  };
+
   const navItems = [
     { label: "Feed Me Beatz", href: "/feed-me-beatz", icon: Radio },
     { label: "Explore", href: "/explore", icon: Search },
@@ -81,7 +93,7 @@ export function FuturisticNavigation() {
             {user ? (
               <Button
                 variant="outline"
-                onClick={() => navigate("/dashboard")}
+                onClick={goToDashboard}
                 className="border-neon-magenta text-neon-magenta hover:bg-neon-magenta hover:text-background neon-glow-hover"
               >
                 Dashboard
@@ -135,8 +147,8 @@ export function FuturisticNavigation() {
               {user ? (
                 <Button
                   variant="outline"
-                  onClick={() => {
-                    navigate("/dashboard");
+                  onClick={async () => {
+                    await goToDashboard();
                     setIsMobileMenuOpen(false);
                   }}
                   className="border-neon-magenta text-neon-magenta hover:bg-neon-magenta hover:text-background"

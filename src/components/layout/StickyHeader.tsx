@@ -32,12 +32,18 @@ export default function StickyHeader() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const navigateToUserDashboard = () => {
-    if (user) {
-      navigate('/dashboard');
-    } else {
+  const navigateToUserDashboard = async () => {
+    if (!user) {
       navigate('/auth');
+      return;
     }
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+    const role = (profile as any)?.role || 'artist';
+    navigate(role === 'producer' ? '/producer-dashboard' : '/artist-dashboard');
   };
 
   const formatPrice = (cents: number) => {
