@@ -67,7 +67,7 @@ function FuturisticLandingContent() {
               description,
               artwork_url,
               user_id,
-              profiles:user_id (producer_name, producer_logo_url)
+              profiles!beat_packs_user_id_fkey (producer_name, producer_logo_url)
             )
           `)
           .limit(6);
