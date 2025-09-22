@@ -5,6 +5,7 @@ import { Heart, MessageCircle, Bookmark, Share2, Play, Pause } from 'lucide-reac
 import { supabase } from '@/integrations/supabase/client';
 import { useAudio } from '@/contexts/AudioContext';
 import { toast } from 'sonner';
+import verifiedBadge from '@/assets/verified-badge.png';
 
 interface Post {
   id: string;
@@ -281,10 +282,14 @@ export function FeedPost({
               {post.producer.producer_name?.[0] || 'P'}
             </AvatarFallback>
           </Avatar>
-          <div>
+          <div className="flex items-center gap-1">
             <p className="font-semibold text-xs sm:text-sm">{post.producer.producer_name}</p>
             {post.producer.verification_status === 'verified' && (
-              <span className="text-xs text-white/80">✓ Verified</span>
+              <img 
+                src={verifiedBadge} 
+                alt="Verified" 
+                className="w-4 h-4 sm:w-5 sm:h-5"
+              />
             )}
           </div>
         </div>
