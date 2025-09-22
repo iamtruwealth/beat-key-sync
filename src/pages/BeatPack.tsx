@@ -443,20 +443,48 @@ export default function BeatPackPage() {
             {beatPack.beats.map((beat, index) => (
               <div key={beat.id} className={`${currentTrack?.id === beat.id ? 'ring-2 ring-primary' : ''} group`}>
                 <div className="p-4 border rounded-lg hover:shadow-md transition-shadow">
-                  <div className="flex items-center gap-4">
-                    {/* Play Button */}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handlePlayBeat(beat)}
-                      className="w-12 h-12 rounded-full"
-                    >
-                      {currentTrack?.id === beat.id && isPlaying ? (
-                        <Pause className="w-6 h-6" />
-                      ) : (
-                        <Play className="w-6 h-6" />
-                      )}
-                    </Button>
+                   <div className="flex items-center gap-4">
+                     {/* Play Button with Artwork */}
+                     <div className="flex-shrink-0 flex flex-col items-center gap-2">
+                       {/* Play/Pause Button */}
+                       <Button
+                         variant="ghost"
+                         size="icon"
+                         onClick={() => handlePlayBeat(beat)}
+                         className="w-12 h-12 rounded-full"
+                       >
+                         {currentTrack?.id === beat.id && isPlaying ? (
+                           <Pause className="w-6 h-6" />
+                         ) : (
+                           <Play className="w-6 h-6" />
+                         )}
+                       </Button>
+                       
+                       {/* Album Artwork or Producer Profile Picture */}
+                       <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center overflow-hidden">
+                         {beat.artwork_url ? (
+                           <img 
+                             src={beat.artwork_url} 
+                             alt={beat.title}
+                             className="w-full h-full object-cover"
+                           />
+                         ) : beat.profiles?.producer_logo_url ? (
+                           <img 
+                             src={beat.profiles.producer_logo_url} 
+                             alt={beat.profiles.producer_name || 'Producer'}
+                             className="w-full h-full object-cover"
+                           />
+                         ) : beatPack.producer_logo_url ? (
+                           <img 
+                             src={beatPack.producer_logo_url} 
+                             alt={beatPack.producer_name || 'Producer'}
+                             className="w-full h-full object-cover"
+                           />
+                         ) : (
+                           <Music className="h-6 w-6 text-muted-foreground" />
+                         )}
+                       </div>
+                     </div>
 
                     {/* Beat Info */}
                     <div className="flex-1">
