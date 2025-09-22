@@ -16,7 +16,7 @@ export function FuturisticWaveformPlayer() {
   const [isMuted, setIsMuted] = useState(false);
   const [frequencyData, setFrequencyData] = useState<number[]>([]);
 
-  const { currentTrack, isPlaying, currentTime, duration, pauseTrack, resumeTrack, setVolume: setAudioVolume, seekTo } = useAudio();
+  const { currentTrack, isPlaying, currentTime, duration, pauseTrack, resumeTrack, setVolume: setAudioVolume, seekTo, getAudioElement } = useAudio();
 
   // Initialize Web Audio API for real-time frequency analysis
   useEffect(() => {
@@ -33,21 +33,10 @@ export function FuturisticWaveformPlayer() {
           await audioContextRef.current.resume();
         }
 
-        // Find the audio element from AudioContext
-        const audioElements = document.querySelectorAll('audio');
-        let audioElement: HTMLAudioElement | null = null;
-        
-        // Find the audio element that's currently playing our track
-        for (const el of audioElements) {
-          if (el.src && (el.src.includes(currentTrack.file_url || '') || 
-                        el.currentSrc && el.currentSrc.includes(currentTrack.file_url || ''))) {
-            audioElement = el;
-            break;
-          }
-        }
-
+        // Get the audio element directly from AudioContext
+        const audioElement = getAudioElement?.();
         if (!audioElement) {
-          console.warn('No audio element found for current track');
+          console.warn('No audio element available from AudioContext');
           return;
         }
 
@@ -57,20 +46,23 @@ export function FuturisticWaveformPlayer() {
           sourceRef.current = null;
         }
 
-        // Create analyser node
-        analyserRef.current = audioContextRef.current.createAnalyser();
-        analyserRef.current.fftSize = 128; // Small for performance, gives us 64 frequency bins
-        analyserRef.current.smoothingTimeConstant = 0.8;
-        analyserRef.current.minDecibels = -90;
-        analyserRef.current.maxDecibels = -10;
+        // Create analyser node once
+        if (!analyserRef.current) {
+          analyserRef.current = audioContextRef.current.createAnalyser();
+          analyserRef.current.fftSize = 128; // 64 frequency bins
+          analyserRef.current.smoothingTimeConstant = 0.8;
+          analyserRef.current.minDecibels = -90;
+          analyserRef.current.maxDecibels = -10;
+        }
 
-        // Connect audio source to analyser
-        try {
-          sourceRef.current = audioContextRef.current.createMediaElementSource(audioElement);
-          sourceRef.current.connect(analyserRef.current);
-          analyserRef.current.connect(audioContextRef.current.destination);
-        } catch (error) {
-          console.warn('Audio element already connected, using existing connection');
+        // Create media element source once and connect to analyser (avoid connecting to destination to prevent double audio)
+        if (!sourceRef.current) {
+          try {
+            sourceRef.current = audioContextRef.current.createMediaElementSource(audioElement);
+            sourceRef.current.connect(analyserRef.current);
+          } catch (error) {
+            console.warn('MediaElementSource already exists for this element');
+          }
         }
 
         // Setup data array

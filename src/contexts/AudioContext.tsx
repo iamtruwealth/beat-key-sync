@@ -26,6 +26,7 @@ interface AudioContextType {
   setVolume: (volume: number) => void;
   seekTo: (time: number) => void;
   loading: boolean;
+  getAudioElement: () => HTMLAudioElement | null;
 }
 
 const AudioContext = createContext<AudioContextType | undefined>(undefined);
@@ -158,6 +159,8 @@ export const AudioProvider: React.FC<AudioProviderProps> = ({ children }) => {
     }
   };
 
+  const getAudioElement = () => audioRef.current;
+
   const value: AudioContextType = {
     currentTrack,
     isPlaying,
@@ -171,6 +174,7 @@ export const AudioProvider: React.FC<AudioProviderProps> = ({ children }) => {
     setVolume,
     seekTo,
     loading,
+    getAudioElement,
   };
 
   return (
