@@ -957,6 +957,18 @@ export type Database = {
           waveform_data: Json
         }[]
       }
+      increment_beat_download_count: {
+        Args: { beat_id: string }
+        Returns: undefined
+      }
+      increment_beat_pack_play_count: {
+        Args: { pack_id: string }
+        Returns: undefined
+      }
+      increment_beat_play_count: {
+        Args: { beat_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       user_role: "artist" | "producer"
