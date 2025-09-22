@@ -21,6 +21,9 @@ export default function AuthPage() {
   const [resetLoading, setResetLoading] = useState(false);
   const [userRole, setUserRole] = useState<UserRole>('artist');
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [username, setUsername] = useState("");
+  const [usernameError, setUsernameError] = useState("");
+  const [isCheckingUsername, setIsCheckingUsername] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -73,6 +76,53 @@ export default function AuthPage() {
     }
   };
 
+  const validateUsername = (username: string) => {
+    if (!username) return "Username is required";
+    if (username.length < 3) return "Username must be at least 3 characters";
+    if (username.length > 30) return "Username must be less than 30 characters";
+    if (!/^[a-zA-Z0-9_-]+$/.test(username)) return "Username can only contain letters, numbers, hyphens, and underscores";
+    if (username.startsWith('-') || username.endsWith('-')) return "Username cannot start or end with a hyphen";
+    return "";
+  };
+
+  const checkUsernameAvailability = async (username: string) => {
+    if (!username || validateUsername(username)) return;
+
+    setIsCheckingUsername(true);
+    try {
+      const { data, error } = await supabase.rpc('check_username_availability', {
+        username_param: username.toLowerCase()
+      });
+
+      if (error) throw error;
+
+      if (!data) {
+        setUsernameError("Username is already taken");
+      } else {
+        setUsernameError("");
+      }
+    } catch (error) {
+      console.error('Error checking username:', error);
+      setUsernameError("Error checking username availability");
+    } finally {
+      setIsCheckingUsername(false);
+    }
+  };
+
+  const handleUsernameChange = (value: string) => {
+    setUsername(value);
+    const validationError = validateUsername(value);
+    setUsernameError(validationError);
+    
+    if (!validationError && value) {
+      // Debounce username check
+      const timer = setTimeout(() => {
+        checkUsernameAvailability(value);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  };
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -80,6 +130,15 @@ export default function AuthPage() {
       toast({
         title: "Terms acceptance required",
         description: "Please accept the Terms of Service to continue",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!username || usernameError) {
+      toast({
+        title: "Username required",
+        description: usernameError || "Please enter a valid username",
         variant: "destructive"
       });
       return;
@@ -124,7 +183,8 @@ export default function AuthPage() {
           emailRedirectTo: redirectUrl,
           data: {
             artist_logo: logoUrl,
-            role: userRole
+            role: userRole,
+            username: username.toLowerCase()
           }
         }
       });
@@ -288,6 +348,27 @@ export default function AuthPage() {
                         </SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="username">Username</Label>
+                    <Input
+                      id="username"
+                      type="text"
+                      value={username}
+                      onChange={(e) => handleUsernameChange(e.target.value)}
+                      placeholder="your_username"
+                      required
+                      className={usernameError ? "border-destructive" : ""}
+                    />
+                    {isCheckingUsername && (
+                      <p className="text-sm text-muted-foreground mt-1">Checking availability...</p>
+                    )}
+                    {usernameError && (
+                      <p className="text-sm text-destructive mt-1">{usernameError}</p>
+                    )}
+                    {username && !usernameError && !isCheckingUsername && (
+                      <p className="text-sm text-green-600 mt-1">✓ Username available</p>
+                    )}
                   </div>
                   <div>
                     <Label htmlFor="signup-email">Email</Label>

@@ -32,6 +32,7 @@ import Paperwork from "./pages/Paperwork";
 import SettingsPage from "./pages/Settings";
 import NewExplore from "./pages/NewExplore";
 import ProducerProfile from "./pages/ProducerProfile";
+import UserProfile from "./pages/UserProfile";
 import { SidebarProvider } from "@/components/ui/sidebar";
 
 const queryClient = new QueryClient();
@@ -309,6 +310,14 @@ const App = () => (
                 </div>
               </RoleProtectedRoute>
             } />
+            
+            {/* Username-based profile route - must be last to avoid conflicts */}
+            <Route path="/:username" element={
+              <AudioProvider>
+                <UserProfile />
+              </AudioProvider>
+            } />
+            
             <Route path="*" element={<NotFound />} />
           </Routes>
           </SidebarProvider>

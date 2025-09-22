@@ -626,6 +626,7 @@ export type Database = {
           total_earnings_cents: number | null
           track_upload_count: number | null
           updated_at: string
+          username: string | null
           verification_status: string | null
         }
         Insert: {
@@ -651,6 +652,7 @@ export type Database = {
           total_earnings_cents?: number | null
           track_upload_count?: number | null
           updated_at?: string
+          username?: string | null
           verification_status?: string | null
         }
         Update: {
@@ -676,6 +678,7 @@ export type Database = {
           total_earnings_cents?: number | null
           track_upload_count?: number | null
           updated_at?: string
+          username?: string | null
           verification_status?: string | null
         }
         Relationships: []
@@ -921,6 +924,25 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_username_availability: {
+        Args: { username_param: string }
+        Returns: boolean
+      }
+      get_profile_by_username: {
+        Args: { username_param: string }
+        Returns: {
+          banner_url: string
+          bio: string
+          genres: string[]
+          id: string
+          producer_logo_url: string
+          producer_name: string
+          public_profile_enabled: boolean
+          social_links: Json
+          username: string
+          verification_status: string
+        }[]
+      }
       get_public_profile_info: {
         Args: { profile_id: string }
         Returns: {
