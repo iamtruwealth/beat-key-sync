@@ -310,9 +310,9 @@ export function FeedPost({
   };
 
   return (
-    <div className="relative w-full max-w-full h-full bg-background snap-start overflow-hidden rounded-lg sm:rounded-none mx-0 my-0 sm:my-0">
+    <div className="relative w-full max-w-2xl h-full bg-background snap-start overflow-hidden rounded-lg sm:rounded-xl mx-auto shadow-lg">
       {/* Background Media */}
-      <div className="absolute inset-0 rounded-lg sm:rounded-none overflow-hidden">
+      <div className="absolute inset-0 rounded-lg sm:rounded-xl overflow-hidden">
         {displayPost.type === 'video' ? (
           <video
             ref={videoRef}

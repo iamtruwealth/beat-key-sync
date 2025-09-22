@@ -415,16 +415,16 @@ export function FeedContainer({
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
         {posts.map((post, index) => (
-          <div
-            key={post.id}
-            data-index={index}
-            ref={(el) => {
-              if (el && observer.current) {
-                observer.current.observe(el);
-              }
-            }}
-            className="w-full h-full snap-start"
-          >
+            <div
+              key={post.id}
+              data-index={index}
+              ref={(el) => {
+                if (el && observer.current) {
+                  observer.current.observe(el);
+                }
+              }}
+              className="w-full h-[85vh] snap-start flex justify-center items-center px-4 sm:px-8"
+            >
             <FeedPost
               post={post}
               isVisible={index === visiblePostIndex}
