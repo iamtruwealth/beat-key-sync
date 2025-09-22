@@ -302,10 +302,10 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
           ) : (
             filteredBeats.map((beat, index) => (
               <Card key={beat.id} className="hover:bg-muted/30 transition-colors">
-                <CardContent className="p-4">
+                <CardContent className="p-6">
                   <div className="flex items-center gap-4">
                     {/* Rank */}
-                    <div className="w-8 text-center text-muted-foreground font-mono">
+                    <div className="w-8 text-center text-muted-foreground font-mono flex-shrink-0">
                       {index + 1}
                     </div>
 
@@ -314,7 +314,7 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
                       variant="ghost"
                       size="icon"
                       onClick={() => handlePlay(beat)}
-                      className="w-12 h-12 rounded-full hover:bg-primary/10"
+                      className="w-12 h-12 rounded-full hover:bg-primary/10 flex-shrink-0"
                     >
                       {currentTrack?.id === beat.id && isPlaying ? (
                         <Pause className="w-5 h-5" />
@@ -324,7 +324,7 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
                     </Button>
 
                     {/* Artwork with Play Overlay */}
-                    <div className="relative w-16 h-16 rounded overflow-hidden bg-muted group/artwork cursor-pointer" onClick={() => handlePlay(beat)}>
+                    <div className="relative w-16 h-16 rounded overflow-hidden bg-muted group/artwork cursor-pointer flex-shrink-0" onClick={() => handlePlay(beat)}>
                       {beat.artwork_url || beat.producer?.producer_logo_url ? (
                         <img 
                           src={beat.artwork_url || beat.producer?.producer_logo_url} 
@@ -367,7 +367,7 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
                     </div>
 
                     {/* Beat Details */}
-                    <div className="hidden md:flex items-center gap-4 text-sm text-muted-foreground">
+                    <div className="hidden md:flex items-center gap-4 text-sm text-muted-foreground flex-shrink-0">
                       {beat.bpm && (
                         <span>{beat.bpm} BPM</span>
                       )}
@@ -378,13 +378,13 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
                     </div>
 
                     {/* Stats */}
-                    <div className="hidden lg:flex items-center gap-4 text-sm text-muted-foreground">
+                    <div className="hidden lg:flex items-center gap-4 text-sm text-muted-foreground flex-shrink-0">
                       <span>{beat.play_count || 0} plays</span>
                       <span>{beat.download_count || 0} downloads</span>
                     </div>
 
                     {/* Price & Actions */}
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-shrink-0">
                       <span className="font-semibold">
                         {beat.is_free ? 'Free download' : formatPrice(beat.price_cents)}
                       </span>
