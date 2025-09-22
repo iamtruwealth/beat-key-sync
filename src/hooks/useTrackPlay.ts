@@ -5,7 +5,7 @@ export const useTrackPlay = () => {
   const trackPlay = useCallback(async (beatId: string) => {
     try {
       // Increment play count in beats table
-      const { error } = await supabase.rpc('increment_play_count', {
+      const { error } = await supabase.rpc('increment_beat_play_count', {
         beat_id: beatId
       });
       

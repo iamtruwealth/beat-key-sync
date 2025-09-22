@@ -5,13 +5,15 @@ import { BeatPackManager } from "@/components/beats/BeatPackManager";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { SortByKey } from "@/components/ui/sort-by-key";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAudio } from "@/contexts/AudioContext";
 import { useCart } from "@/contexts/CartContext";
+import { useTrackPlay } from "@/hooks/useTrackPlay";
 import { MetaTags } from "@/components/MetaTags";
 import StickyHeader from "@/components/layout/StickyHeader";
-import { Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Volume2, Download, Copy, Music, ShoppingCart } from "lucide-react";
+import { Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Volume2, Download, Copy, Music, ShoppingCart, Filter } from "lucide-react";
 interface Beat {
   id: string;
   title: string;
@@ -60,6 +62,8 @@ export default function BeatPackPage() {
   const [shuffle, setShuffle] = useState(false);
   const [repeat, setRepeat] = useState<'none' | 'one' | 'all'>('none');
   const [isOwner, setIsOwner] = useState(false);
+  const [keyFilter, setKeyFilter] = useState<string>('');
+  const [filteredBeats, setFilteredBeats] = useState<Beat[]>([]);
   const {
     toast
   } = useToast();
@@ -74,6 +78,7 @@ export default function BeatPackPage() {
     seekTo
   } = useAudio();
   const { addToCart } = useCart();
+  const { trackPlay } = useTrackPlay();
   useEffect(() => {
     if (id) {
       fetchBeatPack(id);
@@ -83,6 +88,22 @@ export default function BeatPackPage() {
       checkOwnership(id);
     }
   }, [id]);
+
+  // Filter beats based on key selection
+  useEffect(() => {
+    if (!beatPack) return;
+    
+    let filtered = [...beatPack.beats];
+    
+    if (keyFilter) {
+      filtered = filtered.filter(beat => {
+        const beatKey = beat.manual_key || beat.detected_key || beat.key;
+        return beatKey === keyFilter;
+      });
+    }
+    
+    setFilteredBeats(filtered);
+  }, [beatPack, keyFilter]);
   const trackView = async (packId: string) => {
     try {
       await supabase.from('beat_pack_views').insert({
@@ -92,6 +113,16 @@ export default function BeatPackPage() {
     } catch (error) {
       // Silently fail - don't impact user experience
       console.debug('View tracking error:', error);
+    }
+  };
+
+  const trackPackPlay = async (packId: string) => {
+    try {
+      await supabase.rpc('increment_beat_pack_play_count', {
+        pack_id: packId
+      });
+    } catch (error) {
+      console.debug('Pack play tracking error:', error);
     }
   };
   const checkOwnership = async (packId: string) => {
@@ -211,7 +242,7 @@ export default function BeatPackPage() {
         </div>
       </div>;
   }
-  const handlePlayBeat = (beat: Beat) => {
+  const handlePlayBeat = async (beat: Beat) => {
     const audioTrack = {
       id: beat.id,
       title: beat.title,
@@ -226,8 +257,16 @@ export default function BeatPackPage() {
     };
     playTrack(audioTrack);
 
+    // Track play count for the beat
+    await trackPlay(beat.id);
+    
+    // Track pack play count if it's the first beat played
+    if (beatPack && currentTrackIndex === 0) {
+      await trackPackPlay(beatPack.id);
+    }
+
     // Update current track index
-    const trackIndex = beatPack.beats.findIndex(b => b.id === beat.id);
+    const trackIndex = filteredBeats.findIndex(b => b.id === beat.id);
     if (trackIndex !== -1) {
       setCurrentTrackIndex(trackIndex);
     }
@@ -239,28 +278,28 @@ export default function BeatPackPage() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
   const handlePrevious = () => {
-    if (!beatPack) return;
-    const newIndex = currentTrackIndex > 0 ? currentTrackIndex - 1 : beatPack.beats.length - 1;
+    if (!filteredBeats.length) return;
+    const newIndex = currentTrackIndex > 0 ? currentTrackIndex - 1 : filteredBeats.length - 1;
     setCurrentTrackIndex(newIndex);
-    handlePlayBeat(beatPack.beats[newIndex]);
+    handlePlayBeat(filteredBeats[newIndex]);
   };
   const handleNext = () => {
-    if (!beatPack) return;
+    if (!filteredBeats.length) return;
     if (repeat === 'one') {
-      handlePlayBeat(beatPack.beats[currentTrackIndex]);
+      handlePlayBeat(filteredBeats[currentTrackIndex]);
       return;
     }
     let newIndex;
     if (shuffle) {
-      newIndex = Math.floor(Math.random() * beatPack.beats.length);
+      newIndex = Math.floor(Math.random() * filteredBeats.length);
     } else {
       newIndex = currentTrackIndex + 1;
-      if (newIndex >= beatPack.beats.length) {
+      if (newIndex >= filteredBeats.length) {
         newIndex = repeat === 'all' ? 0 : currentTrackIndex;
       }
     }
     setCurrentTrackIndex(newIndex);
-    handlePlayBeat(beatPack.beats[newIndex]);
+    handlePlayBeat(filteredBeats[newIndex]);
   };
   const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!duration) return;
@@ -438,9 +477,25 @@ export default function BeatPackPage() {
               </div>
             </div>}
 
+          {/* Filter Controls */}
+          <div className="flex items-center gap-4 mb-6">
+            <div className="flex items-center gap-2">
+              <Filter className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Filter by Key:</span>
+            </div>
+            <SortByKey 
+              value={keyFilter} 
+              onValueChange={setKeyFilter}
+              className="w-[180px]"
+            />
+            <div className="text-sm text-muted-foreground">
+              {filteredBeats.length} of {beatPack.beats.length} beats
+            </div>
+          </div>
+
           {/* Beats List */}
           <div className="space-y-4">
-            {beatPack.beats.map((beat, index) => (
+            {filteredBeats.map((beat, index) => (
               <div key={beat.id} className={`${currentTrack?.id === beat.id ? 'ring-2 ring-primary' : ''} group`}>
                 <div className="p-4 border rounded-lg hover:shadow-md transition-shadow">
                    <div className="flex items-center gap-4">

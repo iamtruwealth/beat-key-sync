@@ -4,10 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Play, Pause, Download, ShoppingCart, MapPin, Users, Music2 } from 'lucide-react';
+import { SortByKey } from '@/components/ui/sort-by-key';
+import { Play, Pause, Download, ShoppingCart, MapPin, Users, Music2, Filter } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useCart } from '@/contexts/CartContext';
 import { useAudio } from '@/contexts/AudioContext';
+import { useTrackPlay } from '@/hooks/useTrackPlay';
 import StickyHeader from '@/components/layout/StickyHeader';
 
 interface Profile {
@@ -52,9 +54,12 @@ export default function ProducerProfile() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [beatPacks, setBeatPacks] = useState<BeatPack[]>([]);
   const [beats, setBeats] = useState<Beat[]>([]);
+  const [filteredBeats, setFilteredBeats] = useState<Beat[]>([]);
   const [loading, setLoading] = useState(true);
+  const [keyFilter, setKeyFilter] = useState<string>('');
   const { addToCart } = useCart();
   const { currentTrack, isPlaying, playTrack, pauseTrack } = useAudio();
+  const { trackPlay } = useTrackPlay();
 
   useEffect(() => {
     if (!id) return;
@@ -114,6 +119,20 @@ export default function ProducerProfile() {
     fetchProducerData();
   }, [id]);
 
+  // Filter beats based on key selection
+  useEffect(() => {
+    let filtered = [...beats];
+    
+    if (keyFilter) {
+      filtered = filtered.filter(beat => {
+        const beatKey = beat.key;
+        return beatKey === keyFilter;
+      });
+    }
+    
+    setFilteredBeats(filtered);
+  }, [beats, keyFilter]);
+
   const handleAddToCart = async (item: BeatPack | Beat, type: 'beat_pack' | 'beat') => {
     await addToCart({
       item_type: type,
@@ -126,7 +145,7 @@ export default function ProducerProfile() {
     });
   };
 
-  const handlePlayPause = (beat: Beat) => {
+  const handlePlayPause = async (beat: Beat) => {
     if (currentTrack?.id === beat.id && isPlaying) {
       pauseTrack();
     } else {
@@ -137,6 +156,9 @@ export default function ProducerProfile() {
         file_url: beat.audio_file_url,
         artwork_url: beat.artwork_url || profile?.producer_logo_url
       });
+      
+      // Track play count
+      await trackPlay(beat.id);
     }
   };
 
@@ -289,9 +311,36 @@ export default function ProducerProfile() {
         {/* Beats Section */}
         {beats.length > 0 && (
           <section>
-            <h2 className="text-3xl font-bold mb-8">All Beats</h2>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-3xl font-bold">All Beats</h2>
+              
+              {/* Filter Controls */}
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Filter className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Key:</span>
+                </div>
+                <SortByKey 
+                  value={keyFilter} 
+                  onValueChange={setKeyFilter}
+                  className="w-[140px]"
+                />
+                <div className="text-sm text-muted-foreground">
+                  {filteredBeats.length} of {beats.length} beats
+                </div>
+              </div>
+            </div>
+            
             <div className="space-y-2">
-              {beats.map((beat, index) => (
+              {filteredBeats.length === 0 ? (
+                <div className="text-center py-12">
+                  <h3 className="text-xl font-semibold text-muted-foreground">No beats found</h3>
+                  <p className="text-muted-foreground mt-2">
+                    {keyFilter ? `No beats found in key "${keyFilter}"` : 'No beats available'}
+                  </p>
+                </div>
+              ) : (
+                filteredBeats.map((beat, index) => (
                 <Card key={beat.id} className="hover:bg-muted/30 transition-colors">
                   <CardContent className="p-4">
                     <div className="flex items-center gap-4">
@@ -384,7 +433,7 @@ export default function ProducerProfile() {
                     )}
                   </CardContent>
                 </Card>
-              ))}
+              )))}
             </div>
           </section>
         )}

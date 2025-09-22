@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Play, Pause, Download, ShoppingCart, Music } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useTrackDownload } from '@/hooks/useTrackDownload';
 import { toast } from 'sonner';
 
 interface Beat {
@@ -42,6 +43,7 @@ export function BeatCard({
   showPurchase = true 
 }: BeatCardProps) {
   const [isProcessing, setIsProcessing] = useState(false);
+  const { trackDownload } = useTrackDownload();
 
   const formatPrice = (cents: number) => {
     return (cents / 100).toFixed(2);
@@ -70,13 +72,17 @@ export function BeatCard({
       if (error) throw error;
 
       if (beat.is_free && data.downloadUrl) {
-        // For free beats, trigger download
+        // For free beats, trigger download and track it
         const link = document.createElement('a');
         link.href = data.downloadUrl;
         link.download = `${beat.title}.mp3`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        
+        // Track download
+        await trackDownload(beat.id);
+        
         toast.success('Beat downloaded successfully!');
       } else if (data.url) {
         // For paid beats, redirect to Stripe checkout

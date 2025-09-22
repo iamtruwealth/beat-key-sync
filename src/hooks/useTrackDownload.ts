@@ -5,7 +5,7 @@ export const useTrackDownload = () => {
   const trackDownload = useCallback(async (beatId: string) => {
     try {
       // Increment download count in beats table
-      const { error } = await supabase.rpc('increment_download_count', {
+      const { error } = await supabase.rpc('increment_beat_download_count', {
         beat_id: beatId
       });
       

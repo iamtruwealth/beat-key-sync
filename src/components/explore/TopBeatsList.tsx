@@ -3,10 +3,14 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Play, Download, ShoppingCart, Pause } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SortByKey } from '@/components/ui/sort-by-key';
+import { Play, Download, ShoppingCart, Pause, TrendingUp, Filter } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useCart } from '@/contexts/CartContext';
 import { useAudio } from '@/contexts/AudioContext';
+import { useTrackPlay } from '@/hooks/useTrackPlay';
+import { useTrackDownload } from '@/hooks/useTrackDownload';
 
 interface Beat {
   id: string;
@@ -16,6 +20,8 @@ interface Beat {
   artwork_url: string;
   bpm: number;
   key: string;
+  manual_key?: string;
+  detected_key?: string;
   genre: string;
   tags: string[];
   price_cents: number;
@@ -38,18 +44,23 @@ interface FilterState {
   genre: string;
   bpm: string;
   sort: string;
+  key: string;
 }
 
 export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeatsListProps) {
   const [beats, setBeats] = useState<Beat[]>([]);
+  const [filteredBeats, setFilteredBeats] = useState<Beat[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<FilterState>({
     genre: '',
     bpm: '',
-    sort: 'popularity'
+    sort: 'popularity',
+    key: ''
   });
   const { addToCart } = useCart();
   const { currentTrack, isPlaying, playTrack, pauseTrack } = useAudio();
+  const { trackPlay } = useTrackPlay();
+  const { trackDownload } = useTrackDownload();
 
   useEffect(() => {
     const fetchTopBeats = async () => {
@@ -64,6 +75,8 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
             artwork_url,
             bpm,
             key,
+            manual_key,
+            detected_key,
             genre,
             tags,
             price_cents,
@@ -83,16 +96,11 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
         }
 
         if (filters.bpm) {
-          switch (filters.bpm) {
-            case 'slow':
-              query = query.gte('bpm', 60).lte('bpm', 90);
-              break;
-            case 'medium':
-              query = query.gte('bpm', 90).lte('bpm', 130);
-              break;
-            case 'fast':
-              query = query.gte('bpm', 130);
-              break;
+          const [min, max] = filters.bpm.split('-').map(Number);
+          if (max) {
+            query = query.gte('bpm', min).lte('bpm', max);
+          } else {
+            query = query.gte('bpm', min);
           }
         }
 
@@ -107,6 +115,9 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
           case 'newest':
             query = query.order('created_at', { ascending: false });
             break;
+          case 'price':
+            query = query.order('price_cents', { ascending: true });
+            break;
           default:
             query = query.order('play_count', { ascending: false });
         }
@@ -115,13 +126,13 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
 
         const { data, error } = await query;
         if (error) throw error;
-        
-        const formattedData = data?.map(beat => ({
+
+        const formattedBeats = data?.map(beat => ({
           ...beat,
           producer: Array.isArray(beat.profiles) ? beat.profiles[0] : beat.profiles
         })) || [];
-        
-        setBeats(formattedData);
+
+        setBeats(formattedBeats);
       } catch (error) {
         console.error('Error fetching beats:', error);
       } finally {
@@ -130,21 +141,23 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
     };
 
     fetchTopBeats();
-  }, [filters, limit]);
+  }, [limit, filters]);
 
-  const handleAddToCart = async (beat: Beat) => {
-    await addToCart({
-      item_type: 'beat',
-      item_id: beat.id,
-      quantity: 1,
-      price_cents: beat.price_cents,
-      title: beat.title,
-      image_url: beat.artwork_url,
-      producer_name: beat.producer?.producer_name
-    });
-  };
+  // Filter beats based on key selection
+  useEffect(() => {
+    let filtered = [...beats];
+    
+    if (filters.key) {
+      filtered = filtered.filter(beat => {
+        const beatKey = beat.manual_key || beat.detected_key || beat.key;
+        return beatKey === filters.key;
+      });
+    }
+    
+    setFilteredBeats(filtered);
+  }, [beats, filters.key]);
 
-  const handlePlayPause = (beat: Beat) => {
+  const handlePlay = async (beat: Beat) => {
     if (currentTrack?.id === beat.id && isPlaying) {
       pauseTrack();
     } else {
@@ -153,9 +166,30 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
         title: beat.title,
         artist: beat.artist || beat.producer?.producer_name || 'Unknown',
         file_url: beat.audio_file_url,
-        artwork_url: beat.artwork_url
+        artwork_url: beat.artwork_url || beat.producer?.producer_logo_url
       });
+      
+      // Track play count
+      await trackPlay(beat.id);
     }
+  };
+
+  const handleDownload = async (beat: Beat) => {
+    // Track download count
+    await trackDownload(beat.id);
+    console.log(`Downloading ${beat.title}`);
+  };
+
+  const handleAddToCart = async (beat: Beat) => {
+    await addToCart({
+      item_type: 'beat',
+      item_id: beat.id,
+      quantity: 1,
+      price_cents: beat.price_cents,
+      title: beat.title,
+      image_url: beat.artwork_url || beat.producer?.producer_logo_url,
+      producer_name: beat.producer?.producer_name
+    });
   };
 
   const formatPrice = (cents: number) => {
@@ -164,20 +198,12 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
 
   if (loading) {
     return (
-      <section className="py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold mb-8">Top Beats</h2>
-          <div className="space-y-4">
-            {Array.from({ length: 10 }).map((_, i) => (
-              <Card key={i} className="p-4">
-                <div className="flex items-center gap-4 animate-pulse">
-                  <div className="w-16 h-16 bg-muted rounded" />
-                  <div className="flex-1 space-y-2">
-                    <div className="h-4 bg-muted rounded w-3/4" />
-                    <div className="h-3 bg-muted rounded w-1/2" />
-                  </div>
-                </div>
-              </Card>
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="animate-pulse space-y-6">
+          <div className="h-8 bg-muted rounded w-48"></div>
+          <div className="grid grid-cols-1 gap-4">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="h-24 bg-muted rounded-lg"></div>
             ))}
           </div>
         </div>
@@ -186,154 +212,168 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
   }
 
   return (
-    <section className="py-12 bg-muted/20">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between mb-8">
-          <h2 className="text-3xl font-bold">Top Beats</h2>
-          <Button variant="outline">View All</Button>
+    <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="space-y-8">
+        {/* Header with filtering */}
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-3xl font-bold flex items-center gap-2">
+              <TrendingUp className="h-8 w-8 text-primary" />
+              Top Beats
+            </h2>
+          </div>
+          
+          {showFilters && (
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+              <div className="flex flex-wrap gap-4 items-center">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">Sort by:</span>
+                  <Select 
+                    value={filters.sort} 
+                    onValueChange={(value) => setFilters(prev => ({ ...prev, sort: value }))}
+                  >
+                    <SelectTrigger className="w-[140px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="popularity">Popularity</SelectItem>
+                      <SelectItem value="downloads">Downloads</SelectItem>
+                      <SelectItem value="newest">Newest</SelectItem>
+                      <SelectItem value="price">Price</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <Filter className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Key:</span>
+                  <SortByKey 
+                    value={filters.key} 
+                    onValueChange={(value) => setFilters(prev => ({ ...prev, key: value }))}
+                    className="w-[140px]"
+                  />
+                </div>
+              </div>
+              
+              <div className="text-sm text-muted-foreground">
+                {filteredBeats.length} of {beats.length} beats
+              </div>
+            </div>
+          )}
         </div>
 
-        {showFilters && (
-          <div className="flex flex-wrap gap-4 mb-6">
-            <select 
-              value={filters.genre}
-              onChange={(e) => setFilters(prev => ({ ...prev, genre: e.target.value }))}
-              className="px-3 py-2 border rounded-md bg-background text-foreground"
-            >
-              <option value="">All Genres</option>
-              <option value="Hip Hop">Hip Hop</option>
-              <option value="Trap">Trap</option>
-              <option value="R&B">R&B</option>
-              <option value="Pop">Pop</option>
-              <option value="Electronic">Electronic</option>
-              <option value="Lofi">Lofi</option>
-              <option value="Ambient">Ambient</option>
-            </select>
-
-            <select 
-              value={filters.bpm}
-              onChange={(e) => setFilters(prev => ({ ...prev, bpm: e.target.value }))}
-              className="px-3 py-2 border rounded-md bg-background text-foreground"
-            >
-              <option value="">All BPM</option>
-              <option value="slow">Slow (60-90 BPM)</option>
-              <option value="medium">Medium (90-130 BPM)</option>
-              <option value="fast">Fast (130+ BPM)</option>
-            </select>
-
-            <select 
-              value={filters.sort}
-              onChange={(e) => setFilters(prev => ({ ...prev, sort: e.target.value }))}
-              className="px-3 py-2 border rounded-md bg-background text-foreground"
-            >
-              <option value="popularity">Most Popular</option>
-              <option value="downloads">Most Downloaded</option>
-              <option value="newest">Newest</option>
-            </select>
-          </div>
-        )}
-
+        {/* Beats List */}
         <div className="space-y-2">
-          {beats.map((beat, index) => (
-            <Card key={beat.id} className="hover:bg-muted/30 transition-colors">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-4">
-                  {/* Rank */}
-                  <div className="w-8 text-center text-muted-foreground font-mono">
-                    {index + 1}
-                  </div>
+          {filteredBeats.length === 0 ? (
+            <div className="text-center py-12">
+              <h3 className="text-xl font-semibold text-muted-foreground">No beats found</h3>
+              <p className="text-muted-foreground mt-2">
+                {filters.key ? `No beats found in key "${filters.key}"` : 'No beats available'}
+              </p>
+            </div>
+          ) : (
+            filteredBeats.map((beat, index) => (
+              <Card key={beat.id} className="hover:bg-muted/30 transition-colors">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-4">
+                    {/* Rank */}
+                    <div className="w-8 text-center text-muted-foreground font-mono">
+                      {index + 1}
+                    </div>
 
-                  {/* Play Button */}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handlePlayPause(beat)}
-                    className="w-10 h-10 p-0"
-                  >
-                    {currentTrack?.id === beat.id && isPlaying ? (
-                      <Pause className="w-4 h-4" />
-                    ) : (
-                      <Play className="w-4 h-4" />
-                    )}
-                  </Button>
+                    {/* Play Button */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handlePlay(beat)}
+                      className="w-10 h-10 p-0"
+                    >
+                      {currentTrack?.id === beat.id && isPlaying ? (
+                        <Pause className="w-4 h-4" />
+                      ) : (
+                        <Play className="w-4 h-4" />
+                      )}
+                    </Button>
 
-                  {/* Artwork */}
-                  <div className="w-16 h-16 rounded overflow-hidden bg-muted">
-                    {beat.artwork_url || beat.producer?.producer_logo_url ? (
-                      <img 
-                        src={beat.artwork_url || beat.producer?.producer_logo_url} 
-                        alt={beat.title}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-primary/20 flex items-center justify-center">
-                        <div className="text-sm font-bold text-primary">
-                          {beat.title.charAt(0)}
+                    {/* Artwork */}
+                    <div className="w-16 h-16 rounded overflow-hidden bg-muted">
+                      {beat.artwork_url || beat.producer?.producer_logo_url ? (
+                        <img 
+                          src={beat.artwork_url || beat.producer?.producer_logo_url} 
+                          alt={beat.title}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-primary/20 flex items-center justify-center">
+                          <div className="text-sm font-bold text-primary">
+                            {beat.title.charAt(0)}
+                          </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
+                      )}
+                    </div>
 
-                  {/* Beat Info */}
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold truncate">{beat.title}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      by{' '}
+                    {/* Beat Info */}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold truncate">{beat.title}</h3>
                       <Link 
                         to={`/producer/${beat.producer?.id}`}
-                        className="hover:text-primary transition-colors"
+                        className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                       >
-                        {beat.producer?.producer_name || beat.artist || 'Unknown Artist'}
+                        {beat.artist || beat.producer?.producer_name}
                       </Link>
-                    </p>
+                    </div>
+
+                    {/* Beat Details */}
+                    <div className="hidden md:flex items-center gap-4 text-sm text-muted-foreground">
+                      <span>{beat.bpm} BPM</span>
+                      <span>{beat.manual_key || beat.detected_key || beat.key}</span>
+                      {beat.genre && <Badge variant="secondary">{beat.genre}</Badge>}
+                    </div>
+
+                    {/* Stats */}
+                    <div className="hidden lg:flex items-center gap-4 text-sm text-muted-foreground">
+                      <span>{beat.play_count} plays</span>
+                      <span>{beat.download_count} downloads</span>
+                    </div>
+
+                    {/* Price & Actions */}
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold">
+                        {beat.is_free ? 'Free' : formatPrice(beat.price_cents)}
+                      </span>
+                      
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => handleDownload(beat)}
+                      >
+                        <Download className="w-4 h-4" />
+                      </Button>
+                      
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => handleAddToCart(beat)}
+                      >
+                        <ShoppingCart className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
 
-                  {/* Beat Details */}
-                  <div className="hidden md:flex items-center gap-4 text-sm text-muted-foreground">
-                    <span>{beat.bpm} BPM</span>
-                    <span>{beat.key}</span>
-                    {beat.genre && <Badge variant="secondary">{beat.genre}</Badge>}
-                  </div>
-
-                  {/* Stats */}
-                  <div className="hidden lg:flex items-center gap-4 text-sm text-muted-foreground">
-                    <span>{beat.play_count} plays</span>
-                    <span>{beat.download_count} downloads</span>
-                  </div>
-
-                  {/* Price & Actions */}
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold">
-                      {beat.is_free ? 'Free' : formatPrice(beat.price_cents)}
-                    </span>
-                    
-                    <Button variant="ghost" size="sm">
-                      <Download className="w-4 h-4" />
-                    </Button>
-                    
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => handleAddToCart(beat)}
-                    >
-                      <ShoppingCart className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Tags */}
-                {beat.tags && beat.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-3 ml-20">
-                    {beat.tags.slice(0, 5).map((tag) => (
-                      <Badge key={tag} variant="outline" className="text-xs">
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
+                  {/* Tags */}
+                  {beat.tags && beat.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-3 ml-20">
+                      {beat.tags.slice(0, 5).map((tag) => (
+                        <Badge key={tag} variant="outline" className="text-xs">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))
+          )}
         </div>
       </div>
     </section>
