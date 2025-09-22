@@ -142,9 +142,7 @@ export default function NewExplore() {
                 </h2>
                 <p className="text-lg text-muted-foreground">The hottest tracks right now</p>
               </div>
-              <GlassMorphismSection variant="gradient">
-                <TopBeatsList limit={50} />
-              </GlassMorphismSection>
+              <TopBeatsList limit={50} />
             </div>
           </section>
         </ScrollAnimationWrapper>
