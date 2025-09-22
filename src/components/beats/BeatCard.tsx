@@ -62,6 +62,10 @@ export function BeatCard({
         return;
       }
 
+      // Store current page for redirect after purchase
+      const currentPath = window.location.pathname;
+      localStorage.setItem('beatpackz_return_url', currentPath);
+
       const { data, error } = await supabase.functions.invoke('create-beat-checkout', {
         body: {
           beatId: beat.id,
@@ -200,18 +204,12 @@ export function BeatCard({
           </div>
 
           {/* Price and Purchase */}
-          {showPurchase && (
+          {showPurchase && beat.is_free && (
             <div className="flex flex-col items-end gap-2">
               <div className="text-right">
-                {beat.is_free ? (
-                  <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
-                    FREE
-                  </Badge>
-                ) : (
-                  <div className="text-lg font-bold">
-                    ${formatPrice(beat.price_cents)}
-                  </div>
-                )}
+                <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+                  FREE DOWNLOAD
+                </Badge>
               </div>
 
               <Button
@@ -222,11 +220,33 @@ export function BeatCard({
               >
                 {isProcessing ? (
                   'Processing...'
-                ) : beat.is_free ? (
+                ) : (
                   <>
                     <Download className="h-4 w-4 mr-1" />
                     Download
                   </>
+                )}
+              </Button>
+            </div>
+          )}
+          
+          {/* Price and Purchase for paid beats */}
+          {showPurchase && !beat.is_free && (
+            <div className="flex flex-col items-end gap-2">
+              <div className="text-right">
+                <div className="text-lg font-bold">
+                  ${formatPrice(beat.price_cents)}
+                </div>
+              </div>
+
+              <Button
+                size="sm"
+                onClick={handlePurchase}
+                disabled={isProcessing}
+                className="min-w-[100px]"
+              >
+                {isProcessing ? (
+                  'Processing...'
                 ) : (
                   <>
                     <ShoppingCart className="h-4 w-4 mr-1" />

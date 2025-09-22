@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { Resend } from "npm:resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -100,6 +101,37 @@ serve(async (req) => {
 
         if (profileError) {
           logStep("Error updating producer earnings", { error: profileError });
+        }
+
+        // Send download email to buyer
+        try {
+          const { data: beat } = await supabaseAdmin
+            .from("beats")
+            .select("title, audio_file_url")
+            .eq("id", beatId)
+            .single();
+
+          if (beat && beat.audio_file_url) {
+            const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+            
+            await resend.emails.send({
+              from: "BeatPackz <noreply@beatpackz.store>",
+              to: [buyerEmail],
+              subject: `Your Beat Download: ${beat.title}`,
+              html: `
+                <h1>Thank you for your purchase!</h1>
+                <p>You have successfully purchased "${beat.title}".</p>
+                <p><strong>Download your beat:</strong></p>
+                <p><a href="${beat.audio_file_url}" download="${beat.title}.mp3" style="background-color: #3B82F6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Download Beat</a></p>
+                <p><em>Please save this email for your records. The download link will remain active.</em></p>
+                <p>Best regards,<br>The BeatPackz Team</p>
+              `,
+            });
+            
+            logStep("Download email sent", { beatId, buyerEmail });
+          }
+        } catch (emailError) {
+          logStep("Error sending download email", { error: emailError });
         }
 
         logStep("Beat sale recorded successfully", { 

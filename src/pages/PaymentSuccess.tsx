@@ -14,6 +14,15 @@ export default function PaymentSuccess() {
     // Simulate loading state for user experience
     const timer = setTimeout(() => {
       setIsLoading(false);
+      
+      // Redirect back to original page after a short delay
+      const returnUrl = localStorage.getItem('beatpackz_return_url');
+      if (returnUrl) {
+        localStorage.removeItem('beatpackz_return_url');
+        setTimeout(() => {
+          window.location.href = returnUrl;
+        }, 3000); // Redirect after 3 seconds to show success message
+      }
     }, 2000);
 
     return () => clearTimeout(timer);
@@ -64,6 +73,9 @@ export default function PaymentSuccess() {
               </div>
               <p className="text-sm text-muted-foreground">
                 Download links for your beats have been sent to your email address.
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">
+                You will be redirected back to where you were shopping in a few seconds...
               </p>
             </div>
             
