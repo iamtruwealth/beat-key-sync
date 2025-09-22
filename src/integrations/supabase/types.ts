@@ -684,6 +684,7 @@ export type Database = {
           likes: number
           media_url: string
           producer_id: string
+          repost_of: string | null
           type: string
           updated_at: string
         }
@@ -699,6 +700,7 @@ export type Database = {
           likes?: number
           media_url: string
           producer_id: string
+          repost_of?: string | null
           type: string
           updated_at?: string
         }
@@ -714,6 +716,7 @@ export type Database = {
           likes?: number
           media_url?: string
           producer_id?: string
+          repost_of?: string | null
           type?: string
           updated_at?: string
         }
@@ -723,6 +726,13 @@ export type Database = {
             columns: ["producer_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "posts_repost_of_fkey"
+            columns: ["repost_of"]
+            isOneToOne: false
+            referencedRelation: "posts"
             referencedColumns: ["id"]
           },
         ]

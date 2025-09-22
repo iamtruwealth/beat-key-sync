@@ -19,10 +19,28 @@ interface Post {
   likes: number;
   comments: number;
   created_at: string;
+  repost_of?: string;
   producer: {
     producer_name: string;
     producer_logo_url?: string;
     verification_status?: string;
+  };
+  original_post?: {
+    id: string;
+    producer_id: string;
+    type: 'audio' | 'photo' | 'video';
+    beat_id?: string;
+    media_url: string;
+    cover_url?: string;
+    caption?: string;
+    bpm?: number;
+    key?: string;
+    created_at: string;
+    producer: {
+      producer_name: string;
+      producer_logo_url?: string;
+      verification_status?: string;
+    };
   };
 }
 
@@ -233,6 +251,36 @@ export function FeedContainer({ producerId, showUploadButton = false }: FeedCont
     toast.success('Post uploaded successfully!');
   };
 
+  const handleRepost = async (originalPostId: string) => {
+    if (!currentUser) {
+      toast.error('Please sign in to repost');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('posts')
+        .insert({
+          producer_id: currentUser.id,
+          type: 'audio', // Reposts are treated as audio type
+          media_url: '', // Empty for reposts since they reference original
+          repost_of: originalPostId,
+          likes: 0,
+          comments: 0
+        });
+
+      if (error) throw error;
+
+      toast.success('Post reposted to your feed!');
+      
+      // Refresh the feed
+      window.location.reload();
+    } catch (error) {
+      console.error('Error reposting:', error);
+      toast.error('Failed to repost');
+    }
+  };
+
   if (loading) {
     return (
       <div className="w-full h-screen flex items-center justify-center bg-background">
@@ -298,6 +346,7 @@ export function FeedContainer({ producerId, showUploadButton = false }: FeedCont
               onComment={handleComment}
               onSave={handleSave}
               onShare={handleShare}
+              onRepost={handleRepost}
             />
           </div>
         ))}
