@@ -164,20 +164,13 @@ export function FeedMeBeatzPost({
       return;
     }
 
-    // Auto-play when visible
+    // Auto-play videos only (muted); require user interaction for audio to avoid browser autoplay blocks
     if (displayPost.type === 'video' && videoRef.current) {
-      videoRef.current.play().catch(console.error);
-    } else if (displayPost.type === 'audio' && currentTrack?.id !== displayPost.id) {
-      // Auto-play audio posts when they become visible
-      playTrack({
-        id: displayPost.id,
-        title: displayPost.caption || `${displayPost.producer.producer_name} Beat`,
-        artist: displayPost.producer.producer_name,
-        file_url: displayPost.media_url,
-        artwork_url: getFallbackImage()
+      videoRef.current.play().catch(() => {
+        /* ignore autoplay restriction errors */
       });
     }
-  }, [isVisible, displayPost.type, displayPost.id, currentTrack?.id, globalIsPlaying, pauseTrack, playTrack, displayPost.media_url, displayPost.caption, displayPost.producer.producer_name]);
+  }, [isVisible, displayPost.type, displayPost.id, currentTrack?.id, globalIsPlaying, pauseTrack]);
 
   // Sync with global audio context
   useEffect(() => {
