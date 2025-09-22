@@ -1171,6 +1171,17 @@ export type Database = {
           verification_status: string
         }[]
       }
+      get_producer_sales_summary: {
+        Args: { producer_uuid: string }
+        Returns: {
+          amount_received: number
+          beat_id: string
+          buyer_initial: string
+          created_at: string
+          platform_fee: number
+          sale_id: string
+        }[]
+      }
       get_profile_by_username: {
         Args: { username_param: string }
         Returns: {
@@ -1220,6 +1231,21 @@ export type Database = {
           title: string
           updated_at: string
           waveform_data: Json
+        }[]
+      }
+      get_safe_public_profile: {
+        Args: { profile_id: string }
+        Returns: {
+          banner_url: string
+          bio: string
+          followers_count: number
+          following_count: number
+          genres: string[]
+          id: string
+          producer_logo_url: string
+          producer_name: string
+          social_links: Json
+          verification_status: string
         }[]
       }
       increment_beat_and_pack_download_count: {
