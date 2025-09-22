@@ -179,7 +179,7 @@ export function CompactWaveformPlayer({
 
   if (!audioUrl) {
     return (
-      <div className={`relative w-50 h-15 bg-muted rounded-lg flex items-center justify-center ${className}`}>
+      <div className={`relative w-[200px] h-[60px] bg-muted rounded-lg flex items-center justify-center ${className}`}>
         <Button
           variant="ghost"
           size="sm"
@@ -194,7 +194,7 @@ export function CompactWaveformPlayer({
 
   return (
     <div 
-      className={`relative w-50 h-15 bg-black/20 rounded-lg overflow-hidden cursor-pointer group ${className}`}
+      className={`relative w-[200px] h-[60px] bg-black/20 rounded-lg overflow-hidden cursor-pointer group ${className}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
