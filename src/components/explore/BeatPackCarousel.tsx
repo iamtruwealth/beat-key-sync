@@ -56,7 +56,8 @@ export default function BeatPackCarousel() {
               producer_logo_url,
               verification_status
             ),
-            beat_pack_tracks(count)
+            beat_pack_tracks(count),
+            beat_pack_downloads(count)
           `)
           .eq('is_public', true)
           .order('play_count', { ascending: false })
@@ -104,6 +105,7 @@ export default function BeatPackCarousel() {
             ...pack,
             user: Array.isArray(pack.profiles) ? pack.profiles[0] : pack.profiles,
             track_count: pack.beat_pack_tracks?.[0]?.count || 0,
+            downloads_count: pack.beat_pack_downloads?.[0]?.count || 0,
             sample_bpm: sampleBpm,
             sample_key: sampleKey,
             total_price_cents: totalPriceCents,
