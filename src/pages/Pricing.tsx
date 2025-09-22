@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import beatpackzLogo from "@/assets/beatpackz-logo.png";
+import { MetaTags } from "@/components/MetaTags";
 
 export default function Pricing() {
   const navigate = useNavigate();
@@ -70,6 +71,12 @@ export default function Pricing() {
 
   return (
     <div className="min-h-screen bg-black">
+      <MetaTags 
+        title="Pricing Plans | BeatPackz - Free for Artists, Affordable for Producers"
+        description="Choose your BeatPackz plan. Artists sign up free forever. Producers get unlimited uploads and beat packs for just $9.99/month. Start your music career today!"
+        image="/assets/beat-packz-social-image.png"
+        url="https://beatpackz.com/pricing"
+      />
       {/* Navigation */}
       <nav className="fixed top-0 w-full z-50 bg-background/95 backdrop-blur-md border-b border-border">
         <div className="container mx-auto px-6 py-4">

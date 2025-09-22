@@ -1,5 +1,6 @@
 import { useLocation } from "react-router-dom";
 import { useEffect } from "react";
+import { MetaTags } from "@/components/MetaTags";
 
 const NotFound = () => {
   const location = useLocation();
@@ -10,6 +11,11 @@ const NotFound = () => {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-100">
+      <MetaTags 
+        title="Page Not Found | BeatPackz - 404 Error"
+        description="The page you're looking for doesn't exist. Return to BeatPackz to discover amazing beats and connect with top music producers."
+        image="/assets/beat-packz-social-image.png"
+      />
       <div className="text-center">
         <h1 className="mb-4 text-4xl font-bold">404</h1>
         <p className="mb-4 text-xl text-gray-600">Oops! Page not found</p>

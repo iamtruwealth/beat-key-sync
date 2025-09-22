@@ -1,9 +1,16 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { MetaTags } from "@/components/MetaTags";
 
 const Terms = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/10">
+      <MetaTags 
+        title="Terms of Service | BeatPackz - Legal Terms & Conditions"
+        description="Read BeatPackz terms of service and legal agreements. Understand your rights and responsibilities as a user of our music production platform."
+        image="/assets/beat-packz-social-image.png"
+        url="https://beatpackz.com/terms"
+      />
       {/* Navigation */}
       <nav className="container mx-auto px-4 py-6">
         <div className="flex justify-between items-center">

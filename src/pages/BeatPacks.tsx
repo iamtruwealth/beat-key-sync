@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { MetaTags } from "@/components/MetaTags";
 
 interface BeatPack {
   id: string;
@@ -287,6 +288,11 @@ export default function BeatPacksPage() {
 
   return (
     <div className="space-y-6">
+      <MetaTags 
+        title="My Beat Packs | BeatPackz Producer Dashboard"
+        description="Manage your beat pack collection, track downloads and engagement. Create and organize professional beat packs for artists and producers."
+        image="/assets/beat-packz-social-image.png"
+      />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Music, Upload, AlertCircle, User, Headphones } from "lucide-react";
+import { MetaTags } from "@/components/MetaTags";
 
 type UserRole = 'artist' | 'producer';
 
@@ -264,6 +265,12 @@ export default function AuthPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <MetaTags 
+        title="Sign Up or Login | BeatPackz - Join the Music Producer Community"
+        description="Create your BeatPackz account today. Artists sign up free, producers get premium features. Join thousands of music creators sharing and selling beats worldwide."
+        image="/assets/beat-packz-social-image.png"
+        url="https://beatpackz.com/auth"
+      />
       <div className="w-full max-w-md">
         <div className="flex items-center justify-center mb-8">
           <Music className="w-8 h-8 text-primary mr-2" />

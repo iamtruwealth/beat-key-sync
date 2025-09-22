@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
+import { MetaTags } from "@/components/MetaTags";
 
 export default function FAQ() {
   const navigate = useNavigate();
@@ -33,6 +34,12 @@ export default function FAQ() {
 
   return (
     <div className="min-h-screen bg-background">
+      <MetaTags 
+        title="FAQ | BeatPackz - Frequently Asked Questions"
+        description="Get answers to common questions about BeatPackz. Learn how to upload beats, manage your account, set prices, track sales, and more."
+        image="/assets/beat-packz-social-image.png"
+        url="https://beatpackz.com/faq"
+      />
       {/* Navigation */}
       <nav className="fixed top-0 w-full z-50 bg-background/95 backdrop-blur-md border-b border-border">
         <div className="container mx-auto px-6 py-4">

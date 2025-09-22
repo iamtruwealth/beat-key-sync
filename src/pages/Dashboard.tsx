@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ProjectCard } from "@/components/dashboard/ProjectCard";
 import { StatsCard } from "@/components/dashboard/StatsCard";
+import { MetaTags } from "@/components/MetaTags";
 
 // Mock data for demonstration
 const mockProjects = [
@@ -82,6 +83,11 @@ const stats = [
 export default function Dashboard() {
   return (
     <div className="p-6 space-y-6">
+      <MetaTags 
+        title="Dashboard | BeatPackz - Manage Your Music Production"
+        description="Access your BeatPackz dashboard to upload beats, manage projects, track performance, and connect with collaborators. Your central hub for music production."
+        image="/assets/beat-packz-social-image.png"
+      />
       {/* Header */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
