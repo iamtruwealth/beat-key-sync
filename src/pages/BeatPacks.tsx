@@ -97,15 +97,33 @@ export default function BeatPacksPage() {
 
       if (error) throw error;
 
-      // Transform data to include real counts
-      const packsWithCounts = data?.map(pack => ({
+      // Transform data to include counts from related tables
+      const packsWithCounts = (data || []).map((pack) => ({
         ...pack,
         track_count: pack.beat_pack_tracks?.[0]?.count || 0,
         downloads_count: pack.beat_pack_downloads?.[0]?.count || 0,
-        plays_count: pack.beat_pack_views?.[0]?.count || 0
-      })) || [];
+        plays_count: pack.beat_pack_views?.[0]?.count || 0,
+      }));
 
-      setBeatPacks(packsWithCounts);
+      // Derive downloads from sum of beat downloads when no rows exist in beat_pack_downloads
+      const enhancedPacks = await Promise.all(packsWithCounts.map(async (pack) => {
+        if (pack.downloads_count && pack.downloads_count > 0) return pack;
+        // Fetch track ids for this pack
+        const { data: tracks } = await supabase
+          .from('beat_pack_tracks')
+          .select('track_id')
+          .eq('beat_pack_id', pack.id);
+        if (!tracks || tracks.length === 0) return pack;
+        const trackIds = tracks.map(t => t.track_id);
+        const { data: beats } = await supabase
+          .from('beats')
+          .select('download_count')
+          .in('id', trackIds);
+        const derivedDownloads = (beats || []).reduce((sum, b) => sum + (b.download_count || 0), 0);
+        return { ...pack, downloads_count: derivedDownloads };
+      }));
+
+      setBeatPacks(enhancedPacks);
     } catch (error) {
       console.error('Error loading beat packs:', error);
       toast({
