@@ -291,7 +291,7 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
         </div>
 
         {/* Beats List */}
-        <div className="space-y-4">
+        <div className="space-y-2">
           {filteredBeats.length === 0 ? (
             <div className="text-center py-12">
               <h3 className="text-xl font-semibold text-muted-foreground">No beats found</h3>
@@ -300,39 +300,122 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
               </p>
             </div>
           ) : (
-            filteredBeats.map((beat) => {
-              const unifiedBeat = {
-                id: beat.id,
-                title: beat.title,
-                description: undefined,
-                audio_file_url: beat.audio_file_url || (beat as any).file_url,
-                artwork_url: beat.artwork_url || beat.producer?.producer_logo_url,
-                price_cents: beat.price_cents,
-                is_free: beat.is_free,
-                genre: beat.genre,
-                bpm: beat.manual_bpm || beat.detected_bpm || beat.bpm,
-                key: beat.manual_key || beat.detected_key || beat.key,
-                tags: beat.tags,
-                producer_id: beat.producer?.id,
-                profiles: beat.producer ? {
-                  producer_name: beat.producer.producer_name,
-                  producer_logo_url: beat.producer.producer_logo_url,
-                  verification_status: beat.producer.verification_status,
-                } : undefined,
-              };
-              const playing = currentTrack?.id === beat.id && isPlaying;
-              
-              return (
-                <BeatCard
-                  key={beat.id}
-                  beat={unifiedBeat as any}
-                  isPlaying={playing}
-                  onPlay={() => handlePlay(beat)}
-                  onPause={() => pauseTrack()}
-                  showPurchase
-                />
-              );
-            })
+            filteredBeats.map((beat, index) => (
+              <Card key={beat.id} className="hover:bg-muted/30 transition-colors">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-4">
+                    {/* Rank */}
+                    <div className="w-8 text-center text-muted-foreground font-mono">
+                      {index + 1}
+                    </div>
+
+                    {/* Play Button */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handlePlay(beat)}
+                      className="w-10 h-10 p-0"
+                    >
+                      {currentTrack?.id === beat.id && isPlaying ? (
+                        <Pause className="w-4 h-4" />
+                      ) : (
+                        <Play className="w-4 h-4" />
+                      )}
+                    </Button>
+
+                    {/* Artwork */}
+                    <div className="w-16 h-16 rounded overflow-hidden bg-muted">
+                      {beat.artwork_url || beat.producer?.producer_logo_url ? (
+                        <img 
+                          src={beat.artwork_url || beat.producer?.producer_logo_url} 
+                          alt={beat.title}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-primary/20 flex items-center justify-center">
+                          <div className="text-sm font-bold text-primary">
+                            {beat.title.charAt(0)}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Beat Info */}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold truncate">{beat.title}</h3>
+                      <Link 
+                        to={`/producer/${beat.producer?.id}`}
+                        className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+                      >
+                        {beat.artist || beat.producer?.producer_name}
+                        {beat.producer?.verification_status === 'verified' && (
+                          <img 
+                            src={verifiedBadge} 
+                            alt="Verified" 
+                            className="w-3 h-3"
+                          />
+                        )}
+                      </Link>
+                    </div>
+
+                    {/* Beat Details */}
+                    <div className="hidden md:flex items-center gap-4 text-sm text-muted-foreground">
+                      {beat.bpm && (
+                        <span>{beat.bpm} BPM</span>
+                      )}
+                      {(beat.manual_key || beat.detected_key || beat.key) && (
+                        <span>{beat.manual_key || beat.detected_key || beat.key}</span>
+                      )}
+                      {beat.genre && <Badge variant="secondary">{beat.genre}</Badge>}
+                    </div>
+
+                    {/* Stats */}
+                    <div className="hidden lg:flex items-center gap-4 text-sm text-muted-foreground">
+                      <span>{beat.play_count || 0} plays</span>
+                      <span>{beat.download_count || 0} downloads</span>
+                    </div>
+
+                    {/* Price & Actions */}
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold">
+                        {beat.is_free ? 'Free download' : formatPrice(beat.price_cents)}
+                      </span>
+                      
+                      {beat.is_free && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleDownload(beat)}
+                          aria-label="Download free beat"
+                        >
+                          <Download className="w-4 h-4" />
+                        </Button>
+                      )}
+                      
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => handleAddToCart(beat)}
+                        aria-label="Add to cart"
+                      >
+                        <ShoppingCart className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Tags */}
+                  {beat.tags && beat.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-3 ml-20">
+                      {beat.tags.slice(0, 5).map((tag) => (
+                        <Badge key={tag} variant="outline" className="text-xs">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))
           )}
         </div>
       </div>
