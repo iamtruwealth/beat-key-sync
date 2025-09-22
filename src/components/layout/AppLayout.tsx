@@ -12,7 +12,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   return (
     <AudioProvider>
       <SidebarProvider>
-        <div className="min-h-screen flex w-full bg-background">
+        <div className="min-h-screen flex w-full bg-background relative">
           <AppSidebar />
           
           <div className="flex-1 flex flex-col">
@@ -38,10 +38,10 @@ export function AppLayout({ children }: AppLayoutProps) {
               {children}
             </main>
           </div>
-          
-          {/* Futuristic Waveform Player */}
-          <FuturisticWaveformPlayer />
         </div>
+        
+        {/* Futuristic Waveform Player - Fixed at bottom */}
+        <FuturisticWaveformPlayer />
       </SidebarProvider>
     </AudioProvider>
   );

@@ -272,14 +272,14 @@ export function FuturisticWaveformPlayer() {
 
   if (!currentTrack) {
     return (
-      <div className="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-md border-t border-white/20 shadow-lg z-50">
-      <div className="max-w-6xl mx-auto p-2">
-        <div className="flex items-center gap-3">
-            <div className="flex-1 text-white/70 text-sm">Select a track to start playing</div>
+      <div className="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-md border-t border-white/20 shadow-lg z-50 min-h-[60px]">
+        <div className="max-w-6xl mx-auto p-4">
+          <div className="flex items-center justify-center gap-3">
+            <div className="text-white/70 text-sm">🎵 Select a track to start playing</div>
             <div className="flex-1 max-w-md mx-4 relative">
               <canvas
                 ref={canvasRef}
-                className="w-full rounded"
+                className="w-full rounded bg-white/10"
                 style={{ height: '40px' }}
               />
             </div>
