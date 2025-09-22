@@ -34,6 +34,7 @@ import NewExplore from "./pages/NewExplore";
 import ProducerProfile from "./pages/ProducerProfile";
 import UserProfile from "./pages/UserProfile";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { FuturisticWaveformPlayer } from "./components/player/FuturisticWaveformPlayer";
 
 const queryClient = new QueryClient();
 
@@ -57,7 +58,10 @@ const App = () => (
             {/* Public explore page */}
             <Route path="/explore" element={
               <AudioProvider>
-                <NewExplore />
+                <>
+                  <NewExplore />
+                  <FuturisticWaveformPlayer />
+                </>
               </AudioProvider>
             } />
             
@@ -71,7 +75,10 @@ const App = () => (
             {/* Public beat pack sharing */}
             <Route path="/pack/:id" element={
               <AudioProvider>
-                <BeatPackPage />
+                <>
+                  <BeatPackPage />
+                  <FuturisticWaveformPlayer />
+                </>
               </AudioProvider>
             } />
             
@@ -84,7 +91,10 @@ const App = () => (
             
             <Route path="/beat-pack/:id" element={
               <AudioProvider>
-                <BeatPackPage />
+                <>
+                  <BeatPackPage />
+                  <FuturisticWaveformPlayer />
+                </>
               </AudioProvider>
             } />
             
