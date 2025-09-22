@@ -374,7 +374,7 @@ export default function BeatPackPage() {
 
   // Get fallback artwork - use pack artwork or producer logo
   const getArtworkUrl = () => {
-    return beatPack?.artwork_url || beatPack?.producer_logo_url || null;
+    return beatPack?.artwork_url || beatPack?.producer_logo_url || '/assets/beat-packz-social-image.png';
   };
 
   const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
@@ -384,9 +384,9 @@ export default function BeatPackPage() {
       <StickyHeader />
         {beatPack && (
           <MetaTags
-            title={beatPack.name}
-            description={beatPack.description || `Beat pack by ${beatPack.producer_name || 'Unknown Producer'}`}
-            image={getArtworkUrl() || undefined}
+            title={`${beatPack.name} | Beat Pack by ${beatPack.producer_name || 'Unknown Producer'} | BeatPackz`}
+            description={beatPack.description || `Discover premium beats in ${beatPack.name}. High-quality tracks by ${beatPack.producer_name || 'Unknown Producer'}. Stream, download, and purchase professional beats.`}
+            image={getArtworkUrl()}
             url={currentUrl}
           />
         )}
