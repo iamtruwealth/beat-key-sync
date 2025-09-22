@@ -86,6 +86,7 @@ export function FeedPost({
   const [isLiked, setIsLiked] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
   const [showFullCaption, setShowFullCaption] = useState(false);
   const [beatData, setBeatData] = useState<Beat | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -212,6 +213,14 @@ export function FeedPost({
     }
   };
 
+  const handleMuteToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsMuted(!isMuted);
+    if (videoRef.current) {
+      videoRef.current.muted = !isMuted;
+    }
+  };
+
   const handleLike = async () => {
     if (!currentUser) {
       toast.error('Please sign in to like posts');
@@ -321,6 +330,7 @@ export function FeedPost({
             className="w-full h-full object-cover"
             src={displayPost.media_url}
             loop
+            muted={isMuted}
             playsInline
             poster={getFallbackImage()}
             onClick={handlePlayPause}
@@ -378,6 +388,32 @@ export function FeedPost({
           </Button>
         )}
       </div>
+
+      {/* Mute/Unmute Button for Videos */}
+      {displayPost.type === 'video' && (
+        <div className="absolute top-4 right-4 pointer-events-auto">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-10 h-10 rounded-full bg-black/50 backdrop-blur-sm border border-white/20 hover:bg-black/70 transition-all"
+            onClick={handleMuteToggle}
+          >
+            {isMuted ? (
+              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" clipPath="url(#clip0)" />
+                <defs>
+                  <clipPath id="clip0"><path d="M0 0h24v24H0z" /></clipPath>
+                </defs>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+              </svg>
+            )}
+          </Button>
+        </div>
+      )}
 
       {/* Content Overlay - Mobile Optimized */}
       <div className="absolute inset-0 flex flex-col justify-between p-3 sm:p-4 pointer-events-none">
