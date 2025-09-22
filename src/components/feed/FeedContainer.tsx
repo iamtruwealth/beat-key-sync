@@ -350,7 +350,7 @@ export function FeedContainer({ producerId, showUploadButton = false }: FeedCont
   }
 
   return (
-    <div className="relative w-full h-screen overflow-x-hidden">
+    <div className="relative w-full h-full overflow-x-hidden">
       {/* Upload Button - Fixed position */}
       {showUploadButton && (
         <Button
@@ -377,7 +377,7 @@ export function FeedContainer({ producerId, showUploadButton = false }: FeedCont
                 observer.current.observe(el);
               }
             }}
-            className="w-full h-screen snap-start"
+            className="w-full h-full snap-start"
           >
             <FeedPost
               post={post}
