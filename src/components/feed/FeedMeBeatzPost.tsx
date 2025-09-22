@@ -319,7 +319,7 @@ export function FeedMeBeatzPost({
   };
 
   return (
-    <div className="relative w-full max-w-4xl h-full bg-background snap-start overflow-hidden rounded-lg sm:rounded-xl mx-auto shadow-lg">
+    <div className="relative w-full max-w-none h-full bg-background snap-start overflow-hidden rounded-lg sm:rounded-xl mx-auto shadow-lg">
       {/* Background Media */}
       <div className="absolute inset-0 rounded-lg sm:rounded-xl overflow-hidden">
         {displayPost.type === 'video' ? (

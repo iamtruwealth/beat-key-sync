@@ -428,7 +428,7 @@ export function FeedContainer({
                   observer.current.observe(el);
                 }
               }}
-              className="w-full h-[85vh] snap-start flex justify-start items-center px-4 sm:px-8"
+              className={`w-full h-[85vh] snap-start flex justify-start items-center ${useFeedMeBeatzPost ? 'px-0' : 'px-4'} sm:px-8`}
             >
             {useFeedMeBeatzPost ? (
               <FeedMeBeatzPost
