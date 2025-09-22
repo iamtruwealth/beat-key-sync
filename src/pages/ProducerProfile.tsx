@@ -16,6 +16,7 @@ import { MetaTags } from '@/components/MetaTags';
 import verifiedBadge from '@/assets/verified-badge.png';
 import BeatPackGrid from '@/components/beats/BeatPackGrid';
 import hipHopCollageFallback from '@/assets/hip-hop-collage-fallback.png';
+import { useTrackDownload } from '@/hooks/useTrackDownload';
 
 interface Profile {
   id: string;
@@ -74,6 +75,7 @@ export default function ProducerProfile() {
   const { addToCart } = useCart();
   const { currentTrack, isPlaying, playTrack, pauseTrack } = useAudio();
   const { trackPlay } = useTrackPlay();
+  const { trackDownload } = useTrackDownload();
 
   useEffect(() => {
     if (!id) return;
@@ -211,6 +213,19 @@ export default function ProducerProfile() {
       
       // Track play count
       await trackPlay(beat.id);
+    }
+  };
+  const handleFreeDownload = async (beat: Beat) => {
+    try {
+      const link = document.createElement('a');
+      link.href = beat.audio_file_url;
+      link.download = `${beat.title}.mp3`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      await trackDownload(beat.id);
+    } catch (e) {
+      console.error('Download failed', e);
     }
   };
 
@@ -429,17 +444,25 @@ export default function ProducerProfile() {
                       {/* Price & Actions */}
                       <div className="flex items-center gap-2">
                         <span className="font-semibold">
-                          {beat.is_free ? 'Free' : formatPrice(beat.price_cents)}
+                          {beat.is_free ? 'Free download' : formatPrice(beat.price_cents)}
                         </span>
                         
-                        <Button variant="ghost" size="sm">
-                          <Download className="w-4 h-4" />
-                        </Button>
+                        {beat.is_free && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleFreeDownload(beat)}
+                            aria-label="Download free beat"
+                          >
+                            <Download className="w-4 h-4" />
+                          </Button>
+                        )}
                         
                         <Button 
                           variant="ghost" 
                           size="sm"
                           onClick={() => handleAddToCart(beat, 'beat')}
+                          aria-label="Add to cart"
                         >
                           <ShoppingCart className="w-4 h-4" />
                         </Button>

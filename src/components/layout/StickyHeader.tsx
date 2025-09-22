@@ -48,6 +48,9 @@ export default function StickyHeader() {
     
     setIsCheckingOut(true);
     try {
+      // Store current page for redirect after successful payment
+      localStorage.setItem('beatpackz_return_url', window.location.pathname);
+
       const { data, error } = await supabase.functions.invoke('create-cart-checkout');
       
       if (error) throw error;

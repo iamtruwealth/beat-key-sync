@@ -175,9 +175,20 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
   };
 
   const handleDownload = async (beat: Beat) => {
-    // Track download count
-    await trackDownload(beat.id);
-    console.log(`Downloading ${beat.title}`);
+    try {
+      // Start file download
+      const link = document.createElement('a');
+      link.href = beat.audio_file_url;
+      link.download = `${beat.title}.mp3`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Track download count
+      await trackDownload(beat.id);
+    } catch (e) {
+      console.error('Download failed', e);
+    }
   };
 
   const handleAddToCart = async (beat: Beat) => {
@@ -339,21 +350,25 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
                     {/* Price & Actions */}
                     <div className="flex items-center gap-2">
                       <span className="font-semibold">
-                        {beat.is_free ? 'Free' : formatPrice(beat.price_cents)}
+                        {beat.is_free ? 'Free download' : formatPrice(beat.price_cents)}
                       </span>
                       
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => handleDownload(beat)}
-                      >
-                        <Download className="w-4 h-4" />
-                      </Button>
+                      {beat.is_free && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleDownload(beat)}
+                          aria-label="Download free beat"
+                        >
+                          <Download className="w-4 h-4" />
+                        </Button>
+                      )}
                       
                       <Button 
                         variant="ghost" 
                         size="sm"
                         onClick={() => handleAddToCart(beat)}
+                        aria-label="Add to cart"
                       >
                         <ShoppingCart className="w-4 h-4" />
                       </Button>
