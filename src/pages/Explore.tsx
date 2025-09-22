@@ -1,8 +1,24 @@
+import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Play, Users, Music } from "lucide-react";
+import { Play, Pause, Users, Music } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useAudio } from "@/contexts/AudioContext";
+
+interface Beat {
+  id: string;
+  title: string;
+  artist: string;
+  file_url: string;
+  artwork_url?: string;
+  duration?: number;
+  detected_key?: string;
+  detected_bpm?: number;
+  manual_key?: string;
+  manual_bpm?: number;
+}
 
 interface Producer {
   id: string;
@@ -12,120 +28,129 @@ interface Producer {
   followers: number;
   tracksCount: number;
   genres: string[];
-  previewTrack: {
-    title: string;
-    duration: string;
-    bpm: number;
-    key: string;
-  };
+  previewTrack?: Beat;
 }
-
-const mockProducers: Producer[] = [
-  {
-    id: "1",
-    name: "Alex Meridian",
-    avatar: "",
-    location: "Los Angeles, CA",
-    followers: 12500,
-    tracksCount: 48,
-    genres: ["House", "Tech House", "Deep House"],
-    previewTrack: {
-      title: "Midnight Groove",
-      duration: "3:42",
-      bpm: 128,
-      key: "Am"
-    }
-  },
-  {
-    id: "2",
-    name: "Luna Beats",
-    avatar: "",
-    location: "Berlin, Germany",
-    followers: 8900,
-    tracksCount: 32,
-    genres: ["Ambient", "Downtempo", "Chill"],
-    previewTrack: {
-      title: "Ethereal Dreams",
-      duration: "4:15",
-      bpm: 85,
-      key: "C#m"
-    }
-  },
-  {
-    id: "3",
-    name: "Bass Prophet",
-    avatar: "",
-    location: "London, UK",
-    followers: 15200,
-    tracksCount: 67,
-    genres: ["Drum & Bass", "Dubstep", "Future Bass"],
-    previewTrack: {
-      title: "Digital Storm",
-      duration: "3:28",
-      bpm: 174,
-      key: "Fm"
-    }
-  },
-  {
-    id: "4",
-    name: "Synthwave King",
-    avatar: "",
-    location: "Miami, FL",
-    followers: 6780,
-    tracksCount: 25,
-    genres: ["Synthwave", "Retrowave", "Cyberpunk"],
-    previewTrack: {
-      title: "Neon Highway",
-      duration: "4:01",
-      bpm: 110,
-      key: "Em"
-    }
-  },
-  {
-    id: "5",
-    name: "Jazz Fusion Pro",
-    avatar: "",
-    location: "New York, NY",
-    followers: 9340,
-    tracksCount: 41,
-    genres: ["Jazz Fusion", "Neo-Soul", "Hip Hop"],
-    previewTrack: {
-      title: "Urban Sophistication",
-      duration: "3:55",
-      bpm: 95,
-      key: "Bb"
-    }
-  },
-  {
-    id: "6",
-    name: "Trap Master",
-    avatar: "",
-    location: "Atlanta, GA",
-    followers: 18700,
-    tracksCount: 89,
-    genres: ["Trap", "Hip Hop", "Future Trap"],
-    previewTrack: {
-      title: "808 Dreams",
-      duration: "2:47",
-      bpm: 145,
-      key: "Gm"
-    }
-  }
-];
 
 export default function Explore() {
   const navigate = useNavigate();
+  const { currentTrack, isPlaying, playTrack, pauseTrack } = useAudio();
+  const [producers, setProducers] = useState<Producer[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchProducers();
+  }, []);
+
+  const fetchProducers = async () => {
+    try {
+      // Fetch producers with their latest beats
+      const { data: producersData, error: producersError } = await supabase
+        .from('profiles')
+        .select(`
+          id,
+          producer_name,
+          producer_logo_url,
+          location,
+          verification_status
+        `)
+        .not('producer_name', 'is', null)
+        .limit(12);
+
+      if (producersError) throw producersError;
+
+      // For each producer, get their latest beat
+      const producersWithBeats = await Promise.all(
+        (producersData || []).map(async (producer) => {
+          const { data: beatsData } = await supabase
+            .from('beats')
+            .select('*')
+            .eq('producer_id', producer.id)
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+          const latestBeat = beatsData?.[0];
+
+          return {
+            id: producer.id,
+            name: producer.producer_name || 'Unknown Producer',
+            avatar: producer.producer_logo_url || '',
+            location: producer.location || 'Location Unknown',
+            followers: Math.floor(Math.random() * 20000) + 1000, // Mock data
+            tracksCount: Math.floor(Math.random() * 100) + 1, // Mock data
+            genres: ['Hip Hop', 'R&B', 'Trap'], // Mock data
+            previewTrack: latestBeat ? {
+              id: latestBeat.id,
+              title: latestBeat.title,
+              artist: latestBeat.artist || producer.producer_name,
+              file_url: latestBeat.file_url,
+              artwork_url: latestBeat.artwork_url,
+              duration: latestBeat.duration,
+              detected_key: latestBeat.detected_key,
+              detected_bpm: latestBeat.detected_bpm,
+              manual_key: latestBeat.manual_key,
+              manual_bpm: latestBeat.manual_bpm
+            } : undefined
+          };
+        })
+      );
+
+      setProducers(producersWithBeats.filter(p => p.previewTrack)); // Only show producers with tracks
+    } catch (error) {
+      console.error('Error fetching producers:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePlayPreview = (beat: Beat) => {
+    if (currentTrack?.id === beat.id && isPlaying) {
+      pauseTrack();
+    } else {
+      playTrack(beat);
+    }
+  };
 
   const handleProducerClick = (producerId: string, producerName: string) => {
-    // For now, navigate to library with producer info in state
-    navigate('/library', { 
-      state: { 
-        producerId, 
-        producerName,
-        isExternalProducer: true 
-      } 
-    });
+    // Navigate to producer profile
+    navigate(`/producer/${producerId}`);
   };
+
+  const formatTime = (seconds: number) => {
+    if (!seconds) return "0:00";
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  if (loading) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold text-foreground">
+            Explore Producers
+          </h1>
+          <p className="text-muted-foreground">
+            Discover talented producers and their latest tracks
+          </p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Card key={i} className="animate-pulse">
+              <CardContent className="p-6 space-y-4">
+                <div className="flex items-start gap-4">
+                  <div className="w-16 h-16 rounded-full bg-muted"></div>
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 bg-muted rounded w-3/4"></div>
+                    <div className="h-3 bg-muted rounded w-1/2"></div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -139,7 +164,7 @@ export default function Explore() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {mockProducers.map((producer) => (
+        {producers.map((producer) => (
           <Card key={producer.id} className="overflow-hidden bg-card/50 border-border/50 hover:bg-card/70 transition-colors">
             <CardContent className="p-6 space-y-4">
               {/* Producer Header */}
@@ -195,51 +220,67 @@ export default function Explore() {
               </div>
 
               {/* Preview Track */}
-              <div className="space-y-3 pt-2 border-t border-border/50">
-                <div>
-                  <h4 className="font-medium text-sm text-foreground">
-                    Latest Track
-                  </h4>
-                  <p className="text-sm text-muted-foreground">
-                    {producer.previewTrack.title}
-                  </p>
-                </div>
-
-                {/* Track Info */}
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <div className="flex items-center gap-3">
-                    <span>{producer.previewTrack.duration}</span>
-                    <span>{producer.previewTrack.bpm} BPM</span>
-                    <span>{producer.previewTrack.key}</span>
+              {producer.previewTrack && (
+                <div className="space-y-3 pt-2 border-t border-border/50">
+                  <div>
+                    <h4 className="font-medium text-sm text-foreground">
+                      Latest Track
+                    </h4>
+                    <p className="text-sm text-muted-foreground">
+                      {producer.previewTrack.title}
+                    </p>
                   </div>
-                </div>
 
-                {/* Waveform Placeholder */}
-                <div className="h-12 bg-muted/30 rounded-lg flex items-center justify-center relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-primary/40 to-primary/20 opacity-60"></div>
-                  <div className="relative flex items-center gap-1">
-                    {Array.from({ length: 40 }).map((_, i) => (
-                      <div
-                        key={i}
-                        className="w-1 bg-primary/60 rounded-full"
-                        style={{
-                          height: `${Math.random() * 20 + 10}px`
-                        }}
-                      />
-                    ))}
+                  {/* Track Info */}
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <div className="flex items-center gap-3">
+                      <span>{formatTime(producer.previewTrack.duration || 0)}</span>
+                      {(producer.previewTrack.manual_bpm || producer.previewTrack.detected_bpm) && (
+                        <span>{producer.previewTrack.manual_bpm || producer.previewTrack.detected_bpm} BPM</span>
+                      )}
+                      {(producer.previewTrack.manual_key || producer.previewTrack.detected_key) && (
+                        <span>{producer.previewTrack.manual_key || producer.previewTrack.detected_key}</span>
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                {/* Play Button */}
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="w-full bg-background/50 border-primary/30 hover:bg-primary/10"
-                >
-                  <Play className="w-4 h-4 mr-2" />
-                  Preview Track
-                </Button>
-              </div>
+                  {/* Waveform Placeholder */}
+                  <div className="h-12 bg-muted/30 rounded-lg flex items-center justify-center relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-primary/40 to-primary/20 opacity-60"></div>
+                    <div className="relative flex items-center gap-1">
+                      {Array.from({ length: 40 }).map((_, i) => (
+                        <div
+                          key={i}
+                          className="w-1 bg-primary/60 rounded-full"
+                          style={{
+                            height: `${Math.random() * 20 + 10}px`
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Play Button */}
+                  <Button 
+                    onClick={() => handlePlayPreview(producer.previewTrack!)}
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full bg-background/50 border-primary/30 hover:bg-primary/10"
+                  >
+                    {currentTrack?.id === producer.previewTrack.id && isPlaying ? (
+                      <>
+                        <Pause className="w-4 h-4 mr-2" />
+                        Pause Track
+                      </>
+                    ) : (
+                      <>
+                        <Play className="w-4 h-4 mr-2" />
+                        Preview Track
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         ))}

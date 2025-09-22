@@ -1,6 +1,6 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
-import { MusicPlayer } from "../MusicPlayer";
+import { FuturisticWaveformPlayer } from "../player/FuturisticWaveformPlayer";
 import { Menu } from "lucide-react";
 import { AudioProvider } from "@/contexts/AudioContext";
 
@@ -39,8 +39,8 @@ export function AppLayout({ children }: AppLayoutProps) {
             </main>
           </div>
           
-          {/* Music Player */}
-          <MusicPlayer />
+          {/* Futuristic Waveform Player */}
+          <FuturisticWaveformPlayer />
         </div>
       </SidebarProvider>
     </AudioProvider>

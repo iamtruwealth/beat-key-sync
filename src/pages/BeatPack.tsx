@@ -15,8 +15,7 @@ import { useTrackPlay } from "@/hooks/useTrackPlay";
 import { MetaTags } from "@/components/MetaTags";
 import StickyHeader from "@/components/layout/StickyHeader";
 import verifiedBadge from '@/assets/verified-badge.png';
-import { CompactWaveformPlayer } from '@/components/player/CompactWaveformPlayer';
-import { Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Volume2, Download, Copy, Music, ShoppingCart, Filter } from "lucide-react";
+import { Play, Pause, Download, Copy, Music, ShoppingCart, Filter } from "lucide-react";
 interface Beat {
   id: string;
   title: string;
@@ -435,62 +434,6 @@ export default function BeatPackPage() {
             </div>
           </div>
 
-          {/* Audio Player Controls */}
-          {currentTrack && <div className="sticky top-16 bg-background/95 backdrop-blur-sm border border-border rounded-lg p-4 mb-6 z-10">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-4">
-                  <Button variant="ghost" size="icon" onClick={handlePrevious} className="h-10 w-10">
-                    <SkipBack className="w-5 h-5" />
-                  </Button>
-                  
-                  <Button variant="default" size="icon" onClick={() => isPlaying ? pauseTrack() : handlePlayBeat(beatPack.beats[currentTrackIndex])} className="h-12 w-12 rounded-full">
-                    {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6 ml-0.5" />}
-                  </Button>
-                  
-                  <Button variant="ghost" size="icon" onClick={handleNext} className="h-10 w-10">
-                    <SkipForward className="w-5 h-5" />
-                  </Button>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="icon" onClick={() => setShuffle(!shuffle)} className={shuffle ? "text-primary" : ""}>
-                    <Shuffle className="w-4 h-4" />
-                  </Button>
-                  
-                  <Button variant="ghost" size="icon" onClick={() => setRepeat(prev => prev === 'none' ? 'all' : prev === 'all' ? 'one' : 'none')} className={repeat !== 'none' ? "text-primary" : ""}>
-                    <Repeat className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-
-              {/* Now Playing Info */}
-              <div className="flex items-center gap-3 mb-3">
-                {currentTrack.artwork_url ? <img src={currentTrack.artwork_url} alt={currentTrack.title} className="w-12 h-12 object-cover rounded" /> : <div className="w-12 h-12 bg-muted rounded flex items-center justify-center">
-                    <Music className="w-6 h-6 text-muted-foreground" />
-                  </div>}
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate">{currentTrack.title}</p>
-                  <p className="text-sm text-muted-foreground truncate">{currentTrack.artist}</p>
-                </div>
-              </div>
-
-              {/* Progress Bar */}
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground w-12 text-right">
-                  {formatTime(currentTime)}
-                </span>
-                <div className="flex-1 h-2 bg-muted rounded-full cursor-pointer group" onClick={handleSeek}>
-                  <div className="h-full bg-primary rounded-full relative" style={{
-                width: `${progressPercent}%`
-              }}>
-                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-primary rounded-full opacity-0 group-hover:opacity-100" />
-                  </div>
-                </div>
-                <span className="text-xs text-muted-foreground w-12">
-                  {formatTime(duration || 0)}
-                </span>
-              </div>
-            </div>}
 
           {/* Filter Controls */}
           <div className="flex items-center gap-4 mb-6">
@@ -527,19 +470,18 @@ export default function BeatPackPage() {
                         </div>
 
                         {/* Play Button */}
-                      {/* Play Button */}
-                      <CompactWaveformPlayer
-                        track={{
-                          id: beat.id,
-                          title: beat.title,
-                          file_url: beat.file_url || beat.audio_file_url,
-                          audio_file_url: beat.audio_file_url
-                        }}
-                        isPlaying={currentTrack?.id === beat.id && isPlaying}
-                        onPlay={() => handlePlayBeat(beat)}
-                        onPause={() => handlePlayBeat(beat)}
-                        className="w-50"
-                      />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handlePlayBeat(beat)}
+                          className="w-12 h-12 rounded-full hover:bg-primary/10"
+                        >
+                          {currentTrack?.id === beat.id && isPlaying ? (
+                            <Pause className="w-5 h-5" />
+                          ) : (
+                            <Play className="w-5 h-5 ml-0.5" />
+                          )}
+                        </Button>
 
                       {/* Artwork with Play Overlay */}
                         <div className="relative w-16 h-16 rounded overflow-hidden bg-muted group/artwork cursor-pointer" onClick={() => handlePlayBeat(beat)}>
