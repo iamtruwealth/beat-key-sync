@@ -234,9 +234,12 @@ export default function BeatPackCarousel() {
                      
                      <div className="flex items-center justify-between mt-3">
                        <span className="text-sm font-medium">{pack.total_play_count} plays</span>
-                       <Button size="sm" onClick={() => handleAddToCart(pack)}>
-                         ${(pack.total_price_cents / 100).toFixed(2)}
-                       </Button>
+                       <div className="text-center">
+                         <Button size="sm" onClick={() => handleAddToCart(pack)}>
+                           ${(pack.total_price_cents / 100).toFixed(2)}
+                         </Button>
+                         <p className="text-xs text-muted-foreground mt-1">buy whole pack</p>
+                       </div>
                      </div>
                   </CardContent>
                 </Card>
