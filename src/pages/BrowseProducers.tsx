@@ -22,6 +22,7 @@ import {
   TrendingUp
 } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
+import verifiedBadge from '@/assets/verified-badge.png';
 
 interface Producer {
   id: string;
@@ -252,7 +253,7 @@ export default function BrowseProducers() {
                           {producer.producer_name || 'Unknown Producer'}
                         </CardTitle>
                         {producer.verification_status === 'verified' && (
-                          <Star className="w-5 h-5 text-neon-green fill-current" />
+                          <img src={verifiedBadge} alt="Verified" className="w-5 h-5" />
                         )}
                       </div>
                       
