@@ -154,9 +154,10 @@ export function FeedMeBeatzPost({
   // Auto-play based on visibility
   useEffect(() => {
     if (!isVisible) {
-      // Pause everything when not visible
+      // Stop everything when not visible
       if (videoRef.current) {
         videoRef.current.pause();
+        videoRef.current.currentTime = 0; // Reset video to beginning
       }
       if (currentTrack?.id === displayPost.id && globalIsPlaying) {
         pauseTrack();
@@ -164,12 +165,13 @@ export function FeedMeBeatzPost({
       return;
     }
 
-    // When visible:
+    // When visible, auto-play content:
     if (displayPost.type === 'video' && videoRef.current) {
-      // Try autoplay video (muted requirement may apply on some browsers)
-      videoRef.current.play().catch(() => {/* ignore */});
+      // Auto-play video
+      videoRef.current.play().catch(() => {/* ignore autoplay restrictions */});
+      setIsPlaying(true);
     } else if (displayPost.type === 'audio' || (displayPost.type === 'photo' && displayPost.media_url?.toLowerCase().includes('.mp3'))) {
-      // Attempt to auto-play audio posts when visible
+      // Auto-play audio posts when visible
       if (currentTrack?.id !== displayPost.id || !globalIsPlaying) {
         playTrack({
           id: displayPost.id,
@@ -326,7 +328,7 @@ export function FeedMeBeatzPost({
   };
 
   return (
-    <div className="relative w-full min-w-full h-full bg-background snap-start overflow-hidden rounded-lg sm:rounded-xl mx-0 shadow-lg">
+    <div className="relative w-screen h-full bg-background snap-start overflow-hidden mx-0 shadow-lg">
       {/* Background Media */}
       <div className="absolute inset-0 rounded-lg sm:rounded-xl overflow-hidden">
         {displayPost.type === 'video' ? (
