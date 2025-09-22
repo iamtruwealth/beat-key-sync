@@ -56,14 +56,40 @@ function FuturisticLandingContent() {
   useEffect(() => {
     const fetchFeaturedBeats = async () => {
       try {
+        // Get featured beat packs and their tracks instead of individual featured beats
         const { data, error } = await supabase
-          .from('beats')
-          .select(`*,producer:profiles(producer_name, producer_logo_url)`)
-          .eq('is_featured', true)
+          .from('featured_beat_packs')
+          .select(`
+            beat_pack_id,
+            beat_packs:beat_pack_id (
+              id,
+              name,
+              description,
+              artwork_url,
+              user_id,
+              profiles:user_id (producer_name, producer_logo_url)
+            )
+          `)
           .limit(6);
 
         if (error) throw error;
-        setFeaturedBeats(data || []);
+        
+        // Transform the data to match the expected format
+        const transformedData = data?.map(item => {
+          const beatPack = item.beat_packs as any;
+          return {
+            id: beatPack?.id,
+            title: beatPack?.name,
+            description: beatPack?.description,
+            artwork_url: beatPack?.artwork_url,
+            producer: {
+              producer_name: beatPack?.profiles?.producer_name,
+              producer_logo_url: beatPack?.profiles?.producer_logo_url
+            }
+          };
+        }).filter(item => item.id) || [];
+        
+        setFeaturedBeats(transformedData);
       } catch (error) {
         console.error('Error fetching featured beats:', error);
       } finally {
