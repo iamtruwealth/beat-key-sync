@@ -303,7 +303,7 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
             filteredBeats.map((beat, index) => (
               <Card key={beat.id} className="hover:bg-muted/30 transition-colors">
                 <CardContent className="p-4">
-                  <div className="flex flex-wrap items-center gap-4">
+                  <div className="flex items-center gap-4">
                     {/* Rank */}
                     <div className="w-8 text-center text-muted-foreground font-mono">
                       {index + 1}
@@ -384,7 +384,7 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
                     </div>
 
                     {/* Price & Actions */}
-                    <div className="ml-auto flex items-center gap-2">
+                    <div className="flex items-center gap-2">
                       <span className="font-semibold">
                         {beat.is_free ? 'Free download' : formatPrice(beat.price_cents)}
                       </span>
