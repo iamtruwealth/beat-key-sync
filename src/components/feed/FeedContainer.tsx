@@ -75,7 +75,8 @@ export function FeedContainer({
   const [repostCounts, setRepostCounts] = useState<Record<string, number>>({});
   const observer = useRef<IntersectionObserver | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const { currentTrack, playTrack, pauseTrack, isPlaying: globalIsPlaying } = useAudio();
+  const { currentTrack, playTrack, pauseTrack } = useAudio();
+  const lastControlRef = useRef<{ id: string | null; mode: 'audio' | 'video' | null }>({ id: null, mode: null });
 
   // Get current user
   useEffect(() => {
@@ -261,7 +262,7 @@ export function FeedContainer({
     const options = {
       root: containerRef.current,
       rootMargin: '0px',
-      threshold: 0.7
+      threshold: 0.9
     };
 
     observer.current = new IntersectionObserver((entries) => {
@@ -303,16 +304,20 @@ export function FeedContainer({
     const isAudioLike = activePost.type === 'audio' || (activePost.type === 'photo' && activePost.media_url?.toLowerCase().includes('.mp3'));
 
     if (activePost.type === 'video') {
-      if (globalIsPlaying) pauseTrack();
+      // pause any global audio when switching to video
+      pauseTrack();
       const activeVideo = container.querySelector(`[data-index="${visiblePostIndex}"] video`) as HTMLVideoElement | null;
       activeVideo?.play().catch(() => {});
+      lastControlRef.current = { id: activePost.id, mode: 'video' };
     } else if (isAudioLike) {
+      // ensure any video at this index is stopped
       const activeVideo = container.querySelector(`[data-index="${visiblePostIndex}"] video`) as HTMLVideoElement | null;
       if (activeVideo) {
         activeVideo.pause();
         activeVideo.currentTime = 0;
       }
-      if (currentTrack?.id !== activePost.id || !globalIsPlaying) {
+      // avoid re-calling playTrack for the same post
+      if (lastControlRef.current.id !== activePost.id || lastControlRef.current.mode !== 'audio') {
         playTrack({
           id: activePost.id,
           title: activePost.caption || `${activePost.producer.producer_name} Beat`,
@@ -320,13 +325,14 @@ export function FeedContainer({
           file_url: activePost.media_url,
           artwork_url: activePost.cover_url || activePost.producer.producer_logo_url || '/placeholder.svg'
         });
+        lastControlRef.current = { id: activePost.id, mode: 'audio' };
       }
     } else {
-      if (globalIsPlaying && currentTrack?.id) {
-        pauseTrack();
-      }
+      // neither audio nor video → pause global audio
+      pauseTrack();
+      lastControlRef.current = { id: activePost.id, mode: null };
     }
-  }, [visiblePostIndex, posts, currentTrack?.id, globalIsPlaying, pauseTrack, playTrack]);
+  }, [visiblePostIndex, posts, pauseTrack, playTrack]);
 
   // Cleanup on unmount
   useEffect(() => {
