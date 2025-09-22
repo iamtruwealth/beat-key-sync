@@ -55,7 +55,11 @@ interface Beat {
   audio_file_url: string;
   artwork_url: string;
   bpm: number;
+  manual_bpm: number;
+  detected_bpm: number;
   key: string;
+  manual_key: string;
+  detected_key: string;
   genre: string;
   tags: string[];
   price_cents: number;
@@ -453,8 +457,8 @@ export default function ProducerProfile() {
 
                       {/* Beat Details */}
                       <div className="hidden md:flex items-center gap-4 text-sm text-muted-foreground">
-                        <span>{beat.bpm} BPM</span>
-                        <span>{beat.key}</span>
+                        <span>{beat.manual_bpm || beat.detected_bpm || beat.bpm} BPM</span>
+                        <span>{beat.manual_key || beat.detected_key || beat.key}</span>
                         {beat.genre && <Badge variant="secondary">{beat.genre}</Badge>}
                       </div>
 
