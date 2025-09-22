@@ -15,6 +15,7 @@ import { useTrackPlay } from "@/hooks/useTrackPlay";
 import { MetaTags } from "@/components/MetaTags";
 import StickyHeader from "@/components/layout/StickyHeader";
 import verifiedBadge from '@/assets/verified-badge.png';
+import { CompactWaveformPlayer } from '@/components/player/CompactWaveformPlayer';
 import { Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Volume2, Download, Copy, Music, ShoppingCart, Filter } from "lucide-react";
 interface Beat {
   id: string;
@@ -526,20 +527,21 @@ export default function BeatPackPage() {
                         </div>
 
                         {/* Play Button */}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handlePlayBeat(beat)}
-                          className="w-10 h-10 p-0"
-                        >
-                          {currentTrack?.id === beat.id && isPlaying ? (
-                            <Pause className="w-4 h-4" />
-                          ) : (
-                            <Play className="w-4 h-4" />
-                          )}
-                        </Button>
+                      {/* Play Button */}
+                      <CompactWaveformPlayer
+                        track={{
+                          id: beat.id,
+                          title: beat.title,
+                          file_url: beat.file_url || beat.audio_file_url,
+                          audio_file_url: beat.audio_file_url
+                        }}
+                        isPlaying={currentTrack?.id === beat.id && isPlaying}
+                        onPlay={() => handlePlayBeat(beat)}
+                        onPause={() => handlePlayBeat(beat)}
+                        className="w-50"
+                      />
 
-                        {/* Artwork */}
+                      {/* Artwork */}
                         <div className="w-16 h-16 rounded overflow-hidden bg-muted">
                           {beat.artwork_url ? (
                             <img 

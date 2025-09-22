@@ -12,6 +12,7 @@ import { useAudio } from '@/contexts/AudioContext';
 import { useTrackPlay } from '@/hooks/useTrackPlay';
 import { useTrackDownload } from '@/hooks/useTrackDownload';
 import verifiedBadge from '@/assets/verified-badge.png';
+import { CompactWaveformPlayer } from '@/components/player/CompactWaveformPlayer';
 import { BeatCard } from '@/components/beats/BeatCard';
 
 interface Beat {
@@ -310,18 +311,19 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
                     </div>
 
                     {/* Play Button */}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handlePlay(beat)}
-                      className="w-10 h-10 p-0"
-                    >
-                      {currentTrack?.id === beat.id && isPlaying ? (
-                        <Pause className="w-4 h-4" />
-                      ) : (
-                        <Play className="w-4 h-4" />
-                      )}
-                    </Button>
+                    {/* Play Button */}
+                    <CompactWaveformPlayer
+                      track={{
+                        id: beat.id,
+                        title: beat.title,
+                        file_url: beat.file_url || beat.audio_file_url,
+                        audio_file_url: beat.audio_file_url
+                      }}
+                      isPlaying={currentTrack?.id === beat.id && isPlaying}
+                      onPlay={() => handlePlay(beat)}
+                      onPause={() => handlePlay(beat)}
+                      className="w-50"
+                    />
 
                     {/* Artwork */}
                     <div className="w-16 h-16 rounded overflow-hidden bg-muted">
