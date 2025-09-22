@@ -84,7 +84,7 @@ export function FeedMeBeatzPost({
   const [isLiked, setIsLiked] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
   const [showFullCaption, setShowFullCaption] = useState(false);
   const [beatData, setBeatData] = useState<Beat | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -151,39 +151,15 @@ export function FeedMeBeatzPost({
     }
   }, [displayPost.beat_id]);
 
-  // Auto-play based on visibility
+  // Visibility effect: only handle local video pause to avoid conflicts with centralized control
   useEffect(() => {
     if (!isVisible) {
-      // Stop everything when not visible
       if (videoRef.current) {
         videoRef.current.pause();
-        videoRef.current.currentTime = 0; // Reset video to beginning
-      }
-      if (currentTrack?.id === displayPost.id && globalIsPlaying) {
-        pauseTrack();
-      }
-      return;
-    }
-
-    // When visible, auto-play content:
-    if (displayPost.type === 'video' && videoRef.current) {
-      // Auto-play video
-      videoRef.current.play().catch(() => {/* ignore autoplay restrictions */});
-      setIsPlaying(true);
-    } else if (displayPost.type === 'audio' || (displayPost.type === 'photo' && displayPost.media_url?.toLowerCase().includes('.mp3'))) {
-      // Auto-play audio posts when visible
-      console.log('FeedMeBeatz: Auto-playing audio for post:', displayPost.id, 'URL:', displayPost.media_url);
-      if (currentTrack?.id !== displayPost.id || !globalIsPlaying) {
-        playTrack({
-          id: displayPost.id,
-          title: displayPost.caption || `${displayPost.producer.producer_name} Beat`,
-          artist: displayPost.producer.producer_name,
-          file_url: displayPost.media_url,
-          artwork_url: getFallbackImage()
-        });
+        videoRef.current.currentTime = 0;
       }
     }
-  }, [isVisible, displayPost.type, displayPost.id, displayPost.media_url, currentTrack?.id, globalIsPlaying, pauseTrack, playTrack]);
+  }, [isVisible]);
 
   // Sync with global audio context
   useEffect(() => {

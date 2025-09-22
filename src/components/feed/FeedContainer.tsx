@@ -268,6 +268,7 @@ export function FeedContainer({
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
           const index = parseInt(entry.target.getAttribute('data-index') || '0');
+          console.log('FeedContainer: visible index ->', index);
           setVisiblePostIndex(index);
         }
       });
