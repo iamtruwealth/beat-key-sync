@@ -46,7 +46,7 @@ export function BeatRow({
   return (
     <Card className="hover:bg-muted/30 transition-colors">
       <CardContent className="p-4">
-        <div className="flex items-center gap-4 min-w-0">
+        <div className="flex items-center gap-4">
           {/* Rank */}
           <div className="w-8 text-center text-muted-foreground font-mono">
             {index}
