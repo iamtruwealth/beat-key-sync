@@ -36,6 +36,7 @@ export function FuturisticNavigation() {
     { label: "Explore", href: "/explore", icon: Search },
     { label: "Producers", href: "/browse-producers", icon: User },
     { label: "Beat Packs", href: "/beat-packs", icon: Music },
+    { label: "Pricing", href: "/pricing", icon: Music },
   ];
 
   return (
