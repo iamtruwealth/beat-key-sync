@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { FeedPost } from './FeedPost';
+import { FeedMeBeatzPost } from './FeedMeBeatzPost';
 import { PostUploadDialog } from './PostUploadDialog';
 import { FeedCommentsDialog } from './FeedCommentsDialog';
 import { Plus, Loader2 } from 'lucide-react';
@@ -51,13 +52,15 @@ interface FeedContainerProps {
   feedType?: 'for-you' | 'following';
   currentUser?: any;
   showUploadButton?: boolean;
+  useFeedMeBeatzPost?: boolean;
 }
 
 export function FeedContainer({ 
   producerId, 
   showUploadButton = false,
   feedType = 'for-you', 
-  currentUser: passedCurrentUser 
+  currentUser: passedCurrentUser,
+  useFeedMeBeatzPost = false
 }: FeedContainerProps) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -425,17 +428,31 @@ export function FeedContainer({
               }}
               className="w-full h-[85vh] snap-start flex justify-center items-center px-4 sm:px-8"
             >
-            <FeedPost
-              post={post}
-              isVisible={index === visiblePostIndex}
-              currentUser={currentUser}
-              onLike={handleLike}
-              onComment={handleComment}
-              onSave={handleSave}
-              onShare={handleShare}
-              onRepost={handleRepost}
-              repostCount={repostCounts[post.id] || 0}
-            />
+            {useFeedMeBeatzPost ? (
+              <FeedMeBeatzPost
+                post={post}
+                isVisible={index === visiblePostIndex}
+                currentUser={currentUser}
+                onLike={handleLike}
+                onComment={handleComment}
+                onSave={handleSave}
+                onShare={handleShare}
+                onRepost={handleRepost}
+                repostCount={repostCounts[post.id] || 0}
+              />
+            ) : (
+              <FeedPost
+                post={post}
+                isVisible={index === visiblePostIndex}
+                currentUser={currentUser}
+                onLike={handleLike}
+                onComment={handleComment}
+                onSave={handleSave}
+                onShare={handleShare}
+                onRepost={handleRepost}
+                repostCount={repostCounts[post.id] || 0}
+              />
+            )}
           </div>
         ))}
       </div>

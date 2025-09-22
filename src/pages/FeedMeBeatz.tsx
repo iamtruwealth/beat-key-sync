@@ -49,7 +49,8 @@ export default function FeedMeBeatz() {
           <FeedContainer 
             feedType={activeFilter} 
             currentUser={currentUser} 
-            showUploadButton={true} 
+            showUploadButton={true}
+            useFeedMeBeatzPost={true}
           />
         </div>
       </div>
