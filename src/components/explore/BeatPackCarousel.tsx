@@ -59,35 +59,38 @@ export default function BeatPackCarousel() {
 
         // Get beats data for each pack to calculate total price and play count
         const formattedData = await Promise.all((data || []).map(async (pack) => {
-          const { data: packBeats } = await supabase
+          // First get the track IDs in this pack
+          const { data: packTracks } = await supabase
             .from('beat_pack_tracks')
-            .select(`
-              tracks(detected_bpm, manual_bpm, detected_key, manual_key),
-              beats(price_cents, play_count)
-            `)
+            .select('track_id')
             .eq('beat_pack_id', pack.id);
-          
-          // Calculate totals from all beats in the pack
+
           let totalPriceCents = 0;
           let totalPlayCount = 0;
           let sampleBpm = null;
           let sampleKey = null;
 
-          if (packBeats && packBeats.length > 0) {
-            packBeats.forEach((item) => {
-              const beat = Array.isArray(item.beats) ? item.beats[0] : item.beats;
-              if (beat) {
+          if (packTracks && packTracks.length > 0) {
+            // Get beat information for each track
+            const trackIds = packTracks.map(t => t.track_id);
+            
+            const { data: beats } = await supabase
+              .from('beats')
+              .select('price_cents, play_count, detected_bpm, manual_bpm, detected_key, manual_key')
+              .in('id', trackIds);
+
+            if (beats) {
+              beats.forEach((beat) => {
                 totalPriceCents += beat.price_cents || 0;
                 totalPlayCount += beat.play_count || 0;
-              }
-              
-              // Use first track for sample BPM/key
-              if (!sampleBpm && item.tracks) {
-                const track = item.tracks as any;
-                sampleBpm = track?.manual_bpm || track?.detected_bpm;
-                sampleKey = track?.manual_key || track?.detected_key;
-              }
-            });
+                
+                // Use first beat for sample BPM/key
+                if (!sampleBpm) {
+                  sampleBpm = beat.manual_bpm || beat.detected_bpm;
+                  sampleKey = beat.manual_key || beat.detected_key;
+                }
+              });
+            }
           }
           
           return {
