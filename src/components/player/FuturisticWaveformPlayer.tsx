@@ -18,19 +18,9 @@ export function FuturisticWaveformPlayer() {
 
   const { currentTrack, isPlaying, currentTime, duration, pauseTrack, resumeTrack, setVolume: setAudioVolume, seekTo, getAudioElement } = useAudio();
 
-  // Clean up audio analysis when track changes
+  // Clean up animation/analyser when track changes, but keep MediaElementSource persistent
   useEffect(() => {
     return () => {
-      // Clean up existing connections when track changes
-      if (sourceRef.current) {
-        try {
-          sourceRef.current.disconnect();
-        } catch (e) {
-          // Already disconnected
-        }
-        sourceRef.current = null;
-      }
-      
       if (analyserRef.current) {
         try {
           analyserRef.current.disconnect();
@@ -39,7 +29,6 @@ export function FuturisticWaveformPlayer() {
         }
         analyserRef.current = null;
       }
-      
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
         animationRef.current = undefined;
