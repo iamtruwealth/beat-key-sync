@@ -139,39 +139,6 @@ export default function Dashboard() {
           ))}
         </div>
       </div>
-
-      {/* Quick Actions */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <div className="bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-lg p-6">
-          <h3 className="font-semibold text-foreground mb-2">Upload Stems</h3>
-          <p className="text-sm text-muted-foreground mb-4">
-            Upload new audio files and organize them into projects.
-          </p>
-          <Button variant="producer" size="sm">
-            Upload Files
-          </Button>
-        </div>
-        
-        <div className="bg-gradient-to-br from-secondary/10 to-secondary/5 border border-secondary/20 rounded-lg p-6">
-          <h3 className="font-semibold text-foreground mb-2">Collaborate</h3>
-          <p className="text-sm text-muted-foreground mb-4">
-            Share your projects with other producers and get feedback.
-          </p>
-          <Button variant="studio" size="sm">
-            Invite Producer
-          </Button>
-        </div>
-        
-        <div className="bg-gradient-to-br from-accent/10 to-accent/5 border border-border/20 rounded-lg p-6">
-          <h3 className="font-semibold text-foreground mb-2">Explore Library</h3>
-          <p className="text-sm text-muted-foreground mb-4">
-            Browse your complete library of stems and projects.
-          </p>
-          <Button variant="waveform" size="sm">
-            Browse Library
-          </Button>
-        </div>
-      </div>
     </div>
   );
 }
