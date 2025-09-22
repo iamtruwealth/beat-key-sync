@@ -22,7 +22,8 @@ import {
   MoreVertical,
   TrendingUp,
   Users,
-  Play
+  Play,
+  Settings
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -58,6 +59,7 @@ export default function BeatPacksPage() {
     download_enabled: false
   });
   const [uploadingArtwork, setUploadingArtwork] = useState(false);
+  const [uploadingEditArtwork, setUploadingEditArtwork] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -247,6 +249,40 @@ export default function BeatPacksPage() {
     }
   };
 
+  const uploadEditArtwork = async (file: File) => {
+    try {
+      setUploadingEditArtwork(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `edit-artwork-${Date.now()}.${fileExt}`;
+      const filePath = `${user.id}/beat-packs/artwork/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('artwork')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage
+        .from('artwork')
+        .getPublicUrl(filePath);
+
+      return data.publicUrl;
+    } catch (error) {
+      console.error('Error uploading edit artwork:', error);
+      toast({
+        title: "Error",
+        description: "Failed to upload artwork",
+        variant: "destructive"
+      });
+      return null;
+    } finally {
+      setUploadingEditArtwork(false);
+    }
+  };
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -255,6 +291,21 @@ export default function BeatPacksPage() {
     if (artworkUrl) {
       setNewPack({ ...newPack, artwork_url: artworkUrl });
     }
+  };
+
+  const handleEditFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const artworkUrl = await uploadEditArtwork(file);
+    if (artworkUrl && editingPack) {
+      setEditingPack({ ...editingPack, artwork_url: artworkUrl });
+    }
+  };
+
+  const handleManageBeats = (packId: string) => {
+    // Navigate to beat pack management with specific pack ID
+    navigate(`/pack/${packId}/manage`);
   };
 
   const copyPackLink = async (packId: string) => {
@@ -594,6 +645,47 @@ export default function BeatPacksPage() {
                   onChange={(e) => setEditingPack({ ...editingPack, genre: e.target.value })}
                 />
               </div>
+              
+              {/* Beat Pack Image Upload for Edit */}
+              <div>
+                <Label htmlFor="edit-pack-artwork">Beat Pack Image</Label>
+                <div className="space-y-3">
+                  <Input
+                    id="edit-pack-artwork"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleEditFileUpload}
+                    disabled={uploadingEditArtwork}
+                  />
+                  {uploadingEditArtwork && (
+                    <p className="text-sm text-muted-foreground">Uploading image...</p>
+                  )}
+                  {editingPack.artwork_url && (
+                    <div className="flex items-center gap-3">
+                      <img 
+                        src={editingPack.artwork_url} 
+                        alt="Beat pack preview" 
+                        className="w-16 h-16 object-cover rounded-lg border" 
+                      />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">Current image</p>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setEditingPack({ ...editingPack, artwork_url: "" })}
+                          className="text-destructive hover:text-destructive p-0 h-auto"
+                        >
+                          Remove image
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Upload a new image to change the beat pack artwork
+                  </p>
+                </div>
+              </div>
+              
               <div className="flex items-center justify-between">
                 <Label htmlFor="edit-is-public">Make Public</Label>
                 <Switch
@@ -613,6 +705,14 @@ export default function BeatPacksPage() {
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setEditingPack(null)}>
                   Cancel
+                </Button>
+                <Button 
+                  variant="secondary"
+                  onClick={() => handleManageBeats(editingPack.id)}
+                  className="flex items-center gap-2"
+                >
+                  <Settings className="w-4 h-4" />
+                  Manage Beats
                 </Button>
                 <Button onClick={() => updateBeatPack(editingPack)}>
                   Save Changes
