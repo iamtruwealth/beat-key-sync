@@ -7,6 +7,7 @@ import { useAudio } from '@/contexts/AudioContext';
 import { useCart } from '@/contexts/CartContext';
 import { toast } from 'sonner';
 import verifiedBadge from '@/assets/verified-badge.png';
+import { FollowButton } from '@/components/ui/follow-button';
 
 interface Beat {
   id: string;
@@ -408,16 +409,14 @@ export function FeedPost({
                   />
                 )}
               </div>
-              {/* Follow Button - placeholder for now */}
-              {currentUser && displayPost.producer_id !== currentUser.id && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-6 px-2 text-xs bg-white/10 border-white/30 text-white hover:bg-white/20"
-                >
-                  Follow
-                </Button>
-              )}
+              {/* Follow Button */}
+              <FollowButton 
+                targetUserId={displayPost.producer_id}
+                currentUserId={currentUser?.id}
+                targetUserName={displayPost.producer.producer_name}
+                variant="outline"
+                size="sm"
+              />
             </div>
           </div>
           
