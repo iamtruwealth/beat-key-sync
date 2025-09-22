@@ -31,6 +31,7 @@ interface Profile {
   first_name?: string;
   last_name?: string;
   producer_name?: string;
+  username?: string;
   bio?: string;
   home_town?: string;
   genres?: string[];
@@ -271,8 +272,18 @@ export default function ProfilePage() {
                     disabled={!isEditing}
                   />
                 </div>
+                <div>
+                  <Label htmlFor="username">Username</Label>
+                  <Input
+                    id="username"
+                    value={profile.username || ''}
+                    onChange={(e) => updateProfile({ username: e.target.value })}
+                    disabled={!isEditing}
+                    placeholder="e.g., keilowbeats"
+                  />
+                </div>
                 {profile.role === 'producer' && (
-                  <div className="md:col-span-2">
+                  <div>
                     <Label htmlFor="producer-name">Producer Name</Label>
                     <Input
                       id="producer-name"
