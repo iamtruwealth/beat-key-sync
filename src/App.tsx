@@ -75,6 +75,13 @@ const App = () => (
               </AudioProvider>
             } />
             
+            {/* Public browse producers page */}
+            <Route path="/browse-producers" element={
+              <AudioProvider>
+                <BrowseProducers />
+              </AudioProvider>
+            } />
+            
             <Route path="/beat-pack/:id" element={
               <AudioProvider>
                 <BeatPackPage />
