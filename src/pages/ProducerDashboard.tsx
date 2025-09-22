@@ -10,6 +10,7 @@ import { RevenueTracker } from "@/components/beats/RevenueTracker";
 import { PayoutRequestForm } from "@/components/beats/PayoutRequestForm";
 import { BeatSalesTracker } from "@/components/beats/BeatSalesTracker";
 import { UserVerificationManager } from "@/components/admin/UserVerificationManager";
+import { StatsCard } from "@/components/dashboard/StatsCard";
 import { 
   Bell, 
   MessageSquare, 
@@ -26,8 +27,42 @@ import {
   Eye,
   Upload,
   CreditCard,
-  Shield
+  Shield,
+  FolderOpen,
+  Clock
 } from "lucide-react";
+
+// Dashboard stats for project management
+const dashboardStats = [
+  {
+    title: "Total Projects",
+    value: 24,
+    description: "Active projects",
+    icon: FolderOpen,
+    trend: { value: 12, isPositive: true },
+  },
+  {
+    title: "Audio Files",
+    value: 156,
+    description: "Stems uploaded",
+    icon: Music,
+    trend: { value: 8, isPositive: true },
+  },
+  {
+    title: "Collaborators",
+    value: 8,
+    description: "Active this month",
+    icon: Users,
+    trend: { value: 2, isPositive: true },
+  },
+  {
+    title: "Studio Time",
+    value: "47h",
+    description: "This week",
+    icon: Clock,
+    trend: { value: 15, isPositive: true },
+  },
+];
 
 export default function ProducerDashboard() {
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -175,6 +210,13 @@ export default function ProducerDashboard() {
             <p className="text-xs text-muted-foreground">Collections</p>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Production Stats */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {dashboardStats.map((stat) => (
+          <StatsCard key={stat.title} {...stat} />
+        ))}
       </div>
 
       {/* Quick Actions */}

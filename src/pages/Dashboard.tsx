@@ -1,8 +1,7 @@
-import { Search, Plus, Filter, Music, Users, Clock, FolderOpen } from "lucide-react";
+import { Search, Plus, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ProjectCard } from "@/components/dashboard/ProjectCard";
-import { StatsCard } from "@/components/dashboard/StatsCard";
 import { MetaTags } from "@/components/MetaTags";
 
 // Mock data for demonstration
@@ -49,37 +48,6 @@ const mockProjects = [
   },
 ];
 
-const stats = [
-  {
-    title: "Total Projects",
-    value: 24,
-    description: "Active projects",
-    icon: FolderOpen,
-    trend: { value: 12, isPositive: true },
-  },
-  {
-    title: "Audio Files",
-    value: 156,
-    description: "Stems uploaded",
-    icon: Music,
-    trend: { value: 8, isPositive: true },
-  },
-  {
-    title: "Collaborators",
-    value: 8,
-    description: "Active this month",
-    icon: Users,
-    trend: { value: 2, isPositive: true },
-  },
-  {
-    title: "Beat Packs",
-    value: "47h",
-    description: "This week",
-    icon: Clock,
-    trend: { value: 15, isPositive: true },
-  },
-];
-
 export default function Dashboard() {
   return (
     <div className="p-6 space-y-6">
@@ -101,13 +69,6 @@ export default function Dashboard() {
           <Plus className="w-4 h-4" />
           New Project
         </Button>
-      </div>
-
-      {/* Stats Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
-          <StatsCard key={stat.title} {...stat} />
-        ))}
       </div>
 
       {/* Search and Filters */}
