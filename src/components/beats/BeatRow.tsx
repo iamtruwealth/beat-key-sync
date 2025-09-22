@@ -114,20 +114,20 @@ export function BeatRow({
             <span>{downloadCount || 0} downloads</span>
           </div>
 
-          {/* Price & Actions */}
-          <div className="flex items-center gap-2">
-            <span className="font-semibold">
-              {isFree ? 'Free download' : formatPrice(priceCents)}
-            </span>
-            {isFree && (
-              <Button variant="ghost" size="sm" onClick={onDownload} aria-label="Download free beat">
-                <Download className="w-4 h-4" />
-              </Button>
-            )}
-            <Button variant="ghost" size="sm" onClick={onAddToCart} aria-label="Add to cart">
-              <ShoppingCart className="w-4 h-4" />
+        {/* Price & Actions */}
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="font-semibold whitespace-nowrap">
+            {isFree ? 'Free download' : formatPrice(priceCents)}
+          </span>
+          {isFree && (
+            <Button variant="ghost" size="sm" onClick={onDownload} aria-label="Download free beat">
+              <Download className="w-4 h-4" />
             </Button>
-          </div>
+          )}
+          <Button variant="ghost" size="sm" onClick={onAddToCart} aria-label="Add to cart">
+            <ShoppingCart className="w-4 h-4" />
+          </Button>
+        </div>
         </div>
       </CardContent>
     </Card>
