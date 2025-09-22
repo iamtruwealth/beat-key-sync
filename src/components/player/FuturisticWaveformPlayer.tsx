@@ -67,28 +67,29 @@ export function FuturisticWaveformPlayer() {
           analyserRef.current.maxDecibels = -10;
         }
 
-        // Create audio source for analysis only if not already connected
-        if (!sourceRef.current) {
+        // Ensure a single persistent MediaElementSource per audio element
+        let source = sourceRef.current;
+        const existingSource = (getAudioElement?.() as any)?.__mediaElementSourceNode as MediaElementAudioSourceNode | undefined;
+        if (existingSource) {
+          source = existingSource;
+          sourceRef.current = existingSource;
+        } else {
           try {
             console.info('Waveform: creating MediaElementSource');
-            sourceRef.current = audioContextRef.current.createMediaElementSource(audioElement);
-            sourceRef.current.connect(analyserRef.current);
-            analyserRef.current.connect(audioContextRef.current.destination);
+            source = audioContextRef.current.createMediaElementSource(audioElement);
+            (audioElement as any).__mediaElementSourceNode = source;
+            sourceRef.current = source;
           } catch (err) {
-            console.warn('Waveform: MediaElementSource failed, trying captureStream fallback', err);
-            try {
-              const stream = (audioElement as any).captureStream?.();
-              if (stream && stream.getAudioTracks().length > 0) {
-                const streamSource = audioContextRef.current.createMediaStreamSource(stream);
-                streamSource.connect(analyserRef.current);
-                // Mark as connected with a dummy value to avoid repeated attempts
-                sourceRef.current = streamSource as any;
-              } else {
-                console.error('Waveform: captureStream not supported or no audio track');
-              }
-            } catch (err2) {
-              console.error('Waveform: captureStream fallback failed', err2);
-            }
+            console.warn('Waveform: MediaElementSource already exists or failed; using element output only', err);
+          }
+        }
+
+        // Connect source to analyser (do NOT connect analyser to destination to avoid double audio)
+        if (source && analyserRef.current) {
+          try {
+            source.connect(analyserRef.current);
+          } catch (e) {
+            // Might already be connected
           }
         }
 
