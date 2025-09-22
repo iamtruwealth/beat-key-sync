@@ -354,19 +354,16 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
                     {/* Beat Info */}
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold truncate">{beat.title}</h3>
-                      <Link 
-                        to={`/producer/${beat.producer?.id}`}
-                        className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-                      >
+                      <p className="text-sm text-muted-foreground flex items-center gap-1">
                         {beat.artist || beat.producer?.producer_name}
                         {beat.producer?.verification_status === 'verified' && (
                           <img 
                             src={verifiedBadge} 
-                            alt="Verified" 
+                            alt="Verified"
                             className="w-3 h-3"
                           />
                         )}
-                      </Link>
+                      </p>
                     </div>
 
                     {/* Beat Details */}
@@ -413,17 +410,6 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
                       </Button>
                     </div>
                   </div>
-
-                  {/* Tags */}
-                  {beat.tags && beat.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-3 ml-20">
-                      {beat.tags.slice(0, 5).map((tag) => (
-                        <Badge key={tag} variant="outline" className="text-xs">
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
                 </CardContent>
               </Card>
             ))
