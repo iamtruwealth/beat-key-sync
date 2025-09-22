@@ -84,7 +84,7 @@ export function FeedMeBeatzPost({
   const [isLiked, setIsLiked] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
   const [showFullCaption, setShowFullCaption] = useState(false);
   const [beatData, setBeatData] = useState<Beat | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -158,19 +158,29 @@ export function FeedMeBeatzPost({
       if (videoRef.current) {
         videoRef.current.pause();
       }
-      if (currentTrack?.id === post.id && globalIsPlaying) {
+      if (currentTrack?.id === displayPost.id && globalIsPlaying) {
         pauseTrack();
       }
       return;
     }
 
-    // Auto-play videos only (muted); require user interaction for audio to avoid browser autoplay blocks
+    // When visible:
     if (displayPost.type === 'video' && videoRef.current) {
-      videoRef.current.play().catch(() => {
-        /* ignore autoplay restriction errors */
-      });
+      // Try autoplay video (muted requirement may apply on some browsers)
+      videoRef.current.play().catch(() => {/* ignore */});
+    } else if (displayPost.type === 'audio' || (displayPost.type === 'photo' && displayPost.media_url?.toLowerCase().includes('.mp3'))) {
+      // Attempt to auto-play audio posts when visible
+      if (currentTrack?.id !== displayPost.id || !globalIsPlaying) {
+        playTrack({
+          id: displayPost.id,
+          title: displayPost.caption || `${displayPost.producer.producer_name} Beat`,
+          artist: displayPost.producer.producer_name,
+          file_url: displayPost.media_url,
+          artwork_url: getFallbackImage()
+        });
+      }
     }
-  }, [isVisible, displayPost.type, displayPost.id, currentTrack?.id, globalIsPlaying, pauseTrack]);
+  }, [isVisible, displayPost.type, displayPost.id, displayPost.media_url, currentTrack?.id, globalIsPlaying, pauseTrack, playTrack]);
 
   // Sync with global audio context
   useEffect(() => {
@@ -316,7 +326,7 @@ export function FeedMeBeatzPost({
   };
 
   return (
-    <div className="relative w-full h-screen bg-background snap-start overflow-hidden mx-auto shadow-lg">
+    <div className="relative w-full min-w-full h-full bg-background snap-start overflow-hidden rounded-lg sm:rounded-xl mx-0 shadow-lg">
       {/* Background Media */}
       <div className="absolute inset-0 rounded-lg sm:rounded-xl overflow-hidden">
         {displayPost.type === 'video' ? (
