@@ -355,7 +355,7 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
 
                     {/* Beat Info */}
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-sm sm:text-base font-semibold truncate">{beat.title}</h3>
+                      <h3 className="text-xs sm:text-base font-semibold truncate">{beat.title}</h3>
                       <p className="text-xs sm:text-sm text-muted-foreground flex items-center gap-1">
                         {beat.producer?.producer_name || beat.artist || 'Unknown'}
                         {beat.producer?.verification_status === 'verified' && (
@@ -398,23 +398,23 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
                           variant="outline" 
                           size="sm"
                           onClick={() => handleDownload(beat)}
-                          className="h-8 px-2 text-xs sm:text-sm bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
+                          className="h-6 px-1 text-xs bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
                         >
-                          <Download className="w-4 h-4 mr-1" />
+                          <Download className="w-3 h-3 mr-1" />
                           Free
                         </Button>
                       ) : (
                         <>
-                          <span className="text-sm sm:text-lg font-bold text-primary">
+                          <span className="text-xs sm:text-lg font-bold text-primary">
                             {formatPrice(beat.price_cents)}
                           </span>
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => handleAddToCart(beat)}
-                            className="h-8 px-2 text-xs sm:text-sm"
+                            className="h-6 px-1 text-xs"
                           >
-                            <ShoppingCart className="w-4 h-4 mr-1" />
+                            <ShoppingCart className="w-3 h-3 mr-1" />
                             Add
                           </Button>
                         </>
