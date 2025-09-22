@@ -238,9 +238,10 @@ export default function ProducerProfile() {
             <div className="text-white space-y-2 flex-1">
               <div className="flex items-center justify-between">
                 <h1 className="text-4xl font-bold">{profile.producer_name}</h1>
-                {profile.username && (
-                  <ShareProfile username={profile.username} producerName={profile.producer_name} />
-                )}
+                <ShareProfile 
+                  username={profile.username || `producer/${id}`} 
+                  producerName={profile.producer_name} 
+                />
               </div>
               
               {profile.verification_status === 'verified' && (
