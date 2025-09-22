@@ -406,7 +406,7 @@ export function FeedPost({
               >
                 <Heart className={`w-4 h-4 sm:w-5 sm:h-5 ${isLiked ? 'fill-red-500 text-red-500' : 'text-white'}`} />
               </Button>
-              <span className="text-xs text-white/80 mt-1">{post.likes}</span>
+              <span className="text-xs text-white/80 mt-1">{post.likes || 0}</span>
             </div>
 
             <div className="flex flex-col items-center">
@@ -418,7 +418,7 @@ export function FeedPost({
               >
                 <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
               </Button>
-              <span className="text-xs text-white/80 mt-1">{post.comments}</span>
+              <span className="text-xs text-white/80 mt-1">{post.comments || 0}</span>
             </div>
 
             <div className="flex flex-col items-center">
@@ -431,7 +431,7 @@ export function FeedPost({
               >
                 <Repeat2 className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
               </Button>
-              <span className="text-xs text-white/80 mt-1">{repostCount}</span>
+              <span className="text-xs text-white/80 mt-1">{repostCount || 0}</span>
             </div>
 
             <Button
