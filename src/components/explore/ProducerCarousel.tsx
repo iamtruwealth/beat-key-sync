@@ -8,8 +8,11 @@ interface Producer {
   id: string;
   producer_name: string;
   producer_logo_url: string;
-  total_earnings_cents: number;
-  home_town: string;
+  genres: string[];
+  bio: string;
+  verification_status: string;
+  banner_url: string;
+  social_links: any;
 }
 
 export default function ProducerCarousel() {
@@ -19,15 +22,27 @@ export default function ProducerCarousel() {
   useEffect(() => {
     const fetchTopProducers = async () => {
       try {
-        const { data, error } = await supabase
+        // Get producer IDs that have producer names 
+        const { data: producerIds, error } = await supabase
           .from('profiles')
-          .select('id, producer_name, producer_logo_url, total_earnings_cents, home_town')
+          .select('id')
           .not('producer_name', 'is', null)
-          .order('total_earnings_cents', { ascending: false })
+          .eq('public_profile_enabled', true)
+          .eq('role', 'producer')
           .limit(10);
 
         if (error) throw error;
-        setProducers(data || []);
+
+        if (producerIds) {
+          // Use the secure function to get public profile data
+          const producerData = await Promise.all(
+            producerIds.map(async ({ id }) => {
+              const { data } = await supabase.rpc('get_public_profile_info', { profile_id: id });
+              return data?.[0];
+            })
+          );
+          setProducers(producerData.filter(Boolean) || []);
+        }
       } catch (error) {
         console.error('Error fetching producers:', error);
       } finally {
@@ -110,9 +125,9 @@ export default function ProducerCarousel() {
                       <h3 className="font-semibold text-sm truncate group-hover:text-primary transition-colors">
                         {producer.producer_name || 'Unknown Producer'}
                       </h3>
-                      {producer.home_town && (
+                      {producer.genres && producer.genres.length > 0 && (
                         <p className="text-xs text-muted-foreground truncate">
-                          {producer.home_town}
+                          {producer.genres.slice(0, 2).join(', ')}
                         </p>
                       )}
                     </div>

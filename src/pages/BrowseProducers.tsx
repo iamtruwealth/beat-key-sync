@@ -19,12 +19,13 @@ import { useNavigate } from "react-router-dom";
 
 interface Producer {
   id: string;
-  first_name?: string;
-  last_name?: string;
   producer_name?: string;
   producer_logo_url?: string;
   genres?: string[];
   bio?: string;
+  verification_status?: string;
+  banner_url?: string;
+  social_links?: any;
 }
 
 interface BeatPack {
@@ -54,14 +55,23 @@ export default function BrowseProducers() {
   const loadData = async () => {
     setLoading(true);
     
-    // Load producers
-    const { data: producersData } = await supabase
+    // Load producers - get IDs first
+    const { data: producerIds } = await supabase
       .from('profiles')
-      .select('*')
+      .select('id')
       .eq('role', 'producer')
       .eq('public_profile_enabled', true);
     
-    setProducers(producersData || []);
+    if (producerIds) {
+      // Use secure function to get public profile data
+      const producerData = await Promise.all(
+        producerIds.map(async ({ id }) => {
+          const { data } = await supabase.rpc('get_public_profile_info', { profile_id: id });
+          return data?.[0];
+        })
+      );
+      setProducers(producerData.filter(Boolean) || []);
+    }
 
     // Load public beat packs
     const { data: beatPacksData } = await supabase
@@ -70,8 +80,6 @@ export default function BrowseProducers() {
         *,
         producer:profiles!beat_packs_user_id_fkey(
           id,
-          first_name,
-          last_name,
           producer_name,
           producer_logo_url,
           genres
@@ -88,8 +96,6 @@ export default function BrowseProducers() {
     const searchLower = searchQuery.toLowerCase();
     return (
       producer.producer_name?.toLowerCase().includes(searchLower) ||
-      producer.first_name?.toLowerCase().includes(searchLower) ||
-      producer.last_name?.toLowerCase().includes(searchLower) ||
       producer.genres?.some(genre => genre.toLowerCase().includes(searchLower))
     );
   });
@@ -188,13 +194,11 @@ export default function BrowseProducers() {
                   <Avatar className="w-6 h-6">
                     <AvatarImage src={pack.producer?.producer_logo_url} />
                     <AvatarFallback>
-                      {pack.producer?.producer_name?.[0] || pack.producer?.first_name?.[0] || "P"}
+                      {pack.producer?.producer_name?.[0] || "P"}
                     </AvatarFallback>
                   </Avatar>
                   <span className="text-sm text-muted-foreground">
-                    {pack.producer?.producer_name || 
-                     `${pack.producer?.first_name} ${pack.producer?.last_name}` || 
-                     "Unknown Producer"}
+                    {pack.producer?.producer_name || "Unknown Producer"}
                   </span>
                 </div>
               </CardHeader>
@@ -247,11 +251,11 @@ export default function BrowseProducers() {
                 <Avatar className="w-16 h-16 mx-auto mb-3">
                   <AvatarImage src={producer.producer_logo_url} />
                   <AvatarFallback className="text-lg">
-                    {producer.producer_name?.[0] || producer.first_name?.[0] || "P"}
+                    {producer.producer_name?.[0] || "P"}
                   </AvatarFallback>
                 </Avatar>
                 <CardTitle>
-                  {producer.producer_name || `${producer.first_name} ${producer.last_name}`}
+                  {producer.producer_name || 'Unknown Producer'}
                 </CardTitle>
                 <CardDescription className="line-clamp-3">
                   {producer.bio || "No bio available"}

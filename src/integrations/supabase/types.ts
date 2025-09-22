@@ -921,6 +921,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_public_profile_info: {
+        Args: { profile_id: string }
+        Returns: {
+          banner_url: string
+          bio: string
+          genres: string[]
+          id: string
+          producer_logo_url: string
+          producer_name: string
+          social_links: Json
+          verification_status: string
+        }[]
+      }
       get_public_tracks: {
         Args: Record<PropertyKey, never>
         Returns: {
