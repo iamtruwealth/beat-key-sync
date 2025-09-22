@@ -294,7 +294,7 @@ export function FeedPost({
         )}
         
         {/* Dark overlay for better text readability */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/30" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/50" />
       </div>
 
       {/* Play/Pause Overlay */}
