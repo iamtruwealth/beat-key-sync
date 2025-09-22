@@ -29,6 +29,7 @@ import Pricing from "./pages/Pricing";
 import About from "./pages/About";
 import FAQ from "./pages/FAQ";
 import Feed from "./pages/Feed";
+import FeedMeBeatz from "./pages/FeedMeBeatz";
 import Terms from "./pages/Terms";
 import Paperwork from "./pages/Paperwork";
 import SettingsPage from "./pages/Settings";
@@ -57,11 +58,19 @@ const App = () => (
             <Route path="/terms" element={<Terms />} />
             <Route path="/auth" element={<AuthPage />} />
             
-            {/* Public feed page */}
+            {/* Public feed pages */}
             <Route path="/feed" element={
               <AudioProvider>
                 <>
                   <Feed />
+                  <FuturisticWaveformPlayer />
+                </>
+              </AudioProvider>
+            } />
+            <Route path="/feed-me-beatz" element={
+              <AudioProvider>
+                <>
+                  <FeedMeBeatz />
                   <FuturisticWaveformPlayer />
                 </>
               </AudioProvider>

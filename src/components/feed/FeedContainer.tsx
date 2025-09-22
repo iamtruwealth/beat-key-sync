@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { FeedPost } from './FeedPost';
 import { Button } from '@/components/ui/button';
-import { Plus, Loader2 } from 'lucide-react';
+import { FeedPost } from './FeedPost';
 import { PostUploadDialog } from './PostUploadDialog';
+import { FeedCommentsDialog } from './FeedCommentsDialog';
+import { Plus, Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 interface Post {
@@ -20,6 +21,7 @@ interface Post {
   comments: number;
   created_at: string;
   repost_of?: string;
+  repost_count?: number;
   producer: {
     producer_name: string;
     producer_logo_url?: string;
@@ -54,9 +56,13 @@ export function FeedContainer({ producerId, showUploadButton = false }: FeedCont
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [showUpload, setShowUpload] = useState(false);
+  const [showComments, setShowComments] = useState(false);
+  const [selectedPostId, setSelectedPostId] = useState<string>('');
+  const [selectedPostProducer, setSelectedPostProducer] = useState<any>(null);
   const [visiblePostIndex, setVisiblePostIndex] = useState(0);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [repostCounts, setRepostCounts] = useState<Record<string, number>>({});
   const observer = useRef<IntersectionObserver | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Get current user
   useEffect(() => {
@@ -78,7 +84,7 @@ export function FeedContainer({ producerId, showUploadButton = false }: FeedCont
   useEffect(() => {
     const fetchFeedContent = async () => {
       try {
-        // Fetch posts
+        // Fetch posts with repost information
         let postsQuery = supabase
           .from('posts')
           .select(`
@@ -94,10 +100,28 @@ export function FeedContainer({ producerId, showUploadButton = false }: FeedCont
             likes,
             comments,
             created_at,
+            repost_of,
             producer:profiles!posts_producer_id_fkey(
               producer_name,
               producer_logo_url,
               verification_status
+            ),
+            original_post:posts!posts_repost_of_fkey(
+              id,
+              producer_id,
+              type,
+              beat_id,
+              media_url,
+              cover_url,
+              caption,
+              bpm,
+              key,
+              created_at,
+              producer:profiles!posts_producer_id_fkey(
+                producer_name,
+                producer_logo_url,
+                verification_status
+              )
             )
           `);
 
@@ -141,7 +165,7 @@ export function FeedContainer({ producerId, showUploadButton = false }: FeedCont
         if (beatsResult.error) throw beatsResult.error;
 
         // Transform beats into post format
-        const transformedBeats: Post[] = (beatsResult.data || []).map(beat => ({
+        const normalizedBeats: Post[] = (beatsResult.data || []).map(beat => ({
           id: beat.id,
           producer_id: beat.producer_id,
           type: 'audio' as const,
@@ -154,20 +178,53 @@ export function FeedContainer({ producerId, showUploadButton = false }: FeedCont
           likes: 0, // Historical beats start with 0 likes in feed context
           comments: 0,
           created_at: beat.created_at,
+          repost_count: 0,
           producer: Array.isArray(beat.producer) ? beat.producer[0] : beat.producer
         }));
 
         // Ensure posts also have proper producer format
-        const normalizedPosts: Post[] = (postsResult.data || []).map(post => ({
-          ...post,
-          producer: Array.isArray(post.producer) ? post.producer[0] : post.producer
-        }));
+        const normalizedPosts: Post[] = (postsResult.data || []).map((post: any) => {
+          const normalizedPost: any = {
+            ...post,
+            repost_count: 0, // Will be calculated below
+            producer: Array.isArray(post.producer) ? post.producer[0] : post.producer,
+            original_post: undefined
+          };
+
+          // Handle original_post if it exists (for reposts) 
+          if (post.original_post) {
+            // Supabase might return it as an array or object
+            const originalPostData = Array.isArray(post.original_post) 
+              ? post.original_post[0] 
+              : post.original_post;
+              
+            if (originalPostData) {
+              normalizedPost.original_post = {
+                ...originalPostData,
+                producer: Array.isArray(originalPostData.producer) 
+                  ? originalPostData.producer[0] 
+                  : originalPostData.producer
+              };
+            }
+          }
+
+          return normalizedPost;
+        });
 
         // Combine and sort by creation date
-        const allContent = [...normalizedPosts, ...transformedBeats]
+        const allPosts = [...normalizedPosts, ...normalizedBeats]
           .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-        setPosts(allContent);
+        // Calculate repost counts
+        const counts: Record<string, number> = {};
+        allPosts.forEach(post => {
+          if (post.repost_of) {
+            counts[post.repost_of] = (counts[post.repost_of] || 0) + 1;
+          }
+        });
+        setRepostCounts(counts);
+
+        setPosts(allPosts);
       } catch (error) {
         console.error('Error fetching feed content:', error);
         toast.error('Failed to load feed');
@@ -214,8 +271,20 @@ export function FeedContainer({ producerId, showUploadButton = false }: FeedCont
   };
 
   const handleComment = (postId: string) => {
-    // TODO: Open comment dialog/sheet
-    toast.info('Comments feature coming soon!');
+    const post = posts.find(p => p.id === postId);
+    if (post) {
+      setSelectedPostId(postId);
+      setSelectedPostProducer(post.producer);
+      setShowComments(true);
+    }
+  };
+
+  const handleCommentAdded = (postId: string) => {
+    setPosts(posts.map(post => 
+      post.id === postId 
+        ? { ...post, comments: post.comments + 1 }
+        : post
+    ));
   };
 
   const handleSave = (postId: string, isSaved: boolean) => {
@@ -271,9 +340,15 @@ export function FeedContainer({ producerId, showUploadButton = false }: FeedCont
 
       if (error) throw error;
 
+      // Update repost count locally
+      setRepostCounts(prev => ({
+        ...prev,
+        [originalPostId]: (prev[originalPostId] || 0) + 1
+      }));
+
       toast.success('Post reposted to your feed!');
       
-      // Refresh the feed
+      // Refresh the feed to show the new repost
       window.location.reload();
     } catch (error) {
       console.error('Error reposting:', error);
@@ -347,6 +422,7 @@ export function FeedContainer({ producerId, showUploadButton = false }: FeedCont
               onSave={handleSave}
               onShare={handleShare}
               onRepost={handleRepost}
+              repostCount={repostCounts[post.id] || 0}
             />
           </div>
         ))}
@@ -357,6 +433,16 @@ export function FeedContainer({ producerId, showUploadButton = false }: FeedCont
         open={showUpload}
         onOpenChange={setShowUpload}
         onPostUploaded={handlePostUploaded}
+      />
+
+      {/* Comments Dialog */}
+      <FeedCommentsDialog
+        open={showComments}
+        onOpenChange={setShowComments}
+        postId={selectedPostId}
+        postProducer={selectedPostProducer}
+        currentUser={currentUser}
+        onCommentAdded={handleCommentAdded}
       />
     </div>
   );

@@ -56,6 +56,7 @@ interface FeedPostProps {
   onSave: (postId: string, isSaved: boolean) => void;
   onShare: (postId: string) => void;
   onRepost: (postId: string) => void;
+  repostCount?: number;
 }
 
 export function FeedPost({ 
@@ -66,7 +67,8 @@ export function FeedPost({
   onComment, 
   onSave, 
   onShare,
-  onRepost
+  onRepost,
+  repostCount = 0
 }: FeedPostProps) {
   const [isLiked, setIsLiked] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
@@ -419,15 +421,18 @@ export function FeedPost({
               <span className="text-xs text-white/80 mt-1">{post.comments}</span>
             </div>
 
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 transition-all hover:scale-110"
-              onClick={handleRepost}
-              disabled={post.producer_id === currentUser?.id}
-            >
-              <Repeat2 className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-            </Button>
+            <div className="flex flex-col items-center">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 transition-all hover:scale-110"
+                onClick={handleRepost}
+                disabled={post.producer_id === currentUser?.id}
+              >
+                <Repeat2 className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+              </Button>
+              <span className="text-xs text-white/80 mt-1">{repostCount}</span>
+            </div>
 
             <Button
               variant="ghost"
