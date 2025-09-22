@@ -247,7 +247,7 @@ export function FeedPost({
   };
 
   return (
-    <div className="relative w-full h-full bg-background snap-start overflow-hidden rounded-lg sm:rounded-none mx-2 sm:mx-0 my-2 sm:my-0">
+    <div className="relative w-full h-screen bg-background snap-start overflow-hidden rounded-lg sm:rounded-none mx-0 sm:mx-0 my-0 sm:my-0">
       {/* Background Media */}
       <div className="absolute inset-0 rounded-lg sm:rounded-none overflow-hidden">
         {displayPost.type === 'video' ? (
