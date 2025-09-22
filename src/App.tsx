@@ -11,6 +11,7 @@ import { RoleProtectedRoute } from "./components/RoleProtectedRoute";
 import Dashboard from "./pages/Dashboard";
 import ArtistDashboard from "./pages/ArtistDashboard";
 import ProducerDashboard from "./pages/ProducerDashboard";
+import UploadStems from "./pages/UploadStems";
 import Messages from "./pages/Messages";
 import Profile from "./pages/Profile";
 import BeatPacks from "./pages/BeatPacks";
@@ -223,6 +224,16 @@ const App = () => (
                     </main>
                   </div>
                 </AudioProvider>
+              </RoleProtectedRoute>
+            } />
+            <Route path="/upload-stems" element={
+              <RoleProtectedRoute allowedRoles={['producer']}>
+                <div className="flex min-h-screen w-full">
+                  <RoleBasedSidebar />
+                  <main className="flex-1 overflow-auto">
+                    <UploadStems />
+                  </main>
+                </div>
               </RoleProtectedRoute>
             } />
             <Route path="/shared" element={

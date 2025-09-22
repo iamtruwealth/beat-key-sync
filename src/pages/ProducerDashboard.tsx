@@ -224,9 +224,13 @@ export default function ProducerDashboard() {
         <div className="bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-lg p-6">
           <h3 className="font-semibold text-foreground mb-2">Upload Stems</h3>
           <p className="text-sm text-muted-foreground mb-4">
-            Upload new audio files and organize them into projects.
+            Upload individual stems and associate them with your beats.
           </p>
-          <Button variant="producer" size="sm">
+          <Button 
+            variant="producer" 
+            size="sm"
+            onClick={() => navigate('/upload-stems')}
+          >
             Upload Files
           </Button>
         </div>

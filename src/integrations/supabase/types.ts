@@ -826,6 +826,53 @@ export type Database = {
         }
         Relationships: []
       }
+      stems: {
+        Row: {
+          beat_id: string
+          created_at: string
+          duration: number | null
+          file_size: number | null
+          file_url: string
+          format: string | null
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          beat_id: string
+          created_at?: string
+          duration?: number | null
+          file_size?: number | null
+          file_url: string
+          format?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          beat_id?: string
+          created_at?: string
+          duration?: number | null
+          file_size?: number | null
+          file_url?: string
+          format?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stems_beat_id_fkey"
+            columns: ["beat_id"]
+            isOneToOne: false
+            referencedRelation: "beats"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tracks: {
         Row: {
           artist: string | null
