@@ -61,6 +61,11 @@ export function FuturisticWaveformPlayer() {
             console.info('Waveform: creating MediaElementSource');
             sourceRef.current = audioContextRef.current.createMediaElementSource(audioElement);
             sourceRef.current.connect(analyserRef.current);
+            try {
+              analyserRef.current.connect(audioContextRef.current.destination);
+            } catch (e) {
+              // already connected
+            }
           } catch (err) {
             console.warn('Waveform: MediaElementSource failed, trying captureStream fallback', err);
             try {
