@@ -67,6 +67,18 @@ export default function BeatPacksPage() {
     loadBeatPacks();
   }, []);
 
+  // Refresh data when page becomes visible (after downloads on other pages)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadBeatPacks();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
+
   const loadBeatPacks = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
