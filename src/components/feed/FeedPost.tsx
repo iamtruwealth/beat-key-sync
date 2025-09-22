@@ -321,7 +321,6 @@ export function FeedPost({
             className="w-full h-full object-cover"
             src={displayPost.media_url}
             loop
-            muted
             playsInline
             poster={getFallbackImage()}
             onClick={handlePlayPause}
