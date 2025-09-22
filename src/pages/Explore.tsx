@@ -94,7 +94,7 @@ export default function Explore() {
         })
       );
 
-      setProducers(producersWithBeats.filter(p => p.previewTrack)); // Only show producers with tracks
+      setProducers(producersWithBeats); // Show all producers, even without preview tracks
     } catch (error) {
       console.error('Error fetching producers:', error);
     } finally {

@@ -58,7 +58,7 @@ function FuturisticLandingContent() {
       try {
         const { data, error } = await supabase
           .from('beats')
-          .select(`*,producer:profiles(display_name, avatar_url)`)
+          .select(`*,producer:profiles(producer_name, producer_logo_url)`)
           .eq('is_featured', true)
           .limit(6);
 
