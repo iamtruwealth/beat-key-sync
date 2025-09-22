@@ -18,6 +18,15 @@ export function FuturisticWaveformPlayer() {
 
   const { currentTrack, isPlaying, currentTime, duration, pauseTrack, resumeTrack, setVolume: setAudioVolume, seekTo, getAudioElement } = useAudio();
 
+  // Sync local volume/mute state with actual audio element
+  useEffect(() => {
+    const el = getAudioElement?.();
+    if (el) {
+      setVolume(el.volume);
+      setIsMuted(el.volume === 0 || el.muted);
+    }
+  }, [currentTrack?.id]);
+
   // Clean up animation/analyser when track changes, but keep MediaElementSource persistent
   useEffect(() => {
     return () => {

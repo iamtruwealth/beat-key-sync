@@ -60,6 +60,9 @@ export const AudioProvider: React.FC<AudioProviderProps> = ({ children }) => {
       audioRef.current.preload = 'metadata';
       // Ensure cross-origin audio can be analyzed by Web Audio API
       audioRef.current.crossOrigin = 'anonymous';
+      // Ensure audible defaults
+      audioRef.current.muted = false;
+      audioRef.current.volume = 1;
     }
 
     const audio = audioRef.current;
@@ -118,12 +121,19 @@ export const AudioProvider: React.FC<AudioProviderProps> = ({ children }) => {
     
     try {
       console.log('AudioContext: Loading audio from:', track.file_url);
+      // Ensure audio is audible
+      audio.muted = false;
+      if (audio.volume === 0) {
+        audio.volume = 0.8;
+        setVolumeState(0.8);
+      }
       await audio.play();
       console.log('AudioContext: Successfully started playing');
       setIsPlaying(true);
     } catch (error) {
       // Only log non-abort errors
-      if (error.name !== 'AbortError') {
+      // @ts-ignore - error may not have name
+      if (error?.name !== 'AbortError') {
         console.error('AudioContext: Failed to play audio:', error);
       }
       setIsPlaying(false);
