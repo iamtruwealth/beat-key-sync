@@ -325,8 +325,8 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
                       className="w-50"
                     />
 
-                    {/* Artwork */}
-                    <div className="w-16 h-16 rounded overflow-hidden bg-muted">
+                    {/* Artwork with Play Overlay */}
+                    <div className="relative w-16 h-16 rounded overflow-hidden bg-muted group/artwork cursor-pointer" onClick={() => handlePlay(beat)}>
                       {beat.artwork_url || beat.producer?.producer_logo_url ? (
                         <img 
                           src={beat.artwork_url || beat.producer?.producer_logo_url} 
@@ -340,6 +340,17 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
                           </div>
                         </div>
                       )}
+                      
+                      {/* Elegant Play/Pause Overlay */}
+                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover/artwork:opacity-100 transition-all duration-300">
+                        <div className="w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center transform scale-75 group-hover/artwork:scale-100 transition-transform duration-300 shadow-lg">
+                          {currentTrack?.id === beat.id && isPlaying ? (
+                            <Pause className="w-4 h-4 text-black ml-0" />
+                          ) : (
+                            <Play className="w-4 h-4 text-black ml-0.5" />
+                          )}
+                        </div>
+                      </div>
                     </div>
 
                     {/* Beat Info */}
