@@ -55,7 +55,7 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
     genre: '',
     bpm: '',
     sort: 'popularity',
-    key: ''
+    key: 'all'
   });
   const { addToCart } = useCart();
   const { currentTrack, isPlaying, playTrack, pauseTrack } = useAudio();
@@ -147,7 +147,7 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
   useEffect(() => {
     let filtered = [...beats];
     
-    if (filters.key) {
+    if (filters.key && filters.key !== 'all') {
       filtered = filtered.filter(beat => {
         const beatKey = beat.manual_key || beat.detected_key || beat.key;
         return beatKey === filters.key;
@@ -268,7 +268,7 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
             <div className="text-center py-12">
               <h3 className="text-xl font-semibold text-muted-foreground">No beats found</h3>
               <p className="text-muted-foreground mt-2">
-                {filters.key ? `No beats found in key "${filters.key}"` : 'No beats available'}
+                {filters.key && filters.key !== 'all' ? `No beats found in key "${filters.key}"` : 'No beats available'}
               </p>
             </div>
           ) : (

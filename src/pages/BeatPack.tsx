@@ -62,7 +62,7 @@ export default function BeatPackPage() {
   const [shuffle, setShuffle] = useState(false);
   const [repeat, setRepeat] = useState<'none' | 'one' | 'all'>('none');
   const [isOwner, setIsOwner] = useState(false);
-  const [keyFilter, setKeyFilter] = useState<string>('');
+  const [keyFilter, setKeyFilter] = useState<string>('all');
   const [filteredBeats, setFilteredBeats] = useState<Beat[]>([]);
   const {
     toast
@@ -95,7 +95,7 @@ export default function BeatPackPage() {
     
     let filtered = [...beatPack.beats];
     
-    if (keyFilter) {
+    if (keyFilter && keyFilter !== 'all') {
       filtered = filtered.filter(beat => {
         const beatKey = beat.manual_key || beat.detected_key || beat.key;
         return beatKey === keyFilter;

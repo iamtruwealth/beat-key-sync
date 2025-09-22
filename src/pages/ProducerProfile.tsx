@@ -56,7 +56,7 @@ export default function ProducerProfile() {
   const [beats, setBeats] = useState<Beat[]>([]);
   const [filteredBeats, setFilteredBeats] = useState<Beat[]>([]);
   const [loading, setLoading] = useState(true);
-  const [keyFilter, setKeyFilter] = useState<string>('');
+  const [keyFilter, setKeyFilter] = useState<string>('all');
   const { addToCart } = useCart();
   const { currentTrack, isPlaying, playTrack, pauseTrack } = useAudio();
   const { trackPlay } = useTrackPlay();
@@ -123,7 +123,7 @@ export default function ProducerProfile() {
   useEffect(() => {
     let filtered = [...beats];
     
-    if (keyFilter) {
+    if (keyFilter && keyFilter !== 'all') {
       filtered = filtered.filter(beat => {
         const beatKey = beat.key;
         return beatKey === keyFilter;

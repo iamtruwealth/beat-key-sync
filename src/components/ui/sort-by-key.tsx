@@ -25,7 +25,7 @@ export function SortByKey({ value, onValueChange, className }: SortByKeyProps) {
       </SelectTrigger>
       <SelectContent>
         {musicalKeys.map((key) => (
-          <SelectItem key={key} value={key === 'All Keys' ? '' : key}>
+          <SelectItem key={key} value={key === 'All Keys' ? 'all' : key}>
             {key}
           </SelectItem>
         ))}
