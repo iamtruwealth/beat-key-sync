@@ -14,6 +14,7 @@ import { useTrackPlay } from '@/hooks/useTrackPlay';
 import StickyHeader from '@/components/layout/StickyHeader';
 import { MetaTags } from '@/components/MetaTags';
 import verifiedBadge from '@/assets/verified-badge.png';
+import BeatPackGrid from '@/components/beats/BeatPackGrid';
 
 interface Profile {
   id: string;
@@ -36,6 +37,13 @@ interface BeatPack {
   genre: string;
   play_count: number;
   track_count: number;
+  user: {
+    id: string;
+    producer_name: string;
+    producer_logo_url: string;
+  };
+  total_price_cents: number;
+  total_play_count: number;
 }
 
 interface Beat {
@@ -81,7 +89,7 @@ export default function ProducerProfile() {
         if (profileError) throw profileError;
         setProfile(profileData);
 
-        // Fetch producer's beat packs
+        // Fetch producer's beat packs with full data
         const { data: beatPacksData, error: beatPacksError } = await supabase
           .from('beat_packs')
           .select(`
@@ -91,6 +99,11 @@ export default function ProducerProfile() {
             artwork_url,
             genre,
             play_count,
+            profiles!beat_packs_user_id_fkey(
+              id,
+              producer_name,
+              producer_logo_url
+            ),
             beat_pack_tracks(count)
           `)
           .eq('user_id', id)
@@ -98,10 +111,43 @@ export default function ProducerProfile() {
 
         if (beatPacksError) throw beatPacksError;
         
-        const formattedBeatPacks = beatPacksData?.map(pack => ({
-          ...pack,
-          track_count: pack.beat_pack_tracks?.[0]?.count || 0
-        })) || [];
+        // Calculate totals for each pack
+        const formattedBeatPacks = await Promise.all((beatPacksData || []).map(async (pack) => {
+          // Get track IDs in this pack
+          const { data: packTracks } = await supabase
+            .from('beat_pack_tracks')
+            .select('track_id')
+            .eq('beat_pack_id', pack.id);
+
+          let totalPriceCents = 0;
+          let totalPlayCount = 0;
+
+          if (packTracks && packTracks.length > 0) {
+            // Get beat information for each track
+            const trackIds = packTracks.map(t => t.track_id);
+            
+            const { data: beats } = await supabase
+              .from('beats')
+              .select('price_cents, play_count')
+              .in('id', trackIds);
+
+            if (beats) {
+              beats.forEach((beat) => {
+                totalPriceCents += beat.price_cents || 0;
+                totalPlayCount += beat.play_count || 0;
+              });
+            }
+          }
+          
+          return {
+            ...pack,
+            user: Array.isArray(pack.profiles) ? pack.profiles[0] : pack.profiles,
+            track_count: pack.beat_pack_tracks?.[0]?.count || 0,
+            total_price_cents: totalPriceCents,
+            total_play_count: totalPlayCount
+          };
+        }));
+        
         setBeatPacks(formattedBeatPacks);
 
         // Fetch producer's beats
@@ -284,59 +330,7 @@ export default function ProducerProfile() {
         {beatPacks.length > 0 && (
           <section>
             <h2 className="text-3xl font-bold mb-8">Beat Packs</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {beatPacks.map((pack) => (
-                <Card key={pack.id} className="group hover:shadow-lg transition-all duration-300">
-                  <CardContent className="p-0">
-                    <div className="aspect-square bg-muted rounded-t-lg overflow-hidden relative">
-                      {pack.artwork_url ? (
-                        <img 
-                          src={pack.artwork_url} 
-                          alt={pack.name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center">
-                          <Music2 className="w-12 h-12 text-primary" />
-                        </div>
-                      )}
-                      
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300" />
-                      
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                        onClick={() => handleAddToCart(pack, 'beat_pack')}
-                      >
-                        <ShoppingCart className="w-4 h-4" />
-                      </Button>
-                    </div>
-                    
-                    <div className="p-4 space-y-3">
-                      <div>
-                        <h3 className="font-semibold truncate">{pack.name}</h3>
-                        {pack.description && (
-                          <p className="text-sm text-muted-foreground line-clamp-2">{pack.description}</p>
-                        )}
-                      </div>
-                      
-                       <div className="flex items-center justify-between text-sm text-muted-foreground">
-                         <span>{pack.track_count} tracks</span>
-                         <span>{pack.play_count} plays</span>
-                       </div>
-                       
-                       <div className="flex flex-wrap gap-2 mt-2">
-                         {pack.genre && (
-                           <Badge variant="secondary">{pack.genre}</Badge>
-                         )}
-                         {/* Add sample BPM and key from first track */}
-                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            <BeatPackGrid beatPacks={beatPacks} />
           </section>
         )}
 

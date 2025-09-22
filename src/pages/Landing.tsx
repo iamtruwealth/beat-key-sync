@@ -11,6 +11,7 @@ import beatmakerLogo from "@/assets/beatmaker-logo.jpg";
 import drumlinekingLogo from "@/assets/drumlineking-logo.jpg";
 import melodymasterLogo from "@/assets/melodymaster-logo.jpg";
 import { FeaturedPacksManager } from "@/components/admin/FeaturedPacksManager";
+import BeatPackGrid from "@/components/beats/BeatPackGrid";
 export default function Landing() {
   return <AudioProvider>
       <LandingContent />
@@ -19,7 +20,9 @@ export default function Landing() {
 function LandingContent() {
   const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
+  const [featuredBeatPacks, setFeaturedBeatPacks] = useState<any[]>([]);
   const [featuredProducers, setFeaturedProducers] = useState<any[]>([]);
+  const [loadingFeatured, setLoadingFeatured] = useState(true);
   const [isMasterAccount, setIsMasterAccount] = useState(false);
   const {
     currentTrack,
@@ -68,10 +71,116 @@ function LandingContent() {
     }
   };
   useEffect(() => {
-    // Fetch featured beat packs
+    // Fetch featured beat packs with full data
+    const fetchFeaturedBeatPacks = async () => {
+      try {
+        setLoadingFeatured(true);
+        
+        // Try to load curated featured packs first
+        let beatPacks: any[] = [];
+        const { data: featured } = await supabase
+          .from('featured_beat_packs')
+          .select('beat_pack_id, position, created_at')
+          .order('position', { ascending: true })
+          .order('created_at', { ascending: true })
+          .limit(8);
+
+        if (featured && featured.length > 0) {
+          const ids = featured.map(f => f.beat_pack_id);
+          const { data: packs } = await supabase
+            .from('beat_packs')
+            .select(`
+              id,
+              name,
+              description,
+              artwork_url,
+              genre,
+              play_count,
+              profiles!beat_packs_user_id_fkey(
+                id,
+                producer_name,
+                producer_logo_url
+              ),
+              beat_pack_tracks(count)
+            `)
+            .in('id', ids)
+            .eq('is_public', true);
+          
+          beatPacks = ids.map(id => packs?.find(p => p.id === id)).filter(Boolean) as any[];
+        } else {
+          const { data: packs } = await supabase
+            .from('beat_packs')
+            .select(`
+              id,
+              name,
+              description,
+              artwork_url,
+              genre,
+              play_count,
+              profiles!beat_packs_user_id_fkey(
+                id,
+                producer_name,
+                producer_logo_url
+              ),
+              beat_pack_tracks(count)
+            `)
+            .eq('is_public', true)
+            .order('play_count', { ascending: false })
+            .limit(8);
+          beatPacks = packs || [];
+        }
+
+        if (beatPacks && beatPacks.length > 0) {
+          // Calculate totals for each pack like in BeatPackCarousel
+          const formattedPacks = await Promise.all(beatPacks.map(async (pack) => {
+            // Get track IDs in this pack
+            const { data: packTracks } = await supabase
+              .from('beat_pack_tracks')
+              .select('track_id')
+              .eq('beat_pack_id', pack.id);
+
+            let totalPriceCents = 0;
+            let totalPlayCount = 0;
+
+            if (packTracks && packTracks.length > 0) {
+              // Get beat information for each track
+              const trackIds = packTracks.map(t => t.track_id);
+              
+              const { data: beats } = await supabase
+                .from('beats')
+                .select('price_cents, play_count')
+                .in('id', trackIds);
+
+              if (beats) {
+                beats.forEach((beat) => {
+                  totalPriceCents += beat.price_cents || 0;
+                  totalPlayCount += beat.play_count || 0;
+                });
+              }
+            }
+            
+            return {
+              ...pack,
+              user: Array.isArray(pack.profiles) ? pack.profiles[0] : pack.profiles,
+              track_count: pack.beat_pack_tracks?.[0]?.count || 0,
+              total_price_cents: totalPriceCents,
+              total_play_count: totalPlayCount
+            };
+          }));
+          
+          setFeaturedBeatPacks(formattedPacks);
+        }
+      } catch (error) {
+        console.error('Error fetching featured beat packs:', error);
+      } finally {
+        setLoadingFeatured(false);
+      }
+    };
+
+    // Keep the old featured producers logic for the showcase section
     const fetchFeaturedPacks = async () => {
       try {
-        // Try to load curated featured packs first
+        // Legacy featured producer section (keep as is)
         let beatPacks: any[] = [];
         const { data: featured } = await supabase
           .from('featured_beat_packs')
@@ -167,6 +276,7 @@ function LandingContent() {
       }
     };
 
+    fetchFeaturedBeatPacks();
     fetchFeaturedPacks();
   }, []);
   const handleProducerPlay = (producer: typeof featuredProducers[0], event: React.MouseEvent) => {
@@ -303,6 +413,19 @@ function LandingContent() {
                   </CardContent>
                 </Card>;
           })}
+          </div>
+          
+          {/* Featured Beat Packs Grid */}
+          <div className="mt-16">
+            <div className="text-center mb-8">
+              <h3 className="text-2xl font-bold text-foreground mb-2">
+                All Featured Beat Packs
+              </h3>
+              <p className="text-muted-foreground">
+                Explore our complete collection of featured beat packs
+              </p>
+            </div>
+            <BeatPackGrid beatPacks={featuredBeatPacks} loading={loadingFeatured} />
           </div>
         </div>
       </section>
