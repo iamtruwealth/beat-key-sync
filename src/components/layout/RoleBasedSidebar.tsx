@@ -108,6 +108,7 @@ export function RoleBasedSidebar() {
   ];
 
   const sharedTools: NavigationItem[] = [
+    { title: "Feed Me Beatz", url: "/feed-me-beatz", icon: Music },
     { title: "Notifications", url: "/notifications", icon: Bell },
     { title: "Profile", url: "/profile", icon: UserIcon },
     { title: "Settings", url: "/settings", icon: Settings },

@@ -91,6 +91,12 @@ export default function StickyHeader() {
               Explore
             </Link>
             <Link 
+              to="/feed-me-beatz" 
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Feed Me Beatz
+            </Link>
+            <Link 
               to="/beat-packs" 
               className="text-muted-foreground hover:text-foreground transition-colors"
             >
@@ -214,6 +220,13 @@ export default function StickyHeader() {
                     onClick={() => setIsOpen(false)}
                   >
                     Explore
+                  </Link>
+                  <Link 
+                    to="/feed-me-beatz" 
+                    className="text-foreground hover:text-primary transition-colors"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    Feed Me Beatz
                   </Link>
                   <Link 
                     to="/beat-packs" 

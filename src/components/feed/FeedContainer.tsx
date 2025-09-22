@@ -203,9 +203,29 @@ export function FeedContainer({
           return normalizedPost;
         });
 
-        // Combine and sort by creation date
-        const allPosts = [...normalizedPosts, ...normalizedBeats]
-          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        // Combine and sort posts
+        let allPosts = [...normalizedPosts, ...normalizedBeats];
+        
+        if (feedType === 'for-you') {
+          // Sort by trending algorithm (engagement score + recency)
+          allPosts = allPosts.sort((a, b) => {
+            const aEngagement = (a.likes || 0) * 2 + (a.comments || 0) * 3;
+            const bEngagement = (b.likes || 0) * 2 + (b.comments || 0) * 3;
+            const aRecency = new Date(a.created_at).getTime();
+            const bRecency = new Date(b.created_at).getTime();
+            
+            // Weight recent posts higher, but also consider engagement
+            const aScore = aEngagement + (aRecency / 1000000); // Normalize timestamp
+            const bScore = bEngagement + (bRecency / 1000000);
+            
+            return bScore - aScore;
+          });
+        } else {
+          // Sort by creation date for following feed
+          allPosts = allPosts.sort(
+            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+        }
 
         // Calculate repost counts
         const counts: Record<string, number> = {};
