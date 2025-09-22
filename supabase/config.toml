@@ -38,3 +38,6 @@ verify_jwt = true
 
 [functions.create-cart-checkout]
 verify_jwt = true
+
+[functions.cart-webhook-handler]
+verify_jwt = false
