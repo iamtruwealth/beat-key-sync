@@ -84,10 +84,11 @@ export function FuturisticWaveformPlayer() {
           }
         }
 
-        // Connect source to analyser (do NOT connect analyser to destination to avoid double audio)
+        // Connect source to analyser and ensure audio output
         if (source && analyserRef.current) {
           try {
             source.connect(analyserRef.current);
+            analyserRef.current.connect(audioContextRef.current.destination);
           } catch (e) {
             // Might already be connected
           }
