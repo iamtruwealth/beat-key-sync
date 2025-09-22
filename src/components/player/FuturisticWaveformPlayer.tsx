@@ -251,7 +251,7 @@ export function FuturisticWaveformPlayer() {
       
       const rect = container.getBoundingClientRect();
       canvas.width = rect.width;
-      canvas.height = 40;
+      canvas.height = 60;
     };
 
     resizeCanvas();
@@ -262,14 +262,14 @@ export function FuturisticWaveformPlayer() {
   if (!currentTrack) {
     return (
       <div className="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-md border-t border-white/20 shadow-lg z-50">
-      <div className="max-w-6xl mx-auto p-2">
-        <div className="flex items-center gap-3">
+        <div className="max-w-6xl mx-auto p-4">
+          <div className="flex items-center gap-4">
             <div className="flex-1 text-white/70 text-sm">Select a track to start playing</div>
             <div className="flex-1 max-w-md mx-4 relative">
               <canvas
                 ref={canvasRef}
                 className="w-full rounded"
-                style={{ height: '40px' }}
+                style={{ height: '60px' }}
               />
             </div>
           </div>
@@ -280,8 +280,8 @@ export function FuturisticWaveformPlayer() {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-md border-t border-white/20 shadow-lg z-50">
-      <div className="max-w-6xl mx-auto p-2">
-        <div className="flex items-center gap-3">
+      <div className="max-w-6xl mx-auto p-4">
+        <div className="flex items-center gap-4">
           {/* Track Info */}
           <div className="flex items-center gap-3 min-w-0 flex-1">
             {currentTrack.artwork_url && (
@@ -338,7 +338,7 @@ export function FuturisticWaveformPlayer() {
               ref={canvasRef}
               onClick={handleCanvasClick}
               className="w-full cursor-pointer rounded"
-              style={{ height: '40px' }}
+              style={{ height: '60px' }}
             />
             {!isPlaying && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded">
