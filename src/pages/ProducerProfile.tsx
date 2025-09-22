@@ -13,6 +13,7 @@ import { useAudio } from '@/contexts/AudioContext';
 import { useTrackPlay } from '@/hooks/useTrackPlay';
 import StickyHeader from '@/components/layout/StickyHeader';
 import { MetaTags } from '@/components/MetaTags';
+import verifiedBadge from '@/assets/verified-badge.png';
 
 interface Profile {
   id: string;
@@ -240,12 +241,11 @@ export default function ProducerProfile() {
                 <div className="flex items-center gap-3">
                   <h1 className="text-4xl font-bold">{profile.producer_name}</h1>
                   {profile.verification_status === 'verified' && (
-                    <div className="flex items-center gap-1 bg-blue-500/20 text-blue-300 border border-blue-400/30 rounded-full px-3 py-1 text-sm font-medium">
-                      <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                        <path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L15 6.5C14.8 6.2 14.6 5.9 14.3 5.7L15.5 0.5C15.2 0.3 14.9 0.1 14.6 0L12 3.5C11.3 3.5 10.7 3.5 10 3.5L7.4 0C7.1 0.1 6.8 0.3 6.5 0.5L7.7 5.7C7.4 5.9 7.2 6.2 7 6.5L1 7V9L7 9.5C7.2 9.8 7.4 10.1 7.7 10.3L6.5 15.5C6.8 15.7 7.1 15.9 7.4 16L10 12.5C10.7 12.5 11.3 12.5 12 12.5L14.6 16C14.9 15.9 15.2 15.7 15.5 15.5L14.3 10.3C14.6 10.1 14.8 9.8 15 9.5L21 9ZM12 8C13.66 8 15 9.34 15 11C15 12.66 13.66 14 12 14C10.34 14 9 12.66 9 11C9 9.34 10.34 8 12 8Z"/>
-                      </svg>
-                      Verified
-                    </div>
+                    <img 
+                      src={verifiedBadge} 
+                      alt="Verified"
+                      className="w-7 h-7"
+                    />
                   )}
                 </div>
                 <div className="ml-auto">
