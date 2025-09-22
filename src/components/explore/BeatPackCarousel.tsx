@@ -158,6 +158,24 @@ export default function BeatPackCarousel() {
           // Create and play audio
           const audio = new Audio(beat.audio_file_url);
           setCurrentAudio(audio);
+          
+          // Increment play counts when audio starts playing
+          audio.onplay = async () => {
+            try {
+              // Increment beat play count
+              await supabase.rpc('increment_beat_play_count', { 
+                beat_id: firstTrack.track_id 
+              });
+              
+              // Increment beat pack play count
+              await supabase.rpc('increment_beat_pack_play_count', { 
+                pack_id: packId 
+              });
+            } catch (error) {
+              console.error('Error incrementing play counts:', error);
+            }
+          };
+          
           audio.play();
           setPlayingPackId(packId);
           
