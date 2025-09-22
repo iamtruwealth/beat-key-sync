@@ -58,6 +58,8 @@ export const AudioProvider: React.FC<AudioProviderProps> = ({ children }) => {
     if (!audioRef.current) {
       audioRef.current = new Audio();
       audioRef.current.preload = 'metadata';
+      // Ensure cross-origin audio can be analyzed by Web Audio API
+      audioRef.current.crossOrigin = 'anonymous';
     }
 
     const audio = audioRef.current;

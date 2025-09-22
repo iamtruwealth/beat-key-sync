@@ -55,13 +55,27 @@ export function FuturisticWaveformPlayer() {
           analyserRef.current.maxDecibels = -10;
         }
 
-        // Create media element source once and connect to analyser (avoid connecting to destination to prevent double audio)
+        // Create or reuse audio source for analysis
         if (!sourceRef.current) {
           try {
+            console.info('Waveform: creating MediaElementSource');
             sourceRef.current = audioContextRef.current.createMediaElementSource(audioElement);
             sourceRef.current.connect(analyserRef.current);
-          } catch (error) {
-            console.warn('MediaElementSource already exists for this element');
+          } catch (err) {
+            console.warn('Waveform: MediaElementSource failed, trying captureStream fallback', err);
+            try {
+              const stream = (audioElement as any).captureStream?.();
+              if (stream) {
+                const streamSource = audioContextRef.current.createMediaStreamSource(stream);
+                streamSource.connect(analyserRef.current);
+                // Keep a dummy marker to avoid repeated attempts
+                sourceRef.current = null as any;
+              } else {
+                console.error('Waveform: captureStream not supported on this browser');
+              }
+            } catch (err2) {
+              console.error('Waveform: captureStream fallback failed', err2);
+            }
           }
         }
 
