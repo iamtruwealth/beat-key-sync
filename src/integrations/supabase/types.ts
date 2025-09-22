@@ -602,6 +602,123 @@ export type Database = {
         }
         Relationships: []
       }
+      post_comments: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          post_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          post_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          post_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      post_likes: {
+        Row: {
+          created_at: string
+          id: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      post_saves: {
+        Row: {
+          created_at: string
+          id: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      posts: {
+        Row: {
+          beat_id: string | null
+          bpm: number | null
+          caption: string | null
+          comments: number
+          cover_url: string | null
+          created_at: string
+          id: string
+          key: string | null
+          likes: number
+          media_url: string
+          producer_id: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          beat_id?: string | null
+          bpm?: number | null
+          caption?: string | null
+          comments?: number
+          cover_url?: string | null
+          created_at?: string
+          id?: string
+          key?: string | null
+          likes?: number
+          media_url: string
+          producer_id: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          beat_id?: string | null
+          bpm?: number | null
+          caption?: string | null
+          comments?: number
+          cover_url?: string | null
+          created_at?: string
+          id?: string
+          key?: string | null
+          likes?: number
+          media_url?: string
+          producer_id?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           available_balance_cents: number | null

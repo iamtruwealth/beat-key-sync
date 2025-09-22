@@ -28,6 +28,7 @@ import Landing from "./pages/Landing";
 import Pricing from "./pages/Pricing";
 import About from "./pages/About";
 import FAQ from "./pages/FAQ";
+import Feed from "./pages/Feed";
 import Terms from "./pages/Terms";
 import Paperwork from "./pages/Paperwork";
 import SettingsPage from "./pages/Settings";
@@ -55,6 +56,16 @@ const App = () => (
             <Route path="/faq" element={<FAQ />} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/auth" element={<AuthPage />} />
+            
+            {/* Public feed page */}
+            <Route path="/feed" element={
+              <AudioProvider>
+                <>
+                  <Feed />
+                  <FuturisticWaveformPlayer />
+                </>
+              </AudioProvider>
+            } />
             
             {/* Public explore page */}
             <Route path="/explore" element={

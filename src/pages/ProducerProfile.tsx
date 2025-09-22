@@ -6,6 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { SortByKey } from '@/components/ui/sort-by-key';
 import { ShareProfile } from '@/components/ShareProfile';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { FeedContainer } from '@/components/feed/FeedContainer';
 import { Play, Pause, Download, ShoppingCart, MapPin, Users, Music2, Filter } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useCart } from '@/contexts/CartContext';
@@ -78,10 +80,27 @@ export default function ProducerProfile() {
   const [filteredBeats, setFilteredBeats] = useState<Beat[]>([]);
   const [loading, setLoading] = useState(true);
   const [keyFilter, setKeyFilter] = useState<string>('all');
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const { addToCart } = useCart();
   const { currentTrack, isPlaying, playTrack, pauseTrack } = useAudio();
   const { trackPlay } = useTrackPlay();
   const { trackDownload } = useTrackDownload();
+
+  // Get current user
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        setCurrentUser({ ...user, ...profile });
+      }
+    };
+    getCurrentUser();
+  }, []);
 
   useEffect(() => {
     if (!id) return;
@@ -361,7 +380,14 @@ export default function ProducerProfile() {
         </div>
       </section>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <Tabs defaultValue="beats" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-8">
+            <TabsTrigger value="beats">Beats & Packs</TabsTrigger>
+            <TabsTrigger value="feed">Feed</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="beats" className="space-y-12">
         {/* Beat Packs Section */}
         {beatPacks.length > 0 && (
           <section>
@@ -530,14 +556,26 @@ export default function ProducerProfile() {
           </section>
         )}
 
+        {/* No content message */}
         {beatPacks.length === 0 && beats.length === 0 && (
-          <div className="text-center py-12">
+          <section className="text-center py-12">
             <h3 className="text-xl font-semibold text-muted-foreground">No content available</h3>
-            <p className="text-muted-foreground mt-2">This producer hasn't uploaded any beat packs or beats yet.</p>
-          </div>
+            <p className="text-muted-foreground mt-2">This producer hasn't shared any beats or packs yet.</p>
+          </section>
         )}
+          </TabsContent>
+          
+          <TabsContent value="feed" className="mt-0">
+            <div className="h-[80vh] -mx-4 sm:-mx-6 lg:-mx-8">
+              <FeedContainer 
+                producerId={profile?.id} 
+                showUploadButton={profile?.id === currentUser?.id}
+              />
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
-      
+
       {/* Futuristic Waveform Player */}
       <FuturisticWaveformPlayer />
     </div>
