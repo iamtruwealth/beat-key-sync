@@ -68,6 +68,7 @@ interface FeedPostProps {
   onShare: (postId: string) => void;
   onRepost: (postId: string) => void;
   repostCount?: number;
+  slim?: boolean;
 }
 
 export function FeedPost({ 
@@ -79,7 +80,8 @@ export function FeedPost({
   onSave, 
   onShare,
   onRepost,
-  repostCount = 0
+  repostCount = 0,
+  slim = false
 }: FeedPostProps) {
   const [isLiked, setIsLiked] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
@@ -310,7 +312,7 @@ export function FeedPost({
   };
 
   return (
-    <div className="relative w-full max-w-2xl h-full bg-background snap-start overflow-hidden rounded-lg sm:rounded-xl mx-auto shadow-lg">
+    <div className={`relative w-full ${slim ? 'max-w-sm' : 'max-w-2xl'} h-full bg-background snap-start overflow-hidden rounded-lg sm:rounded-xl mx-auto shadow-lg`}>
       {/* Background Media */}
       <div className="absolute inset-0 rounded-lg sm:rounded-xl overflow-hidden">
         {displayPost.type === 'video' ? (

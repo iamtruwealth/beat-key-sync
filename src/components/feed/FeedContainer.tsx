@@ -53,6 +53,7 @@ interface FeedContainerProps {
   currentUser?: any;
   showUploadButton?: boolean;
   useFeedMeBeatzPost?: boolean;
+  slim?: boolean;
 }
 
 export function FeedContainer({ 
@@ -60,7 +61,8 @@ export function FeedContainer({
   showUploadButton = false,
   feedType = 'for-you', 
   currentUser: passedCurrentUser,
-  useFeedMeBeatzPost = false
+  useFeedMeBeatzPost = false,
+  slim = false
 }: FeedContainerProps) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -451,6 +453,7 @@ export function FeedContainer({
                 onShare={handleShare}
                 onRepost={handleRepost}
                 repostCount={repostCounts[post.id] || 0}
+                slim={slim}
               />
             )}
           </div>

@@ -591,6 +591,7 @@ export default function ProducerProfile() {
               <FeedContainer 
                 producerId={profile?.id} 
                 showUploadButton={profile?.id === currentUser?.id}
+                slim={true}
               />
             </div>
           </TabsContent>
