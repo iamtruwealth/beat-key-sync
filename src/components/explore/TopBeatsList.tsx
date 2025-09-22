@@ -11,6 +11,7 @@ import { useCart } from '@/contexts/CartContext';
 import { useAudio } from '@/contexts/AudioContext';
 import { useTrackPlay } from '@/hooks/useTrackPlay';
 import { useTrackDownload } from '@/hooks/useTrackDownload';
+import verifiedBadge from '@/assets/verified-badge.png';
 
 interface Beat {
   id: string;
@@ -32,6 +33,7 @@ interface Beat {
     id: string;
     producer_name: string;
     producer_logo_url: string;
+    verification_status?: string;
   };
 }
 
@@ -86,7 +88,8 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
             profiles!beats_producer_id_fkey(
               id,
               producer_name,
-              producer_logo_url
+              producer_logo_url,
+              verification_status
             )
           `);
 
@@ -328,9 +331,16 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
                       <h3 className="font-semibold truncate">{beat.title}</h3>
                       <Link 
                         to={`/producer/${beat.producer?.id}`}
-                        className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                        className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
                       >
                         {beat.artist || beat.producer?.producer_name}
+                        {beat.producer?.verification_status === 'verified' && (
+                          <img 
+                            src={verifiedBadge} 
+                            alt="Verified" 
+                            className="w-3 h-3"
+                          />
+                        )}
                       </Link>
                     </div>
 

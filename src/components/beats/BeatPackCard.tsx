@@ -6,6 +6,7 @@ import { Play, Pause, Share2, ShoppingCart } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useCart } from '@/contexts/CartContext';
 import { useToast } from '@/hooks/use-toast';
+import verifiedBadge from '@/assets/verified-badge.png';
 
 interface BeatPack {
   id: string;
@@ -18,6 +19,7 @@ interface BeatPack {
     id: string;
     producer_name: string;
     producer_logo_url: string;
+    verification_status?: string;
   };
   track_count: number;
   sample_bpm?: number;
@@ -130,12 +132,19 @@ export default function BeatPackCard({ pack, playingPackId, currentAudio, onPlay
               </div>
             )}
           </div>
-          <Link 
-            to={`/producer/${pack.user?.id}`}
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            {pack.user?.producer_name || 'Unknown Producer'}
-          </Link>
+           <Link 
+             to={`/producer/${pack.user?.id}`}
+             className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+           >
+             {pack.user?.producer_name || 'Unknown Producer'}
+             {pack.user?.verification_status === 'verified' && (
+               <img 
+                 src={verifiedBadge} 
+                 alt="Verified" 
+                 className="w-3 h-3"
+               />
+             )}
+           </Link>
         </div>
         
          <div className="flex items-center justify-between mt-3 text-sm text-muted-foreground">

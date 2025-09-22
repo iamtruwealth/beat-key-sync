@@ -7,6 +7,7 @@ import { Play, Pause, Download, ShoppingCart, Music } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useTrackDownload } from '@/hooks/useTrackDownload';
 import { toast } from 'sonner';
+import verifiedBadge from '@/assets/verified-badge.png';
 
 interface Beat {
   id: string;
@@ -24,6 +25,7 @@ interface Beat {
   profiles?: {
     producer_name?: string;
     producer_logo_url?: string;
+    verification_status?: string;
   };
 }
 
@@ -155,9 +157,16 @@ export function BeatCard({
             {beat.profiles?.producer_name && (
               <Link 
                 to={`/producer/${beat.producer_id}`}
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors mb-2 block"
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors mb-2 block flex items-center gap-1"
               >
                 by {beat.profiles.producer_name}
+                {beat.profiles.verification_status === 'verified' && (
+                  <img 
+                    src={verifiedBadge} 
+                    alt="Verified" 
+                    className="w-3 h-3"
+                  />
+                )}
               </Link>
             )}
 

@@ -13,6 +13,7 @@ import { useCart } from "@/contexts/CartContext";
 import { useTrackPlay } from "@/hooks/useTrackPlay";
 import { MetaTags } from "@/components/MetaTags";
 import StickyHeader from "@/components/layout/StickyHeader";
+import verifiedBadge from '@/assets/verified-badge.png';
 import { Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Volume2, Download, Copy, Music, ShoppingCart, Filter } from "lucide-react";
 interface Beat {
   id: string;
@@ -48,6 +49,7 @@ interface BeatPack {
   user_id: string;
   beats: Beat[];
   producer_name?: string;
+  verification_status?: string;
   producer_logo_url?: string;
 }
 export default function BeatPackPage() {
@@ -155,7 +157,8 @@ export default function BeatPackPage() {
           *,
           profiles!beat_packs_user_id_fkey (
             producer_name,
-            producer_logo_url
+            producer_logo_url,
+            verification_status
           )
         `)
         .eq('id', packId)
@@ -216,6 +219,7 @@ export default function BeatPackPage() {
         ...packData,
         beats,
         producer_name: packData.profiles?.producer_name,
+        verification_status: packData.profiles?.verification_status,
         producer_logo_url: packData.profiles?.producer_logo_url
       });
     } catch (error) {
@@ -396,9 +400,16 @@ export default function BeatPackPage() {
                     by{' '}
                     <Link 
                       to={`/producer/${beatPack.user_id}`}
-                      className="hover:text-primary transition-colors"
+                      className="hover:text-primary transition-colors flex items-center gap-1 inline-flex"
                     >
                       {beatPack.producer_name}
+                      {beatPack.verification_status === 'verified' && (
+                        <img 
+                          src={verifiedBadge} 
+                          alt="Verified" 
+                          className="w-4 h-4"
+                        />
+                      )}
                     </Link>
                   </p>
                 )}

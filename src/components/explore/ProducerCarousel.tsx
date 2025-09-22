@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { supabase } from '@/integrations/supabase/client';
+import verifiedBadge from '@/assets/verified-badge.png';
 
 interface Producer {
   id: string;
@@ -122,8 +123,15 @@ export default function ProducerCarousel() {
                     </div>
                     
                     <div className="text-center">
-                      <h3 className="font-semibold text-sm truncate group-hover:text-primary transition-colors">
+                      <h3 className="font-semibold text-sm truncate group-hover:text-primary transition-colors flex items-center justify-center gap-1">
                         {producer.producer_name || 'Unknown Producer'}
+                        {producer.verification_status === 'verified' && (
+                          <img 
+                            src={verifiedBadge} 
+                            alt="Verified" 
+                            className="w-3 h-3"
+                          />
+                        )}
                       </h3>
                       {producer.genres && producer.genres.length > 0 && (
                         <p className="text-xs text-muted-foreground truncate">

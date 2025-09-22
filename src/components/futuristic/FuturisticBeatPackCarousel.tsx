@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useCart } from '@/contexts/CartContext';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollAnimationWrapper } from './ScrollAnimationWrapper';
+import verifiedBadge from '@/assets/verified-badge.png';
 
 interface BeatPack {
   id: string;
@@ -20,6 +21,7 @@ interface BeatPack {
     id: string;
     producer_name: string;
     producer_logo_url: string;
+    verification_status?: string;
   };
   track_count: number;
   sample_bpm?: number;
@@ -60,8 +62,9 @@ export function FuturisticBeatPackCarousel() {
               play_count,
               profiles!beat_packs_user_id_fkey(
                 id,
-                producer_name,
-                producer_logo_url
+                  producer_name,
+                  producer_logo_url,
+                  verification_status
               ),
               beat_pack_tracks(count)
             `)
@@ -83,7 +86,8 @@ export function FuturisticBeatPackCarousel() {
               profiles!beat_packs_user_id_fkey(
                 id,
                 producer_name,
-                producer_logo_url
+                producer_logo_url,
+                verification_status
               ),
               beat_pack_tracks(count)
             `)
@@ -376,9 +380,16 @@ export function FuturisticBeatPackCarousel() {
                         </div>
                         <Link 
                           to={`/producer/${pack.user?.id}`}
-                          className="text-sm text-muted-foreground hover:text-neon-cyan transition-colors"
+                          className="text-sm text-muted-foreground hover:text-neon-cyan transition-colors flex items-center gap-1"
                         >
                           {pack.user?.producer_name || 'Unknown Producer'}
+                          {pack.user?.verification_status === 'verified' && (
+                            <img 
+                              src={verifiedBadge} 
+                              alt="Verified" 
+                              className="w-3 h-3"
+                            />
+                          )}
                         </Link>
                       </div>
                       

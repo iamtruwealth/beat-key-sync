@@ -147,8 +147,15 @@ export function FuturisticProducerCarousel() {
                       </div>
                       
                       <div className="space-y-2">
-                        <h3 className="font-semibold text-sm truncate group-hover:text-neon-cyan transition-colors">
+                        <h3 className="font-semibold text-sm truncate group-hover:text-neon-cyan transition-colors flex items-center justify-center gap-1">
                           {producer.producer_name || 'Unknown Producer'}
+                          {producer.verification_status === 'verified' && (
+                            <img 
+                              src="/src/assets/verified-badge.png"
+                              alt="Verified" 
+                              className="w-3 h-3"
+                            />
+                          )}
                         </h3>
                         
                         {producer.genres && producer.genres.length > 0 && (
