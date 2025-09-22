@@ -46,9 +46,9 @@ export function BeatRow({
   return (
     <Card className="hover:bg-muted/30 transition-colors">
       <CardContent className="p-4">
-        <div className="flex items-center gap-4 min-w-0 flex-nowrap">
+        <div className="flex items-center gap-4 min-w-0">
           {/* Rank */}
-          <div className="w-8 text-center text-muted-foreground font-mono shrink-0">
+          <div className="w-8 text-center text-muted-foreground font-mono">
             {index}
           </div>
 
@@ -57,7 +57,7 @@ export function BeatRow({
             variant="ghost"
             size="icon"
             onClick={onPlay}
-            className="w-12 h-12 rounded-full hover:bg-primary/10 shrink-0"
+            className="w-12 h-12 rounded-full hover:bg-primary/10"
           >
             {isPlaying ? (
               <Pause className="w-5 h-5" />
@@ -67,7 +67,7 @@ export function BeatRow({
           </Button>
 
           {/* Artwork with Play Overlay */}
-          <div className="relative w-16 h-16 rounded overflow-hidden bg-muted group/artwork cursor-pointer shrink-0" onClick={onPlay}>
+          <div className="relative w-16 h-16 rounded overflow-hidden bg-muted group/artwork cursor-pointer" onClick={onPlay}>
             {artworkUrl ? (
               <img src={artworkUrl} alt={title} className="w-full h-full object-cover" />
             ) : (
@@ -115,8 +115,8 @@ export function BeatRow({
           </div>
 
         {/* Price & Actions */}
-        <div className="flex items-center gap-2 shrink-0">
-          <span className="font-semibold whitespace-nowrap">
+        <div className="flex items-center gap-2">
+          <span className="font-semibold">
             {isFree ? 'Free download' : formatPrice(priceCents)}
           </span>
           {isFree && (
