@@ -506,98 +506,39 @@ export default function BeatPackPage() {
 
           {/* Beats List */}
           <div className="space-y-4">
-            {filteredBeats.map((beat, index) => (
-              <div key={beat.id} className={`${currentTrack?.id === beat.id ? 'ring-2 ring-primary' : ''} group`}>
-                <div className="p-4 border rounded-lg hover:shadow-md transition-shadow">
-                  <div className="flex items-center gap-4">
-                    {/* Play Button with Artwork */}
-                    <div className="relative flex-shrink-0">
-                      <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center overflow-hidden">
-                        {beat.artwork_url ? (
-                          <img 
-                            src={beat.artwork_url} 
-                            alt={beat.title}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : beat.profiles?.producer_logo_url ? (
-                          <img 
-                            src={beat.profiles.producer_logo_url} 
-                            alt={beat.profiles.producer_name || 'Producer'}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : beatPack.producer_logo_url ? (
-                          <img 
-                            src={beatPack.producer_logo_url} 
-                            alt={beatPack.producer_name || 'Producer'}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <Music className="h-6 w-6 text-muted-foreground" />
-                        )}
-                      </div>
-                      
-                      <Button
-                        variant="secondary"
-                        size="icon"
-                        onClick={() => handlePlayBeat(beat)}
-                        className="absolute inset-0 w-full h-full bg-black/50 hover:bg-black/70 text-white opacity-0 group-hover:opacity-100 transition-opacity rounded-lg"
-                      >
-                        {currentTrack?.id === beat.id && isPlaying ? (
-                          <Pause className="w-6 h-6" />
-                        ) : (
-                          <Play className="w-6 h-6" />
-                        )}
-                      </Button>
-                    </div>
+            {filteredBeats.map((beat) => {
+              const unifiedBeat = {
+                id: beat.id,
+                title: beat.title,
+                description: beat.description,
+                audio_file_url: (beat as any).audio_file_url || beat.file_url,
+                artwork_url: beat.artwork_url || beatPack.producer_logo_url,
+                price_cents: beat.price_cents,
+                is_free: beat.is_free,
+                genre: beat.genre,
+                bpm: beat.manual_bpm || beat.detected_bpm || beat.bpm,
+                key: beat.manual_key || beat.detected_key || beat.key,
+                tags: beat.tags,
+                producer_id: beatPack.user_id,
+                profiles: {
+                  producer_name: beatPack.producer_name,
+                  producer_logo_url: beatPack.producer_logo_url,
+                  verification_status: beatPack.verification_status,
+                },
+              };
+              const playing = currentTrack?.id === beat.id && isPlaying;
 
-                    {/* Beat Info */}
-                    <div className="flex-1">
-                      <h3 className="font-semibold">{beat.title}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {beat.producer_name || beat.artist}
-                      </p>
-                      <div className="flex gap-2 mt-2">
-                        {beat.genre && (
-                          <Badge variant="secondary" className="text-xs">
-                            {beat.genre}
-                          </Badge>
-                        )}
-                        {(beat.manual_bpm || beat.detected_bpm || beat.bpm) && (
-                          <Badge variant="outline" className="text-xs">
-                            {beat.manual_bpm || beat.detected_bpm || beat.bpm} BPM
-                          </Badge>
-                        )}
-                        {(beat.manual_key || beat.detected_key || beat.key) && (
-                          <Badge variant="outline" className="text-xs">
-                            {beat.manual_key || beat.detected_key || beat.key}
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex gap-2">
-                      {beat.is_free ? (
-                        <Button size="sm" onClick={() => downloadBeat(beat)}>
-                          <Download className="w-4 h-4 mr-1" />
-                          Free Download
-                        </Button>
-                      ) : (
-                        <>
-                          <div className="text-lg font-bold mr-2">
-                            ${(beat.price_cents / 100).toFixed(2)}
-                          </div>
-                          <Button size="sm" onClick={() => handleAddToCart(beat)}>
-                            <ShoppingCart className="w-4 h-4 mr-1" />
-                            Add to Cart
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
+              return (
+                <BeatCard
+                  key={beat.id}
+                  beat={unifiedBeat as any}
+                  isPlaying={playing}
+                  onPlay={() => handlePlayBeat(beat)}
+                  onPause={() => pauseTrack()}
+                  showPurchase
+                />
+              );
+            })}
           </div>
         </div>
       </div>
