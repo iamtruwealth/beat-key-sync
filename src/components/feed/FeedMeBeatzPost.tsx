@@ -182,10 +182,14 @@ export function FeedMeBeatzPost({
   }, [currentTrack, globalIsPlaying, displayPost.id]);
 
   const handlePlayPause = () => {
+    console.log('FeedMeBeatz: Play button clicked for:', displayPost.id, displayPost.type, displayPost.media_url);
+    
     if (displayPost.type === 'audio' || (displayPost.type === 'photo' && displayPost.media_url)) {
       if (currentTrack?.id === displayPost.id && globalIsPlaying) {
+        console.log('FeedMeBeatz: Pausing current track');
         pauseTrack();
       } else {
+        console.log('FeedMeBeatz: Playing track:', displayPost.media_url);
         playTrack({
           id: displayPost.id,
           title: displayPost.caption || `${displayPost.producer.producer_name} Beat`,
@@ -312,7 +316,7 @@ export function FeedMeBeatzPost({
   };
 
   return (
-    <div className="relative w-full max-w-none h-full bg-background snap-start overflow-hidden rounded-lg sm:rounded-xl mx-auto shadow-lg">
+    <div className="relative w-full h-screen bg-background snap-start overflow-hidden mx-auto shadow-lg">
       {/* Background Media */}
       <div className="absolute inset-0 rounded-lg sm:rounded-xl overflow-hidden">
         {displayPost.type === 'video' ? (
