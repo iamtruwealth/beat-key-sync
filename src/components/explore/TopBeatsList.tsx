@@ -74,8 +74,11 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
             title,
             artist,
             audio_file_url,
+            file_url,
             artwork_url,
             bpm,
+            manual_bpm,
+            detected_bpm,
             key,
             manual_key,
             detected_key,
@@ -85,6 +88,7 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
             play_count,
             download_count,
             is_free,
+            producer_id,
             profiles!beats_producer_id_fkey(
               id,
               producer_name,
@@ -132,6 +136,12 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
 
         const formattedBeats = data?.map(beat => ({
           ...beat,
+          // Ensure BPM uses fallback hierarchy
+          bpm: beat.manual_bpm || beat.detected_bpm || beat.bpm,
+          // Ensure key uses fallback hierarchy  
+          key: beat.manual_key || beat.detected_key || beat.key,
+          // Ensure audio URL fallback
+          audio_file_url: beat.audio_file_url || beat.file_url,
           producer: Array.isArray(beat.profiles) ? beat.profiles[0] : beat.profiles
         })) || [];
 
