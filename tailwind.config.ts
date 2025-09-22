@@ -27,6 +27,19 @@ export default {
           DEFAULT: "hsl(var(--secondary))",
           foreground: "hsl(var(--secondary-foreground))",
         },
+        // Neon colors for futuristic theme
+        neon: {
+          cyan: "hsl(var(--neon-cyan))",
+          "cyan-glow": "hsl(var(--neon-cyan-glow))",
+          magenta: "hsl(var(--neon-magenta))",
+          "magenta-glow": "hsl(var(--neon-magenta-glow))",
+          green: "hsl(var(--neon-green))",
+          purple: "hsl(var(--neon-purple))",
+        },
+        electric: {
+          blue: "hsl(var(--electric-blue))",
+          "blue-glow": "hsl(var(--electric-blue-glow))",
+        },
         destructive: {
           DEFAULT: "hsl(var(--destructive))",
           foreground: "hsl(var(--destructive-foreground))",
