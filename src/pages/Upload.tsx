@@ -318,6 +318,7 @@ export default function UploadPage() {
             title: fileData.title,
             description: fileData.description,
             audio_file_url: publicUrl,
+            file_url: publicUrl, // Both fields are required
             artwork_url: artworkUrl,
             price_cents: priceCents,
             is_free: fileData.isFree,
