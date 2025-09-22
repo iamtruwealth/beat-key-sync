@@ -381,52 +381,7 @@ function LandingContent() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {featuredProducers.map(producer => {
-            const isCurrentTrack = currentTrack?.id === producer.id.toString();
-            const showPlayButton = !isCurrentTrack || !isPlaying;
-            return <Card key={producer.id} className="group cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg border-border bg-card/80 backdrop-blur-sm" onClick={() => handleCardClick(producer)}>
-                  <CardContent className="p-6">
-                    <div className="relative mb-4">
-                      <img src={producer.image} alt={producer.name} className="w-full h-48 object-cover rounded-lg" />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg flex items-center justify-center">
-                        <Button size="icon" className="bg-gradient-to-r from-brand-blue-deep to-brand-blue hover:from-brand-blue hover:to-brand-blue-glow" onClick={(e) => handleProducerPlay(producer, e)} disabled={loading && isCurrentTrack}>
-                          {loading && isCurrentTrack ? <Loader2 className="w-6 h-6 text-white animate-spin" /> : showPlayButton ? <Play className="w-6 h-6 text-white" /> : <Pause className="w-6 h-6 text-white" />}
-                        </Button>
-                      </div>
-                    </div>
-                    
-                    <h3 className="text-lg font-semibold text-foreground mb-1">
-                      {producer.name}
-                    </h3>
-                    <p className="text-muted-foreground mb-2">{producer.packTitle}</p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground flex items-center gap-1">
-                        <Play className="w-3 h-3" />
-                        {producer.plays} plays
-                      </span>
-                      <div className="flex items-center gap-1">
-                        <Star className="w-4 h-4 fill-brand-blue text-brand-blue" />
-                        <span className="text-sm text-foreground">4.9</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>;
-          })}
-          </div>
-          
-          {/* Featured Beat Packs Grid */}
-          <div className="mt-16">
-            <div className="text-center mb-8">
-              <h3 className="text-2xl font-bold text-foreground mb-2">
-                All Featured Beat Packs
-              </h3>
-              <p className="text-muted-foreground">
-                Explore our complete collection of featured beat packs
-              </p>
-            </div>
-            <BeatPackGrid beatPacks={featuredBeatPacks} loading={loadingFeatured} />
-          </div>
+          <BeatPackGrid beatPacks={featuredBeatPacks} loading={loadingFeatured} />
         </div>
       </section>
 
