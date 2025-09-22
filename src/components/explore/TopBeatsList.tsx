@@ -302,25 +302,125 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
             </div>
           ) : (
             filteredBeats.map((beat, index) => (
-              <BeatRow
-                key={beat.id}
-                index={index + 1}
-                title={beat.title}
-                artworkUrl={beat.artwork_url || beat.producer?.producer_logo_url}
-                producerName={beat.artist || beat.producer?.producer_name}
-                verified={beat.producer?.verification_status === 'verified'}
-                bpm={beat.bpm as number | null}
-                keyText={(beat.manual_key || beat.detected_key || beat.key) as string | null}
-                genre={beat.genre}
-                playCount={beat.play_count}
-                downloadCount={beat.download_count}
-                isFree={beat.is_free}
-                priceCents={beat.price_cents}
-                isPlaying={currentTrack?.id === beat.id && isPlaying}
-                onPlay={() => handlePlay(beat)}
-                onDownload={() => handleDownload(beat)}
-                onAddToCart={() => handleAddToCart(beat)}
-              />
+              <Card key={beat.id} className="hover:bg-muted/30 transition-colors">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-4">
+                    {/* Rank */}
+                    <div className="w-8 text-center text-muted-foreground font-mono">
+                      {index + 1}
+                    </div>
+
+                    {/* Play Button */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handlePlay(beat)}
+                      className="w-10 h-10 p-0"
+                    >
+                      {currentTrack?.id === beat.id && isPlaying ? (
+                        <Pause className="w-4 h-4" />
+                      ) : (
+                        <Play className="w-4 h-4" />
+                      )}
+                    </Button>
+
+                    {/* Artwork */}
+                    <div className="relative w-16 h-16 rounded overflow-hidden bg-muted group/artwork cursor-pointer" onClick={() => handlePlay(beat)}>
+                      {beat.artwork_url || beat.producer?.producer_logo_url ? (
+                        <img 
+                          src={beat.artwork_url || beat.producer?.producer_logo_url} 
+                          alt={beat.title}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-primary/20 flex items-center justify-center">
+                          <div className="text-sm font-bold text-primary">
+                            {beat.title.charAt(0)}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Play Overlay */}
+                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover/artwork:opacity-100 transition-all duration-300">
+                        <div className="w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center transform scale-75 group-hover/artwork:scale-100 transition-transform duration-300 shadow-lg">
+                          {currentTrack?.id === beat.id && isPlaying ? (
+                            <Pause className="w-4 h-4 text-black ml-0" />
+                          ) : (
+                            <Play className="w-4 h-4 text-black ml-0.5" />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Beat Info */}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold truncate">{beat.title}</h3>
+                      <p className="text-sm text-muted-foreground flex items-center gap-1">
+                        {beat.producer?.producer_name || beat.artist || 'Unknown'}
+                        {beat.producer?.verification_status === 'verified' && (
+                          <img 
+                            src={verifiedBadge} 
+                            alt="Verified"
+                            className="w-3 h-3"
+                          />
+                        )}
+                      </p>
+                    </div>
+
+                    {/* Beat Details */}
+                    <div className="hidden md:flex items-center gap-4 text-sm text-muted-foreground">
+                      {beat.bpm && (
+                        <span>{beat.bpm} BPM</span>
+                      )}
+                      {beat.key && (
+                        <span>{beat.key}</span>
+                      )}
+                      {beat.genre && <span>{beat.genre}</span>}
+                    </div>
+
+                    {/* Stats */}
+                    <div className="hidden sm:flex items-center gap-4 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Play className="w-3 h-3" />
+                        <span>{beat.play_count || 0}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Download className="w-3 h-3" />
+                        <span>{beat.download_count || 0}</span>
+                      </div>
+                    </div>
+
+                    {/* Price and Actions */}
+                    <div className="flex items-center gap-2">
+                      {beat.is_free || beat.price_cents === 0 ? (
+                        <Button
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleDownload(beat)}
+                          className="bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
+                        >
+                          <Download className="w-4 h-4 mr-1" />
+                          Free
+                        </Button>
+                      ) : (
+                        <>
+                          <span className="text-lg font-bold text-primary">
+                            {formatPrice(beat.price_cents)}
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleAddToCart(beat)}
+                          >
+                            <ShoppingCart className="w-4 h-4 mr-1" />
+                            Add
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             ))
           )}
         </div>
