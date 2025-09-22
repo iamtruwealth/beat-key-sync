@@ -7,7 +7,7 @@ import { FeedCommentsDialog } from './FeedCommentsDialog';
 import { Plus, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-
+import { useAudio } from '@/contexts/AudioContext';
 interface Post {
   id: string;
   producer_id: string;
@@ -75,6 +75,7 @@ export function FeedContainer({
   const [repostCounts, setRepostCounts] = useState<Record<string, number>>({});
   const observer = useRef<IntersectionObserver | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const { currentTrack, playTrack, pauseTrack, isPlaying: globalIsPlaying } = useAudio();
 
   // Get current user
   useEffect(() => {
@@ -278,6 +279,67 @@ export function FeedContainer({
       }
     };
   }, [posts]);
+
+  // Centralized playback control when visible item changes
+  useEffect(() => {
+    const container = containerRef.current;
+    const activePost = posts[visiblePostIndex];
+    if (!container || !activePost) return;
+
+    // Pause all non-active videos
+    const nodes = Array.from(container.querySelectorAll('video')) as HTMLVideoElement[];
+    nodes.forEach((video) => {
+      const parent = video.closest('[data-index]') as HTMLElement | null;
+      const idxAttr = parent?.getAttribute('data-index');
+      const idxNum = idxAttr ? parseInt(idxAttr) : -1;
+      if (idxNum !== visiblePostIndex) {
+        video.pause();
+        video.currentTime = 0;
+        video.muted = true;
+      }
+    });
+
+    const isAudioLike = activePost.type === 'audio' || (activePost.type === 'photo' && activePost.media_url?.toLowerCase().includes('.mp3'));
+
+    if (activePost.type === 'video') {
+      if (globalIsPlaying) pauseTrack();
+      const activeVideo = container.querySelector(`[data-index="${visiblePostIndex}"] video`) as HTMLVideoElement | null;
+      activeVideo?.play().catch(() => {});
+    } else if (isAudioLike) {
+      const activeVideo = container.querySelector(`[data-index="${visiblePostIndex}"] video`) as HTMLVideoElement | null;
+      if (activeVideo) {
+        activeVideo.pause();
+        activeVideo.currentTime = 0;
+      }
+      if (currentTrack?.id !== activePost.id || !globalIsPlaying) {
+        playTrack({
+          id: activePost.id,
+          title: activePost.caption || `${activePost.producer.producer_name} Beat`,
+          artist: activePost.producer.producer_name,
+          file_url: activePost.media_url,
+          artwork_url: activePost.cover_url || activePost.producer.producer_logo_url || '/placeholder.svg'
+        });
+      }
+    } else {
+      if (globalIsPlaying && currentTrack?.id) {
+        pauseTrack();
+      }
+    }
+  }, [visiblePostIndex, posts, currentTrack?.id, globalIsPlaying, pauseTrack, playTrack]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      try { pauseTrack(); } catch {}
+      const container = containerRef.current;
+      const nodes = container?.querySelectorAll('video');
+      nodes?.forEach(v => {
+        const vid = v as HTMLVideoElement;
+        vid.pause();
+        vid.currentTime = 0;
+      });
+    };
+  }, [pauseTrack]);
 
   const handleLike = async (postId: string, isLiked: boolean) => {
     setPosts(posts.map(post => 
