@@ -48,13 +48,20 @@ interface Post {
 
 interface FeedContainerProps {
   producerId?: string; // If provided, show only this producer's posts
+  feedType?: 'for-you' | 'following';
+  currentUser?: any;
   showUploadButton?: boolean;
 }
 
-export function FeedContainer({ producerId, showUploadButton = false }: FeedContainerProps) {
+export function FeedContainer({ 
+  producerId, 
+  showUploadButton = false,
+  feedType = 'for-you', 
+  currentUser: passedCurrentUser 
+}: FeedContainerProps) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<any>(passedCurrentUser);
   const [showUpload, setShowUpload] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [selectedPostId, setSelectedPostId] = useState<string>('');
@@ -111,6 +118,25 @@ export function FeedContainer({ producerId, showUploadButton = false }: FeedCont
         // Filter by producer if specified
         if (producerId) {
           postsQuery = postsQuery.eq('producer_id', producerId);
+        }
+
+        // Filter by following if feedType is 'following'
+        if (feedType === 'following' && currentUser) {
+          // Get list of followed users
+          const { data: followedUsers } = await supabase
+            .from('follows')
+            .select('followed_id')
+            .eq('follower_id', currentUser.id);
+          
+          if (followedUsers && followedUsers.length > 0) {
+            const followedIds = followedUsers.map(f => f.followed_id);
+            postsQuery = postsQuery.in('producer_id', followedIds);
+          } else {
+            // If not following anyone, return empty array
+            setPosts([]);
+            setLoading(false);
+            return;
+          }
         }
 
         // Fetch beats as historical posts
@@ -200,7 +226,7 @@ export function FeedContainer({ producerId, showUploadButton = false }: FeedCont
     };
 
     fetchFeedContent();
-  }, [producerId]);
+  }, [producerId, feedType, currentUser]);
 
   // Set up intersection observer for auto-play
   useEffect(() => {

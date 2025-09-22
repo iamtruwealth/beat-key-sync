@@ -7,6 +7,7 @@ import { Menu, ShoppingCart, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useCart } from '@/contexts/CartContext';
 import { useToast } from '@/hooks/use-toast';
+import { NotificationBell } from '@/components/ui/notification-bell';
 
 export default function StickyHeader() {
   const [user, setUser] = useState<any>(null);
@@ -105,6 +106,9 @@ export default function StickyHeader() {
 
           {/* Actions */}
           <div className="flex items-center space-x-4">
+            {/* Notifications Bell */}
+            <NotificationBell userId={user?.id} />
+            
             {/* Cart */}
             <Sheet open={cartOpen} onOpenChange={setCartOpen}>
               <SheetTrigger asChild>

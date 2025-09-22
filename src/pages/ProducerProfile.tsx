@@ -20,6 +20,7 @@ import BeatPackGrid from '@/components/beats/BeatPackGrid';
 import hipHopCollageFallback from '@/assets/hip-hop-collage-fallback.png';
 import { useTrackDownload } from '@/hooks/useTrackDownload';
 import { FuturisticWaveformPlayer } from '@/components/player/FuturisticWaveformPlayer';
+import { FollowButton } from '@/components/ui/follow-button';
 
 interface Profile {
   id: string;
@@ -32,6 +33,8 @@ interface Profile {
   genres: string[];
   total_earnings_cents: number;
   verification_status: string;
+  followers_count: number;
+  following_count: number;
 }
 
 interface BeatPack {
@@ -110,7 +113,7 @@ export default function ProducerProfile() {
         // Fetch producer profile
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
-          .select('id, username, producer_name, producer_logo_url, banner_url, bio, home_town, genres, total_earnings_cents, verification_status')
+          .select('id, username, producer_name, producer_logo_url, banner_url, bio, home_town, genres, total_earnings_cents, verification_status, followers_count, following_count')
           .eq('id', id)
           .single();
 
@@ -349,11 +352,29 @@ export default function ProducerProfile() {
                     />
                   )}
                 </div>
-                <div className="ml-auto">
+                <div className="flex items-center gap-4">
+                  <FollowButton 
+                    targetUserId={profile.id}
+                    currentUserId={currentUser?.id}
+                    targetUserName={profile.producer_name}
+                    variant="outline"
+                  />
                   <ShareProfile 
                     username={profile.username || `producer/${id}`} 
                     producerName={profile.producer_name} 
                   />
+                </div>
+              </div>
+              
+              {/* Follower counts */}
+              <div className="flex items-center gap-6 text-sm text-white/80 mt-2">
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4" />
+                  <span>{profile.followers_count || 0} followers</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4" />
+                  <span>{profile.following_count || 0} following</span>
                 </div>
               </div>
               
