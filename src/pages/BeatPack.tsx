@@ -445,23 +445,9 @@ export default function BeatPackPage() {
                 <div className="p-4 border rounded-lg hover:shadow-md transition-shadow">
                    <div className="flex items-center gap-4">
                      {/* Play Button with Artwork */}
-                     <div className="flex-shrink-0 flex flex-col items-center gap-2">
-                       {/* Play/Pause Button */}
-                       <Button
-                         variant="ghost"
-                         size="icon"
-                         onClick={() => handlePlayBeat(beat)}
-                         className="w-12 h-12 rounded-full"
-                       >
-                         {currentTrack?.id === beat.id && isPlaying ? (
-                           <Pause className="w-6 h-6" />
-                         ) : (
-                           <Play className="w-6 h-6" />
-                         )}
-                       </Button>
-                       
+                     <div className="relative flex-shrink-0">
                        {/* Album Artwork or Producer Profile Picture */}
-                       <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center overflow-hidden">
+                       <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center overflow-hidden">
                          {beat.artwork_url ? (
                            <img 
                              src={beat.artwork_url} 
@@ -484,6 +470,20 @@ export default function BeatPackPage() {
                            <Music className="h-6 w-6 text-muted-foreground" />
                          )}
                        </div>
+                       
+                       {/* Play/Pause Button Overlay */}
+                       <Button
+                         variant="secondary"
+                         size="icon"
+                         onClick={() => handlePlayBeat(beat)}
+                         className="absolute inset-0 w-full h-full bg-black/50 hover:bg-black/70 text-white opacity-0 group-hover:opacity-100 transition-opacity rounded-lg"
+                       >
+                         {currentTrack?.id === beat.id && isPlaying ? (
+                           <Pause className="w-6 h-6" />
+                         ) : (
+                           <Play className="w-6 h-6" />
+                         )}
+                       </Button>
                      </div>
 
                     {/* Beat Info */}
