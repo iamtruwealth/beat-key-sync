@@ -52,6 +52,13 @@ export function FeedPost({
   const audioRef = useRef<HTMLAudioElement>(null);
   const { currentTrack, playTrack, pauseTrack, isPlaying: globalIsPlaying } = useAudio();
 
+  // Get fallback image - beat pack artwork or producer profile
+  const getFallbackImage = () => {
+    if (post.cover_url) return post.cover_url;
+    // TODO: Could add beat pack artwork lookup here if needed
+    return post.producer.producer_logo_url || '/placeholder.svg';
+  };
+
   // Check if user has liked/saved this post
   useEffect(() => {
     if (!currentUser) return;
@@ -63,7 +70,7 @@ export function FeedPost({
         .select('id')
         .eq('post_id', post.id)
         .eq('user_id', currentUser.id)
-        .single();
+        .maybeSingle();
       
       setIsLiked(!!likeData);
 
@@ -73,7 +80,7 @@ export function FeedPost({
         .select('id')
         .eq('post_id', post.id)
         .eq('user_id', currentUser.id)
-        .single();
+        .maybeSingle();
       
       setIsSaved(!!saveData);
     };
@@ -81,16 +88,33 @@ export function FeedPost({
     checkUserInteractions();
   }, [currentUser, post.id]);
 
-  // Auto-play/pause based on visibility
+  // Auto-play based on visibility
   useEffect(() => {
-    if (post.type === 'video' && videoRef.current) {
-      if (isVisible) {
-        videoRef.current.play();
-      } else {
+    if (!isVisible) {
+      // Pause everything when not visible
+      if (videoRef.current) {
         videoRef.current.pause();
       }
+      if (currentTrack?.id === post.id && globalIsPlaying) {
+        pauseTrack();
+      }
+      return;
     }
-  }, [isVisible, post.type]);
+
+    // Auto-play when visible
+    if (post.type === 'video' && videoRef.current) {
+      videoRef.current.play().catch(console.error);
+    } else if (post.type === 'audio' && currentTrack?.id !== post.id) {
+      // Auto-play audio posts when they become visible
+      playTrack({
+        id: post.id,
+        title: post.caption || `${post.producer.producer_name} Beat`,
+        artist: post.producer.producer_name,
+        file_url: post.media_url,
+        artwork_url: getFallbackImage()
+      });
+    }
+  }, [isVisible, post.type, post.id, currentTrack?.id, globalIsPlaying, pauseTrack, playTrack, post.media_url, post.caption, post.producer.producer_name]);
 
   // Sync with global audio context
   useEffect(() => {
@@ -111,14 +135,14 @@ export function FeedPost({
           title: post.caption || `${post.producer.producer_name} Beat`,
           artist: post.producer.producer_name,
           file_url: post.media_url,
-          artwork_url: post.cover_url || post.producer.producer_logo_url
+          artwork_url: getFallbackImage()
         });
       }
     } else if (post.type === 'video' && videoRef.current) {
       if (isPlaying) {
         videoRef.current.pause();
       } else {
-        videoRef.current.play();
+        videoRef.current.play().catch(console.error);
       }
       setIsPlaying(!isPlaying);
     }
@@ -190,61 +214,75 @@ export function FeedPost({
             loop
             muted
             playsInline
+            poster={getFallbackImage()}
             onClick={handlePlayPause}
           />
         ) : post.type === 'photo' ? (
           <div 
-            className="w-full h-full bg-cover bg-center"
-            style={{ backgroundImage: `url(${post.media_url})` }}
+            className="w-full h-full bg-cover bg-center bg-no-repeat"
+            style={{ backgroundImage: `url(${post.media_url}), url(${getFallbackImage()})` }}
           />
         ) : (
+          // Audio post background
           <div className="w-full h-full bg-gradient-to-br from-primary/20 via-primary/10 to-background flex items-center justify-center relative">
-            {post.cover_url && (
+            <div className="relative">
               <img 
-                src={post.cover_url}
+                src={getFallbackImage()}
                 alt="Beat artwork"
-                className="w-64 h-64 rounded-lg object-cover shadow-2xl"
+                className="w-48 h-48 sm:w-64 sm:h-64 rounded-2xl object-cover shadow-2xl animate-pulse"
+                style={{ 
+                  animationDuration: isPlaying ? '2s' : '0s',
+                  filter: isPlaying ? 'brightness(1.1) saturate(1.2)' : 'brightness(0.9)'
+                }}
+                onError={(e) => {
+                  e.currentTarget.src = '/placeholder.svg';
+                }}
               />
-            )}
-            {/* Animated waveform overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30" />
+              {/* Vinyl record effect when playing */}
+              {isPlaying && (
+                <div className="absolute inset-0 rounded-2xl border-4 border-white/30 animate-spin" 
+                     style={{ animationDuration: '3s' }} />
+              )}
+            </div>
+            {/* Audio waveform effect */}
+            <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
           </div>
         )}
         
-        {/* Dark overlay for readability */}
-        <div className="absolute inset-0 bg-black/20" />
+        {/* Dark overlay for better text readability */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/30" />
       </div>
 
       {/* Play/Pause Overlay */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        {(post.type === 'audio' || post.type === 'photo') && (
+        {(post.type === 'audio' || (post.type === 'photo' && post.media_url.includes('.mp3'))) && (
           <Button
             variant="ghost"
             size="lg"
-            className="w-20 h-20 rounded-full bg-white/20 backdrop-blur-sm border-2 border-white/30 pointer-events-auto hover:bg-white/30 transition-all"
+            className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white/20 backdrop-blur-sm border-2 border-white/30 pointer-events-auto hover:bg-white/30 transition-all hover:scale-110"
             onClick={handlePlayPause}
           >
             {isPlaying ? (
-              <Pause className="w-8 h-8 text-white" />
+              <Pause className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
             ) : (
-              <Play className="w-8 h-8 text-white ml-1" />
+              <Play className="w-6 h-6 sm:w-8 sm:h-8 text-white ml-0.5" />
             )}
           </Button>
         )}
       </div>
 
-      {/* Content Overlay */}
-      <div className="absolute inset-0 flex flex-col justify-between p-4 pointer-events-none">
+      {/* Content Overlay - Mobile Optimized */}
+      <div className="absolute inset-0 flex flex-col justify-between p-3 sm:p-4 pointer-events-none">
         {/* Top: Producer Info */}
-        <div className="flex items-center gap-3 text-white pointer-events-auto">
-          <Avatar className="w-10 h-10 border-2 border-white/50">
+        <div className="flex items-center gap-2 sm:gap-3 text-white pointer-events-auto">
+          <Avatar className="w-8 h-8 sm:w-10 sm:h-10 border-2 border-white/50">
             <AvatarImage src={post.producer.producer_logo_url} />
-            <AvatarFallback className="bg-primary text-primary-foreground">
+            <AvatarFallback className="bg-primary text-primary-foreground text-xs">
               {post.producer.producer_name?.[0] || 'P'}
             </AvatarFallback>
           </Avatar>
           <div>
-            <p className="font-semibold text-sm">{post.producer.producer_name}</p>
+            <p className="font-semibold text-xs sm:text-sm">{post.producer.producer_name}</p>
             {post.producer.verification_status === 'verified' && (
               <span className="text-xs text-white/80">✓ Verified</span>
             )}
@@ -252,56 +290,60 @@ export function FeedPost({
         </div>
 
         {/* Bottom: Content Info & Actions */}
-        <div className="flex items-end justify-between gap-4">
+        <div className="flex items-end justify-between gap-3 sm:gap-4">
           {/* Left: Content Info */}
-          <div className="flex-1 text-white pointer-events-auto">
+          <div className="flex-1 text-white pointer-events-auto pr-2">
             {post.caption && (
-              <p className="text-sm mb-2 leading-relaxed">{post.caption}</p>
+              <p className="text-xs sm:text-sm mb-2 leading-relaxed line-clamp-3">{post.caption}</p>
             )}
-            <div className="flex items-center gap-4 text-xs text-white/80">
-              {post.bpm && <span>{post.bpm} BPM</span>}
-              {post.key && <span>Key: {post.key}</span>}
+            <div className="flex items-center gap-3 sm:gap-4 text-xs text-white/80">
+              {post.bpm && <span className="bg-black/30 px-2 py-1 rounded-full">{post.bpm} BPM</span>}
+              {post.key && <span className="bg-black/30 px-2 py-1 rounded-full">Key: {post.key}</span>}
             </div>
           </div>
 
-          {/* Right: Action Buttons */}
-          <div className="flex flex-col items-center gap-4 pointer-events-auto">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 transition-all"
-              onClick={handleLike}
-            >
-              <Heart className={`w-5 h-5 ${isLiked ? 'fill-red-500 text-red-500' : 'text-white'}`} />
-            </Button>
-            <span className="text-xs text-white/80">{post.likes}</span>
+          {/* Right: Action Buttons - Mobile Optimized */}
+          <div className="flex flex-col items-center gap-3 sm:gap-4 pointer-events-auto">
+            <div className="flex flex-col items-center">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 transition-all hover:scale-110"
+                onClick={handleLike}
+              >
+                <Heart className={`w-4 h-4 sm:w-5 sm:h-5 ${isLiked ? 'fill-red-500 text-red-500' : 'text-white'}`} />
+              </Button>
+              <span className="text-xs text-white/80 mt-1">{post.likes}</span>
+            </div>
+
+            <div className="flex flex-col items-center">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 transition-all hover:scale-110"
+                onClick={() => onComment(post.id)}
+              >
+                <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+              </Button>
+              <span className="text-xs text-white/80 mt-1">{post.comments}</span>
+            </div>
 
             <Button
               variant="ghost"
               size="sm"
-              className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 transition-all"
-              onClick={() => onComment(post.id)}
-            >
-              <MessageCircle className="w-5 h-5 text-white" />
-            </Button>
-            <span className="text-xs text-white/80">{post.comments}</span>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 transition-all"
+              className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 transition-all hover:scale-110"
               onClick={handleSave}
             >
-              <Bookmark className={`w-5 h-5 ${isSaved ? 'fill-white text-white' : 'text-white'}`} />
+              <Bookmark className={`w-4 h-4 sm:w-5 sm:h-5 ${isSaved ? 'fill-white text-white' : 'text-white'}`} />
             </Button>
 
             <Button
               variant="ghost"
               size="sm"
-              className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 transition-all"
+              className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 transition-all hover:scale-110"
               onClick={() => onShare(post.id)}
             >
-              <Share2 className="w-5 h-5 text-white" />
+              <Share2 className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
             </Button>
           </div>
         </div>
