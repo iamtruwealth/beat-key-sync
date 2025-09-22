@@ -102,33 +102,40 @@ export function BeatCard({
     <Card className="group hover:shadow-lg transition-all duration-200">
       <CardContent className="p-4">
         <div className="flex items-start gap-4">
-          {/* Artwork */}
-          <div className="relative flex-shrink-0">
-            <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center overflow-hidden">
+          {/* Play Button and Artwork */}
+          <div className="flex-shrink-0 flex flex-col items-center gap-2">
+            {/* Play/Pause Button */}
+            <Button
+              size="icon"
+              variant="secondary"
+              onClick={handlePlayPause}
+              className="w-12 h-12 rounded-full"
+            >
+              {isPlaying ? (
+                <Pause className="h-5 w-5" />
+              ) : (
+                <Play className="h-5 w-5" />
+              )}
+            </Button>
+            
+            {/* Artwork or Producer Profile Picture */}
+            <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center overflow-hidden">
               {beat.artwork_url ? (
                 <img 
                   src={beat.artwork_url} 
                   alt={beat.title}
                   className="w-full h-full object-cover"
                 />
+              ) : beat.profiles?.producer_logo_url ? (
+                <img 
+                  src={beat.profiles.producer_logo_url} 
+                  alt={beat.profiles.producer_name || 'Producer'}
+                  className="w-full h-full object-cover"
+                />
               ) : (
                 <Music className="h-6 w-6 text-muted-foreground" />
               )}
             </div>
-            
-            {/* Play/Pause Button Overlay */}
-            <Button
-              size="sm"
-              variant="secondary"
-              className="absolute inset-0 w-full h-full bg-black/50 hover:bg-black/70 text-white opacity-0 group-hover:opacity-100 transition-opacity"
-              onClick={handlePlayPause}
-            >
-              {isPlaying ? (
-                <Pause className="h-4 w-4" />
-              ) : (
-                <Play className="h-4 w-4" />
-              )}
-            </Button>
           </div>
 
           {/* Beat Info */}
