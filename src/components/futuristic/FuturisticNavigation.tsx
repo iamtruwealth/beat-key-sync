@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Menu, X, User, Music, Search } from "lucide-react";
+import { Menu, X, User, Music, Search, Radio } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User as UserType } from "@supabase/supabase-js";
@@ -33,6 +33,7 @@ export function FuturisticNavigation() {
   }, []);
 
   const navItems = [
+    { label: "Feed Me Beatz", href: "/feed-me-beatz", icon: Radio },
     { label: "Explore", href: "/explore", icon: Search },
     { label: "Producers", href: "/browse-producers", icon: User },
     { label: "Beat Packs", href: "/beat-packs", icon: Music },
