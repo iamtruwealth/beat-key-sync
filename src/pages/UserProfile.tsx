@@ -35,6 +35,12 @@ interface BeatPack {
   genre: string;
   play_count: number;
   track_count: number;
+  user: {
+    id: string;
+    producer_name: string;
+    producer_logo_url: string;
+    verification_status?: string;
+  };
 }
 
 interface Beat {
@@ -95,6 +101,12 @@ export default function UserProfile() {
             artwork_url,
             genre,
             play_count,
+            profiles!beat_packs_user_id_fkey(
+              id,
+              producer_name,
+              producer_logo_url,
+              verification_status
+            ),
             beat_pack_tracks(count)
           `)
           .eq('user_id', profile.id)
@@ -104,6 +116,7 @@ export default function UserProfile() {
         
         const formattedBeatPacks = beatPacksData?.map(pack => ({
           ...pack,
+          user: Array.isArray(pack.profiles) ? pack.profiles[0] : pack.profiles,
           track_count: pack.beat_pack_tracks?.[0]?.count || 0
         })) || [];
         setBeatPacks(formattedBeatPacks);
@@ -423,8 +436,15 @@ export default function UserProfile() {
                       {/* Beat Info */}
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold truncate">{beat.title}</h3>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-sm text-muted-foreground flex items-center gap-1">
                           {beat.artist || profile.producer_name}
+                          {profile.verification_status === 'verified' && (
+                            <img 
+                              src={verifiedBadge} 
+                              alt="Verified"
+                              className="w-3 h-3"
+                            />
+                          )}
                         </p>
                       </div>
 

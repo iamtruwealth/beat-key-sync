@@ -105,7 +105,8 @@ export default function ProducerProfile() {
             profiles!beat_packs_user_id_fkey(
               id,
               producer_name,
-              producer_logo_url
+              producer_logo_url,
+              verification_status
             ),
             beat_pack_tracks(count)
           `)
@@ -438,8 +439,15 @@ export default function ProducerProfile() {
                       {/* Beat Info */}
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold truncate">{beat.title}</h3>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-sm text-muted-foreground flex items-center gap-1">
                           {beat.artist || profile.producer_name}
+                          {profile.verification_status === 'verified' && (
+                            <img 
+                              src={verifiedBadge} 
+                              alt="Verified"
+                              className="w-3 h-3"
+                            />
+                          )}
                         </p>
                       </div>
 

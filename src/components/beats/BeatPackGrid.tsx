@@ -13,6 +13,7 @@ interface BeatPack {
     id: string;
     producer_name: string;
     producer_logo_url: string;
+    verification_status?: string;
   };
   track_count: number;
   sample_bpm?: number;
