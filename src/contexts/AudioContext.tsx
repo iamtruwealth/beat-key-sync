@@ -104,10 +104,17 @@ export const AudioProvider: React.FC<AudioProviderProps> = ({ children }) => {
       return;
     }
 
+    // Stop current audio first to prevent conflicts
+    audio.pause();
+    setIsPlaying(false);
+    
     // Load new track
     setLoading(true);
     setCurrentTrack(track);
     audio.src = track.file_url;
+    
+    // Small delay to ensure previous audio is properly stopped
+    await new Promise(resolve => setTimeout(resolve, 50));
     
     try {
       console.log('AudioContext: Loading audio from:', track.file_url);
@@ -115,7 +122,10 @@ export const AudioProvider: React.FC<AudioProviderProps> = ({ children }) => {
       console.log('AudioContext: Successfully started playing');
       setIsPlaying(true);
     } catch (error) {
-      console.error('AudioContext: Failed to play audio:', error);
+      // Only log non-abort errors
+      if (error.name !== 'AbortError') {
+        console.error('AudioContext: Failed to play audio:', error);
+      }
       setIsPlaying(false);
       setLoading(false);
     }
