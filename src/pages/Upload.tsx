@@ -110,11 +110,15 @@ export default function UploadPage() {
     }));
     setUploadedFiles(prev => [...prev, ...newFiles]);
     
-    // Start analyzing files
+    // Start analyzing files asynchronously (non-blocking)
+    const currentLength = uploadedFiles.length;
     newFiles.forEach((fileData, index) => {
-      analyzeAudioFileLocal(fileData, uploadedFiles.length + index);
+      // Use setTimeout to make analysis truly async and non-blocking
+      setTimeout(() => {
+        analyzeAudioFileLocal(fileData, currentLength + index);
+      }, 100 * index); // Stagger analysis to prevent UI blocking
     });
-  }, [uploadedFiles.length, analyzeAudioFileLocal]);
+  }, [uploadedFiles.length]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,

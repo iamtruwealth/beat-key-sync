@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react';
-import { AudioAnalysisResult, analyzeAudioFile, parseFilenameForMetadata } from '@/lib/audioAnalysis';
+import { useState, useCallback, useRef, useEffect } from 'react';
+import { AudioAnalysisResult, parseFilenameForMetadata } from '@/lib/audioAnalysis';
 import { useToast } from '@/hooks/use-toast';
 
 interface AnalysisState {
@@ -13,6 +13,14 @@ interface CachedResult {
   timestamp: number;
 }
 
+interface WorkerMessage {
+  id: string;
+  type: 'ANALYZE_FILE' | 'ANALYSIS_COMPLETE' | 'ANALYSIS_ERROR';
+  data?: any;
+  result?: AudioAnalysisResult;
+  error?: string;
+}
+
 // Cache analysis results for 24 hours
 const CACHE_DURATION = 24 * 60 * 60 * 1000;
 
@@ -23,6 +31,41 @@ export function useOptimizedAudioAnalysis() {
     error: null,
   });
   const { toast } = useToast();
+  const workerRef = useRef<Worker | null>(null);
+  const pendingRequests = useRef<Map<string, { resolve: (result: AudioAnalysisResult) => void; reject: (error: Error) => void }>>(new Map());
+
+  // Initialize Web Worker
+  useEffect(() => {
+    workerRef.current = new Worker('/audio-analysis-worker.js');
+    
+    workerRef.current.onmessage = (e: MessageEvent<WorkerMessage>) => {
+      const { id, type, result, error } = e.data;
+      const request = pendingRequests.current.get(id);
+      
+      if (!request) return;
+      
+      pendingRequests.current.delete(id);
+      
+      if (type === 'ANALYSIS_COMPLETE' && result) {
+        request.resolve(result);
+      } else if (type === 'ANALYSIS_ERROR' && error) {
+        request.reject(new Error(error));
+      }
+    };
+
+    workerRef.current.onerror = (error) => {
+      console.error('Worker error:', error);
+      // Clear all pending requests
+      pendingRequests.current.forEach(({ reject }) => {
+        reject(new Error('Worker error'));
+      });
+      pendingRequests.current.clear();
+    };
+
+    return () => {
+      workerRef.current?.terminate();
+    };
+  }, []);
 
   const getCacheKey = (file: File): string => {
     return `audio_analysis_${file.name}_${file.size}_${file.lastModified}`;
@@ -70,6 +113,10 @@ export function useOptimizedAudioAnalysis() {
       return cachedResult;
     }
 
+    if (!workerRef.current) {
+      throw new Error('Worker not initialized');
+    }
+
     setAnalysisState({
       isAnalyzing: true,
       progress: 0,
@@ -105,10 +152,30 @@ export function useOptimizedAudioAnalysis() {
         return quickResult;
       }
 
-      // Proceed with full audio analysis
+      // Proceed with Web Worker analysis
       setAnalysisState(prev => ({ ...prev, progress: 25 }));
       
-      const result = await analyzeAudioFile(file);
+      const arrayBuffer = await file.arrayBuffer();
+      const requestId = Math.random().toString(36).substr(2, 9);
+      
+      // Create promise for worker response
+      const workerPromise = new Promise<AudioAnalysisResult>((resolve, reject) => {
+        pendingRequests.current.set(requestId, { resolve, reject });
+      });
+
+      // Send work to worker
+      workerRef.current.postMessage({
+        id: requestId,
+        type: 'ANALYZE_FILE',
+        data: {
+          arrayBuffer,
+          filename: file.name
+        }
+      });
+
+      setAnalysisState(prev => ({ ...prev, progress: 50 }));
+      
+      const result = await workerPromise;
       
       setAnalysisState(prev => ({ ...prev, progress: 100 }));
       setCachedResult(file, result);
@@ -127,7 +194,7 @@ export function useOptimizedAudioAnalysis() {
       const filenameResult = parseFilenameForMetadata(file.name);
       const fallbackResult: AudioAnalysisResult = {
         bpm: filenameResult.bpm || 120,
-        key: filenameResult.key || 'C',
+        key: filenameResult.key || 'C Major',
         compatibleKeys: [],
         duration: 0,
         confidenceScore: filenameResult.bpm && filenameResult.key ? filenameResult.confidence : 0.1,
