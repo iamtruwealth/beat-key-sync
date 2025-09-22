@@ -17,7 +17,7 @@ import verifiedBadge from '@/assets/verified-badge.png';
 import BeatPackGrid from '@/components/beats/BeatPackGrid';
 import hipHopCollageFallback from '@/assets/hip-hop-collage-fallback.png';
 import { useTrackDownload } from '@/hooks/useTrackDownload';
-import { CompactWaveformPlayer } from '@/components/player/CompactWaveformPlayer';
+import { FuturisticWaveformPlayer } from '@/components/player/FuturisticWaveformPlayer';
 
 interface Profile {
   id: string;
@@ -412,18 +412,18 @@ export default function ProducerProfile() {
                       </div>
 
                       {/* Play Button */}
-                      <CompactWaveformPlayer
-                        track={{
-                          id: beat.id,
-                          title: beat.title,
-                          file_url: beat.file_url || beat.audio_file_url,
-                          audio_file_url: beat.audio_file_url
-                        }}
-                        isPlaying={currentTrack?.id === beat.id && isPlaying}
-                        onPlay={() => handlePlayPause(beat)}
-                        onPause={() => handlePlayPause(beat)}
-                        className="w-50"
-                      />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handlePlayPause(beat)}
+                        className="w-10 h-10 p-0"
+                      >
+                        {currentTrack?.id === beat.id && isPlaying ? (
+                          <Pause className="w-4 h-4" />
+                        ) : (
+                          <Play className="w-4 h-4" />
+                        )}
+                      </Button>
 
                       {/* Artwork with Play Overlay */}
                       <div className="relative w-16 h-16 rounded overflow-hidden bg-muted group/artwork cursor-pointer" onClick={() => handlePlayPause(beat)}>
@@ -537,6 +537,9 @@ export default function ProducerProfile() {
           </div>
         )}
       </div>
+      
+      {/* Futuristic Waveform Player */}
+      <FuturisticWaveformPlayer />
     </div>
   );
 }
