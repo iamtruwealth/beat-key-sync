@@ -227,7 +227,7 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
 
   if (loading) {
     return (
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <section className="container mx-auto px-4">
         <div className="animate-pulse space-y-6">
           <div className="h-8 bg-muted rounded w-48"></div>
           <div className="grid grid-cols-1 gap-4">
@@ -241,7 +241,7 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
   }
 
   return (
-    <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <section className="container mx-auto px-4">
       <div className="space-y-8">
         {/* Header with filtering */}
         <div className="flex flex-col gap-4">
