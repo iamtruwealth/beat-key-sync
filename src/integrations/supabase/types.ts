@@ -500,6 +500,27 @@ export type Database = {
           },
         ]
       }
+      follows: {
+        Row: {
+          created_at: string
+          followed_id: string
+          follower_id: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          followed_id: string
+          follower_id: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          followed_id?: string
+          follower_id?: string
+          id?: string
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           content: string
@@ -538,31 +559,40 @@ export type Database = {
       }
       notifications: {
         Row: {
+          actor_id: string | null
           created_at: string
           data: Json | null
           id: string
+          item_id: string | null
           message: string
           read_at: string | null
+          read_status: boolean | null
           title: string
           type: string
           user_id: string
         }
         Insert: {
+          actor_id?: string | null
           created_at?: string
           data?: Json | null
           id?: string
+          item_id?: string | null
           message: string
           read_at?: string | null
+          read_status?: boolean | null
           title: string
           type: string
           user_id: string
         }
         Update: {
+          actor_id?: string | null
           created_at?: string
           data?: Json | null
           id?: string
+          item_id?: string | null
           message?: string
           read_at?: string | null
+          read_status?: boolean | null
           title?: string
           type?: string
           user_id?: string
@@ -745,6 +775,8 @@ export type Database = {
           bio: string | null
           created_at: string
           first_name: string | null
+          followers_count: number | null
+          following_count: number | null
           genres: string[] | null
           home_town: string | null
           id: string
@@ -771,6 +803,8 @@ export type Database = {
           bio?: string | null
           created_at?: string
           first_name?: string | null
+          followers_count?: number | null
+          following_count?: number | null
           genres?: string[] | null
           home_town?: string | null
           id: string
@@ -797,6 +831,8 @@ export type Database = {
           bio?: string | null
           created_at?: string
           first_name?: string | null
+          followers_count?: number | null
+          following_count?: number | null
           genres?: string[] | null
           home_town?: string | null
           id?: string
@@ -1109,6 +1145,16 @@ export type Database = {
       check_username_availability: {
         Args: { username_param: string }
         Returns: boolean
+      }
+      create_notification: {
+        Args: {
+          notification_actor_id?: string
+          notification_item_id?: string
+          notification_message: string
+          notification_type: string
+          target_user_id: string
+        }
+        Returns: string
       }
       get_all_profiles_for_admin: {
         Args: Record<PropertyKey, never>
