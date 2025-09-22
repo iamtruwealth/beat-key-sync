@@ -18,6 +18,35 @@ export function FuturisticWaveformPlayer() {
 
   const { currentTrack, isPlaying, currentTime, duration, pauseTrack, resumeTrack, setVolume: setAudioVolume, seekTo, getAudioElement } = useAudio();
 
+  // Clean up audio analysis when track changes
+  useEffect(() => {
+    return () => {
+      // Clean up existing connections when track changes
+      if (sourceRef.current) {
+        try {
+          sourceRef.current.disconnect();
+        } catch (e) {
+          // Already disconnected
+        }
+        sourceRef.current = null;
+      }
+      
+      if (analyserRef.current) {
+        try {
+          analyserRef.current.disconnect();
+        } catch (e) {
+          // Already disconnected
+        }
+        analyserRef.current = null;
+      }
+      
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+        animationRef.current = undefined;
+      }
+    };
+  }, [currentTrack?.id]);
+
   // Initialize Web Audio API for real-time frequency analysis
   useEffect(() => {
     const setupAudioAnalysis = async () => {
@@ -40,13 +69,7 @@ export function FuturisticWaveformPlayer() {
           return;
         }
 
-        // Prevent multiple connections to the same audio element
-        if (sourceRef.current) {
-          sourceRef.current.disconnect();
-          sourceRef.current = null;
-        }
-
-        // Create analyser node once
+        // Create analyser node 
         if (!analyserRef.current) {
           analyserRef.current = audioContextRef.current.createAnalyser();
           analyserRef.current.fftSize = 128; // 64 frequency bins
@@ -55,28 +78,24 @@ export function FuturisticWaveformPlayer() {
           analyserRef.current.maxDecibels = -10;
         }
 
-        // Create or reuse audio source for analysis
+        // Create audio source for analysis only if not already connected
         if (!sourceRef.current) {
           try {
             console.info('Waveform: creating MediaElementSource');
             sourceRef.current = audioContextRef.current.createMediaElementSource(audioElement);
             sourceRef.current.connect(analyserRef.current);
-            try {
-              analyserRef.current.connect(audioContextRef.current.destination);
-            } catch (e) {
-              // already connected
-            }
+            analyserRef.current.connect(audioContextRef.current.destination);
           } catch (err) {
             console.warn('Waveform: MediaElementSource failed, trying captureStream fallback', err);
             try {
               const stream = (audioElement as any).captureStream?.();
-              if (stream) {
+              if (stream && stream.getAudioTracks().length > 0) {
                 const streamSource = audioContextRef.current.createMediaStreamSource(stream);
                 streamSource.connect(analyserRef.current);
-                // Keep a dummy marker to avoid repeated attempts
-                sourceRef.current = null as any;
+                // Mark as connected with a dummy value to avoid repeated attempts
+                sourceRef.current = streamSource as any;
               } else {
-                console.error('Waveform: captureStream not supported on this browser');
+                console.error('Waveform: captureStream not supported or no audio track');
               }
             } catch (err2) {
               console.error('Waveform: captureStream fallback failed', err2);
@@ -85,10 +104,11 @@ export function FuturisticWaveformPlayer() {
         }
 
         // Setup data array
-        dataArrayRef.current = new Uint8Array(analyserRef.current.frequencyBinCount);
-
-        // Start real-time visualization
-        startRealtimeVisualization();
+        if (analyserRef.current) {
+          dataArrayRef.current = new Uint8Array(analyserRef.current.frequencyBinCount);
+          // Start real-time visualization
+          startRealtimeVisualization();
+        }
 
       } catch (error) {
         console.error('Error setting up audio analysis:', error);
