@@ -5,6 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import StickyHeader from "@/components/layout/StickyHeader";
+import { ScrollAnimationWrapper } from "@/components/futuristic/ScrollAnimationWrapper";
+import { GlassMorphismSection } from "@/components/futuristic/GlassMorphismSection";
+import { MetaTags } from "@/components/MetaTags";
 import { 
   Search, 
   Music, 
@@ -12,10 +16,12 @@ import {
   User, 
   Play,
   Heart,
-  Download,
-  Share2
+  Star,
+  Users,
+  Zap,
+  TrendingUp
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
 interface Producer {
   id: string;
@@ -44,7 +50,7 @@ export default function BrowseProducers() {
   const [searchQuery, setSearchQuery] = useState("");
   const [producers, setProducers] = useState<Producer[]>([]);
   const [beatPacks, setBeatPacks] = useState<BeatPack[]>([]);
-  const [activeTab, setActiveTab] = useState<"producers" | "beatpacks">("beatpacks");
+  const [activeTab, setActiveTab] = useState<"producers" | "beatpacks">("producers");
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -60,7 +66,8 @@ export default function BrowseProducers() {
       .from('profiles')
       .select('id')
       .eq('role', 'producer')
-      .eq('public_profile_enabled', true);
+      .eq('public_profile_enabled', true)
+      .order('track_upload_count', { ascending: false });
     
     if (producerIds) {
       // Use secure function to get public profile data
@@ -118,181 +125,297 @@ export default function BrowseProducers() {
     navigate(`/pack/${packId}`);
   };
 
+  const handleViewProducer = (producerId: string) => {
+    navigate(`/producer/${producerId}`);
+  };
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-lg">Loading...</div>
+      <div className="min-h-screen bg-background">
+        <StickyHeader />
+        <main className="container mx-auto px-6 pt-24 pb-16">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-80 glass-morphism rounded-2xl animate-pulse" />
+            ))}
+          </div>
+        </main>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold">Browse Producers & Beat Packs</h1>
-        <p className="text-muted-foreground">Discover talented producers and their latest beat packs</p>
-      </div>
+    <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
+      <MetaTags 
+        title="Browse Producers & Beat Packs | BeatPackz - Connect with Top Producers"
+        description="Discover talented music producers and their latest beat packs. Connect, collaborate, and find the perfect sound for your next project."
+        image="/assets/beat-packz-social-image.png"
+      />
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search producers, beat packs, or genres..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
-        />
-      </div>
+      <StickyHeader />
 
-      {/* Tabs */}
-      <div className="flex gap-4 border-b">
-        <button
-          onClick={() => setActiveTab("beatpacks")}
-          className={`pb-2 px-1 border-b-2 transition-colors ${
-            activeTab === "beatpacks"
-              ? "border-primary text-primary"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          Beat Packs ({filteredBeatPacks.length})
-        </button>
-        <button
-          onClick={() => setActiveTab("producers")}
-          className={`pb-2 px-1 border-b-2 transition-colors ${
-            activeTab === "producers"
-              ? "border-primary text-primary"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          Producers ({filteredProducers.length})
-        </button>
-      </div>
-
-      {/* Beat Packs Tab */}
-      {activeTab === "beatpacks" && (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {filteredBeatPacks.map((pack) => (
-            <Card key={pack.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-              <div className="aspect-square bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-                {pack.artwork_url ? (
-                  <img 
-                    src={pack.artwork_url} 
-                    alt={pack.name}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <Music className="w-12 h-12 text-primary" />
-                )}
+      <main className="container mx-auto px-6 pt-24 pb-16">
+        {/* Hero Section */}
+        <ScrollAnimationWrapper>
+          <div className="text-center mb-16">
+            <h1 className="text-4xl md:text-6xl font-bold mb-6">
+              <span className="gradient-text">Discover</span>{" "}
+              <span className="text-neon-cyan">Producers</span>
+            </h1>
+            <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-8">
+              Connect with talented beatmakers, explore their latest work, and collaborate on your next hit
+            </p>
+            
+            {/* Stats */}
+            <div className="flex justify-center space-x-8 mb-8">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-neon-cyan">{producers.length}+</div>
+                <div className="text-sm text-muted-foreground">Producers</div>
               </div>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg">{pack.name}</CardTitle>
-                <CardDescription className="line-clamp-2">
-                  {pack.description || "No description available"}
-                </CardDescription>
-                <div className="flex items-center gap-2 mt-2">
-                  <Avatar className="w-6 h-6">
-                    <AvatarImage src={pack.producer?.producer_logo_url} />
-                    <AvatarFallback>
-                      {pack.producer?.producer_name?.[0] || "P"}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="text-sm text-muted-foreground">
-                    {pack.producer?.producer_name || "Unknown Producer"}
-                  </span>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="flex gap-2 mb-3">
-                  {pack.producer?.genres?.slice(0, 2).map((genre) => (
-                    <Badge key={genre} variant="secondary" className="text-xs">
-                      {genre}
-                    </Badge>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <Button 
-                    size="sm" 
-                    className="flex-1"
-                    onClick={() => handleViewBeatPack(pack.id)}
-                  >
-                    <Play className="w-4 h-4 mr-1" />
-                    Preview
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    onClick={() => handleMessageProducer(pack.user_id)}
-                  >
-                    <MessageSquare className="w-4 h-4" />
-                  </Button>
-                  <Button size="sm" variant="outline">
-                    <Heart className="w-4 h-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-          {filteredBeatPacks.length === 0 && (
-            <div className="col-span-full text-center py-12">
-              <Music className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">No beat packs found matching your search</p>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-neon-magenta">{beatPacks.length}+</div>
+                <div className="text-sm text-muted-foreground">Beat Packs</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-electric-blue">24/7</div>
+                <div className="text-sm text-muted-foreground">Support</div>
+              </div>
             </div>
-          )}
-        </div>
-      )}
+          </div>
+        </ScrollAnimationWrapper>
 
-      {/* Producers Tab */}
-      {activeTab === "producers" && (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {filteredProducers.map((producer) => (
-            <Card key={producer.id} className="hover:shadow-lg transition-shadow">
-              <CardHeader className="text-center">
-                <Avatar className="w-16 h-16 mx-auto mb-3">
-                  <AvatarImage src={producer.producer_logo_url} />
-                  <AvatarFallback className="text-lg">
-                    {producer.producer_name?.[0] || "P"}
-                  </AvatarFallback>
-                </Avatar>
-                <CardTitle>
-                  {producer.producer_name || 'Unknown Producer'}
-                </CardTitle>
-                <CardDescription className="line-clamp-3">
-                  {producer.bio || "No bio available"}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-1 mb-4">
-                  {producer.genres?.slice(0, 3).map((genre) => (
-                    <Badge key={genre} variant="secondary" className="text-xs">
-                      {genre}
-                    </Badge>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <Button 
-                    size="sm" 
-                    className="flex-1"
-                    onClick={() => handleMessageProducer(producer.id)}
-                  >
-                    <MessageSquare className="w-4 h-4 mr-1" />
-                    Message
-                  </Button>
-                  <Button size="sm" variant="outline">
-                    <User className="w-4 h-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-          {filteredProducers.length === 0 && (
-            <div className="col-span-full text-center py-12">
-              <User className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">No producers found matching your search</p>
+        {/* Search Section */}
+        <ScrollAnimationWrapper>
+          <GlassMorphismSection className="mb-12">
+            <div className="relative">
+              <Search className="absolute left-4 top-4 h-5 w-5 text-neon-cyan" />
+              <Input
+                placeholder="Search producers, beat packs, or genres..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-12 h-12 text-lg glass-morphism border-neon-cyan/30 focus:border-neon-cyan bg-background/50"
+              />
             </div>
-          )}
-        </div>
-      )}
+          </GlassMorphismSection>
+        </ScrollAnimationWrapper>
+
+        {/* Tabs */}
+        <ScrollAnimationWrapper>
+          <div className="flex justify-center gap-4 mb-12">
+            <Button
+              onClick={() => setActiveTab("producers")}
+              variant={activeTab === "producers" ? "default" : "outline"}
+              className={`px-8 py-3 text-lg transition-all duration-300 ${
+                activeTab === "producers"
+                  ? "bg-gradient-to-r from-neon-cyan to-electric-blue hover:from-neon-cyan-glow hover:to-electric-blue-glow neon-glow-hover"
+                  : "border-2 border-neon-cyan text-neon-cyan hover:bg-neon-cyan hover:text-background"
+              }`}
+            >
+              <Users className="w-5 h-5 mr-2" />
+              Producers ({filteredProducers.length})
+            </Button>
+            <Button
+              onClick={() => setActiveTab("beatpacks")}
+              variant={activeTab === "beatpacks" ? "default" : "outline"}
+              className={`px-8 py-3 text-lg transition-all duration-300 ${
+                activeTab === "beatpacks"
+                  ? "bg-gradient-to-r from-neon-magenta to-neon-purple hover:from-neon-magenta-glow hover:to-neon-purple text-white neon-glow-hover"
+                  : "border-2 border-neon-magenta text-neon-magenta hover:bg-neon-magenta hover:text-background"
+              }`}
+            >
+              <Music className="w-5 h-5 mr-2" />
+              Beat Packs ({filteredBeatPacks.length})
+            </Button>
+          </div>
+        </ScrollAnimationWrapper>
+
+        {/* Producers Tab */}
+        {activeTab === "producers" && (
+          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+            {filteredProducers.map((producer, index) => (
+              <ScrollAnimationWrapper key={producer.id} animation="scale-in" delay={index * 100}>
+                <Card className="group glass-morphism border-2 border-border hover:border-neon-cyan transition-all duration-300 transform hover:scale-105 hover:-translate-y-2">
+                  <CardHeader className="text-center relative overflow-hidden">
+                    {/* Background gradient */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-neon-cyan/5 to-electric-blue/5 group-hover:from-neon-cyan/10 group-hover:to-electric-blue/10 transition-all duration-300" />
+                    
+                    <div className="relative z-10">
+                      <Avatar className="w-20 h-20 mx-auto mb-4 border-4 border-neon-cyan/30 group-hover:border-neon-cyan transition-all duration-300">
+                        <AvatarImage src={producer.producer_logo_url} />
+                        <AvatarFallback className="text-2xl bg-gradient-to-br from-neon-cyan/20 to-electric-blue/20 text-neon-cyan">
+                          {producer.producer_name?.[0] || "P"}
+                        </AvatarFallback>
+                      </Avatar>
+                      
+                      <div className="flex items-center justify-center gap-2 mb-2">
+                        <CardTitle className="group-hover:text-neon-cyan transition-colors">
+                          {producer.producer_name || 'Unknown Producer'}
+                        </CardTitle>
+                        {producer.verification_status === 'verified' && (
+                          <Star className="w-5 h-5 text-neon-green fill-current" />
+                        )}
+                      </div>
+                      
+                      <CardDescription className="line-clamp-3 group-hover:text-foreground transition-colors">
+                        {producer.bio || "Passionate music producer creating unique beats and soundscapes"}
+                      </CardDescription>
+                    </div>
+                  </CardHeader>
+                  
+                  <CardContent className="space-y-4">
+                    <div className="flex flex-wrap gap-2 justify-center">
+                      {producer.genres?.slice(0, 3).map((genre) => (
+                        <Badge 
+                          key={genre} 
+                          className="bg-electric-blue/20 text-electric-blue border border-electric-blue/30 hover:bg-electric-blue hover:text-background transition-all"
+                        >
+                          {genre}
+                        </Badge>
+                      ))}
+                    </div>
+                    
+                    <div className="flex gap-2">
+                      <Button 
+                        size="sm" 
+                        className="flex-1 bg-gradient-to-r from-neon-cyan to-electric-blue hover:from-neon-cyan-glow hover:to-electric-blue-glow neon-glow-hover"
+                        onClick={() => handleViewProducer(producer.id)}
+                      >
+                        <User className="w-4 h-4 mr-1" />
+                        View Profile
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        className="border-neon-magenta text-neon-magenta hover:bg-neon-magenta hover:text-background"
+                        onClick={() => handleMessageProducer(producer.id)}
+                      >
+                        <MessageSquare className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </ScrollAnimationWrapper>
+            ))}
+            
+            {filteredProducers.length === 0 && (
+              <div className="col-span-full text-center py-16">
+                <ScrollAnimationWrapper>
+                  <GlassMorphismSection className="max-w-md mx-auto">
+                    <User className="w-16 h-16 text-neon-cyan mx-auto mb-4" />
+                    <h3 className="text-xl font-semibold text-neon-cyan mb-2">No Producers Found</h3>
+                    <p className="text-muted-foreground">Try adjusting your search terms</p>
+                  </GlassMorphismSection>
+                </ScrollAnimationWrapper>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Beat Packs Tab */}
+        {activeTab === "beatpacks" && (
+          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+            {filteredBeatPacks.map((pack, index) => (
+              <ScrollAnimationWrapper key={pack.id} animation="scale-in" delay={index * 100}>
+                <Card className="group glass-morphism border-2 border-border hover:border-neon-magenta transition-all duration-300 transform hover:scale-105 hover:-translate-y-2 overflow-hidden">
+                  <div className="relative aspect-square">
+                    {pack.artwork_url ? (
+                      <img 
+                        src={pack.artwork_url} 
+                        alt={pack.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-neon-magenta/20 to-neon-purple/20 flex items-center justify-center">
+                        <Music className="w-16 h-16 text-neon-magenta" />
+                      </div>
+                    )}
+                    
+                    {/* Overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-4">
+                      <Button 
+                        size="sm"
+                        className="bg-neon-magenta/20 backdrop-blur-sm border border-neon-magenta text-neon-magenta hover:bg-neon-magenta hover:text-background neon-glow-hover"
+                        onClick={() => handleViewBeatPack(pack.id)}
+                      >
+                        <Play className="w-4 h-4 mr-2" />
+                        Preview Pack
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg group-hover:text-neon-magenta transition-colors">
+                      {pack.name}
+                    </CardTitle>
+                    <CardDescription className="line-clamp-2">
+                      {pack.description || "Explore this amazing collection of beats"}
+                    </CardDescription>
+                    
+                    <div className="flex items-center gap-2 mt-2">
+                      <Avatar className="w-6 h-6 border border-electric-blue/30">
+                        <AvatarImage src={pack.producer?.producer_logo_url} />
+                        <AvatarFallback className="text-xs bg-electric-blue/20 text-electric-blue">
+                          {pack.producer?.producer_name?.[0] || "P"}
+                        </AvatarFallback>
+                      </Avatar>
+                      <Link 
+                        to={`/producer/${pack.user_id}`}
+                        className="text-sm text-muted-foreground hover:text-neon-cyan transition-colors"
+                      >
+                        {pack.producer?.producer_name || "Unknown Producer"}
+                      </Link>
+                    </div>
+                  </CardHeader>
+                  
+                  <CardContent className="pt-0">
+                    <div className="flex gap-2 mb-4">
+                      {pack.producer?.genres?.slice(0, 2).map((genre) => (
+                        <Badge 
+                          key={genre} 
+                          className="bg-neon-purple/20 text-neon-purple border border-neon-purple/30"
+                        >
+                          {genre}
+                        </Badge>
+                      ))}
+                    </div>
+                    
+                    <div className="flex gap-2">
+                      <Button 
+                        size="sm" 
+                        className="flex-1 bg-gradient-to-r from-neon-magenta to-neon-purple hover:from-neon-magenta-glow hover:to-neon-purple text-white neon-glow-hover"
+                        onClick={() => handleViewBeatPack(pack.id)}
+                      >
+                        <Play className="w-4 h-4 mr-1" />
+                        Preview
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        className="border-electric-blue text-electric-blue hover:bg-electric-blue hover:text-background"
+                        onClick={() => handleMessageProducer(pack.user_id)}
+                      >
+                        <MessageSquare className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </ScrollAnimationWrapper>
+            ))}
+            
+            {filteredBeatPacks.length === 0 && (
+              <div className="col-span-full text-center py-16">
+                <ScrollAnimationWrapper>
+                  <GlassMorphismSection className="max-w-md mx-auto">
+                    <Music className="w-16 h-16 text-neon-magenta mx-auto mb-4" />
+                    <h3 className="text-xl font-semibold text-neon-magenta mb-2">No Beat Packs Found</h3>
+                    <p className="text-muted-foreground">Try adjusting your search terms</p>
+                  </GlassMorphismSection>
+                </ScrollAnimationWrapper>
+              </div>
+            )}
+          </div>
+        )}
+      </main>
     </div>
   );
 }

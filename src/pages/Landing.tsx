@@ -7,6 +7,7 @@ import { FuturisticHero } from "@/components/futuristic/FuturisticHero";
 import { FuturisticFooter } from "@/components/futuristic/FuturisticFooter";
 import { InteractiveBeatPreview } from "@/components/futuristic/InteractiveBeatPreview";
 import { FuturisticBeatPackCarousel } from "@/components/futuristic/FuturisticBeatPackCarousel";
+import { FuturisticProducerCarousel } from "@/components/futuristic/FuturisticProducerCarousel";
 import { GlassMorphismSection } from "@/components/futuristic/GlassMorphismSection";
 import { ScrollAnimationWrapper } from "@/components/futuristic/ScrollAnimationWrapper";
 import { Button } from "@/components/ui/button";
@@ -139,6 +140,7 @@ function FuturisticLandingContent() {
         </div>
       </section>
 
+      <FuturisticProducerCarousel />
       <FuturisticBeatPackCarousel />
       <FuturisticFooter />
     </div>
