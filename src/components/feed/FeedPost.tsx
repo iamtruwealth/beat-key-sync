@@ -312,7 +312,7 @@ export function FeedPost({
   };
 
   return (
-    <div className={`relative w-full ${slim ? 'max-w-sm' : 'max-w-2xl'} h-full bg-background snap-start overflow-hidden rounded-lg sm:rounded-xl mx-auto shadow-lg`}>
+    <div className={`relative w-full ${slim ? 'max-w-md' : 'max-w-2xl'} h-full bg-background snap-start overflow-hidden rounded-lg sm:rounded-xl ${slim ? '' : 'mx-auto'} shadow-lg`}>
       {/* Background Media */}
       <div className="absolute inset-0 rounded-lg sm:rounded-xl overflow-hidden">
         {displayPost.type === 'video' ? (
