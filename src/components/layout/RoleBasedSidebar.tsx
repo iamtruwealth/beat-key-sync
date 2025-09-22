@@ -28,8 +28,7 @@ import {
   Settings,
   LogOut,
   Headphones,
-  Mic,
-  Radio
+  Mic
 } from "lucide-react";
 
 type UserRole = 'artist' | 'producer';
@@ -94,7 +93,6 @@ export function RoleBasedSidebar() {
 
   const artistNavigation: NavigationItem[] = [
     { title: "Dashboard", url: "/artist-dashboard", icon: LayoutDashboard },
-    { title: "Feed Me Beatz", url: "/feed-me-beatz", icon: Radio },
     { title: "Browse Producers", url: "/explore", icon: Users },
     { title: "Messages", url: "/messages", icon: MessageSquare },
     { title: "Paperwork", url: "/paperwork", icon: FileText },
@@ -102,7 +100,6 @@ export function RoleBasedSidebar() {
 
   const producerNavigation: NavigationItem[] = [
     { title: "Dashboard", url: "/producer-dashboard", icon: LayoutDashboard },
-    { title: "Feed Me Beatz", url: "/feed-me-beatz", icon: Radio },
     { title: "Beat Packs", url: "/beat-packs", icon: Music },
     { title: "Upload", url: "/upload", icon: Upload },
     { title: "Library", url: "/library", icon: Library },

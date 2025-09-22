@@ -84,12 +84,6 @@ export default function StickyHeader() {
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-8">
             <Link 
-              to="/feed-me-beatz" 
-              className="text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Feed Me Beatz
-            </Link>
-            <Link 
               to="/explore" 
               className="text-muted-foreground hover:text-foreground transition-colors"
             >
@@ -210,13 +204,6 @@ export default function StickyHeader() {
                   <SheetTitle>Menu</SheetTitle>
                 </SheetHeader>
                 <nav className="flex flex-col space-y-4 mt-6">
-                  <Link 
-                    to="/feed-me-beatz" 
-                    className="text-foreground hover:text-primary transition-colors"
-                    onClick={() => setIsOpen(false)}
-                  >
-                    Feed Me Beatz
-                  </Link>
                   <Link 
                     to="/explore" 
                     className="text-foreground hover:text-primary transition-colors"

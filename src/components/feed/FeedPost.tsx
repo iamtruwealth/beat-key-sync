@@ -247,7 +247,7 @@ export function FeedPost({
   };
 
   return (
-    <div className="relative w-full h-full bg-background snap-start overflow-hidden">
+    <div className="relative w-full h-[75vh] sm:h-[85vh] bg-background snap-start overflow-hidden rounded-lg sm:rounded-none mx-2 sm:mx-0 my-2 sm:my-0">
       {/* Background Media */}
       <div className="absolute inset-0 rounded-lg sm:rounded-none overflow-hidden">
         {displayPost.type === 'video' ? (
@@ -294,7 +294,7 @@ export function FeedPost({
         )}
         
         {/* Dark overlay for better text readability */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/50" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/30" />
       </div>
 
       {/* Play/Pause Overlay */}
