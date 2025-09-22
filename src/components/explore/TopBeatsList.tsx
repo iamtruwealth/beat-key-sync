@@ -304,7 +304,7 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
             filteredBeats.map((beat, index) => (
               <Card key={beat.id} className="hover:bg-muted/30 transition-colors">
                 <CardContent className="p-4">
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3 md:gap-4">
                     {/* Rank */}
                     <div className="w-8 text-center text-muted-foreground font-mono">
                       {index + 1}
@@ -315,7 +315,8 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
                       variant="ghost"
                       size="sm"
                       onClick={() => handlePlay(beat)}
-                      className="w-10 h-10 p-0"
+                      className="w-10 h-10 p-0 hidden md:inline-flex"
+                      aria-label={currentTrack?.id === beat.id && isPlaying ? 'Pause' : 'Play'}
                     >
                       {currentTrack?.id === beat.id && isPlaying ? (
                         <Pause className="w-4 h-4" />
@@ -354,8 +355,8 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
 
                     {/* Beat Info */}
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold truncate">{beat.title}</h3>
-                      <p className="text-sm text-muted-foreground flex items-center gap-1">
+                      <h3 className="text-sm sm:text-base font-semibold truncate">{beat.title}</h3>
+                      <p className="text-xs sm:text-sm text-muted-foreground flex items-center gap-1">
                         {beat.producer?.producer_name || beat.artist || 'Unknown'}
                         {beat.producer?.verification_status === 'verified' && (
                           <img 
@@ -397,20 +398,21 @@ export default function TopBeatsList({ limit = 20, showFilters = true }: TopBeat
                           variant="outline" 
                           size="sm"
                           onClick={() => handleDownload(beat)}
-                          className="bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
+                          className="h-8 px-2 text-xs sm:text-sm bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
                         >
                           <Download className="w-4 h-4 mr-1" />
                           Free
                         </Button>
                       ) : (
                         <>
-                          <span className="text-lg font-bold text-primary">
+                          <span className="text-sm sm:text-lg font-bold text-primary">
                             {formatPrice(beat.price_cents)}
                           </span>
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => handleAddToCart(beat)}
+                            className="h-8 px-2 text-xs sm:text-sm"
                           >
                             <ShoppingCart className="w-4 h-4 mr-1" />
                             Add
