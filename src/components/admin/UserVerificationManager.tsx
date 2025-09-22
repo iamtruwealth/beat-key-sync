@@ -1,14 +1,19 @@
 import { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Shield, ShieldCheck, Search, Filter, User, Headphones } from 'lucide-react';
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from '@/components/ui/table';
+import { Shield, ShieldCheck, ShieldX, User, Users } from 'lucide-react';
 
 interface UserProfile {
   id: string;
@@ -25,45 +30,36 @@ interface UserProfile {
 
 export function UserVerificationManager() {
   const [profiles, setProfiles] = useState<UserProfile[]>([]);
-  const [filteredProfiles, setFilteredProfiles] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterRole, setFilterRole] = useState<string>('all');
-  const [filterStatus, setFilterStatus] = useState<string>('all');
   const { toast } = useToast();
 
   useEffect(() => {
     loadProfiles();
   }, []);
 
-  useEffect(() => {
-    filterProfiles();
-  }, [profiles, searchTerm, filterRole, filterStatus]);
-
   const loadProfiles = async () => {
     try {
-      setLoading(true);
       const { data, error } = await supabase.rpc('get_all_profiles_for_admin');
-
+      
       if (error) {
         if (error.message.includes('master admin')) {
           toast({
             title: "Access Denied",
-            description: "Only the master admin can access user verification management.",
+            description: "Only the master admin can access this feature.",
             variant: "destructive"
           });
           return;
         }
         throw error;
       }
-
+      
       setProfiles(data || []);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error loading profiles:', error);
       toast({
         title: "Error",
-        description: "Failed to load user profiles",
+        description: "Failed to load user profiles.",
         variant: "destructive"
       });
     } finally {
@@ -71,59 +67,32 @@ export function UserVerificationManager() {
     }
   };
 
-  const filterProfiles = () => {
-    let filtered = [...profiles];
-
-    // Search filter
-    if (searchTerm) {
-      filtered = filtered.filter(profile =>
-        profile.producer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        profile.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        profile.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        profile.username?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    // Role filter
-    if (filterRole !== 'all') {
-      filtered = filtered.filter(profile => profile.role === filterRole);
-    }
-
-    // Status filter
-    if (filterStatus !== 'all') {
-      filtered = filtered.filter(profile => profile.verification_status === filterStatus);
-    }
-
-    setFilteredProfiles(filtered);
-  };
-
-  const updateVerificationStatus = async (userId: string, newStatus: string) => {
+  const updateVerificationStatus = async (userId: string, status: string) => {
+    setUpdating(userId);
     try {
-      setUpdating(userId);
-
       const { data, error } = await supabase.rpc('update_user_verification', {
         user_id_param: userId,
-        verification_status_param: newStatus
+        verification_status_param: status
       });
 
       if (error) throw error;
 
       // Update local state
-      setProfiles(profiles.map(profile =>
-        profile.id === userId
-          ? { ...profile, verification_status: newStatus }
+      setProfiles(profiles.map(profile => 
+        profile.id === userId 
+          ? { ...profile, verification_status: status }
           : profile
       ));
 
       toast({
         title: "Success",
-        description: `User verification status updated to ${newStatus}`,
+        description: `User verification status updated to ${status}.`
       });
     } catch (error: any) {
       console.error('Error updating verification:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to update verification status",
+        description: error.message || "Failed to update verification status.",
         variant: "destructive"
       });
     } finally {
@@ -131,199 +100,181 @@ export function UserVerificationManager() {
     }
   };
 
-  const getDisplayName = (profile: UserProfile) => {
-    if (profile.producer_name) return profile.producer_name;
-    if (profile.first_name && profile.last_name) {
-      return `${profile.first_name} ${profile.last_name}`;
+  const getVerificationBadge = (status: string) => {
+    switch (status) {
+      case 'verified':
+        return <Badge className="bg-blue-500/20 text-blue-300 border-blue-400/30"><ShieldCheck className="w-3 h-3 mr-1" />Verified</Badge>;
+      case 'pending':
+        return <Badge variant="secondary"><Shield className="w-3 h-3 mr-1" />Pending</Badge>;
+      default:
+        return <Badge variant="outline"><ShieldX className="w-3 h-3 mr-1" />Unverified</Badge>;
     }
-    return profile.username || 'Unknown User';
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
   };
 
   if (loading) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Shield className="w-5 h-5" />
-            User Verification Management
-          </CardTitle>
+          <CardTitle>User Verification Management</CardTitle>
+          <CardDescription>Loading user profiles...</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-8">
-            <div className="animate-pulse">Loading profiles...</div>
+          <div className="animate-pulse space-y-4">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="h-16 bg-muted rounded" />
+            ))}
           </div>
         </CardContent>
       </Card>
     );
   }
 
+  if (profiles.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>User Verification Management</CardTitle>
+          <CardDescription>
+            Access denied or no users found. Only the master admin can access this feature.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
+
+  const verifiedCount = profiles.filter(p => p.verification_status === 'verified').length;
+  const producerCount = profiles.filter(p => p.role === 'producer').length;
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Shield className="w-5 h-5" />
-          User Verification Management
-        </CardTitle>
-        <div className="text-sm text-muted-foreground">
-          Manage verified badges for producers and artists
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <Label htmlFor="search">Search Users</Label>
-            <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                id="search"
-                placeholder="Search by name or username..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
-              />
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-2">
+              <Users className="w-5 h-5 text-muted-foreground" />
+              <div>
+                <p className="text-2xl font-bold">{profiles.length}</p>
+                <p className="text-sm text-muted-foreground">Total Users</p>
+              </div>
             </div>
-          </div>
-          
-          <div>
-            <Label htmlFor="role-filter">Filter by Role</Label>
-            <Select value={filterRole} onValueChange={setFilterRole}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Roles</SelectItem>
-                <SelectItem value="producer">Producers</SelectItem>
-                <SelectItem value="artist">Artists</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-2">
+              <ShieldCheck className="w-5 h-5 text-blue-500" />
+              <div>
+                <p className="text-2xl font-bold">{verifiedCount}</p>
+                <p className="text-sm text-muted-foreground">Verified Users</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-2">
+              <User className="w-5 h-5 text-primary" />
+              <div>
+                <p className="text-2xl font-bold">{producerCount}</p>
+                <p className="text-sm text-muted-foreground">Producers</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
-          <div>
-            <Label htmlFor="status-filter">Filter by Status</Label>
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="verified">Verified</SelectItem>
-                <SelectItem value="unverified">Unverified</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="text-center p-4 bg-muted rounded-lg">
-            <div className="text-2xl font-bold">{profiles.length}</div>
-            <div className="text-sm text-muted-foreground">Total Users</div>
-          </div>
-          <div className="text-center p-4 bg-muted rounded-lg">
-            <div className="text-2xl font-bold text-green-600">
-              {profiles.filter(p => p.verification_status === 'verified').length}
-            </div>
-            <div className="text-sm text-muted-foreground">Verified</div>
-          </div>
-          <div className="text-center p-4 bg-muted rounded-lg">
-            <div className="text-2xl font-bold">
-              {profiles.filter(p => p.role === 'producer').length}
-            </div>
-            <div className="text-sm text-muted-foreground">Producers</div>
-          </div>
-          <div className="text-center p-4 bg-muted rounded-lg">
-            <div className="text-2xl font-bold">
-              {profiles.filter(p => p.role === 'artist').length}
-            </div>
-            <div className="text-sm text-muted-foreground">Artists</div>
-          </div>
-        </div>
-
-        {/* User List */}
-        <div className="space-y-4">
-          <div className="text-sm text-muted-foreground">
-            Showing {filteredProfiles.length} of {profiles.length} users
-          </div>
-          
-          {filteredProfiles.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No users match your current filters
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {filteredProfiles.map((profile) => (
-                <Card key={profile.id} className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <Avatar className="w-12 h-12">
-                        <AvatarImage src={profile.producer_logo_url} />
+      <Card>
+        <CardHeader>
+          <CardTitle>User Verification Management</CardTitle>
+          <CardDescription>
+            Manage verification status for all users. Only the master admin can perform these actions.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>User</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Username</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Joined</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {profiles.map((profile) => (
+                <TableRow key={profile.id}>
+                  <TableCell>
+                    <div className="flex items-center space-x-3">
+                      <Avatar className="w-10 h-10">
+                        <AvatarImage src={profile.producer_logo_url} alt={profile.producer_name || profile.first_name} />
                         <AvatarFallback>
-                          {profile.role === 'producer' ? (
-                            <Headphones className="w-6 h-6" />
-                          ) : (
-                            <User className="w-6 h-6" />
-                          )}
+                          {(profile.producer_name || profile.first_name || 'U').charAt(0)}
                         </AvatarFallback>
                       </Avatar>
-                      
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold">{getDisplayName(profile)}</span>
-                          {profile.verification_status === 'verified' && (
-                            <ShieldCheck className="w-4 h-4 text-blue-500" />
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Badge variant="outline" className="text-xs">
-                            {profile.role}
-                          </Badge>
-                          {profile.username && (
-                            <span>@{profile.username}</span>
-                          )}
-                          <span>•</span>
-                          <span>Joined {formatDate(profile.created_at)}</span>
-                        </div>
+                      <div>
+                        <p className="font-medium">
+                          {profile.producer_name || `${profile.first_name} ${profile.last_name}`.trim() || 'Unnamed User'}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {profile.producer_name ? 'Producer' : 'User'}
+                        </p>
                       </div>
                     </div>
-
-                    <div className="flex items-center gap-2">
-                      <Badge 
-                        variant={profile.verification_status === 'verified' ? 'default' : 'secondary'}
-                        className={profile.verification_status === 'verified' ? 'bg-blue-500' : ''}
-                      >
-                        {profile.verification_status === 'verified' ? 'Verified' : 'Unverified'}
-                      </Badge>
-                      
-                      <Select
-                        value={profile.verification_status}
-                        onValueChange={(value) => updateVerificationStatus(profile.id, value)}
-                        disabled={updating === profile.id}
-                      >
-                        <SelectTrigger className="w-32">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="unverified">Unverified</SelectItem>
-                          <SelectItem value="verified">Verified</SelectItem>
-                        </SelectContent>
-                      </Select>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={profile.role === 'producer' ? 'default' : 'secondary'}>
+                      {profile.role}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <code className="text-sm bg-muted px-2 py-1 rounded">
+                      {profile.username || 'No username'}
+                    </code>
+                  </TableCell>
+                  <TableCell>
+                    {getVerificationBadge(profile.verification_status)}
+                  </TableCell>
+                  <TableCell>
+                    {new Date(profile.created_at).toLocaleDateString()}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center space-x-2">
+                      {profile.verification_status !== 'verified' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => updateVerificationStatus(profile.id, 'verified')}
+                          disabled={updating === profile.id}
+                          className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                        >
+                          <ShieldCheck className="w-4 h-4 mr-1" />
+                          Verify
+                        </Button>
+                      )}
+                      {profile.verification_status === 'verified' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => updateVerificationStatus(profile.id, 'unverified')}
+                          disabled={updating === profile.id}
+                          className="text-red-600 border-red-600 hover:bg-red-50"
+                        >
+                          <ShieldX className="w-4 h-4 mr-1" />
+                          Remove
+                        </Button>
+                      )}
                     </div>
-                  </div>
-                </Card>
+                  </TableCell>
+                </TableRow>
               ))}
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
