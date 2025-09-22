@@ -223,13 +223,26 @@ export default function UserProfile() {
       
       {/* Hero Section */}
       <section className="relative h-96 bg-gradient-to-br from-primary/20 via-primary/10 to-background overflow-hidden">
-        {profile.banner_url && (
+        {profile.banner_url ? (
           <div 
             className="absolute inset-0 bg-cover bg-center"
             style={{ backgroundImage: `url(${profile.banner_url})` }}
           >
             <div className="absolute inset-0 bg-black/50" />
           </div>
+        ) : (
+          <>
+            <video
+              className="absolute inset-0 w-full h-full object-cover"
+              autoPlay
+              muted
+              loop
+              playsInline
+            >
+              <source src="/assets/profile-fallback-video.mp4" type="video/mp4" />
+            </video>
+            <div className="absolute inset-0 bg-black/50" />
+          </>
         )}
         
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-end pb-12">
