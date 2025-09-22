@@ -4,9 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
-import { Play, Share2, ShoppingCart } from 'lucide-react';
+import { Play, Pause, Share2, ShoppingCart } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useCart } from '@/contexts/CartContext';
+import { useToast } from '@/hooks/use-toast';
 
 interface BeatPack {
   id: string;
@@ -31,7 +32,9 @@ export default function BeatPackCarousel() {
   const [beatPacks, setBeatPacks] = useState<BeatPack[]>([]);
   const [loading, setLoading] = useState(true);
   const [playingPackId, setPlayingPackId] = useState<string | null>(null);
+  const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
   const { addToCart } = useCart();
+  const { toast } = useToast();
 
   useEffect(() => {
     const fetchTopBeatPacks = async () => {
@@ -118,8 +121,19 @@ export default function BeatPackCarousel() {
 
   const handlePlayPack = async (packId: string) => {
     if (playingPackId === packId) {
+      // Pause current audio
+      if (currentAudio) {
+        currentAudio.pause();
+        setCurrentAudio(null);
+      }
       setPlayingPackId(null);
       return;
+    }
+
+    // Stop any currently playing audio
+    if (currentAudio) {
+      currentAudio.pause();
+      setCurrentAudio(null);
     }
 
     try {
@@ -143,11 +157,18 @@ export default function BeatPackCarousel() {
         if (beat?.audio_file_url) {
           // Create and play audio
           const audio = new Audio(beat.audio_file_url);
+          setCurrentAudio(audio);
           audio.play();
           setPlayingPackId(packId);
           
-          audio.onended = () => setPlayingPackId(null);
-          audio.onerror = () => setPlayingPackId(null);
+          audio.onended = () => {
+            setPlayingPackId(null);
+            setCurrentAudio(null);
+          };
+          audio.onerror = () => {
+            setPlayingPackId(null);
+            setCurrentAudio(null);
+          };
         }
       }
     } catch (error) {
@@ -169,11 +190,18 @@ export default function BeatPackCarousel() {
       } catch (error) {
         // User cancelled sharing, fall back to clipboard
         await navigator.clipboard.writeText(shareUrl);
+        toast({
+          title: "Copied to clipboard",
+          description: "Beat pack link has been copied to your clipboard.",
+        });
       }
     } else {
       // Fallback to clipboard
       await navigator.clipboard.writeText(shareUrl);
-      // You could add a toast notification here
+      toast({
+        title: "Copied to clipboard",
+        description: "Beat pack link has been copied to your clipboard.",
+      });
     }
   };
 
@@ -249,7 +277,7 @@ export default function BeatPackCarousel() {
                     {/* Overlay actions */}
                     <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                       <Button size="sm" variant="secondary" onClick={() => handlePlayPack(pack.id)}>
-                        <Play className="w-4 h-4" />
+                        {playingPackId === pack.id ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
                       </Button>
                       <Button size="sm" variant="secondary" onClick={() => handleSharePack(pack)}>
                         <Share2 className="w-4 h-4" />
