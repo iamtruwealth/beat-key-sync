@@ -1,157 +1,199 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
-import { Play, Pause, Volume2, VolumeX, SkipBack, SkipForward, Repeat, Shuffle } from 'lucide-react';
+import { Play, Pause, Volume2, VolumeX, SkipBack, SkipForward } from 'lucide-react';
 import { useAudio } from '@/contexts/AudioContext';
-import WaveSurfer from 'wavesurfer.js';
 
 export function FuturisticWaveformPlayer() {
-  const waveformRef = useRef<HTMLDivElement>(null);
-  const wavesurferRef = useRef<WaveSurfer | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>();
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const dataArrayRef = useRef<Uint8Array | null>(null);
   
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
-  const [isWaveformReady, setIsWaveformReady] = useState(false);
+  const [frequencyData, setFrequencyData] = useState<number[]>([]);
 
   const { currentTrack, isPlaying, currentTime, duration, pauseTrack, resumeTrack, setVolume: setAudioVolume, seekTo } = useAudio();
 
-  // Initialize WaveSurfer
+  // Initialize Web Audio API for real-time frequency analysis
   useEffect(() => {
-    if (!waveformRef.current) return;
+    const setupAudioAnalysis = async () => {
+      if (!currentTrack || !isPlaying) return;
 
-    // Create WaveSurfer instance
-    const wavesurfer = WaveSurfer.create({
-      container: waveformRef.current,
-      waveColor: 'rgba(255, 255, 255, 0.3)',
-      progressColor: '#00bcd4',
-      cursorColor: '#00bcd4',
-      barWidth: 2,
-      barGap: 1,
-      barRadius: 1,
-      height: 60,
-      normalize: true,
-      interact: true,
-      hideScrollbar: true,
-    });
+      try {
+        // Create or resume audio context
+        if (!audioContextRef.current) {
+          audioContextRef.current = new AudioContext({ sampleRate: 44100 });
+        }
 
-    // Store reference
-    wavesurferRef.current = wavesurfer;
+        if (audioContextRef.current.state === 'suspended') {
+          await audioContextRef.current.resume();
+        }
 
-    // Event listeners
-    wavesurfer.on('ready', () => {
-      setIsWaveformReady(true);
-      startFrequencyVisualization();
-    });
+        // Find the audio element from AudioContext
+        const audioElements = document.querySelectorAll('audio');
+        let audioElement: HTMLAudioElement | null = null;
+        
+        // Find the audio element that's currently playing our track
+        for (const el of audioElements) {
+          if (el.src && (el.src.includes(currentTrack.file_url || '') || 
+                        el.currentSrc && el.currentSrc.includes(currentTrack.file_url || ''))) {
+            audioElement = el;
+            break;
+          }
+        }
 
-    wavesurfer.on('click', (progress: number) => {
-      if (duration && typeof progress === 'number') {
-        seekTo(progress * duration);
+        if (!audioElement) {
+          console.warn('No audio element found for current track');
+          return;
+        }
+
+        // Prevent multiple connections to the same audio element
+        if (sourceRef.current) {
+          sourceRef.current.disconnect();
+          sourceRef.current = null;
+        }
+
+        // Create analyser node
+        analyserRef.current = audioContextRef.current.createAnalyser();
+        analyserRef.current.fftSize = 128; // Small for performance, gives us 64 frequency bins
+        analyserRef.current.smoothingTimeConstant = 0.8;
+        analyserRef.current.minDecibels = -90;
+        analyserRef.current.maxDecibels = -10;
+
+        // Connect audio source to analyser
+        try {
+          sourceRef.current = audioContextRef.current.createMediaElementSource(audioElement);
+          sourceRef.current.connect(analyserRef.current);
+          analyserRef.current.connect(audioContextRef.current.destination);
+        } catch (error) {
+          console.warn('Audio element already connected, using existing connection');
+        }
+
+        // Setup data array
+        dataArrayRef.current = new Uint8Array(analyserRef.current.frequencyBinCount);
+
+        // Start real-time visualization
+        startRealtimeVisualization();
+
+      } catch (error) {
+        console.error('Error setting up audio analysis:', error);
       }
-    });
+    };
 
-    wavesurfer.on('error', (error) => {
-      console.error('WaveSurfer error:', error);
-    });
+    if (currentTrack && isPlaying) {
+      // Small delay to ensure audio element is ready
+      setTimeout(setupAudioAnalysis, 100);
+    }
 
     return () => {
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }
-      wavesurfer.destroy();
     };
-  }, []);
+  }, [currentTrack, isPlaying]);
 
-  // Load audio when track changes
-  useEffect(() => {
-    if (!wavesurferRef.current || !currentTrack) return;
-
-    const audioUrl = currentTrack.file_url;
-    if (!audioUrl) return;
-
-    setIsWaveformReady(false);
-    
-    // Load the audio file
-    wavesurferRef.current.load(audioUrl);
-  }, [currentTrack]);
-
-  // Sync playback state
-  useEffect(() => {
-    if (!wavesurferRef.current || !isWaveformReady) return;
-
-    if (isPlaying) {
-      if (wavesurferRef.current.isPlaying()) return;
-      wavesurferRef.current.play();
-    } else {
-      if (!wavesurferRef.current.isPlaying()) return;
-      wavesurferRef.current.pause();
-    }
-  }, [isPlaying, isWaveformReady]);
-
-  // Sync current time
-  useEffect(() => {
-    if (!wavesurferRef.current || !isWaveformReady || !duration) return;
-    
-    const progress = currentTime / duration;
-    const waveSurferTime = wavesurferRef.current.getCurrentTime();
-    if (Math.abs(waveSurferTime - currentTime) > 1) {
-      wavesurferRef.current.seekTo(progress);
-    }
-  }, [currentTime, duration, isWaveformReady]);
-
-  // Real-time frequency visualization
-  const startFrequencyVisualization = () => {
-    if (!wavesurferRef.current) return;
-
-    // Get audio context for frequency analysis
-    const audioContext = new AudioContext();
-    const analyser = audioContext.createAnalyser();
-    analyser.fftSize = 256;
-    const dataArray = new Uint8Array(analyser.frequencyBinCount);
-
-    // Try to connect to the audio source
-    try {
-      const audioElement = document.querySelector('audio') as HTMLAudioElement;
-      if (audioElement) {
-        const source = audioContext.createMediaElementSource(audioElement);
-        source.connect(analyser);
-        analyser.connect(audioContext.destination);
-      }
-    } catch (error) {
-      console.warn('Could not connect audio analyzer:', error);
-    }
-
+  // Real-time visualization loop
+  const startRealtimeVisualization = () => {
     const animate = () => {
-      if (!wavesurferRef.current) return;
-
-      try {
-        analyser.getByteFrequencyData(dataArray);
-        
-        // Calculate average frequency for dynamic coloring
-        const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length;
-        const intensity = average / 255;
-
-        // Update waveform colors based on audio intensity
-        const hue = 190 + intensity * 40;
-        const saturation = 100;
-        const lightness = 60 + intensity * 20;
-        
-        const progressColor = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
-        const cursorColor = `hsl(${hue}, ${saturation}%, ${lightness + 10}%)`;
-
-        // Apply dynamic colors by updating the waveform options
-        wavesurferRef.current?.setOptions({
-          progressColor,
-          cursorColor,
-        });
-      } catch (error) {
-        // Ignore errors and continue animation
+      if (!analyserRef.current || !dataArrayRef.current || !canvasRef.current) {
+        animationRef.current = requestAnimationFrame(animate);
+        return;
       }
 
+      // Get real-time frequency data
+      analyserRef.current.getByteFrequencyData(dataArrayRef.current);
+      
+      // Update frequency data state for rendering
+      setFrequencyData(Array.from(dataArrayRef.current));
+      
+      // Draw the reactive waveform
+      drawReactiveWaveform();
+      
       animationRef.current = requestAnimationFrame(animate);
     };
 
     animate();
+  };
+
+  // Draw reactive waveform that responds to audio
+  const drawReactiveWaveform = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !dataArrayRef.current) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const { width, height } = canvas;
+    ctx.clearRect(0, 0, width, height);
+
+    const bufferLength = dataArrayRef.current.length;
+    const barWidth = width / bufferLength;
+    const progress = duration ? currentTime / duration : 0;
+
+    // Draw each frequency bar
+    for (let i = 0; i < bufferLength; i++) {
+      const barHeight = (dataArrayRef.current[i] / 255) * height * 0.8;
+      const x = i * barWidth;
+      const y = height - barHeight;
+
+      // Calculate if this bar is in the "played" section
+      const barProgress = i / bufferLength;
+      const isPlayed = barProgress <= progress;
+
+      // Create dynamic gradient based on frequency intensity
+      const intensity = dataArrayRef.current[i] / 255;
+      
+      if (isPlayed) {
+        // Played section - bright reactive colors
+        const hue = 180 + intensity * 60; // Cyan to purple range
+        const saturation = 90 + intensity * 10;
+        const lightness = 50 + intensity * 30;
+        
+        ctx.fillStyle = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+        
+        // Add glow effect for high frequencies
+        if (intensity > 0.5) {
+          ctx.shadowColor = `hsl(${hue}, 100%, 70%)`;
+          ctx.shadowBlur = 8;
+        }
+      } else {
+        // Unplayed section - subtle static bars
+        ctx.fillStyle = `rgba(255, 255, 255, ${0.2 + intensity * 0.1})`;
+        ctx.shadowBlur = 0;
+      }
+
+      // Draw bar
+      ctx.fillRect(x, y, barWidth - 1, barHeight);
+      ctx.shadowBlur = 0;
+    }
+
+    // Draw progress line
+    if (progress > 0) {
+      const playheadX = progress * width;
+      ctx.strokeStyle = '#00bcd4';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(playheadX, 0);
+      ctx.lineTo(playheadX, height);
+      ctx.stroke();
+    }
+  }, [currentTime, duration, isPlaying]);
+
+  // Handle canvas click for seeking
+  const handleCanvasClick = (event: React.MouseEvent) => {
+    const canvas = canvasRef.current;
+    if (!canvas || !duration) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const clickX = event.clientX - rect.left;
+    const progress = clickX / canvas.width;
+    const seekTime = progress * duration;
+
+    seekTo(seekTime);
   };
 
   // Control handlers
@@ -168,25 +210,15 @@ export function FuturisticWaveformPlayer() {
     setVolume(newVolume);
     setAudioVolume(newVolume);
     setIsMuted(newVolume === 0);
-    
-    if (wavesurferRef.current) {
-      wavesurferRef.current.setVolume(newVolume);
-    }
   };
 
   const toggleMute = () => {
     if (isMuted) {
       setAudioVolume(volume);
       setIsMuted(false);
-      if (wavesurferRef.current) {
-        wavesurferRef.current.setVolume(volume);
-      }
     } else {
       setAudioVolume(0);
       setIsMuted(true);
-      if (wavesurferRef.current) {
-        wavesurferRef.current.setVolume(0);
-      }
     }
   };
 
@@ -196,6 +228,25 @@ export function FuturisticWaveformPlayer() {
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
+
+  // Canvas setup and resize handling
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const resizeCanvas = () => {
+      const container = canvas.parentElement;
+      if (!container) return;
+      
+      const rect = container.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = 60;
+    };
+
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    return () => window.removeEventListener('resize', resizeCanvas);
+  }, []);
 
   if (!currentTrack) {
     return null;
@@ -234,8 +285,7 @@ export function FuturisticWaveformPlayer() {
 
             <Button
               onClick={togglePlayPause}
-              disabled={!isWaveformReady}
-              className="w-10 h-10 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white shadow-md transition-all duration-300 disabled:opacity-50"
+              className="w-10 h-10 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white shadow-md transition-all duration-300"
               style={{
                 boxShadow: isPlaying ? '0 0 20px rgba(0, 188, 212, 0.5)' : '0 2px 8px rgba(0,0,0,0.3)'
               }}
@@ -256,16 +306,17 @@ export function FuturisticWaveformPlayer() {
             </Button>
           </div>
 
-          {/* WaveSurfer Waveform */}
+          {/* Reactive Waveform Canvas */}
           <div className="flex-1 max-w-md mx-4 relative">
-            <div 
-              ref={waveformRef}
-              className="w-full rounded"
+            <canvas
+              ref={canvasRef}
+              onClick={handleCanvasClick}
+              className="w-full cursor-pointer rounded"
               style={{ height: '60px' }}
             />
-            {!isWaveformReady && (
+            {!isPlaying && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded">
-                <div className="text-xs text-white/60">Loading waveform...</div>
+                <div className="text-xs text-white/60">Play music to see visualization</div>
               </div>
             )}
           </div>
