@@ -17,6 +17,7 @@ import verifiedBadge from '@/assets/verified-badge.png';
 import BeatPackGrid from '@/components/beats/BeatPackGrid';
 import hipHopCollageFallback from '@/assets/hip-hop-collage-fallback.png';
 import { useTrackDownload } from '@/hooks/useTrackDownload';
+import { CompactWaveformPlayer } from '@/components/player/CompactWaveformPlayer';
 
 interface Profile {
   id: string;
@@ -52,6 +53,7 @@ interface Beat {
   id: string;
   title: string;
   artist: string;
+  file_url?: string;
   audio_file_url: string;
   artwork_url: string;
   bpm: number;
@@ -410,18 +412,18 @@ export default function ProducerProfile() {
                       </div>
 
                       {/* Play Button */}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handlePlayPause(beat)}
-                        className="w-10 h-10 p-0"
-                      >
-                        {currentTrack?.id === beat.id && isPlaying ? (
-                          <Pause className="w-4 h-4" />
-                        ) : (
-                          <Play className="w-4 h-4" />
-                        )}
-                      </Button>
+                      <CompactWaveformPlayer
+                        track={{
+                          id: beat.id,
+                          title: beat.title,
+                          file_url: beat.file_url || beat.audio_file_url,
+                          audio_file_url: beat.audio_file_url
+                        }}
+                        isPlaying={currentTrack?.id === beat.id && isPlaying}
+                        onPlay={() => handlePlayPause(beat)}
+                        onPause={() => handlePlayPause(beat)}
+                        className="w-50"
+                      />
 
                       {/* Artwork */}
                       <div className="w-16 h-16 rounded overflow-hidden bg-muted">
