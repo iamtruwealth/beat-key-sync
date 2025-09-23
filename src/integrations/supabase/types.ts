@@ -1264,6 +1264,15 @@ export type Database = {
         Args: { beat_id: string }
         Returns: undefined
       }
+      signup_without_confirmation: {
+        Args: {
+          email_param: string
+          password_param: string
+          role_param?: string
+          username_param: string
+        }
+        Returns: Json
+      }
       update_user_verification: {
         Args: { user_id_param: string; verification_status_param: string }
         Returns: boolean

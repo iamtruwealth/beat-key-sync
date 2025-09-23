@@ -148,18 +148,35 @@ export default function AuthPage() {
     setLoading(true);
 
     try {
-      const redirectUrl = `${window.location.origin}/`;
+      let logoUrl = null;
       
-      // First create the user account
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: redirectUrl,
-          data: {
-            role: userRole,
-            username: username.toLowerCase()
-          }
+      // Upload logo first if provided
+      if (artistLogo) {
+        const fileExt = artistLogo.name.split('.').pop();
+        const fileName = `temp/${Date.now()}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('artwork')
+          .upload(fileName, artistLogo);
+          
+        if (uploadError) {
+          console.warn("Logo upload failed:", uploadError.message);
+        } else {
+          const { data: { publicUrl } } = supabase.storage
+            .from('artwork')
+            .getPublicUrl(fileName);
+          logoUrl = publicUrl;
+        }
+      }
+
+      // Create account without email confirmation using edge function
+      const { data, error } = await supabase.functions.invoke('signup-without-confirmation', {
+        body: {
+          email,
+          password,
+          username: username.toLowerCase(),
+          role: userRole,
+          logoUrl
         }
       });
 
@@ -173,35 +190,28 @@ export default function AuthPage() {
         return;
       }
 
-      // If logo is provided and user was created, upload it
-      if (artistLogo && data.user) {
-        const fileExt = artistLogo.name.split('.').pop();
-        const fileName = `${data.user.id}/${Date.now()}.${fileExt}`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from('artwork')
-          .upload(fileName, artistLogo);
-          
-        if (uploadError) {
-          console.warn("Logo upload failed:", uploadError.message);
-          // Don't fail the signup if logo upload fails
-        } else {
-          const { data: { publicUrl } } = supabase.storage
-            .from('artwork')
-            .getPublicUrl(fileName);
-          
-          // Update the user's profile with the logo URL
-          await supabase
-            .from('profiles')
-            .update({ producer_logo_url: publicUrl })
-            .eq('id', data.user.id);
-        }
+      if (data?.error) {
+        toast({
+          title: "Sign up failed",
+          description: data.error,
+          variant: "destructive"
+        });
+        setLoading(false);
+        return;
       }
 
       toast({
-        title: "Check your email",
-        description: "We've sent you a confirmation link"
+        title: "Account created successfully!",
+        description: "You can now sign in with your credentials"
       });
+
+      // Clear form
+      setEmail("");
+      setPassword("");
+      setUsername("");
+      setArtistLogo(null);
+      setTermsAccepted(false);
+
     } catch (error: any) {
       toast({
         title: "Sign up failed",
