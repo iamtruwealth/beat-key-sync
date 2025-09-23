@@ -148,42 +148,15 @@ export default function AuthPage() {
     setLoading(true);
 
     try {
-      let logoUrl = null;
-      
-      // Upload artist logo if provided
-      if (artistLogo) {
-        const fileExt = artistLogo.name.split('.').pop();
-        const fileName = `${Date.now()}.${fileExt}`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from('artwork')
-          .upload(fileName, artistLogo);
-          
-        if (uploadError) {
-          toast({
-            title: "Logo upload failed",
-            description: uploadError.message,
-            variant: "destructive"
-          });
-          setLoading(false);
-          return;
-        }
-        
-        const { data: { publicUrl } } = supabase.storage
-          .from('artwork')
-          .getPublicUrl(fileName);
-        logoUrl = publicUrl;
-      }
-
       const redirectUrl = `${window.location.origin}/`;
       
-      const { error } = await supabase.auth.signUp({
+      // First create the user account
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           emailRedirectTo: redirectUrl,
           data: {
-            artist_logo: logoUrl,
             role: userRole,
             username: username.toLowerCase()
           }
@@ -196,12 +169,39 @@ export default function AuthPage() {
           description: error.message,
           variant: "destructive"
         });
-      } else {
-        toast({
-          title: "Check your email",
-          description: "We've sent you a confirmation link"
-        });
+        setLoading(false);
+        return;
       }
+
+      // If logo is provided and user was created, upload it
+      if (artistLogo && data.user) {
+        const fileExt = artistLogo.name.split('.').pop();
+        const fileName = `${data.user.id}/${Date.now()}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('artwork')
+          .upload(fileName, artistLogo);
+          
+        if (uploadError) {
+          console.warn("Logo upload failed:", uploadError.message);
+          // Don't fail the signup if logo upload fails
+        } else {
+          const { data: { publicUrl } } = supabase.storage
+            .from('artwork')
+            .getPublicUrl(fileName);
+          
+          // Update the user's profile with the logo URL
+          await supabase
+            .from('profiles')
+            .update({ producer_logo_url: publicUrl })
+            .eq('id', data.user.id);
+        }
+      }
+
+      toast({
+        title: "Check your email",
+        description: "We've sent you a confirmation link"
+      });
     } catch (error: any) {
       toast({
         title: "Sign up failed",
