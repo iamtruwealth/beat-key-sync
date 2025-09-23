@@ -5,7 +5,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AppLayout } from "./components/layout/AppLayout";
 import { RoleBasedSidebar } from "./components/layout/RoleBasedSidebar";
+import { SidebarProvider, SidebarTrigger } from "./components/ui/sidebar";
 import { AudioProvider } from "./contexts/AudioContext";
+import { Menu } from "lucide-react";
 import { CartProvider } from "./contexts/CartContext";
 import { RoleProtectedRoute } from "./components/RoleProtectedRoute";
 import Dashboard from "./pages/Dashboard";
@@ -36,7 +38,7 @@ import SettingsPage from "./pages/Settings";
 import NewExplore from "./pages/NewExplore";
 import ProducerProfile from "./pages/ProducerProfile";
 import UserProfile from "./pages/UserProfile";
-import { SidebarProvider } from "@/components/ui/sidebar";
+
 import { FuturisticWaveformPlayer } from "./components/player/FuturisticWaveformPlayer";
 
 const queryClient = new QueryClient();
@@ -134,22 +136,46 @@ const App = () => (
             } />
             <Route path="/artist-dashboard" element={
               <RoleProtectedRoute allowedRoles={['artist']}>
-                <div className="flex min-h-screen w-full">
-                  <RoleBasedSidebar />
-                  <main className="flex-1 p-6 overflow-auto">
-                    <ArtistDashboard />
-                  </main>
-                </div>
+                <SidebarProvider>
+                  <div className="flex min-h-screen w-full">
+                    <RoleBasedSidebar />
+                    <div className="flex-1 flex flex-col">
+                      {/* Mobile header with sidebar trigger */}
+                      <header className="h-16 flex items-center justify-between px-4 border-b border-border bg-card/50 backdrop-blur-sm lg:hidden">
+                        <SidebarTrigger>
+                          <Menu className="w-5 h-5" />
+                        </SidebarTrigger>
+                        <h1 className="text-lg font-semibold">Artist Dashboard</h1>
+                        <div></div>
+                      </header>
+                      <main className="flex-1 p-6 overflow-auto">
+                        <ArtistDashboard />
+                      </main>
+                    </div>
+                  </div>
+                </SidebarProvider>
               </RoleProtectedRoute>
             } />
             <Route path="/producer-dashboard" element={
               <RoleProtectedRoute allowedRoles={['producer']}>
-                <div className="flex min-h-screen w-full">
-                  <RoleBasedSidebar />
-                  <main className="flex-1 p-6 overflow-auto">
-                    <ProducerDashboard />
-                  </main>
-                </div>
+                <SidebarProvider>
+                  <div className="flex min-h-screen w-full">
+                    <RoleBasedSidebar />
+                    <div className="flex-1 flex flex-col">
+                      {/* Mobile header with sidebar trigger */}
+                      <header className="h-16 flex items-center justify-between px-4 border-b border-border bg-card/50 backdrop-blur-sm lg:hidden">
+                        <SidebarTrigger>
+                          <Menu className="w-5 h-5" />
+                        </SidebarTrigger>
+                        <h1 className="text-lg font-semibold">Producer Dashboard</h1>
+                        <div></div>
+                      </header>
+                      <main className="flex-1 p-6 overflow-auto">
+                        <ProducerDashboard />
+                      </main>
+                    </div>
+                  </div>
+                </SidebarProvider>
               </RoleProtectedRoute>
             } />
             <Route path="/messages" element={

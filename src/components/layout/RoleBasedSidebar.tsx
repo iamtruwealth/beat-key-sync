@@ -132,7 +132,7 @@ export function RoleBasedSidebar() {
 
   return (
     <Sidebar className={collapsed ? "w-14" : "w-60"} collapsible="icon">
-      <SidebarTrigger className="m-2 self-end" />
+      {/* Remove the internal trigger since we have one in the mobile header */}
       
       <SidebarContent>
         {/* Brand */}
