@@ -176,7 +176,7 @@ export default function AuthPage() {
           password,
           username: username.toLowerCase(),
           role: userRole,
-          logoUrl
+          producerLogoUrl: logoUrl
         }
       });
 
