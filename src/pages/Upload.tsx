@@ -221,9 +221,7 @@ export default function UploadPage() {
 
   const uploadArtwork = async (file: File, userId: string): Promise<string | null> => {
     try {
-      // Sanitize artwork filename as well
-      const sanitizedArtworkFileName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
-      const fileName = `${userId}/artwork/${Date.now()}-${sanitizedArtworkFileName}`;
+      const fileName = `${userId}/artwork/${Date.now()}-${file.name}`;
       const { data, error } = await supabase.storage
         .from('artwork')
         .upload(fileName, file);
@@ -259,7 +257,7 @@ export default function UploadPage() {
 
   const removeArtwork = (index: number) => {
     setUploadedFiles(prev => 
-      prev.map(fileData, i) => 
+      prev.map((fileData, i) => 
         i === index ? { 
           ...fileData, 
           artwork: undefined,
@@ -294,13 +292,8 @@ export default function UploadPage() {
           artworkUrl = await uploadArtwork(fileData.artwork, user.id);
         }
 
-        // --- FIX STARTS HERE ---
-        // Sanitize the audio filename to remove invalid characters for storage keys
-        const sanitizedAudioFileName = fileData.file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
         // Upload audio file to Supabase storage with user folder structure
-        const fileName = `${user.id}/${Date.now()}-${sanitizedAudioFileName}`;
-        // --- FIX ENDS HERE ---
-
+        const fileName = `${user.id}/${Date.now()}-${fileData.file.name}`;
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('audio-files')
           .upload(fileName, fileData.file);
