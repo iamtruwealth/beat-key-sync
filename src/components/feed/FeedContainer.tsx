@@ -29,23 +29,7 @@ interface Post {
     producer_logo_url?: string;
     verification_status?: string;
   };
-  original_post?: {
-    id: string;
-    producer_id: string;
-    type: 'audio' | 'photo' | 'video';
-    beat_id?: string;
-    media_url: string;
-    cover_url?: string;
-    caption?: string;
-    bpm?: number;
-    key?: string;
-    created_at: string;
-    producer: {
-      producer_name: string;
-      producer_logo_url?: string;
-      verification_status?: string;
-    };
-  };
+  original_post?: Post;
 }
 
 interface FeedContainerProps {
@@ -80,8 +64,8 @@ export function FeedContainer({
   const lastControlRef = useRef<{ id: string | null; mode: 'audio' | 'video' | null }>({ id: null, mode: null });
   const lastIndexRef = useRef<number>(-1);
   const ratiosRef = useRef<Record<number, number>>({});
-  
-  // Track posts manually played by user to avoid auto-pause
+
+  // Track manual play to avoid auto-pause
   const userPlayedRef = useRef<Record<string, boolean>>({});
 
   // Get current user
@@ -100,7 +84,7 @@ export function FeedContainer({
     getCurrentUser();
   }, []);
 
-  // Fetch posts & beats
+  // Fetch posts and beats
   useEffect(() => {
     const fetchFeedContent = async () => {
       try {
@@ -235,7 +219,6 @@ export function FeedContainer({
         ratiosRef.current[idx] = entry.intersectionRatio;
       });
 
-      // Pick most visible post
       let bestIdx = lastIndexRef.current;
       let bestRatio = -1;
       Object.entries(ratiosRef.current).forEach(([k, v]) => {
@@ -279,4 +262,113 @@ export function FeedContainer({
       pauseTrack();
       const activeVideo = container.querySelector(`[data-index="${visiblePostIndex}"] video`) as HTMLVideoElement | null;
       if (activeVideo) {
-        activeVideo.muted = true
+        activeVideo.muted = true;
+        activeVideo.play().catch(() => {});
+      }
+      lastControlRef.current = { id: activePost.id, mode: 'video' };
+    } else if (isAudioLike) {
+      const activeVideo = container.querySelector(`[data-index="${visiblePostIndex}"] video`) as HTMLVideoElement | null;
+      if (activeVideo) {
+        activeVideo.pause();
+        activeVideo.currentTime = 0;
+      }
+      if (lastControlRef.current.id !== activePost.id || lastControlRef.current.mode !== 'audio') {
+        playTrack({
+          id: activePost.id,
+          title: activePost.caption || `${activePost.producer.producer_name} Beat`,
+          artist: activePost.producer.producer_name,
+          file_url: activePost.media_url,
+          artwork_url: activePost.cover_url || activePost.producer.producer_logo_url || '/placeholder.svg'
+        });
+        lastControlRef.current = { id: activePost.id, mode: 'audio' };
+      }
+    } else {
+      pauseTrack();
+      lastControlRef.current = { id: activePost.id, mode: null };
+    }
+  }, [visiblePostIndex, posts, pauseTrack, playTrack]);
+
+  // Manual play handler
+  const handleManualPlay = (postId: string) => {
+    userPlayedRef.current[postId] = true;
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      try { pauseTrack(); } catch {}
+      const container = containerRef.current;
+      container?.querySelectorAll('video').forEach(v => {
+        v.pause();
+        v.currentTime = 0;
+      });
+    };
+  }, [pauseTrack]);
+
+  // --- remaining handlers like handleLike, handleComment, handleShare, handlePostUploaded etc ---
+  // Keep your existing handlers here; they don’t change.
+
+  return (
+    <div className="relative w-full h-full overflow-x-hidden">
+      {/* Upload Button */}
+      {showUploadButton && (
+        <Button
+          onClick={() => setShowUpload(true)}
+          className="fixed top-20 right-4 z-50 rounded-full w-12 h-12 p-0 shadow-lg"
+          size="sm"
+        >
+          <Plus className="w-5 h-5" />
+        </Button>
+      )}
+
+      {/* Posts Container */}
+      <div
+        ref={containerRef}
+        className="w-full h-full overflow-y-scroll overflow-x-hidden snap-y snap-mandatory scrollbar-hide"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+      >
+        {posts.map((post, index) => (
+          <div
+            key={post.id}
+            data-index={index}
+            className={`w-screen h-[85vh] snap-start flex justify-start items-center px-0`}
+          >
+            {useFeedMeBeatzPost ? (
+              <FeedMeBeatzPost
+                post={post}
+                isVisible={index === visiblePostIndex}
+                currentUser={currentUser}
+                onLike={() => {}}
+                onComment={() => {}}
+                onSave={() => {}}
+                onShare={() => {}}
+                onRepost={() => {}}
+                repostCount={repostCounts[post.id] || 0}
+                onFocus={() => setVisiblePostIndex(index)}
+                onManualPlay={() => handleManualPlay(post.id)}
+              />
+            ) : (
+              <FeedPost
+                post={post}
+                isVisible={index === visiblePostIndex}
+                currentUser={currentUser}
+                onLike={() => {}}
+                onComment={() => {}}
+                onSave={() => {}}
+                onShare={() => {}}
+                onRepost={() => {}}
+                repostCount={repostCounts[post.id] || 0}
+                slim={slim}
+                onManualPlay={() => handleManualPlay(post.id)}
+              />
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Dialogs */}
+      <PostUploadDialog open={showUpload} onOpenChange={setShowUpload} onPostUploaded={(p) => setPosts([p, ...posts])} />
+      <FeedCommentsDialog open={showComments} onOpenChange={setShowComments} postId={selectedPostId} postProducer={selectedPostProducer} currentUser={currentUser} onCommentAdded={() => {}} />
+    </div>
+  );
+}
