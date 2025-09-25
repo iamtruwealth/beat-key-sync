@@ -94,7 +94,6 @@ export function FeedPost({
   const { currentTrack, playTrack, pauseTrack, isPlaying: globalIsPlaying } = useAudio();
   const { addToCart } = useCart();
 
-  // Determine which post to display (original if repost)
   const displayPost = post.original_post || post;
   const isRepost = !!post.repost_of;
 
@@ -102,125 +101,186 @@ export function FeedPost({
     if (displayPost.cover_url) return displayPost.cover_url;
     return displayPost.producer.producer_logo_url || '/placeholder.svg';
   };
-  import { useState, useRef, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Heart, MessageCircle, Bookmark, Share2, Play, Pause, Repeat2, ShoppingCart, Download } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAudio } from '@/contexts/AudioContext';
-import { useCart } from '@/contexts/CartContext';
-import { toast } from 'sonner';
-import verifiedBadge from '@/assets/verified-badge.png';
-import { FollowButton } from '@/components/ui/follow-button';
 
-interface Beat {
-  id: string;
-  title: string;
-  price_cents: number;
-  is_free: boolean;
-  artwork_url?: string;
-  producer_id: string;
-}
+  useEffect(() => {
+    if (!currentUser) return;
 
-interface Post {
-  id: string;
-  producer_id: string;
-  type: 'audio' | 'photo' | 'video';
-  beat_id?: string;
-  media_url: string;
-  cover_url?: string;
-  caption?: string;
-  bpm?: number;
-  key?: string;
-  likes: number;
-  comments: number;
-  created_at: string;
-  repost_of?: string;
-  play_count?: number;
-  producer: {
-    producer_name: string;
-    producer_logo_url?: string;
-    verification_status?: string;
-  };
-  original_post?: {
-    id: string;
-    producer_id: string;
-    type: 'audio' | 'photo' | 'video';
-    beat_id?: string;
-    media_url: string;
-    cover_url?: string;
-    caption?: string;
-    bpm?: number;
-    key?: string;
-    created_at: string;
-    play_count?: number;
-    producer: {
-      producer_name: string;
-      producer_logo_url?: string;
-      verification_status?: string;
+    const checkUserInteractions = async () => {
+      const { data: likeData } = await supabase
+        .from('post_likes')
+        .select('id')
+        .eq('post_id', post.id)
+        .eq('user_id', currentUser.id)
+        .maybeSingle();
+      setIsLiked(!!likeData);
+
+      const { data: saveData } = await supabase
+        .from('post_saves')
+        .select('id')
+        .eq('post_id', post.id)
+        .eq('user_id', currentUser.id)
+        .maybeSingle();
+      setIsSaved(!!saveData);
     };
+
+    checkUserInteractions();
+  }, [currentUser, post.id]);
+
+  useEffect(() => {
+    if (displayPost.beat_id) {
+      const fetchBeatData = async () => {
+        const { data, error } = await supabase
+          .from('beats')
+          .select('id, title, price_cents, is_free, artwork_url, producer_id')
+          .eq('id', displayPost.beat_id)
+          .maybeSingle();
+        if (data && !error) setBeatData(data);
+      };
+      fetchBeatData();
+    }
+  }, [displayPost.beat_id]);
+    useEffect(() => {
+    if (!isVisible) {
+      if (videoRef.current) videoRef.current.pause();
+      if (currentTrack?.id === post.id && globalIsPlaying) pauseTrack();
+      return;
+    }
+
+    if (displayPost.type === 'video' && videoRef.current) {
+      videoRef.current.play().catch(console.error);
+    } else if (displayPost.type === 'audio' && currentTrack?.id !== displayPost.id) {
+      playTrack({
+        id: displayPost.id,
+        title: displayPost.caption || `${displayPost.producer.producer_name} Beat`,
+        artist: displayPost.producer.producer_name,
+        file_url: displayPost.media_url,
+        artwork_url: getFallbackImage()
+      });
+    }
+  }, [isVisible, displayPost.type, displayPost.id, currentTrack?.id, globalIsPlaying, pauseTrack, playTrack, displayPost.media_url, displayPost.caption, displayPost.producer.producer_name]);
+
+  useEffect(() => {
+    if (currentTrack?.id === displayPost.id) {
+      setIsPlaying(globalIsPlaying);
+    } else {
+      setIsPlaying(false);
+    }
+  }, [currentTrack, globalIsPlaying, displayPost.id]);
+
+  const handlePlayPause = () => {
+    if (displayPost.type === 'audio' || (displayPost.type === 'photo' && displayPost.media_url)) {
+      if (currentTrack?.id === displayPost.id && globalIsPlaying) {
+        pauseTrack();
+      } else {
+        playTrack({
+          id: displayPost.id,
+          title: displayPost.caption || `${displayPost.producer.producer_name} Beat`,
+          artist: displayPost.producer.producer_name,
+          file_url: displayPost.media_url,
+          artwork_url: getFallbackImage()
+        });
+      }
+    } else if (displayPost.type === 'video' && videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.pause();
+      } else {
+        videoRef.current.play().catch(console.error);
+      }
+      setIsPlaying(!isPlaying);
+    }
   };
-}
 
-interface FeedPostProps {
-  post: Post;
-  isVisible: boolean;
-  currentUser?: any;
-  onLike: (postId: string, isLiked: boolean) => void;
-  onComment: (postId: string) => void;
-  onSave: (postId: string, isSaved: boolean) => void;
-  onShare: (postId: string) => void;
-  onRepost: (postId: string) => void;
-  repostCount?: number;
-  slim?: boolean;
-}
-
-export function FeedPost({ 
-  post, 
-  isVisible, 
-  currentUser, 
-  onLike, 
-  onComment, 
-  onSave, 
-  onShare,
-  onRepost,
-  repostCount = 0,
-  slim = false
-}: FeedPostProps) {
-  const [isLiked, setIsLiked] = useState(false);
-  const [isSaved, setIsSaved] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(true);
-  const [showFullCaption, setShowFullCaption] = useState(false);
-  const [beatData, setBeatData] = useState<Beat | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const { currentTrack, playTrack, pauseTrack, isPlaying: globalIsPlaying } = useAudio();
-  const { addToCart } = useCart();
-
-  // Determine which post to display (original if repost)
-  const displayPost = post.original_post || post;
-  const isRepost = !!post.repost_of;
-
-  const getFallbackImage = () => {
-    if (displayPost.cover_url) return displayPost.cover_url;
-    return displayPost.producer.producer_logo_url || '/placeholder.svg';
+  const handleMuteToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsMuted(!isMuted);
+    if (videoRef.current) videoRef.current.muted = !isMuted;
   };
-    const handleRepost = () => {
-    if (!currentUser) return toast.error('Please sign in to repost');
-    if (post.producer_id === currentUser.id) return toast.error('You cannot repost your own content');
-    onRepost(post.repost_of || post.id);
+
+  const handleLike = async () => {
+    if (!currentUser) {
+      toast.error('Please sign in to like posts');
+      return;
+    }
+
+    try {
+      if (isLiked) {
+        await supabase
+          .from('post_likes')
+          .delete()
+          .eq('post_id', post.id)
+          .eq('user_id', currentUser.id);
+      } else {
+        await supabase
+          .from('post_likes')
+          .insert({ post_id: post.id, user_id: currentUser.id });
+      }
+
+      setIsLiked(!isLiked);
+      onLike(post.id, !isLiked);
+    } catch (error) {
+      console.error('Error toggling like:', error);
+      toast.error('Failed to update like');
+    }
+  };
+
+  const handleSave = async () => {
+    if (!currentUser) {
+      toast.error('Please sign in to save posts');
+      return;
+    }
+
+    try {
+      if (isSaved) {
+        await supabase
+          .from('post_saves')
+          .delete()
+          .eq('post_id', post.id)
+          .eq('user_id', currentUser.id);
+      } else {
+        await supabase
+          .from('post_saves')
+          .insert({ post_id: post.id, user_id: currentUser.id });
+      }
+
+      setIsSaved(!isSaved);
+      onSave(post.id, !isSaved);
+    } catch (error) {
+      console.error('Error toggling save:', error);
+      toast.error('Failed to update save');
+    }
+  };
+
+  const handleRepost = () => {
+    if (!currentUser) {
+      toast.error('Please sign in to repost');
+      return;
+    }
+
+    if (post.producer_id === currentUser.id) {
+      toast.error('You cannot repost your own content');
+      return;
+    }
+
+    onRepost(isRepost ? post.repost_of! : post.id);
   };
 
   const handlePurchaseOrDownload = async () => {
     if (!beatData) return;
 
     if (beatData.is_free) {
-      if (!currentUser) return toast.error('Please sign in to download');
+      if (!currentUser) {
+        toast.error('Please sign in to download');
+        return;
+      }
+
       toast.success('Free download started!');
       // TODO: Implement actual download functionality
     } else {
-      if (!currentUser) return toast.error('Please sign in to purchase');
+      if (!currentUser) {
+        toast.error('Please sign in to purchase');
+        return;
+      }
+
       await addToCart({
         item_type: 'beat',
         item_id: beatData.id,
@@ -232,8 +292,7 @@ export function FeedPost({
       });
     }
   };
-
-  return (
+    return (
     <div className={`relative w-full ${slim ? 'max-w-md' : 'max-w-2xl'} h-full bg-background snap-start overflow-hidden rounded-lg sm:rounded-xl ${slim ? '' : 'mx-auto'} shadow-lg`}>
       {/* Background Media */}
       <div className="absolute inset-0 rounded-lg sm:rounded-xl overflow-hidden">
@@ -254,6 +313,7 @@ export function FeedPost({
             style={{ backgroundImage: `url(${displayPost.media_url}), url(${getFallbackImage()})` }}
           />
         ) : (
+          // Audio post background
           <div className="w-full h-full bg-gradient-to-br from-primary/20 via-primary/10 to-background flex items-center justify-center relative">
             <div className="relative">
               <img
@@ -262,7 +322,7 @@ export function FeedPost({
                 className="w-48 h-48 sm:w-64 sm:h-64 rounded-2xl object-cover shadow-2xl animate-pulse"
                 style={{
                   animationDuration: isPlaying ? '2s' : '0s',
-                  filter: isPlaying ? 'brightness(1.1) saturate(1.2)' : 'brightness(0.9)'
+                  filter: isPlaying ? 'brightness(1.1) saturate(1.2)' : 'brightness(0.9)',
                 }}
                 onError={(e) => { e.currentTarget.src = '/placeholder.svg'; }}
               />
@@ -274,6 +334,7 @@ export function FeedPost({
           </div>
         )}
 
+        {/* Dark overlay for text readability */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/30" />
       </div>
 
@@ -286,11 +347,16 @@ export function FeedPost({
             className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white/20 backdrop-blur-sm border-2 border-white/30 pointer-events-auto hover:bg-white/30 transition-all hover:scale-110"
             onClick={handlePlayPause}
           >
-            {isPlaying ? <Pause className="w-6 h-6 sm:w-8 sm:h-8 text-white" /> : <Play className="w-6 h-6 sm:w-8 sm:h-8 text-white ml-0.5" />}
+            {isPlaying ? (
+              <Pause className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
+            ) : (
+              <Play className="w-6 h-6 sm:w-8 sm:h-8 text-white ml-0.5" />
+            )}
           </Button>
         )}
       </div>
 
+      {/* Mute/Unmute Button */}
       {displayPost.type === 'video' && (
         <div className="absolute top-4 right-4 pointer-events-auto">
           <Button
@@ -301,11 +367,15 @@ export function FeedPost({
           >
             {isMuted ? (
               <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" clipPath="url(#clip0)" />
+                <defs>
+                  <clipPath id="clip0"><path d="M0 0h24v24H0z" /></clipPath>
+                </defs>
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
               </svg>
             ) : (
               <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
               </svg>
             )}
           </Button>
@@ -314,20 +384,20 @@ export function FeedPost({
 
       {/* Content Overlay */}
       <div className="absolute inset-0 flex flex-col justify-between p-3 sm:p-4 pointer-events-none">
-        {/* Repost indicator */}
-        {post.repost_of && (
+        {isRepost && (
           <div className="flex items-center gap-2 text-white/80 text-xs sm:text-sm mb-2 pointer-events-auto">
             <Repeat2 className="w-3 h-3 sm:w-4 sm:h-4" />
             <span>{post.producer.producer_name} reposted</span>
           </div>
         )}
 
-        {/* Producer info & play count */}
         <div className="flex items-start justify-between text-white pointer-events-auto">
           <div className="flex items-center gap-2 sm:gap-3">
             <Avatar className="w-8 h-8 sm:w-10 sm:h-10 border-2 border-white/50">
               <AvatarImage src={displayPost.producer.producer_logo_url} />
-              <AvatarFallback className="bg-primary text-primary-foreground text-xs">{displayPost.producer.producer_name?.[0] || 'P'}</AvatarFallback>
+              <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                {displayPost.producer.producer_name?.[0] || 'P'}
+              </AvatarFallback>
             </Avatar>
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1">
@@ -336,7 +406,13 @@ export function FeedPost({
                   <img src={verifiedBadge} alt="Verified" className="w-4 h-4 sm:w-5 sm:h-5" />
                 )}
               </div>
-              <FollowButton targetUserId={displayPost.producer_id} currentUserId={currentUser?.id} targetUserName={displayPost.producer.producer_name} variant="outline" size="sm" />
+              <FollowButton
+                targetUserId={displayPost.producer_id}
+                currentUserId={currentUser?.id}
+                targetUserName={displayPost.producer.producer_name}
+                variant="outline"
+                size="sm"
+              />
             </div>
           </div>
 
@@ -346,7 +422,6 @@ export function FeedPost({
           </div>
         </div>
 
-        {/* Bottom actions */}
         <div className="flex items-end justify-between gap-3 sm:gap-4">
           <div className="flex-1 text-white pointer-events-auto pr-2">
             <div className="flex items-center gap-3 sm:gap-4 text-xs text-white/80 mb-2">
@@ -366,11 +441,15 @@ export function FeedPost({
             )}
           </div>
 
-          {/* Action buttons */}
           <div className="flex flex-col items-center gap-3 sm:gap-4 pointer-events-auto">
             {beatData && (
               <div className="flex flex-col items-center">
-                <Button variant="ghost" size="sm" className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-primary/20 backdrop-blur-sm border border-primary/30 hover:bg-primary/30 transition-all hover:scale-110" onClick={handlePurchaseOrDownload}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-primary/20 backdrop-blur-sm border border-primary/30 hover:bg-primary/30 transition-all hover:scale-110"
+                  onClick={handlePurchaseOrDownload}
+                >
                   {beatData.is_free ? <Download className="w-4 h-4 sm:w-5 sm:h-5 text-primary" /> : <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />}
                 </Button>
                 <span className="text-xs text-white/80 mt-1">{beatData.is_free ? 'Free' : `$${(beatData.price_cents / 100).toFixed(2)}`}</span>
@@ -395,7 +474,7 @@ export function FeedPost({
               <Button variant="ghost" size="sm" className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 transition-all hover:scale-110" onClick={handleRepost} disabled={post.producer_id === currentUser?.id}>
                 <Repeat2 className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
               </Button>
-              <span className="text-xs text-white/80 mt-1">{post.repost_of ? 1 : 0}</span>
+              <span className="text-xs text-white/80 mt-1">{repostCount || 0}</span>
             </div>
 
             <Button variant="ghost" size="sm" className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 transition-all hover:scale-110" onClick={handleSave}>
