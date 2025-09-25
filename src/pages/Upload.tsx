@@ -29,6 +29,7 @@ interface UploadedFile {
   analysis?: AudioAnalysisResult;
   manualBpm?: number;
   manualKey?: string;
+  // Beat pricing fields
   price: string;
   isFree: boolean;
   genre: string;
@@ -45,35 +46,44 @@ export default function UploadPage() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { analyzeFile, isAnalyzing, progress: analysisProgress, error: analysisError, clearCache } = useOptimizedAudioAnalysis();
-    // Optimized analysis function with worker integration
+
+  // Optimized analysis function with caching
   const analyzeAudioFileLocal = async (fileData: UploadedFile, index: number) => {
     try {
-      setUploadedFiles(prev =>
-        prev.map((file, i) =>
+      setUploadedFiles(prev => 
+        prev.map((file, i) => 
           i === index ? { ...file, status: 'analyzing' } : file
         )
       );
 
+      // Use the optimized analyzeFile hook
       const analysis = await analyzeFile(fileData.file);
 
-      setUploadedFiles(prev =>
-        prev.map((file, i) =>
-          i === index ? { ...file, analysis, status: 'complete' } : file
+      setUploadedFiles(prev => 
+        prev.map((file, i) => 
+          i === index ? { 
+            ...file, 
+            analysis,
+            status: 'complete'
+          } : file
         )
       );
 
       toast({
         title: "Analysis Complete",
         description: `${fileData.title} - Key: ${analysis.key}, BPM: ${analysis.bpm} (${Math.round(analysis.confidenceScore * 100)}% confidence)${
-          analysis.metadata.filenameAnalysis?.bpm || analysis.metadata.filenameAnalysis?.key
-            ? ` | From filename: ${analysis.metadata.filenameAnalysis.bpm || ''}${analysis.metadata.filenameAnalysis.bpm && analysis.metadata.filenameAnalysis.key ? ', ' : ''}${analysis.metadata.filenameAnalysis.key || ''}`
+          analysis.metadata.filenameAnalysis?.bpm || analysis.metadata.filenameAnalysis?.key 
+            ? ` | From filename: ${analysis.metadata.filenameAnalysis.bpm || ''}${
+                analysis.metadata.filenameAnalysis.bpm && analysis.metadata.filenameAnalysis.key ? ', ' : ''
+              }${analysis.metadata.filenameAnalysis.key || ''}`
             : ''
         }`
       });
+
     } catch (error) {
       console.error('Error analyzing audio:', error);
-      setUploadedFiles(prev =>
-        prev.map((file, i) =>
+      setUploadedFiles(prev => 
+        prev.map((file, i) => 
           i === index ? { ...file, status: 'error' } : file
         )
       );
@@ -85,7 +95,7 @@ export default function UploadPage() {
     }
   };
 
-  // Drag & Drop handler
+  // Move all hooks to the top before any conditional logic
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const newFiles = acceptedFiles.map(file => ({
       file,
@@ -98,13 +108,15 @@ export default function UploadPage() {
       genre: "",
       description: ""
     }));
-    const currentLength = uploadedFiles.length;
     setUploadedFiles(prev => [...prev, ...newFiles]);
-
+    
+    // Start analyzing files asynchronously (non-blocking)
+    const currentLength = uploadedFiles.length;
     newFiles.forEach((fileData, index) => {
+      // Use setTimeout to make analysis truly async and non-blocking
       setTimeout(() => {
         analyzeAudioFileLocal(fileData, currentLength + index);
-      }, 100 * index);
+      }, 100 * index); // Stagger analysis to prevent UI blocking
     });
   }, [uploadedFiles.length]);
 
@@ -116,7 +128,6 @@ export default function UploadPage() {
     multiple: true
   });
 
-  // Fetch user info and beat packs
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -125,19 +136,23 @@ export default function UploadPage() {
         return;
       }
       setUser(session.user);
-
+      
+      // Fetch user profile to get producer name
       const { data: profile } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", session.user.id)
         .maybeSingle();
+      
       setUserProfile(profile);
-
+      
+      // Fetch beat packs
       const { data: packs } = await supabase
         .from("beat_packs")
         .select("id, name")
         .eq("user_id", session.user.id)
         .order("created_at", { ascending: false });
+      
       setBeatPacks(packs || []);
       setLoading(false);
     };
@@ -150,20 +165,22 @@ export default function UploadPage() {
         return;
       }
       setUser(session.user);
+      
+      // Fetch user profile when auth state changes
       const { data: profile } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", session.user.id)
         .maybeSingle();
+      
       setUserProfile(profile);
       setLoading(false);
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
-    // -------------------------
-  // Conditional rendering
-  // -------------------------
+  }, [navigate, toast]);
+
+  // Now conditional rendering is safe after all hooks
   if (loading) {
     return (
       <div className="p-6 flex items-center justify-center">
@@ -177,68 +194,44 @@ export default function UploadPage() {
 
   if (!user) return null;
 
-  // -------------------------
-  // Tag management functions
-  // -------------------------
   const addTag = (index: number) => {
     if (!newTag.trim()) return;
-    setUploadedFiles(prev =>
-      prev.map((file, i) =>
-        i === index ? { ...file, tags: [...file.tags, newTag.trim()] } : file
+    
+    setUploadedFiles(prev => 
+      prev.map((file, i) => 
+        i === index ? { 
+          ...file, 
+          tags: [...file.tags, newTag.trim()] 
+        } : file
       )
     );
     setNewTag("");
   };
 
   const removeTag = (fileIndex: number, tagIndex: number) => {
-    setUploadedFiles(prev =>
-      prev.map((file, i) =>
-        i === fileIndex ? { ...file, tags: file.tags.filter((_, ti) => ti !== tagIndex) } : file
+    setUploadedFiles(prev => 
+      prev.map((file, i) => 
+        i === fileIndex ? { 
+          ...file, 
+          tags: file.tags.filter((_, ti) => ti !== tagIndex) 
+        } : file
       )
     );
   };
 
-  // -------------------------
-  // Artwork management
-  // -------------------------
-  const handleArtworkUpload = (index: number, file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setUploadedFiles(prev =>
-        prev.map((fileData, i) =>
-          i === index ? { ...fileData, artwork: file, artworkPreview: e.target?.result as string } : fileData
-        )
-      );
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const removeArtwork = (index: number) => {
-    setUploadedFiles(prev =>
-      prev.map((fileData, i) =>
-        i === index ? { ...fileData, artwork: undefined, artworkPreview: undefined } : fileData
-      )
-    );
-  };
-
-  // -------------------------
-  // Update file fields
-  // -------------------------
-  const updateFileField = (index: number, field: string, value: any) => {
-    setUploadedFiles(prev =>
-      prev.map((file, i) => (i === index ? { ...file, [field]: value } : file))
-    );
-  };
-    // -------------------------
-  // Upload artwork to Supabase
-  // -------------------------
   const uploadArtwork = async (file: File, userId: string): Promise<string | null> => {
     try {
       const fileName = `${userId}/artwork/${Date.now()}-${file.name}`;
-      const { data, error } = await supabase.storage.from('artwork').upload(fileName, file);
+      const { data, error } = await supabase.storage
+        .from('artwork')
+        .upload(fileName, file);
+
       if (error) throw error;
 
-      const { data: { publicUrl } } = supabase.storage.from('artwork').getPublicUrl(fileName);
+      const { data: { publicUrl } } = supabase.storage
+        .from('artwork')
+        .getPublicUrl(fileName);
+
       return publicUrl;
     } catch (error) {
       console.error('Artwork upload error:', error);
@@ -246,98 +239,137 @@ export default function UploadPage() {
     }
   };
 
-  // -------------------------
-  // Upload all files
-  // -------------------------
+  const handleArtworkUpload = (index: number, file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setUploadedFiles(prev => 
+        prev.map((fileData, i) => 
+          i === index ? { 
+            ...fileData, 
+            artwork: file,
+            artworkPreview: e.target?.result as string
+          } : fileData
+        )
+      );
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeArtwork = (index: number) => {
+    setUploadedFiles(prev => 
+      prev.map((fileData, i) => 
+        i === index ? { 
+          ...fileData, 
+          artwork: undefined,
+          artworkPreview: undefined
+        } : fileData
+      )
+    );
+  };
+
+  const updateFileField = (index: number, field: string, value: any) => {
+    setUploadedFiles(prev => 
+      prev.map((file, i) => 
+        i === index ? { ...file, [field]: value } : file
+      )
+    );
+  };
+
   const uploadFiles = async () => {
     if (uploadedFiles.length === 0) return;
-
+    
     try {
       for (const fileData of uploadedFiles) {
-        setUploadedFiles(prev =>
-          prev.map(file =>
+        setUploadedFiles(prev => 
+          prev.map(file => 
             file === fileData ? { ...file, status: 'uploading', progress: 0 } : file
           )
         );
 
-        // Upload artwork first if provided
-        let artworkUrl: string | null = null;
+        // Upload artwork if provided
+        let artworkUrl = null;
         if (fileData.artwork) {
           artworkUrl = await uploadArtwork(fileData.artwork, user.id);
         }
 
-        // Upload audio file
+        // Upload audio file to Supabase storage with user folder structure
         const fileName = `${user.id}/${Date.now()}-${fileData.file.name}`;
-        const { data: uploadData, error: uploadError } = await supabase.storage.from('audio-files').upload(fileName, fileData.file);
-        if (uploadError) throw uploadError;
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('audio-files')
+          .upload(fileName, fileData.file);
 
-        // Get public URL for audio
-        const { data: { publicUrl } } = supabase.storage.from('audio-files').getPublicUrl(fileName);
+        if (uploadError) {
+          throw uploadError;
+        }
 
-        // Prepare tags
-        const tags = fileData.tags.filter(Boolean);
+        // Get public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from('audio-files')
+          .getPublicUrl(fileName);
+
+        // Create beat record in beats table
         const priceCents = fileData.isFree ? 0 : Math.round(parseFloat(fileData.price) * 100);
+        const tags = fileData.tags.filter(Boolean);
 
-        // Insert beat record in Supabase
-        const { data: insertedBeat, error: beatError } = await supabase.from('beats').insert({
-          producer_id: user.id,
-          title: fileData.title,
-          description: fileData.description,
-          audio_file_url: publicUrl,
-          file_url: publicUrl,
-          artwork_url: artworkUrl,
-          price_cents: priceCents,
-          is_free: fileData.isFree,
-          genre: fileData.genre || null,
-          bpm: fileData.manualBpm || fileData.analysis?.bpm || null,
-          key: fileData.manualKey || fileData.analysis?.key || null,
-          tags
-        }).select().single();
+        const { data: insertedBeat, error: beatError } = await supabase
+          .from('beats')
+          .insert({
+            producer_id: user.id,
+            title: fileData.title,
+            description: fileData.description,
+            audio_file_url: publicUrl,
+            file_url: publicUrl, // Both fields are required
+            artwork_url: artworkUrl,
+            price_cents: priceCents,
+            is_free: fileData.isFree,
+            genre: fileData.genre || null,
+            bpm: fileData.manualBpm || fileData.analysis?.bpm || null,
+            key: fileData.manualKey || fileData.analysis?.key || null,
+            tags,
+          })
+          .select()
+          .single();
 
-        if (beatError) throw beatError;
+        if (beatError) {
+          throw beatError;
+        }
 
-        // Call Stripe function if not free
+        // Create Stripe product if not free
         if (!fileData.isFree) {
           try {
-            await supabase.functions.invoke('create-beat-product', { body: { beatId: insertedBeat.id } });
+            await supabase.functions.invoke('create-beat-product', {
+              body: { beatId: insertedBeat.id }
+            });
           } catch (stripeError) {
-            console.warn('Stripe product creation failed:', stripeError);
+            console.warn('Failed to create Stripe product:', stripeError);
+            // Don't fail the whole upload for this
           }
         }
 
-        setUploadedFiles(prev =>
-          prev.map(file =>
+        setUploadedFiles(prev => 
+          prev.map(file => 
             file === fileData ? { ...file, status: 'complete', progress: 100 } : file
           )
         );
       }
 
       toast({
-        title: 'Upload Complete',
+        title: "Upload Complete",
         description: `Successfully uploaded ${uploadedFiles.length} beats`
       });
 
-      // Clear uploaded files
+      // Clear uploaded files after successful upload
       setUploadedFiles([]);
+
     } catch (error) {
       console.error('Upload error:', error);
       toast({
-        title: 'Upload Failed',
-        description: error instanceof Error ? error.message : 'An error occurred during upload',
-        variant: 'destructive'
+        title: "Upload Failed",
+        description: error instanceof Error ? error.message : "An error occurred during upload",
+        variant: "destructive"
       });
     }
   };
-    // -------------------------
-  // Drag & Drop UI
-  // -------------------------
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: {
-      'audio/*': ['.mp3', '.wav', '.flac', '.m4a', '.aac']
-    },
-    multiple: true
-  });
 
   return (
     <div className="p-6 space-y-6 max-w-4xl mx-auto">
@@ -354,7 +386,9 @@ export default function UploadPage() {
           <div
             {...getRootProps()}
             className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-              isDragActive ? 'border-primary bg-primary/5' : 'border-muted-foreground/25 hover:border-primary/50'
+              isDragActive 
+                ? 'border-primary bg-primary/5' 
+                : 'border-muted-foreground/25 hover:border-primary/50'
             }`}
           >
             <input {...getInputProps()} />
@@ -375,7 +409,7 @@ export default function UploadPage() {
         </CardContent>
       </Card>
 
-      {/* Uploaded Files List */}
+      {/* Uploaded Files */}
       {uploadedFiles.length > 0 && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
@@ -384,50 +418,219 @@ export default function UploadPage() {
               Upload All Beats
             </Button>
           </div>
-
+          
           {uploadedFiles.map((fileData, index) => (
             <Card key={index}>
-              <CardHeader className="pb-3 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
-                  {fileData.status === 'complete' ? (
-                    <CheckCircle className="w-5 h-5 text-primary" />
-                  ) : (
-                    <FileAudio className="w-5 h-5 text-primary" />
-                  )}
-                </div>
-                <div className="flex-1">
-                  <Input
-                    value={fileData.title}
-                    onChange={(e) => updateFileField(index, 'title', e.target.value)}
-                    className="font-medium"
-                    placeholder="Beat title"
-                  />
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {(fileData.file.size / 1024 / 1024).toFixed(2)} MB
-                    {fileData.analysis && (
-                      <span>
-                        {" • "}{fileData.analysis.duration.toFixed(0)}s
-                        {fileData.analysis.confidenceScore > 0 && " • " + Math.round(fileData.analysis.confidenceScore * 100) + "% confidence"}
-                      </span>
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
+                    {fileData.status === 'complete' ? (
+                      <CheckCircle className="w-5 h-5 text-primary" />
+                    ) : (
+                      <FileAudio className="w-5 h-5 text-primary" />
                     )}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  {fileData.status === 'analyzing' && isAnalyzing && (
-                    <Progress value={analysisProgress} className="w-16 h-2" />
-                  )}
-                  <Badge variant={
-                    fileData.status === 'complete' ? 'default' :
-                    fileData.status === 'error' ? 'destructive' :
-                    'secondary'
-                  }>
-                    {fileData.status === 'analyzing' ? 'Analyzing...' : fileData.status}
-                  </Badge>
+                  </div>
+                  <div className="flex-1">
+                    <Input
+                      value={fileData.title}
+                      onChange={(e) => updateFileField(index, 'title', e.target.value)}
+                      className="font-medium"
+                      placeholder="Beat title"
+                    />
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {(fileData.file.size / 1024 / 1024).toFixed(2)} MB
+                      {fileData.analysis && (
+                        <span>
+                          {" • "}{fileData.analysis.duration.toFixed(0)}s
+                          {fileData.analysis.confidenceScore > 0 && " • " + Math.round(fileData.analysis.confidenceScore * 100) + "% confidence"}
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {fileData.status === 'analyzing' && isAnalyzing && (
+                      <Progress value={analysisProgress} className="w-16 h-2" />
+                    )}
+                    <Badge variant={
+                      fileData.status === 'complete' ? 'default' :
+                      fileData.status === 'error' ? 'destructive' :
+                      'secondary'
+                    }>
+                      {fileData.status === 'analyzing' ? 'Analyzing...' : fileData.status}
+                    </Badge>
+                  </div>
                 </div>
               </CardHeader>
-
+              
               <CardContent className="space-y-4">
-                {/* Additional metadata like genre, beat pack, description, BPM/key, tags, and artwork will go here in next part */}
+                {/* Basic Info */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label>Genre</Label>
+                    <Input
+                      value={fileData.genre || ''}
+                      onChange={(e) => updateFileField(index, 'genre', e.target.value)}
+                      placeholder="Hip-hop, Trap, R&B..."
+                    />
+                  </div>
+                  <div>
+                    <Label>Add to Beat Pack</Label>
+                    <Select value={fileData.beatPackId || ''} onValueChange={(value) => updateFileField(index, 'beatPackId', value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select beat pack (optional)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {beatPacks.map((pack) => (
+                          <SelectItem key={pack.id} value={pack.id}>{pack.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div>
+                  <Label>Description</Label>
+                  <Textarea
+                    value={fileData.description || ''}
+                    onChange={(e) => updateFileField(index, 'description', e.target.value)}
+                    placeholder="Describe your beat..."
+                    rows={2}
+                  />
+                </div>
+
+                {/* BPM and Key Metadata */}
+                {fileData.analysis && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>BPM</Label>
+                      <Input
+                        type="number"
+                        min="60"
+                        max="200"
+                        placeholder="Enter BPM"
+                        value={fileData.manualBpm || fileData.analysis.bpm || ''}
+                        onChange={(e) => updateFileField(index, 'manualBpm', e.target.value ? parseInt(e.target.value) : undefined)}
+                      />
+                      {fileData.analysis.bpm && (
+                        <p className="text-xs text-muted-foreground">
+                          Detected: {fileData.analysis.bpm} BPM
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <Label>Musical Key</Label>
+                      <Input
+                        value={fileData.manualKey || fileData.analysis.key || ''}
+                        onChange={(e) => updateFileField(index, 'manualKey', e.target.value)}
+                        placeholder="C Major, A Minor..."
+                      />
+                      {fileData.analysis.key && (
+                        <p className="text-xs text-muted-foreground">
+                          Detected: {fileData.analysis.key}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Pricing */}
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id={`isFree-${index}`}
+                      checked={fileData.isFree}
+                      onCheckedChange={(checked) => updateFileField(index, 'isFree', checked)}
+                    />
+                    <Label htmlFor={`isFree-${index}`}>Free Download</Label>
+                  </div>
+
+                  {!fileData.isFree && (
+                    <div>
+                      <Label className="flex items-center gap-2">
+                        <DollarSign className="h-4 w-4" />
+                        Price (USD)
+                      </Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0.99"
+                        value={fileData.price}
+                        onChange={(e) => updateFileField(index, 'price', e.target.value)}
+                        placeholder="9.99"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Tags */}
+                <div>
+                  <Label>Tags</Label>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {fileData.tags.map((tag, tagIndex) => (
+                      <span
+                        key={tagIndex}
+                        className="inline-flex items-center gap-1 bg-primary/10 text-primary px-2 py-1 rounded-md text-sm cursor-pointer"
+                        onClick={() => removeTag(index, tagIndex)}
+                      >
+                        {tag} ×
+                      </span>
+                    ))}
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
+                    <Input
+                      value={newTag}
+                      onChange={(e) => setNewTag(e.target.value)}
+                      placeholder="Add tag..."
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          addTag(index);
+                        }
+                      }}
+                      className="flex-1 min-w-32"
+                    />
+                    <Button type="button" variant="outline" size="sm" onClick={() => addTag(index)}>
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Artwork */}
+                <div>
+                  <Label>Artwork (Optional)</Label>
+                  <div className="flex items-center gap-4">
+                    {fileData.artworkPreview ? (
+                      <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-muted">
+                        <img 
+                          src={fileData.artworkPreview} 
+                          alt="Artwork preview"
+                          className="w-full h-full object-cover"
+                        />
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          className="absolute top-1 right-1 w-5 h-5"
+                          onClick={() => removeArtwork(index)}
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="w-16 h-16 rounded-lg border-2 border-dashed border-muted-foreground/25 flex items-center justify-center">
+                        <Image className="w-6 h-6 text-muted-foreground" />
+                      </div>
+                    )}
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleArtworkUpload(index, file);
+                      }}
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
               </CardContent>
             </Card>
           ))}
@@ -435,695 +638,4 @@ export default function UploadPage() {
       )}
     </div>
   );
-  // -------------------------
-// File Metadata, Pricing, Tags & Artwork
-// -------------------------
-<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-  <div>
-    <Label>Genre</Label>
-    <Input
-      value={fileData.genre || ''}
-      onChange={(e) => updateFileField(index, 'genre', e.target.value)}
-      placeholder="Hip-hop, Trap, R&B..."
-    />
-  </div>
-  <div>
-    <Label>Add to Beat Pack</Label>
-    <Select
-      value={fileData.beatPackId || ''}
-      onValueChange={(value) => updateFileField(index, 'beatPackId', value)}
-    >
-      <SelectTrigger>
-        <SelectValue placeholder="Select beat pack (optional)" />
-      </SelectTrigger>
-      <SelectContent>
-        {beatPacks.map((pack) => (
-          <SelectItem key={pack.id} value={pack.id}>{pack.name}</SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  </div>
-</div>
-
-<div>
-  <Label>Description</Label>
-  <Textarea
-    value={fileData.description || ''}
-    onChange={(e) => updateFileField(index, 'description', e.target.value)}
-    placeholder="Describe your beat..."
-    rows={2}
-  />
-</div>
-
-{/* BPM and Key */}
-{fileData.analysis && (
-  <div className="grid grid-cols-2 gap-4">
-    <div>
-      <Label>BPM</Label>
-      <Input
-        type="number"
-        min="60"
-        max="200"
-        placeholder="Enter BPM"
-        value={fileData.manualBpm || fileData.analysis.bpm || ''}
-        onChange={(e) => updateFileField(index, 'manualBpm', e.target.value ? parseInt(e.target.value) : undefined)}
-      />
-      {fileData.analysis.bpm && (
-        <p className="text-xs text-muted-foreground">Detected: {fileData.analysis.bpm} BPM</p>
-      )}
-    </div>
-    <div>
-      <Label>Musical Key</Label>
-      <Input
-        value={fileData.manualKey || fileData.analysis.key || ''}
-        onChange={(e) => updateFileField(index, 'manualKey', e.target.value)}
-        placeholder="C Major, A Minor..."
-      />
-      {fileData.analysis.key && (
-        <p className="text-xs text-muted-foreground">Detected: {fileData.analysis.key}</p>
-      )}
-    </div>
-  </div>
-)}
-
-{/* Pricing */}
-<div className="space-y-4">
-  <div className="flex items-center space-x-2">
-    <Switch
-      id={`isFree-${index}`}
-      checked={fileData.isFree}
-      onCheckedChange={(checked) => updateFileField(index, 'isFree', checked)}
-    />
-    <Label htmlFor={`isFree-${index}`}>Free Download</Label>
-  </div>
-  {!fileData.isFree && (
-    <div>
-      <Label className="flex items-center gap-2">
-        <DollarSign className="h-4 w-4" />
-        Price (USD)
-      </Label>
-      <Input
-        type="number"
-        step="0.01"
-        min="0.99"
-        value={fileData.price}
-        onChange={(e) => updateFileField(index, 'price', e.target.value)}
-        placeholder="9.99"
-      />
-    </div>
-  )}
-</div>
-
-{/* Tags */}
-<div>
-  <Label>Tags</Label>
-  <div className="flex flex-wrap gap-2 mb-2">
-    {fileData.tags.map((tag, tagIndex) => (
-      <span
-        key={tagIndex}
-        className="inline-flex items-center gap-1 bg-primary/10 text-primary px-2 py-1 rounded-md text-sm cursor-pointer"
-        onClick={() => removeTag(index, tagIndex)}
-      >
-        {tag} ×
-      </span>
-    ))}
-  </div>
-  <div className="flex gap-2 flex-wrap">
-    <Input
-      value={newTag}
-      onChange={(e) => setNewTag(e.target.value)}
-      placeholder="Add tag..."
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          addTag(index);
-        }
-      }}
-      className="flex-1 min-w-32"
-    />
-    <Button type="button" variant="outline" size="sm" onClick={() => addTag(index)}>
-      <Plus className="w-4 h-4" />
-    </Button>
-  </div>
-</div>
-
-{/* Artwork */}
-<div>
-  <Label>Artwork (Optional)</Label>
-  <div className="flex items-center gap-4">
-    {fileData.artworkPreview ? (
-      <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-muted">
-        <img src={fileData.artworkPreview} alt="Artwork preview" className="w-full h-full object-cover" />
-        <Button
-          variant="destructive"
-          size="icon"
-          className="absolute top-1 right-1 w-5 h-5"
-          onClick={() => removeArtwork(index)}
-        >
-          <X className="w-3 h-3" />
-        </Button>
-      </div>
-    ) : (
-      <div className="w-16 h-16 rounded-lg border-2 border-dashed border-muted-foreground/25 flex items-center justify-center">
-        <Image className="w-6 h-6 text-muted-foreground" />
-      </div>
-    )}
-    <Input
-      type="file"
-      accept="image/*"
-      onChange={(e) => {
-        const file = e.target.files?.[0];
-        if (file) handleArtworkUpload(index, file);
-      }}
-      className="flex-1"
-    />
-  </div>
-</div>
-  // -------------------------
-// Upload all files
-// -------------------------
-const uploadFiles = async () => {
-  if (uploadedFiles.length === 0) return;
-
-  try {
-    for (const fileData of uploadedFiles) {
-      // Mark as uploading
-      setUploadedFiles(prev =>
-        prev.map(file =>
-          file === fileData ? { ...file, status: 'uploading', progress: 0 } : file
-        )
-      );
-
-      // Upload artwork if provided
-      let artworkUrl = null;
-      if (fileData.artwork) {
-        artworkUrl = await uploadArtwork(fileData.artwork, user.id);
-      }
-
-      // Upload audio file to Supabase storage
-      const fileName = `${user.id}/${Date.now()}-${fileData.file.name}`;
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('audio-files')
-        .upload(fileName, fileData.file);
-
-      if (uploadError) throw uploadError;
-
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('audio-files')
-        .getPublicUrl(fileName);
-
-      // Insert beat record in Supabase table
-      const priceCents = fileData.isFree ? 0 : Math.round(parseFloat(fileData.price) * 100);
-      const tags = fileData.tags.filter(Boolean);
-
-      const { data: insertedBeat, error: beatError } = await supabase
-        .from('beats')
-        .insert({
-          producer_id: user.id,
-          title: fileData.title,
-          description: fileData.description,
-          audio_file_url: publicUrl,
-          file_url: publicUrl,
-          artwork_url: artworkUrl,
-          price_cents: priceCents,
-          is_free: fileData.isFree,
-          genre: fileData.genre || null,
-          bpm: fileData.manualBpm || fileData.analysis?.bpm || null,
-          key: fileData.manualKey || fileData.analysis?.key || null,
-          tags,
-        })
-        .select()
-        .single();
-
-      if (beatError) throw beatError;
-
-      // Create Stripe product if not free
-      if (!fileData.isFree) {
-        try {
-          await supabase.functions.invoke('create-beat-product', {
-            body: { beatId: insertedBeat.id }
-          });
-        } catch (stripeError) {
-          console.warn('Failed to create Stripe product:', stripeError);
-        }
-      }
-
-      // Mark as complete
-      setUploadedFiles(prev =>
-        prev.map(file =>
-          file === fileData ? { ...file, status: 'complete', progress: 100 } : file
-        )
-      );
-    }
-
-    // Success toast
-    toast({
-      title: "Upload Complete",
-      description: `Successfully uploaded ${uploadedFiles.length} beats`
-    });
-
-    // Clear uploaded files
-    setUploadedFiles([]);
-
-  } catch (error) {
-    console.error('Upload error:', error);
-    toast({
-      title: "Upload Failed",
-      description: error instanceof Error ? error.message : "An error occurred during upload",
-      variant: "destructive"
-    });
-  }
-};
-  // -------------------------
-// Web Worker for audio analysis
-// -------------------------
-const analyzeFileWithWorker = (fileData: UploadedFile, index: number) => {
-  if (!workerRef.current) return;
-
-  setUploadedFiles(prev =>
-    prev.map((file, i) =>
-      i === index ? { ...file, status: 'analyzing' } : file
-    )
-  );
-
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    const arrayBuffer = e.target?.result;
-    if (!arrayBuffer) return;
-
-    workerRef.current!.postMessage({
-      fileName: fileData.file.name,
-      buffer: arrayBuffer
-    });
-  };
-  reader.readAsArrayBuffer(fileData.file);
-
-  workerRef.current.onmessage = async (event) => {
-    const { bpm, key, duration, confidenceScore } = event.data;
-
-    // Update the UI
-    setUploadedFiles(prev =>
-      prev.map((file, i) =>
-        i === index ? {
-          ...file,
-          analysis: { bpm, key, duration, confidenceScore },
-          status: 'complete'
-        } : file
-      )
-    );
-
-    // Optionally update Supabase immediately
-    if (user) {
-      try {
-        await supabase.from('beats')
-          .update({
-            bpm,
-            key,
-          })
-          .eq('title', fileData.title)
-          .eq('producer_id', user.id);
-      } catch (error) {
-        console.error("Supabase update error after analysis:", error);
-      }
-    }
-  };
-};
-  // -------------------------
-// onDrop Handler with Worker Integration
-// -------------------------
-const onDrop = useCallback((acceptedFiles: File[]) => {
-  const newFiles: UploadedFile[] = acceptedFiles.map(file => ({
-    file,
-    title: file.name.replace(/\.[^/.]+$/, ""),
-    tags: [],
-    progress: 0,
-    status: 'pending',
-    price: "9.99",
-    isFree: false,
-    genre: "",
-    description: ""
-  }));
-
-  setUploadedFiles(prev => [...prev, ...newFiles]);
-
-  const startingIndex = uploadedFiles.length;
-
-  newFiles.forEach((fileData, idx) => {
-    // Stagger analysis so UI stays responsive
-    setTimeout(() => {
-      analyzeFileWithWorker(fileData, startingIndex + idx);
-    }, 150 * idx);
-  });
-}, [uploadedFiles.length]);
-  // -------------------------
-// Upload Artwork and Audio Files
-// -------------------------
-const uploadArtwork = async (file: File, userId: string): Promise<string | null> => {
-  try {
-    const fileName = `${userId}/artwork/${Date.now()}-${file.name}`;
-    const { data, error } = await supabase.storage.from('artwork').upload(fileName, file);
-    if (error) throw error;
-
-    const { data: { publicUrl } } = supabase.storage.from('artwork').getPublicUrl(fileName);
-    return publicUrl;
-  } catch (error) {
-    console.error("Artwork upload error:", error);
-    return null;
-  }
-};
-
-const uploadAudioFile = async (fileData: UploadedFile, user: User): Promise<string> => {
-  const fileName = `${user.id}/${Date.now()}-${fileData.file.name}`;
-  const { data, error } = await supabase.storage.from('audio-files').upload(fileName, fileData.file);
-  if (error) throw error;
-
-  const { data: { publicUrl } } = supabase.storage.from('audio-files').getPublicUrl(fileName);
-  return publicUrl;
-};
-
-// -------------------------
-// Full Upload Function
-// -------------------------
-const uploadFiles = async () => {
-  if (uploadedFiles.length === 0) return;
-
-  for (const fileData of uploadedFiles) {
-    setUploadedFiles(prev =>
-      prev.map(f => f === fileData ? { ...f, status: 'uploading', progress: 0 } : f)
-    );
-
-    // Upload artwork first
-    let artworkUrl: string | null = null;
-    if (fileData.artwork) {
-      artworkUrl = await uploadArtwork(fileData.artwork, user.id);
-    }
-
-    // Upload audio file
-    const audioUrl = await uploadAudioFile(fileData, user);
-
-    // Insert beat into Supabase with BPM/key metadata
-    const { data: insertedBeat, error: beatError } = await supabase.from('beats').insert({
-      producer_id: user.id,
-      title: fileData.title,
-      description: fileData.description,
-      audio_file_url: audioUrl,
-      file_url: audioUrl,
-      artwork_url: artworkUrl,
-      price_cents: fileData.isFree ? 0 : Math.round(parseFloat(fileData.price) * 100),
-      is_free: fileData.isFree,
-      genre: fileData.genre || null,
-      bpm: fileData.manualBpm || fileData.analysis?.bpm || null,
-      key: fileData.manualKey || fileData.analysis?.key || null,
-      tags: fileData.tags.filter(Boolean)
-    }).select().single();
-
-    if (beatError) throw beatError;
-
-    // Optionally create Stripe product if not free
-    if (!fileData.isFree) {
-      try {
-        await supabase.functions.invoke('create-beat-product', { body: { beatId: insertedBeat.id } });
-      } catch (stripeError) {
-        console.warn('Stripe product creation failed', stripeError);
-      }
-    }
-
-    setUploadedFiles(prev =>
-      prev.map(f => f === fileData ? { ...f, status: 'complete', progress: 100 } : f)
-    );
-  }
-
-  toast({
-    title: "Upload Complete",
-    description: `Successfully uploaded ${uploadedFiles.length} beats`
-  });
-
-  // Clear uploaded files
-  setUploadedFiles([]);
-};
-  // -------------------------
-// Render Upload Page
-// -------------------------
-return (
-  <div className="p-6 space-y-6 max-w-4xl mx-auto">
-    <div>
-      <h1 className="text-3xl font-bold text-foreground">Upload Your Beats</h1>
-      <p className="text-muted-foreground">
-        Upload beats, set pricing, add metadata, and organize into beat packs.
-      </p>
-    </div>
-
-    {/* Drag & Drop */}
-    <Card>
-      <CardContent className="p-6">
-        <div
-          {...getRootProps()}
-          className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-            isDragActive ? 'border-primary bg-primary/5' : 'border-muted-foreground/25 hover:border-primary/50'
-          }`}
-        >
-          <input {...getInputProps()} />
-          <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-          {isDragActive ? (
-            <p className="text-primary font-medium">Drop your beat files here...</p>
-          ) : (
-            <div>
-              <p className="text-lg font-medium mb-2">Drag & drop beat files here</p>
-              <p className="text-muted-foreground mb-4">or click to browse</p>
-              <Button variant="outline">Choose Files</Button>
-            </div>
-          )}
-          <p className="text-sm text-muted-foreground mt-4">
-            Supports MP3, WAV, FLAC, M4A, AAC files
-          </p>
-        </div>
-      </CardContent>
-    </Card>
-
-    {/* Uploaded Files List */}
-    {uploadedFiles.length > 0 && (
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-semibold">Uploaded Beats</h2>
-          <Button onClick={uploadFiles} disabled={uploadedFiles.some(f => f.status === 'uploading')}>
-            Upload All Beats
-          </Button>
-        </div>
-
-        {uploadedFiles.map((fileData, index) => (
-          <Card key={index}>
-            <CardHeader className="pb-3 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
-                {fileData.status === 'complete' ? (
-                  <CheckCircle className="w-5 h-5 text-primary" />
-                ) : (
-                  <FileAudio className="w-5 h-5 text-primary" />
-                )}
-              </div>
-              <div className="flex-1">
-                <Input
-                  value={fileData.title}
-                  onChange={(e) => updateFileField(index, 'title', e.target.value)}
-                  className="font-medium"
-                  placeholder="Beat title"
-                />
-                <p className="text-sm text-muted-foreground mt-1">
-                  {(fileData.file.size / 1024 / 1024).toFixed(2)} MB
-                  {fileData.analysis && (
-                    <span>
-                      {" • "}{fileData.analysis.duration.toFixed(0)}s
-                      {fileData.analysis.confidenceScore > 0 &&
-                        " • " + Math.round(fileData.analysis.confidenceScore * 100) + "% confidence"}
-                    </span>
-                  )}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                {fileData.status === 'analyzing' && isAnalyzing && (
-                  <Progress value={analysisProgress} className="w-16 h-2" />
-                )}
-                <Badge
-                  variant={
-                    fileData.status === 'complete'
-                      ? 'default'
-                      : fileData.status === 'error'
-                      ? 'destructive'
-                      : 'secondary'
-                  }
-                >
-                  {fileData.status === 'analyzing' ? 'Analyzing...' : fileData.status}
-                </Badge>
-              </div>
-            </CardHeader>
-
-            <CardContent className="space-y-4">
-              {/* Genre & Beat Pack */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label>Genre</Label>
-                  <Input
-                    value={fileData.genre || ''}
-                    onChange={(e) => updateFileField(index, 'genre', e.target.value)}
-                    placeholder="Hip-hop, Trap, R&B..."
-                  />
-                </div>
-                <div>
-                  <Label>Add to Beat Pack</Label>
-                  <Select
-                    value={fileData.beatPackId || ''}
-                    onValueChange={(value) => updateFileField(index, 'beatPackId', value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select beat pack (optional)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {beatPacks.map((pack) => (
-                        <SelectItem key={pack.id} value={pack.id}>
-                          {pack.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {/* Description */}
-              <div>
-                <Label>Description</Label>
-                <Textarea
-                  value={fileData.description || ''}
-                  onChange={(e) => updateFileField(index, 'description', e.target.value)}
-                  placeholder="Describe your beat..."
-                  rows={2}
-                />
-              </div>
-
-              {/* BPM & Key */}
-              {fileData.analysis && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>BPM</Label>
-                    <Input
-                      type="number"
-                      min="60"
-                      max="200"
-                      value={fileData.manualBpm || fileData.analysis.bpm || ''}
-                      onChange={(e) =>
-                        updateFileField(index, 'manualBpm', e.target.value ? parseInt(e.target.value) : undefined)
-                      }
-                    />
-                    {fileData.analysis.bpm && <p className="text-xs text-muted-foreground">Detected: {fileData.analysis.bpm} BPM</p>}
-                  </div>
-                  <div>
-                    <Label>Musical Key</Label>
-                    <Input
-                      value={fileData.manualKey || fileData.analysis.key || ''}
-                      onChange={(e) => updateFileField(index, 'manualKey', e.target.value)}
-                      placeholder="C Major, A Minor..."
-                    />
-                    {fileData.analysis.key && <p className="text-xs text-muted-foreground">Detected: {fileData.analysis.key}</p>}
-                  </div>
-                </div>
-              )}
-
-              {/* Pricing */}
-              <div className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id={`isFree-${index}`}
-                    checked={fileData.isFree}
-                    onCheckedChange={(checked) => updateFileField(index, 'isFree', checked)}
-                  />
-                  <Label htmlFor={`isFree-${index}`}>Free Download</Label>
-                </div>
-                {!fileData.isFree && (
-                  <div>
-                    <Label className="flex items-center gap-2">
-                      <DollarSign className="h-4 w-4" />
-                      Price (USD)
-                    </Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0.99"
-                      value={fileData.price}
-                      onChange={(e) => updateFileField(index, 'price', e.target.value)}
-                      placeholder="9.99"
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* Tags */}
-              <div>
-                <Label>Tags</Label>
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {fileData.tags.map((tag, tagIndex) => (
-                    <span
-                      key={tagIndex}
-                      className="inline-flex items-center gap-1 bg-primary/10 text-primary px-2 py-1 rounded-md text-sm cursor-pointer"
-                      onClick={() => removeTag(index, tagIndex)}
-                    >
-                      {tag} ×
-                    </span>
-                  ))}
-                </div>
-                <div className="flex gap-2 flex-wrap">
-                  <Input
-                    value={newTag}
-                    onChange={(e) => setNewTag(e.target.value)}
-                    placeholder="Add tag..."
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        addTag(index);
-                      }
-                    }}
-                    className="flex-1 min-w-32"
-                  />
-                  <Button type="button" variant="outline" size="sm" onClick={() => addTag(index)}>
-                    <Plus className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-
-              {/* Artwork */}
-              <div>
-                <Label>Artwork (Optional)</Label>
-                <div className="flex items-center gap-4">
-                  {fileData.artworkPreview ? (
-                    <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-muted">
-                      <img src={fileData.artworkPreview} alt="Artwork preview" className="w-full h-full object-cover" />
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        className="absolute top-1 right-1 w-5 h-5"
-                        onClick={() => removeArtwork(index)}
-                      >
-                        <X className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="w-16 h-16 rounded-lg border-2 border-dashed border-muted-foreground/25 flex items-center justify-center">
-                      <Image className="w-6 h-6 text-muted-foreground" />
-                    </div>
-                  )}
-                  <Input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) handleArtworkUpload(index, file);
-                    }}
-                    className="flex-1"
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    )}
-  </div>
-);
+}
