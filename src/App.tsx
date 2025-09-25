@@ -71,10 +71,7 @@ const App = () => (
             } />
             <Route path="/feed-me-beatz" element={
               <AudioProvider>
-                <>
-                  <FeedMeBeatz />
-                  <FuturisticWaveformPlayer />
-                </>
+                <FeedMeBeatz />
               </AudioProvider>
             } />
             
