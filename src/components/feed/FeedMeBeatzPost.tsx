@@ -150,29 +150,34 @@ export function FeedMeBeatzPost({
     }
   }, [displayPost.beat_id]);
 
-  // Handle audio playback with direct audio element control
+  // Handle visibility changes
   useEffect(() => {
     if (!isVisible) {
       // Pause everything when not visible
       if (videoRef.current) {
         videoRef.current.pause();
-        videoRef.current.currentTime = 0;
       }
       if (audioRef.current) {
         audioRef.current.pause();
-        audioRef.current.currentTime = 0;
       }
       setIsPlaying(false);
       return;
     }
 
-    // Auto-play audio posts when visible
-    if (displayPost.type === 'audio' && audioRef.current) {
-      audioRef.current.play().catch(console.error);
-      setIsPlaying(true);
-    } else if (displayPost.type === 'video' && videoRef.current) {
-      videoRef.current.play().catch(console.error);
-      setIsPlaying(true);
+    // When visible, try to auto-play but don't force it
+    if (displayPost.type === 'video' && videoRef.current) {
+      // Set muted to true for auto-play compliance
+      videoRef.current.muted = true;
+      setIsMuted(true);
+      videoRef.current.play().catch(() => {
+        // Auto-play failed, user will need to click to play
+        console.log('Video auto-play blocked, user interaction required');
+      });
+    } else if (displayPost.type === 'audio' && audioRef.current) {
+      audioRef.current.play().catch(() => {
+        // Auto-play failed, user will need to click to play
+        console.log('Audio auto-play blocked, user interaction required');
+      });
     }
   }, [isVisible, displayPost.type]);
 
@@ -324,16 +329,18 @@ export function FeedMeBeatzPost({
         {displayPost.type === 'video' ? (
           <video
             ref={videoRef}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover cursor-pointer"
             src={displayPost.media_url}
             loop
             muted={isMuted}
             playsInline
+            webkit-playsinline="true"
             poster={getFallbackImage()}
             onClick={handlePlayPause}
             onPlay={() => setIsPlaying(true)}
             onPause={() => setIsPlaying(false)}
             onEnded={() => setIsPlaying(false)}
+            preload="metadata"
           />
         ) : displayPost.type === 'photo' ? (
           <div 
