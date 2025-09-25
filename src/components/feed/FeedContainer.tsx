@@ -8,6 +8,7 @@ import { Plus, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAudio } from '@/contexts/AudioContext';
+
 interface Post {
   id: string;
   producer_id: string;
@@ -56,10 +57,10 @@ interface FeedContainerProps {
   slim?: boolean;
 }
 
-export function FeedContainer({ 
-  producerId, 
+export function FeedContainer({
+  producerId,
   showUploadButton = false,
-  feedType = 'for-you', 
+  feedType = 'for-you',
   currentUser: passedCurrentUser,
   useFeedMeBeatzPost = false,
   slim = false
@@ -100,7 +101,6 @@ export function FeedContainer({
   useEffect(() => {
     const fetchFeedContent = async () => {
       try {
-        // Fetch posts with repost information
         let postsQuery = supabase
           .from('posts')
           .select(`
@@ -124,31 +124,26 @@ export function FeedContainer({
             )
           `);
 
-        // Filter by producer if specified
         if (producerId) {
           postsQuery = postsQuery.eq('producer_id', producerId);
         }
 
-        // Filter by following if feedType is 'following'
         if (feedType === 'following' && currentUser) {
-          // Get list of followed users
           const { data: followedUsers } = await supabase
             .from('follows')
             .select('followed_id')
             .eq('follower_id', currentUser.id);
-          
+
           if (followedUsers && followedUsers.length > 0) {
-            const followedIds = followedUsers.map(f => f.followed_id);
+            const followedIds = followedUsers.map((f: any) => f.followed_id);
             postsQuery = postsQuery.in('producer_id', followedIds);
           } else {
-            // If not following anyone, return empty array
             setPosts([]);
             setLoading(false);
             return;
           }
         }
 
-        // Fetch beats as historical posts
         let beatsQuery = supabase
           .from('beats')
           .select(`
@@ -169,21 +164,16 @@ export function FeedContainer({
             )
           `);
 
-        // Filter by producer if specified
         if (producerId) {
           beatsQuery = beatsQuery.eq('producer_id', producerId);
         }
 
-        const [postsResult, beatsResult] = await Promise.all([
-          postsQuery,
-          beatsQuery
-        ]);
+        const [postsResult, beatsResult] = await Promise.all([postsQuery, beatsQuery]);
 
         if (postsResult.error) throw postsResult.error;
         if (beatsResult.error) throw beatsResult.error;
 
-        // Transform beats into post format
-        const normalizedBeats: Post[] = (beatsResult.data || []).map(beat => ({
+        const normalizedBeats: Post[] = (beatsResult.data || []).map((beat: any) => ({
           id: beat.id,
           producer_id: beat.producer_id,
           type: 'audio' as const,
@@ -193,50 +183,39 @@ export function FeedContainer({
           caption: beat.description || `${beat.title}${beat.genre ? ` • ${beat.genre}` : ''}`,
           bpm: beat.bpm,
           key: beat.key,
-          likes: 0, // Historical beats start with 0 likes in feed context
+          likes: 0,
           comments: 0,
           created_at: beat.created_at,
           repost_count: 0,
           producer: Array.isArray(beat.producer) ? beat.producer[0] : beat.producer
         }));
 
-        // Ensure posts also have proper producer format
         const normalizedPosts: Post[] = (postsResult.data || []).map((post: any) => {
           const normalizedPost: any = {
             ...post,
-            repost_count: 0, // Will be calculated below
+            repost_count: 0,
             producer: Array.isArray(post.producer) ? post.producer[0] : post.producer,
-            original_post: undefined // For now, we'll handle reposts later
+            original_post: undefined
           };
-
           return normalizedPost;
         });
 
-        // Combine and sort posts
         let allPosts = [...normalizedPosts, ...normalizedBeats];
-        
+
         if (feedType === 'for-you') {
-          // Sort by trending algorithm (engagement score + recency)
           allPosts = allPosts.sort((a, b) => {
             const aEngagement = (a.likes || 0) * 2 + (a.comments || 0) * 3;
             const bEngagement = (b.likes || 0) * 2 + (b.comments || 0) * 3;
             const aRecency = new Date(a.created_at).getTime();
             const bRecency = new Date(b.created_at).getTime();
-            
-            // Weight recent posts higher, but also consider engagement
-            const aScore = aEngagement + (aRecency / 1000000); // Normalize timestamp
+            const aScore = aEngagement + (aRecency / 1000000);
             const bScore = bEngagement + (bRecency / 1000000);
-            
             return bScore - aScore;
           });
         } else {
-          // Sort by creation date for following feed
-          allPosts = allPosts.sort(
-            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-          );
+          allPosts = allPosts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         }
 
-        // Calculate repost counts
         const counts: Record<string, number> = {};
         allPosts.forEach(post => {
           if (post.repost_of) {
@@ -271,10 +250,11 @@ export function FeedContainer({
     // Reset ratios when posts change
     ratiosRef.current = {};
 
+    // Create observer and store it in ref
     observer.current = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
         const indexAttr = (entry.target as HTMLElement).getAttribute('data-index') || '0';
-        const idx = parseInt(indexAttr);
+        const idx = parseInt(indexAttr, 10);
         ratiosRef.current[idx] = entry.intersectionRatio;
       });
 
@@ -282,7 +262,7 @@ export function FeedContainer({
       let bestIdx = lastIndexRef.current;
       let bestRatio = -1;
       Object.entries(ratiosRef.current).forEach(([k, v]) => {
-        const idx = parseInt(k);
+        const idx = parseInt(k, 10);
         const ratio = v as number;
         if (ratio > bestRatio) {
           bestRatio = ratio;
@@ -296,12 +276,9 @@ export function FeedContainer({
       }
     }, options);
 
-    // Attach to all items
-    const items = rootEl.querySelectorAll('[data-index]');
-    items.forEach((el) => observer.current?.observe(el));
-
     return () => {
       observer.current?.disconnect();
+      observer.current = null;
     };
   }, [posts]);
 
@@ -311,35 +288,43 @@ export function FeedContainer({
     const activePost = posts[visiblePostIndex];
     if (!container || !activePost) return;
 
-    // Pause all non-active videos
+    // Pause all non-active videos (do not reset currentTime)
     const nodes = Array.from(container.querySelectorAll('video')) as HTMLVideoElement[];
     nodes.forEach((video) => {
       const parent = video.closest('[data-index]') as HTMLElement | null;
       const idxAttr = parent?.getAttribute('data-index');
-      const idxNum = idxAttr ? parseInt(idxAttr) : -1;
+      const idxNum = idxAttr ? parseInt(idxAttr, 10) : -1;
       if (idxNum !== visiblePostIndex) {
-        video.pause();
-        video.currentTime = 0;
-        video.muted = true;
+        try {
+          video.pause();
+        } catch {}
+        video.muted = true; // keep inactive videos muted
       }
     });
 
     const isAudioLike = activePost.type === 'audio' || (activePost.type === 'photo' && activePost.media_url?.toLowerCase().includes('.mp3'));
 
     if (activePost.type === 'video') {
-      // pause any global audio when switching to video
+      // Switch to video: pause global audio
       pauseTrack();
       const activeVideo = container.querySelector(`[data-index="${visiblePostIndex}"] video`) as HTMLVideoElement | null;
-      activeVideo?.play().catch(() => {});
+      if (activeVideo) {
+        // ensure muted before attempting autoplay (browser requirement)
+        activeVideo.muted = true;
+        activeVideo.play().catch(() => {});
+      }
       lastControlRef.current = { id: activePost.id, mode: 'video' };
     } else if (isAudioLike) {
-      // ensure any video at this index is stopped
+      // Switch to audio-like post: stop any video at this index
       const activeVideo = container.querySelector(`[data-index="${visiblePostIndex}"] video`) as HTMLVideoElement | null;
       if (activeVideo) {
-        activeVideo.pause();
-        activeVideo.currentTime = 0;
+        try {
+          activeVideo.pause();
+        } catch {}
+        activeVideo.muted = true;
       }
-      // avoid re-calling playTrack for the same post
+
+      // Avoid re-calling playTrack for the same post
       if (lastControlRef.current.id !== activePost.id || lastControlRef.current.mode !== 'audio') {
         playTrack({
           id: activePost.id,
@@ -351,7 +336,7 @@ export function FeedContainer({
         lastControlRef.current = { id: activePost.id, mode: 'audio' };
       }
     } else {
-      // neither audio nor video → pause global audio
+      // Neither audio nor video: pause global audio
       pauseTrack();
       lastControlRef.current = { id: activePost.id, mode: null };
     }
@@ -365,15 +350,14 @@ export function FeedContainer({
       const nodes = container?.querySelectorAll('video');
       nodes?.forEach(v => {
         const vid = v as HTMLVideoElement;
-        vid.pause();
-        vid.currentTime = 0;
+        try { vid.pause(); } catch {}
       });
     };
   }, [pauseTrack]);
 
   const handleLike = async (postId: string, isLiked: boolean) => {
-    setPosts(posts.map(post => 
-      post.id === postId 
+    setPosts(posts.map(post =>
+      post.id === postId
         ? { ...post, likes: post.likes + (isLiked ? 1 : -1) }
         : post
     ));
@@ -389,8 +373,8 @@ export function FeedContainer({
   };
 
   const handleCommentAdded = (postId: string) => {
-    setPosts(posts.map(post => 
-      post.id === postId 
+    setPosts(posts.map(post =>
+      post.id === postId
         ? { ...post, comments: post.comments + 1 }
         : post
     ));
@@ -405,7 +389,7 @@ export function FeedContainer({
     if (!post) return;
 
     const shareUrl = `${window.location.origin}/post/${postId}`;
-    
+
     if (navigator.share) {
       try {
         await navigator.share({
@@ -429,154 +413,164 @@ export function FeedContainer({
     toast.success('Post uploaded successfully!');
   };
 
-   const handleRepost = async (originalPostId: string) => {
-     if (!currentUser) {
-       toast.error('Please sign in to repost');
-       return;
-     }
- 
-     try {
-       const { error } = await supabase
-         .from('posts')
-         .insert({
-           producer_id: currentUser.id,
-           type: 'audio', // Reposts are treated as audio type
-           media_url: '', // Empty for reposts since they reference original
-           repost_of: originalPostId,
-           likes: 0,
-           comments: 0
-         });
- 
-       if (error) throw error;
- 
-       // Update repost count locally
-       setRepostCounts(prev => ({
-         ...prev,
-         [originalPostId]: (prev[originalPostId] || 0) + 1
-       }));
- 
-       toast.success('Post reposted to your feed!');
-       
-       // Refresh the feed to show the new repost
-       window.location.reload();
-     } catch (error) {
-       console.error('Error reposting:', error);
-       toast.error('Failed to repost');
-     }
-   };
- 
-   const focusPost = (index: number) => {
-     try {
-       setVisiblePostIndex(index);
-       const el = containerRef.current?.querySelector(`[data-index="${index}"]`) as HTMLElement | null;
-       el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-     } catch {}
-   };
- 
-   if (loading) {
-     return (
-       <div className="w-full h-screen flex items-center justify-center bg-background">
-         <Loader2 className="w-8 h-8 animate-spin text-primary" />
-       </div>
-     );
-   }
- 
-   if (posts.length === 0) {
-     return (
-       <div className="w-full h-screen flex flex-col items-center justify-center bg-background text-center p-8">
-         <h3 className="text-xl font-semibold text-muted-foreground mb-2">
-           No posts yet
-         </h3>
-         <p className="text-muted-foreground mb-6">
-           {producerId ? 'This producer isn\'t posted anything yet.' : 'Be the first to share your beats!'}
-         </p>
-         {showUploadButton && (
-           <Button onClick={() => setShowUpload(true)} className="gap-2">
-             <Plus className="w-4 h-4" />
-             Upload Your First Post
-           </Button>
-         )}
-       </div>
-     );
-   }
- 
-   return (
-     <div className="relative w-full h-full overflow-x-hidden">
-       {/* Upload Button - Fixed position */}
-       {showUploadButton && (
-         <Button
-           onClick={() => setShowUpload(true)}
-           className="fixed top-20 right-4 z-50 rounded-full w-12 h-12 p-0 shadow-lg"
-           size="sm"
-         >
-           <Plus className="w-5 h-5" />
-         </Button>
-       )}
- 
-       {/* Posts Container */}
-       <div
-         ref={containerRef}
-         className="w-full h-full overflow-y-scroll overflow-x-hidden snap-y snap-mandatory scrollbar-hide"
-         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-       >
-         {posts.map((post, index) => (
-             <div
-               key={post.id}
-               data-index={index}
-               ref={(el) => {
-                 if (el && observer.current) {
-                   observer.current.observe(el);
-                 }
-               }}
-               className={`w-screen h-[85vh] snap-start flex justify-start items-center px-0`}
-             >
-             {useFeedMeBeatzPost ? (
-               <FeedMeBeatzPost
-                 post={post}
-                 isVisible={index === visiblePostIndex}
-                 currentUser={currentUser}
-                 onLike={handleLike}
-                 onComment={handleComment}
-                 onSave={handleSave}
-                 onShare={handleShare}
-                 onRepost={handleRepost}
-                 repostCount={repostCounts[post.id] || 0}
-                 onFocus={() => focusPost(index)}
-               />
-             ) : (
-               <FeedPost
-                 post={post}
-                 isVisible={index === visiblePostIndex}
-                 currentUser={currentUser}
-                 onLike={handleLike}
-                 onComment={handleComment}
-                 onSave={handleSave}
-                 onShare={handleShare}
-                 onRepost={handleRepost}
-                 repostCount={repostCounts[post.id] || 0}
-                 slim={slim}
-               />
-             )}
-           </div>
-         ))}
-       </div>
- 
-       {/* Upload Dialog */}
-       <PostUploadDialog
-         open={showUpload}
-         onOpenChange={setShowUpload}
-         onPostUploaded={handlePostUploaded}
-       />
- 
-       {/* Comments Dialog */}
-       <FeedCommentsDialog
-         open={showComments}
-         onOpenChange={setShowComments}
-         postId={selectedPostId}
-         postProducer={selectedPostProducer}
-         currentUser={currentUser}
-         onCommentAdded={handleCommentAdded}
-       />
-     </div>
-   );
- }
+  const handleRepost = async (originalPostId: string) => {
+    if (!currentUser) {
+      toast.error('Please sign in to repost');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('posts')
+        .insert({
+          producer_id: currentUser.id,
+          type: 'audio',
+          media_url: '',
+          repost_of: originalPostId,
+          likes: 0,
+          comments: 0
+        });
+
+      if (error) throw error;
+
+      setRepostCounts(prev => ({
+        ...prev,
+        [originalPostId]: (prev[originalPostId] || 0) + 1
+      }));
+
+      toast.success('Post reposted to your feed!');
+      window.location.reload();
+    } catch (error) {
+      console.error('Error reposting:', error);
+      toast.error('Failed to repost');
+    }
+  };
+
+  const focusPost = (index: number) => {
+    try {
+      setVisiblePostIndex(index);
+      const el = containerRef.current?.querySelector(`[data-index="${index}"]`) as HTMLElement | null;
+      el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } catch {}
+  };
+
+  if (loading) {
+    return (
+      <div className="w-full h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (posts.length === 0) {
+    return (
+      <div className="w-full h-screen flex flex-col items-center justify-center bg-background text-center p-8">
+        <h3 className="text-xl font-semibold text-muted-foreground mb-2">
+          No posts yet
+        </h3>
+        <p className="text-muted-foreground mb-6">
+          {producerId ? 'This producer isn\'t posted anything yet.' : 'Be the first to share your beats!'}
+        </p>
+        {showUploadButton && (
+          <Button onClick={() => setShowUpload(true)} className="gap-2">
+            <Plus className="w-4 h-4" />
+            Upload Your First Post
+          </Button>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative w-full h-full overflow-x-hidden">
+      {/* Upload Button - Fixed position */}
+      {showUploadButton && (
+        <Button
+          onClick={() => setShowUpload(true)}
+          className="fixed top-20 right-4 z-50 rounded-full w-12 h-12 p-0 shadow-lg"
+          size="sm"
+        >
+          <Plus className="w-5 h-5" />
+        </Button>
+      )}
+
+      {/* Posts Container */}
+      <div
+        ref={containerRef}
+        className="w-full h-full overflow-y-scroll overflow-x-hidden snap-y snap-mandatory scrollbar-hide"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+      >
+        {posts.map((post, index) => (
+          <div
+            key={post.id}
+            data-index={index}
+            ref={(el) => {
+              // Observe each item once (only here) — observer is created in useEffect above
+              if (el && observer.current) {
+                observer.current.observe(el);
+
+                // Ensure media (video/audio) starts muted to allow autoplay
+                const videoEl = el.querySelector('video') as HTMLVideoElement | null;
+                if (videoEl) {
+                  videoEl.muted = true;
+                  videoEl.setAttribute('playsinline', 'true');
+                }
+                const audioEl = el.querySelector('audio') as HTMLAudioElement | null;
+                if (audioEl) {
+                  // keep audio element muted initially — playTrack handles unmuting if needed
+                  audioEl.muted = true;
+                }
+              }
+            }}
+            className={`w-screen h-[85vh] snap-start flex justify-start items-center px-0`}
+          >
+            {useFeedMeBeatzPost ? (
+              <FeedMeBeatzPost
+                post={post}
+                isVisible={index === visiblePostIndex}
+                currentUser={currentUser}
+                onLike={handleLike}
+                onComment={handleComment}
+                onSave={handleSave}
+                onShare={handleShare}
+                onRepost={handleRepost}
+                repostCount={repostCounts[post.id] || 0}
+                onFocus={() => focusPost(index)}
+              />
+            ) : (
+              <FeedPost
+                post={post}
+                isVisible={index === visiblePostIndex}
+                currentUser={currentUser}
+                onLike={handleLike}
+                onComment={handleComment}
+                onSave={handleSave}
+                onShare={handleShare}
+                onRepost={handleRepost}
+                repostCount={repostCounts[post.id] || 0}
+                slim={slim}
+              />
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Upload Dialog */}
+      <PostUploadDialog
+        open={showUpload}
+        onOpenChange={setShowUpload}
+        onPostUploaded={handlePostUploaded}
+      />
+
+      {/* Comments Dialog */}
+      <FeedCommentsDialog
+        open={showComments}
+        onOpenChange={setShowComments}
+        postId={selectedPostId}
+        postProducer={selectedPostProducer}
+        currentUser={currentUser}
+        onCommentAdded={handleCommentAdded}
+      />
+    </div>
+  );
+}
