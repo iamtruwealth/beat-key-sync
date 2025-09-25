@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Heart, MessageCircle, Bookmark, Share2, Play, Pause, Repeat2, ShoppingCart, Download } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAudio } from '@/contexts/AudioContext';
 import { useCart } from '@/contexts/CartContext';
 import { toast } from 'sonner';
 import verifiedBadge from '@/assets/verified-badge.png';
@@ -67,22 +66,22 @@ interface FeedMeBeatzPostProps {
   onSave: (postId: string, isSaved: boolean) => void;
   onShare: (postId: string) => void;
   onRepost: (postId: string) => void;
-   repostCount?: number;
-   onFocus?: () => void;
- }
+  repostCount?: number;
+  onFocus?: () => void;
+}
 
- export function FeedMeBeatzPost({ 
-   post, 
-   isVisible, 
-   currentUser, 
-   onLike, 
-   onComment, 
-   onSave, 
-   onShare,
-   onRepost,
-   repostCount = 0,
-   onFocus
- }: FeedMeBeatzPostProps) {
+export function FeedMeBeatzPost({ 
+  post, 
+  isVisible, 
+  currentUser, 
+  onLike, 
+  onComment, 
+  onSave, 
+  onShare,
+  onRepost,
+  repostCount = 0,
+  onFocus
+}: FeedMeBeatzPostProps) {
   const [isLiked, setIsLiked] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -91,7 +90,6 @@ interface FeedMeBeatzPostProps {
   const [beatData, setBeatData] = useState<Beat | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
-  const { currentTrack, playTrack, pauseTrack, isPlaying: globalIsPlaying } = useAudio();
   const { addToCart } = useCart();
 
   // Get the display post (original post if this is a repost, otherwise current post)
@@ -101,7 +99,6 @@ interface FeedMeBeatzPostProps {
   // Get fallback image - beat pack artwork or producer profile
   const getFallbackImage = () => {
     if (displayPost.cover_url) return displayPost.cover_url;
-    // TODO: Could add beat pack artwork lookup here if needed
     return displayPost.producer.producer_logo_url || '/placeholder.svg';
   };
 
@@ -153,53 +150,54 @@ interface FeedMeBeatzPostProps {
     }
   }, [displayPost.beat_id]);
 
-  // Visibility effect: only handle local video pause to avoid conflicts with centralized control
+  // Handle audio playback with direct audio element control
   useEffect(() => {
     if (!isVisible) {
+      // Pause everything when not visible
       if (videoRef.current) {
         videoRef.current.pause();
         videoRef.current.currentTime = 0;
       }
-    }
-  }, [isVisible]);
-
-  // Sync with global audio context
-  useEffect(() => {
-    if (currentTrack?.id === displayPost.id) {
-      setIsPlaying(globalIsPlaying);
-    } else {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
       setIsPlaying(false);
+      return;
     }
-  }, [currentTrack, globalIsPlaying, displayPost.id]);
 
-   const handlePlayPause = () => {
-     onFocus?.();
-     console.log('FeedMeBeatz: Play button clicked for:', displayPost.id, displayPost.type, displayPost.media_url);
-     
-     if (displayPost.type === 'audio' || (displayPost.type === 'photo' && displayPost.media_url)) {
-       if (currentTrack?.id === displayPost.id && globalIsPlaying) {
-         console.log('FeedMeBeatz: Pausing current track');
-         pauseTrack();
-       } else {
-         console.log('FeedMeBeatz: Playing track:', displayPost.media_url);
-         playTrack({
-           id: displayPost.id,
-           title: displayPost.caption || `${displayPost.producer.producer_name} Beat`,
-           artist: displayPost.producer.producer_name,
-           file_url: displayPost.media_url,
-           artwork_url: getFallbackImage()
-         });
-       }
-     } else if (displayPost.type === 'video' && videoRef.current) {
-       // ensure this post is focused
-       if (isPlaying) {
-         videoRef.current.pause();
-       } else {
-         videoRef.current.play().catch(console.error);
-       }
-       setIsPlaying(!isPlaying);
-     }
-   };
+    // Auto-play audio posts when visible
+    if (displayPost.type === 'audio' && audioRef.current) {
+      audioRef.current.play().catch(console.error);
+      setIsPlaying(true);
+    } else if (displayPost.type === 'video' && videoRef.current) {
+      videoRef.current.play().catch(console.error);
+      setIsPlaying(true);
+    }
+  }, [isVisible, displayPost.type]);
+
+  const handlePlayPause = () => {
+    onFocus?.();
+    
+    if (displayPost.type === 'audio' && audioRef.current) {
+      if (isPlaying) {
+        audioRef.current.pause();
+        setIsPlaying(false);
+      } else {
+        audioRef.current.play().catch(console.error);
+        setIsPlaying(true);
+      }
+    } else if (displayPost.type === 'video' && videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.pause();
+        setIsPlaying(false);
+      } else {
+        videoRef.current.play().catch(console.error);
+        setIsPlaying(true);
+      }
+    }
+  };
+
   const handleMuteToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
     setIsMuted(!isMuted);
@@ -309,8 +307,20 @@ interface FeedMeBeatzPostProps {
 
   return (
     <div className="relative w-screen h-full bg-background snap-start overflow-hidden mx-0 shadow-lg">
+      {/* Hidden audio element for audio posts */}
+      {displayPost.type === 'audio' && (
+        <audio
+          ref={audioRef}
+          src={displayPost.media_url}
+          loop
+          onPlay={() => setIsPlaying(true)}
+          onPause={() => setIsPlaying(false)}
+          onEnded={() => setIsPlaying(false)}
+        />
+      )}
+
       {/* Background Media */}
-      <div className="absolute inset-0 rounded-lg sm:rounded-xl overflow-hidden">
+      <div className="absolute inset-0 overflow-hidden">
         {displayPost.type === 'video' ? (
           <video
             ref={videoRef}
@@ -321,6 +331,9 @@ interface FeedMeBeatzPostProps {
             playsInline
             poster={getFallbackImage()}
             onClick={handlePlayPause}
+            onPlay={() => setIsPlaying(true)}
+            onPause={() => setIsPlaying(false)}
+            onEnded={() => setIsPlaying(false)}
           />
         ) : displayPost.type === 'photo' ? (
           <div 
@@ -497,65 +510,74 @@ interface FeedMeBeatzPostProps {
                     <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                   )}
                 </Button>
-                <span className="text-xs text-white/80 mt-1">
+                <span className="text-xs text-white/70 mt-1">
                   {beatData.is_free ? 'Free' : `$${(beatData.price_cents / 100).toFixed(2)}`}
                 </span>
               </div>
             )}
 
+            {/* Like Button */}
             <div className="flex flex-col items-center">
               <Button
                 variant="ghost"
                 size="sm"
-                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 transition-all hover:scale-110"
+                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-black/20 backdrop-blur-sm border border-white/20 hover:bg-red-500/30 transition-all hover:scale-110"
                 onClick={handleLike}
               >
                 <Heart className={`w-4 h-4 sm:w-5 sm:h-5 ${isLiked ? 'fill-red-500 text-red-500' : 'text-white'}`} />
               </Button>
-              <span className="text-xs text-white/80 mt-1">{post.likes || 0}</span>
+              <span className="text-xs text-white/70 mt-1">{post.likes}</span>
             </div>
 
+            {/* Comment Button */}
             <div className="flex flex-col items-center">
               <Button
                 variant="ghost"
                 size="sm"
-                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 transition-all hover:scale-110"
+                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-black/20 backdrop-blur-sm border border-white/20 hover:bg-blue-500/30 transition-all hover:scale-110"
                 onClick={() => onComment(post.id)}
               >
                 <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
               </Button>
-              <span className="text-xs text-white/80 mt-1">{post.comments || 0}</span>
+              <span className="text-xs text-white/70 mt-1">{post.comments}</span>
             </div>
 
+            {/* Save Button */}
             <div className="flex flex-col items-center">
               <Button
                 variant="ghost"
                 size="sm"
-                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 transition-all hover:scale-110"
+                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-black/20 backdrop-blur-sm border border-white/20 hover:bg-yellow-500/30 transition-all hover:scale-110"
+                onClick={handleSave}
+              >
+                <Bookmark className={`w-4 h-4 sm:w-5 sm:h-5 ${isSaved ? 'fill-yellow-500 text-yellow-500' : 'text-white'}`} />
+              </Button>
+            </div>
+
+            {/* Share Button */}
+            <div className="flex flex-col items-center">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-black/20 backdrop-blur-sm border border-white/20 hover:bg-green-500/30 transition-all hover:scale-110"
+                onClick={() => onShare(post.id)}
+              >
+                <Share2 className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+              </Button>
+            </div>
+
+            {/* Repost Button */}
+            <div className="flex flex-col items-center">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-black/20 backdrop-blur-sm border border-white/20 hover:bg-purple-500/30 transition-all hover:scale-110"
                 onClick={handleRepost}
               >
                 <Repeat2 className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
               </Button>
-              <span className="text-xs text-white/80 mt-1">{repostCount}</span>
+              <span className="text-xs text-white/70 mt-1">{repostCount}</span>
             </div>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 transition-all hover:scale-110"
-              onClick={handleSave}
-            >
-              <Bookmark className={`w-4 h-4 sm:w-5 sm:h-5 ${isSaved ? 'fill-yellow-400 text-yellow-400' : 'text-white'}`} />
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 transition-all hover:scale-110"
-              onClick={() => onShare(post.id)}
-            >
-              <Share2 className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-            </Button>
           </div>
         </div>
       </div>

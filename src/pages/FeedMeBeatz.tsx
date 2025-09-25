@@ -37,7 +37,7 @@ export default function FeedMeBeatz() {
       />
       
       <div className="w-full h-screen flex flex-col">
-        <div className="p-4 border-b">
+        <div className="absolute top-0 left-0 right-0 z-50 p-4 bg-background/80 backdrop-blur-sm border-b">
           <FeedFilter 
             activeFilter={activeFilter}
             onFilterChange={setActiveFilter}
@@ -45,12 +45,13 @@ export default function FeedMeBeatz() {
           />
         </div>
         
-        <div className="flex-1">
+        <div className="w-full h-screen pt-16">
           <FeedContainer 
             feedType={activeFilter} 
             currentUser={currentUser} 
             showUploadButton={true}
             useFeedMeBeatzPost={true}
+            fullScreen={true}
           />
         </div>
       </div>

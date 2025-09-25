@@ -39,6 +39,7 @@ interface FeedContainerProps {
   showUploadButton?: boolean;
   useFeedMeBeatzPost?: boolean;
   slim?: boolean;
+  fullScreen?: boolean;
 }
 
 export function FeedContainer({
@@ -47,7 +48,8 @@ export function FeedContainer({
   feedType = 'for-you',
   currentUser: passedCurrentUser,
   useFeedMeBeatzPost = false,
-  slim = false
+  slim = false,
+  fullScreen = false
 }: FeedContainerProps) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,7 +62,7 @@ export function FeedContainer({
   const [repostCounts, setRepostCounts] = useState<Record<string, number>>({});
   const observer = useRef<IntersectionObserver | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const { playTrack, pauseTrack } = useAudio();
+  const { playTrack, pauseTrack } = useFeedMeBeatzPost ? { playTrack: () => {}, pauseTrack: () => {} } : useAudio();
   const lastControlRef = useRef<{ id: string | null; mode: 'audio' | 'video' | null }>({ id: null, mode: null });
   const lastIndexRef = useRef<number>(-1);
   const ratiosRef = useRef<Record<number, number>>({});
@@ -239,8 +241,10 @@ export function FeedContainer({
     return () => observer.current?.disconnect();
   }, [posts]);
 
-  // Handle auto-play vs manual play
+  // Handle auto-play vs manual play - skip for FeedMeBeatz posts
   useEffect(() => {
+    if (useFeedMeBeatzPost) return; // Let FeedMeBeatzPost handle its own audio
+    
     const container = containerRef.current;
     const activePost = posts[visiblePostIndex];
     if (!container || !activePost) return;
@@ -286,7 +290,7 @@ export function FeedContainer({
       pauseTrack();
       lastControlRef.current = { id: activePost.id, mode: null };
     }
-  }, [visiblePostIndex, posts, pauseTrack, playTrack]);
+  }, [visiblePostIndex, posts, pauseTrack, playTrack, useFeedMeBeatzPost]);
 
   // Manual play handler
   const handleManualPlay = (postId: string) => {
@@ -331,7 +335,7 @@ export function FeedContainer({
           <div
             key={post.id}
             data-index={index}
-            className={`w-screen h-[85vh] snap-start flex justify-start items-center px-0`}
+            className={`w-screen ${fullScreen ? 'h-screen' : 'h-[85vh]'} snap-start flex justify-start items-center px-0`}
           >
             {useFeedMeBeatzPost ? (
               <FeedMeBeatzPost
@@ -345,7 +349,6 @@ export function FeedContainer({
                 onRepost={() => {}}
                 repostCount={repostCounts[post.id] || 0}
                 onFocus={() => setVisiblePostIndex(index)}
-                onManualPlay={() => handleManualPlay(post.id)}
               />
             ) : (
               <FeedPost
@@ -359,7 +362,6 @@ export function FeedContainer({
                 onRepost={() => {}}
                 repostCount={repostCounts[post.id] || 0}
                 slim={slim}
-                onManualPlay={() => handleManualPlay(post.id)}
               />
             )}
           </div>
