@@ -17,7 +17,7 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
-    const { email, password, username, role = 'artist', producerLogoUrl } = await req.json();
+    const { email, password, username, role = 'artist', producerLogoUrl, displayName } = await req.json();
 
     // Create user without email confirmation using service role
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
@@ -42,15 +42,23 @@ serve(async (req) => {
     }
 
     // Create profile entry
+    const profileData: any = {
+      id: authData.user.id,
+      username: username.toLowerCase(),
+      role: role,
+      producer_logo_url: producerLogoUrl || null
+    };
+
+    // Set the appropriate name field based on role
+    if (role === 'producer') {
+      profileData.producer_name = displayName;
+    } else {
+      profileData.first_name = displayName;
+    }
+
     const { error: profileError } = await supabaseAdmin
       .from('profiles')
-      .insert({
-        id: authData.user.id,
-        email: email,
-        username: username.toLowerCase(),
-        role: role,
-        producer_logo_url: producerLogoUrl || null
-      });
+      .insert(profileData);
 
     if (profileError) {
       console.error('Profile creation error:', profileError);

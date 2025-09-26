@@ -25,6 +25,8 @@ export default function AuthPage() {
   const [username, setUsername] = useState("");
   const [usernameError, setUsernameError] = useState("");
   const [isCheckingUsername, setIsCheckingUsername] = useState(false);
+  const [displayName, setDisplayName] = useState("");
+  const [displayNameError, setDisplayNameError] = useState("");
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -86,6 +88,13 @@ export default function AuthPage() {
     return "";
   };
 
+  const validateDisplayName = (name: string) => {
+    if (!name) return `${userRole === 'artist' ? 'Artist' : 'Producer'} name is required`;
+    if (name.length < 2) return "Name must be at least 2 characters";
+    if (name.length > 50) return "Name must be less than 50 characters";
+    return "";
+  };
+
   const checkUsernameAvailability = async (username: string) => {
     if (!username || validateUsername(username)) return;
 
@@ -124,6 +133,12 @@ export default function AuthPage() {
     }
   };
 
+  const handleDisplayNameChange = (value: string) => {
+    setDisplayName(value);
+    const validationError = validateDisplayName(value);
+    setDisplayNameError(validationError);
+  };
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -140,6 +155,15 @@ export default function AuthPage() {
       toast({
         title: "Username required",
         description: usernameError || "Please enter a valid username",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!displayName || displayNameError) {
+      toast({
+        title: `${userRole === 'artist' ? 'Artist' : 'Producer'} name required`,
+        description: displayNameError || `Please enter your ${userRole === 'artist' ? 'artist' : 'producer'} name`,
         variant: "destructive"
       });
       return;
@@ -176,7 +200,8 @@ export default function AuthPage() {
           password,
           username: username.toLowerCase(),
           role: userRole,
-          producerLogoUrl: logoUrl
+          producerLogoUrl: logoUrl,
+          displayName: displayName
         }
       });
 
@@ -209,6 +234,7 @@ export default function AuthPage() {
       setEmail("");
       setPassword("");
       setUsername("");
+      setDisplayName("");
       setArtistLogo(null);
       setTermsAccepted(false);
 
@@ -385,6 +411,23 @@ export default function AuthPage() {
                     )}
                     {username && !usernameError && !isCheckingUsername && (
                       <p className="text-sm text-green-600 mt-1">✓ Username available</p>
+                    )}
+                  </div>
+                  <div>
+                    <Label htmlFor="display-name">
+                      {userRole === 'artist' ? 'Artist Name' : 'Producer Name'}
+                    </Label>
+                    <Input
+                      id="display-name"
+                      type="text"
+                      value={displayName}
+                      onChange={(e) => handleDisplayNameChange(e.target.value)}
+                      placeholder={`Your ${userRole === 'artist' ? 'artist' : 'producer'} name`}
+                      required
+                      className={displayNameError ? "border-destructive" : ""}
+                    />
+                    {displayNameError && (
+                      <p className="text-sm text-destructive mt-1">{displayNameError}</p>
                     )}
                   </div>
                   <div>

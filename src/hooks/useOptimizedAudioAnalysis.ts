@@ -2,6 +2,8 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { AudioAnalysisResult, parseFilenameForMetadata } from '@/lib/audioAnalysis';
 import { useToast } from '@/hooks/use-toast';
 
+export type { AudioAnalysisResult };
+
 interface AnalysisState {
   isAnalyzing: boolean;
   progress: number;
