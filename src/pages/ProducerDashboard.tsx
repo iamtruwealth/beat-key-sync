@@ -10,6 +10,7 @@ import { RevenueTracker } from "@/components/beats/RevenueTracker";
 import { PayoutRequestForm } from "@/components/beats/PayoutRequestForm";
 import { BeatSalesTracker } from "@/components/beats/BeatSalesTracker";
 import { UserVerificationManager } from "@/components/admin/UserVerificationManager";
+import { OnboardingManager } from "@/components/onboarding/OnboardingManager";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { 
   Bell, 
@@ -29,7 +30,8 @@ import {
   CreditCard,
   Shield,
   FolderOpen,
-  Clock
+  Clock,
+  MapPin
 } from "lucide-react";
 
 // Dashboard stats for project management
@@ -276,10 +278,16 @@ export default function ProducerDashboard() {
             Payouts
           </TabsTrigger>
           {isMasterAccount && (
-            <TabsTrigger value="admin" className="flex items-center gap-2">
-              <Shield className="h-4 w-4" />
-              Admin
-            </TabsTrigger>
+            <>
+              <TabsTrigger value="admin" className="flex items-center gap-2">
+                <Shield className="h-4 w-4" />
+                Admin
+              </TabsTrigger>
+              <TabsTrigger value="onboarding" className="flex items-center gap-2">
+                <MapPin className="h-4 w-4" />
+                Onboarding
+              </TabsTrigger>
+            </>
           )}
         </TabsList>
 
@@ -376,9 +384,14 @@ export default function ProducerDashboard() {
         </TabsContent>
 
         {isMasterAccount && (
-          <TabsContent value="admin">
-            <UserVerificationManager />
-          </TabsContent>
+          <>
+            <TabsContent value="admin">
+              <UserVerificationManager />
+            </TabsContent>
+            <TabsContent value="onboarding">
+              <OnboardingManager />
+            </TabsContent>
+          </>
         )}
       </Tabs>
     </div>

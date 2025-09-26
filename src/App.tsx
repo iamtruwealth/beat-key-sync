@@ -38,6 +38,7 @@ import SettingsPage from "./pages/Settings";
 import NewExplore from "./pages/NewExplore";
 import ProducerProfile from "./pages/ProducerProfile";
 import UserProfile from "./pages/UserProfile";
+import Onboarding from "./pages/Onboarding";
 
 import { FuturisticWaveformPlayer } from "./components/player/FuturisticWaveformPlayer";
 
@@ -315,6 +316,7 @@ const App = () => (
                 </div>
               </RoleProtectedRoute>
             } />
+            <Route path="/onboarding" element={<Onboarding />} />
             
             {/* Catch-all routes */}
             <Route path="/analytics" element={

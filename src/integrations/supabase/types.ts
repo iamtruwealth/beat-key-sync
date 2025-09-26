@@ -599,6 +599,80 @@ export type Database = {
         }
         Relationships: []
       }
+      onboarding_guides: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          role: Database["public"]["Enums"]["user_role"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          role: Database["public"]["Enums"]["user_role"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          role?: Database["public"]["Enums"]["user_role"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      onboarding_steps: {
+        Row: {
+          content: string
+          created_at: string
+          guide_id: string
+          id: string
+          is_active: boolean
+          route: string
+          step_number: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          guide_id: string
+          id?: string
+          is_active?: boolean
+          route: string
+          step_number: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          guide_id?: string
+          id?: string
+          is_active?: boolean
+          route?: string
+          step_number?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "onboarding_steps_guide_id_fkey"
+            columns: ["guide_id"]
+            isOneToOne: false
+            referencedRelation: "onboarding_guides"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payout_requests: {
         Row: {
           amount_cents: number
@@ -1112,6 +1186,53 @@ export type Database = {
           waveform_data?: Json | null
         }
         Relationships: []
+      }
+      user_onboarding_progress: {
+        Row: {
+          completed_at: string | null
+          completed_steps: number[]
+          current_step: number
+          guide_id: string
+          id: string
+          is_completed: boolean
+          is_skipped: boolean
+          started_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          completed_steps?: number[]
+          current_step?: number
+          guide_id: string
+          id?: string
+          is_completed?: boolean
+          is_skipped?: boolean
+          started_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          completed_steps?: number[]
+          current_step?: number
+          guide_id?: string
+          id?: string
+          is_completed?: boolean
+          is_skipped?: boolean
+          started_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_onboarding_progress_guide_id_fkey"
+            columns: ["guide_id"]
+            isOneToOne: false
+            referencedRelation: "onboarding_guides"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_payment_info: {
         Row: {

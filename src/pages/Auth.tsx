@@ -227,10 +227,32 @@ export default function AuthPage() {
 
       toast({
         title: "Account created successfully!",
-        description: "You can now sign in with your credentials"
+        description: "Welcome to BeatPackz! Setting up your account..."
       });
 
-      // Clear form
+      // Sign in the newly created user
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (signInError) {
+        console.error('Auto sign-in failed:', signInError);
+        toast({
+          title: "Account created",
+          description: "Please sign in with your new credentials"
+        });
+      } else {
+        // Redirect based on role
+        if (userRole === 'producer') {
+          navigate('/onboarding');
+        } else {
+          navigate('/artist-dashboard');
+        }
+        return;
+      }
+
+      // Clear form only if auto sign-in failed
       setEmail("");
       setPassword("");
       setUsername("");
