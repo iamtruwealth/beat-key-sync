@@ -277,7 +277,12 @@ export default function UploadPage() {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  {fileData.status === 'analyzing' && <Progress value={analysisProgress} className="w-16 h-2" />}
+                  {fileData.status === 'analyzing' && (
+                    <div className="flex items-center gap-2">
+                      <Progress value={analysisProgress} className="w-16 h-2" />
+                      <span className="text-xs text-muted-foreground">{analysisProgress}%</span>
+                    </div>
+                  )}
                   <Badge variant={fileData.status === 'complete' ? 'default' : fileData.status === 'error' ? 'destructive' : 'secondary'}>
                     {fileData.status}
                   </Badge>
