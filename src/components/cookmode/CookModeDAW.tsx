@@ -276,15 +276,11 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
       onDragEnter={handleDragEnter}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
-      onDrop={handleSimpleDrop}
+      onDrop={handleDrop}
     >
       {/* Content Area */}
       <div 
         className={`flex-1 overflow-hidden relative ${isDragOver ? 'bg-neon-cyan/5' : ''}`}
-        onDragEnter={handleDragEnter}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
       >
         {/* Drag overlay */}
         {isDragOver && (
