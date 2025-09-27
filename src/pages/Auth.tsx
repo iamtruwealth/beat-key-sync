@@ -45,7 +45,7 @@ export default function AuthPage() {
           .from('profiles')
           .select('role')
           .eq('id', session.user.id)
-          .single();
+          .maybeSingle();
         
         const role = profile?.role || 'artist';
         navigate(role === 'artist' ? '/artist-dashboard' : '/producer-dashboard');
@@ -72,7 +72,7 @@ export default function AuthPage() {
               .from('profiles')
               .select('role')
               .eq('id', session.user.id)
-              .single();
+              .maybeSingle();
             
             console.log('Profile fetch result:', { profile, profileError });
             
@@ -83,7 +83,13 @@ export default function AuthPage() {
               return;
             }
             
-            const role = profile?.role || 'artist';
+            if (!profile) {
+              console.log('No profile found, defaulting to artist dashboard');
+              navigate('/artist-dashboard');
+              return;
+            }
+            
+            const role = profile.role || 'artist';
             console.log('Redirecting user to dashboard based on role:', role);
             navigate(role === 'artist' ? '/artist-dashboard' : '/producer-dashboard');
           } catch (error) {
