@@ -561,7 +561,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           {/* Track Names Sidebar */}
           <div className="w-48 bg-black/60 border-r border-white/10 flex flex-col">
             {/* Master Volume */}
-            <div className="p-3 border-b border-white/10">
+            <div className="h-[68px] flex flex-col justify-center p-3 border-b border-white/10">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-medium text-white">Master</span>
                 <span className="text-xs text-gray-400">{masterVolume}%</span>
