@@ -78,10 +78,12 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     console.log('Checking clips initialization:', { 
       audioClipsLength: audioClips.length, 
       tracksLength: tracks.length,
-      trackDurations: Array.from(trackDurations.entries())
+      trackDurations: Array.from(trackDurations.entries()),
+      trackNames: tracks.map(t => t.name)
     });
     
-    if (audioClips.length === 0 && tracks.length > 0) {
+    // Always recreate clips when tracks change to ensure all tracks get clips
+    if (tracks.length > 0) {
       const initialClips: AudioClip[] = tracks.map(track => {
         const duration = trackDurations.get(track.id) || track.analyzed_duration || track.duration || 60;
         const clip = {
@@ -91,13 +93,20 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           endTime: duration,
           originalTrack: track
         };
-        console.log('Creating initial clip for track:', track.name, clip);
+        console.log('Creating clip for track:', track.name, 'ID:', track.id, 'Clip:', clip);
         return clip;
       });
-      setAudioClips(initialClips);
-      console.log('Initialized audio clips:', initialClips);
+      
+      // Only update if clips actually changed
+      const clipsChanged = initialClips.length !== audioClips.length || 
+        initialClips.some(clip => !audioClips.find(existing => existing.id === clip.id));
+      
+      if (clipsChanged) {
+        console.log('Updating audio clips - old:', audioClips, 'new:', initialClips);
+        setAudioClips(initialClips);
+      }
     }
-  }, [tracks, trackDurations, audioClips.length]);
+  }, [tracks, trackDurations]);
 
   // Grid snapping function
   const snapToGrid = (time: number): number => {
@@ -564,10 +573,25 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   }> = ({ track, index, pixelsPerSecond, trackHeight }) => {
     const trackY = index * trackHeight;
     const trackClips = audioClips.filter(clip => clip.trackId === track.id);
+    
+    console.log(`WaveformTrack for ${track.name}:`, {
+      trackId: track.id,
+      trackClips: trackClips,
+      totalClips: audioClips.length,
+      allClipTrackIds: audioClips.map(c => c.trackId)
+    });
 
     return (
       <div className="relative" style={{ height: trackHeight }}>
-        {trackClips.map((clip) => {
+        {trackClips.length === 0 ? (
+          // Fallback: create temporary clip if none exist
+          <div className="text-red-500 p-2 text-xs">
+            No clips found for {track.name} (ID: {track.id})
+            <br />
+            Track clips: {trackClips.length}, Total clips: {audioClips.length}
+          </div>
+        ) : (
+          trackClips.map((clip) => {
           const { waveformData, isLoading } = useWaveformGenerator({ 
             audioUrl: clip.originalTrack.file_url,
             targetWidth: 500 
@@ -715,7 +739,8 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
               </div>
             </div>
           );
-        })}
+        })
+        )}
       </div>
     );
   };
