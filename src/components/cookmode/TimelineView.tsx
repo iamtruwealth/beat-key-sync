@@ -545,7 +545,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           className="absolute top-0 bottom-0 border-l border-border/30"
           style={{ left: bar * pixelsPerBar }}
         >
-          <span className="absolute -top-6 left-1 text-xs text-muted-foreground">
+          <span className="absolute top-1 left-1 text-xs text-muted-foreground font-mono">
             {bar + 1}
           </span>
         </div>
