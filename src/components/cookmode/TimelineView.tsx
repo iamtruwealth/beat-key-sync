@@ -185,23 +185,17 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
 
     const updatePosition = () => {
       const position = toneAudioEngine.getCurrentPosition();
-      const loopDuration = (toneAudioEngine.loopDurationInBeats * 60) / bpm;
-      
-      // Handle loop reset - if we've gone past the loop end, reset to 0
-      if (position >= loopDuration) {
-        onSeek(0);
-        return;
-      }
-      
-      // Update current time if there's a significant difference
-      if (Math.abs(position - currentTime) > 0.1) {
-        onSeek(position);
+      const loopDurationSec = (toneAudioEngine.loopDurationInBeats * 60) / bpm || sessionDuration;
+      const displayPos = loopDurationSec > 0 ? (position % loopDurationSec) : position;
+
+      if (Math.abs(displayPos - currentTime) > 0.05) {
+        onSeek(displayPos);
       }
     };
 
-    const intervalId = setInterval(updatePosition, 100); // Update 10 times per second
+    const intervalId = setInterval(updatePosition, 100);
     return () => clearInterval(intervalId);
-  }, [engineInitialized, isPlaying, bpm, currentTime, onSeek]);
+  }, [engineInitialized, isPlaying, bpm, currentTime, onSeek, sessionDuration]);
 
   // Update track properties in engine
   const updateTrackProperties = useCallback((trackId: string, updates: Partial<Track>) => {
@@ -224,23 +218,17 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
 
     const updatePosition = () => {
       const position = toneAudioEngine.getCurrentPosition();
-      const loopDuration = (toneAudioEngine.loopDurationInBeats * 60) / bpm;
-      
-      // Handle loop reset - if we've gone past the loop end, reset to 0
-      if (position >= loopDuration) {
-        onSeek(0);
-        return;
-      }
-      
-      // Update current time if there's a significant difference
-      if (Math.abs(position - currentTime) > 0.1) {
-        onSeek(position);
+      const loopDurationSec = (toneAudioEngine.loopDurationInBeats * 60) / bpm || sessionDuration;
+      const displayPos = loopDurationSec > 0 ? (position % loopDurationSec) : position;
+
+      if (Math.abs(displayPos - currentTime) > 0.05) {
+        onSeek(displayPos);
       }
     };
 
-    const intervalId = setInterval(updatePosition, 100); // Update 10 times per second
+    const intervalId = setInterval(updatePosition, 100);
     return () => clearInterval(intervalId);
-  }, [engineInitialized, isPlaying, bpm, currentTime, onSeek]);
+  }, [engineInitialized, isPlaying, bpm, currentTime, onSeek, sessionDuration]);
 
   // Initialize audio clips from tracks - ensure proper positioning
   useEffect(() => {

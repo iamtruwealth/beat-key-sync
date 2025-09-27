@@ -56,7 +56,7 @@ class ToneAudioEngine {
     try {
       // Create player without URL so we can await explicit load
       const player = new Tone.Player({
-        loop: true,
+        loop: false,
         autostart: false,
         onerror: (error) => {
           console.error(`Error loading track ${trackId}:`, error);
@@ -194,11 +194,10 @@ class ToneAudioEngine {
   }
 
   seekTo(positionInSeconds: number): void {
-    // Convert seconds to beats, then to Tone.js position
-    const positionInBeats = (positionInSeconds * this.currentBPM) / 60;
-    const positionInBars = positionInBeats / 4;
-    Tone.Transport.position = `${positionInBars}:0:0`;
-    console.log(`Seeked to ${positionInSeconds} seconds (${positionInBeats} beats, ${positionInBars} bars)`);
+    // Seek with second precision for accurate playhead updates
+    const clamped = Math.max(0, positionInSeconds);
+    Tone.Transport.seconds = clamped;
+    console.log(`Seeked to ${clamped} seconds`);
   }
 
   setBPM(newBPM: number): void {
