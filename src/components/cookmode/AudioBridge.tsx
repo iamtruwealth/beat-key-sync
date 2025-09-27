@@ -65,14 +65,25 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
     });
   }, []);
 
-  // Initialize engine and set up tick callback
+  // Initialize engine once
   useEffect(() => {
     const initEngine = async () => {
       try {
         await sessionLoopEngine.initialize();
-        sessionLoopEngine.onTick = onTick;
+        // Set initial BPM and clips
+        sessionLoopEngine.setBpm(bpm);
+        if (tracks.length > 0) {
+          const clips = createClipsFromTracks(tracks, bpm);
+          console.log('AudioBridge: Initial clips:', clips);
+          await sessionLoopEngine.setClips(clips);
+          previousTracks.current = [...tracks];
+        }
         isInitialized.current = true;
         console.log('AudioBridge: Engine initialized');
+        // Start playback if requested
+        if (isPlaying) {
+          await sessionLoopEngine.start();
+        }
       } catch (error) {
         console.error('AudioBridge: Failed to initialize engine:', error);
       }
@@ -83,6 +94,11 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
     return () => {
       sessionLoopEngine.dispose();
     };
+  }, []);
+
+  // Keep tick handler updated without re-initializing the engine
+  useEffect(() => {
+    sessionLoopEngine.onTick = onTick;
   }, [onTick]);
 
   // Handle BPM changes
