@@ -199,14 +199,20 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
   return (
     <div className="h-full flex flex-col bg-background/50">
       {/* View Switcher - Moved to Top Center */}
-      <div className="flex justify-center p-3 border-b border-border/50">
+      <div className="flex justify-center p-4 border-b border-border/50 bg-card/10">
         <Tabs value={activeView} onValueChange={(value) => setActiveView(value as 'timeline' | 'mixer')}>
-          <TabsList className="bg-background/50">
-            <TabsTrigger value="timeline" className="flex items-center gap-2">
+          <TabsList className="bg-background/80 border border-border/30">
+            <TabsTrigger 
+              value="timeline" 
+              className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+            >
               <Clock className="w-4 h-4" />
               Timeline
             </TabsTrigger>
-            <TabsTrigger value="mixer" className="flex items-center gap-2">
+            <TabsTrigger 
+              value="mixer" 
+              className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+            >
               <Layers className="w-4 h-4" />
               Mixer
             </TabsTrigger>
