@@ -255,32 +255,35 @@ export function useCookModeSession(sessionId?: string) {
   const pausedTimeRef = useRef<number>(0);
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let rafId: number | null = null;
     
-    if (isPlaying && session) {
+    if (isPlaying) {
+      // Start from the paused position
       startTimeRef.current = Date.now() - pausedTimeRef.current * 1000;
-      
-      // Calculate precise timing based on session BPM
-      const bpm = session.target_bpm || 120;
+
+      const bpm = session?.target_bpm || 120;
       const beatsPerSecond = bpm / 60;
-      const millisecondsPerBeat = (60 / bpm) * 1000;
-      const updateRate = millisecondsPerBeat / 32; // 32 subdivisions per beat for precision
-      
-      interval = setInterval(() => {
+      const subdivision = 32; // 32nd notes for smooth UI while staying beat-locked
+      const stepSeconds = 1 / (beatsPerSecond * subdivision);
+
+      const tick = () => {
         const elapsed = (Date.now() - startTimeRef.current) / 1000;
-        // Quantize to nearest beat subdivision for exact timing
-        const beatSubdivision = Math.round(elapsed * beatsPerSecond * 32) / 32;
-        const quantizedTime = beatSubdivision / beatsPerSecond;
-        setCurrentTime(quantizedTime);
-      }, Math.max(10, updateRate)); // Minimum 10ms for precision
+        // Quantize DOWN to prevent jitter/backwards jumps
+        const quantized = Math.floor(elapsed / stepSeconds) * stepSeconds;
+        setCurrentTime(quantized);
+        rafId = requestAnimationFrame(tick);
+      };
+
+      rafId = requestAnimationFrame(tick);
     } else {
+      // Persist paused time when stopping
       pausedTimeRef.current = currentTime;
     }
 
     return () => {
-      if (interval) clearInterval(interval);
+      if (rafId) cancelAnimationFrame(rafId);
     };
-  }, [isPlaying, session, currentTime]);
+  }, [isPlaying, session?.target_bpm]);
 
   const togglePlayback = useCallback(() => {
     const newIsPlaying = !isPlaying;
