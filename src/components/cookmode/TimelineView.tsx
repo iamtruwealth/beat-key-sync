@@ -1,21 +1,20 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Play, Pause, RotateCcw, Repeat } from 'lucide-react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Play, Pause, RotateCcw, Volume2, VolumeX } from "lucide-react";
+import { BPMSyncIndicator } from './BPMSyncIndicator';
+import { useToast } from "@/hooks/use-toast";
 
 interface Track {
   id: string;
   name: string;
   file_url: string;
   stem_type: string;
-  uploaded_by: string;
-  version_number: number;
   duration?: number;
-  volume: number;
-  isMuted: boolean;
-  isSolo: boolean;
-  waveformData?: number[];
+  volume?: number;
+  isMuted?: boolean;
+  isSolo?: boolean;
+  waveform_data?: number[];
 }
 
 interface TimelineViewProps {
@@ -38,9 +37,10 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const timelineRef = useRef<HTMLDivElement>(null);
   const [isLooping, setIsLooping] = useState(false);
   const [loopStart, setLoopStart] = useState(0);
-  const [loopEnd, setLoopEnd] = useState(32); // Default 8 bars
-  const [isDraggingLoop, setIsDraggingLoop] = useState<'start' | 'end' | 'region' | null>(null);
+  const [loopEnd, setLoopEnd] = useState(32);
   const [timelineWidth, setTimelineWidth] = useState(0);
+  const [audioElements, setAudioElements] = useState<Map<string, HTMLAudioElement>>(new Map());
+  const { toast } = useToast();
 
   // Calculate timing constants
   const secondsPerBeat = 60 / bpm;
@@ -48,9 +48,52 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const secondsPerBar = secondsPerBeat * beatsPerBar;
   const maxDuration = Math.max(...tracks.map(t => t.duration || 60), 60);
   const totalBars = Math.ceil(maxDuration / secondsPerBar);
-  const pixelsPerSecond = 40; // Zoom level
+  const pixelsPerSecond = 40;
   const pixelsPerBeat = pixelsPerSecond * secondsPerBeat;
   const pixelsPerBar = pixelsPerBeat * beatsPerBar;
+
+  // Audio playback handler for individual tracks
+  const handleTrackPlay = useCallback(async (track: Track) => {
+    try {
+      const audioKey = track.id;
+      let audio = audioElements.get(audioKey);
+      
+      if (!audio) {
+        audio = new Audio(track.file_url);
+        audio.volume = (track.volume || 100) / 100;
+        audio.muted = track.isMuted || false;
+        
+        // Add to our audio elements map
+        setAudioElements(prev => new Map(prev.set(audioKey, audio!)));
+        
+        audio.addEventListener('error', (e) => {
+          console.error('Audio error:', e);
+          toast({
+            title: "Playback Error",
+            description: `Could not play ${track.name}`,
+            variant: "destructive"
+          });
+        });
+      }
+      
+      if (audio.paused) {
+        await audio.play();
+        toast({
+          title: "Playing Track",
+          description: track.name,
+        });
+      } else {
+        audio.pause();
+      }
+    } catch (error) {
+      console.error('Error playing track:', error);
+      toast({
+        title: "Playback Error", 
+        description: `Could not play ${track.name}`,
+        variant: "destructive"
+      });
+    }
+  }, [audioElements, toast]);
 
   // Update timeline width
   useEffect(() => {
@@ -65,6 +108,27 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       onSeek(loopStart);
     }
   }, [currentTime, isLooping, loopStart, loopEnd, onSeek]);
+
+  // Update track volumes and mute states
+  useEffect(() => {
+    tracks.forEach(track => {
+      const audio = audioElements.get(track.id);
+      if (audio) {
+        audio.volume = (track.volume || 100) / 100;
+        audio.muted = track.isMuted || false;
+      }
+    });
+  }, [tracks, audioElements]);
+
+  // Cleanup audio elements when component unmounts
+  useEffect(() => {
+    return () => {
+      audioElements.forEach(audio => {
+        audio.pause();
+        audio.src = '';
+      });
+    };
+  }, [audioElements]);
 
   const handleTimelineClick = useCallback((event: React.MouseEvent) => {
     if (!timelineRef.current) return;
@@ -102,36 +166,25 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const renderBarMarkers = () => {
     const markers = [];
     for (let bar = 0; bar < totalBars; bar++) {
-      const x = bar * pixelsPerBar;
-      
-      // Bar line
       markers.push(
         <div
-          key={`bar-${bar}`}
-          className="absolute top-0 bottom-0 w-px bg-border/40"
-          style={{ left: x }}
-        />
-      );
-
-      // Bar number
-      markers.push(
-        <div
-          key={`bar-label-${bar}`}
-          className="absolute top-0 text-xs text-muted-foreground font-mono"
-          style={{ left: x + 4, transform: 'translateY(-20px)' }}
+          key={bar}
+          className="absolute top-0 bottom-0 border-l border-border/30"
+          style={{ left: bar * pixelsPerBar }}
         >
-          {bar + 1}
+          <span className="absolute -top-6 left-1 text-xs text-muted-foreground">
+            {bar + 1}
+          </span>
         </div>
       );
-
+      
       // Beat markers
       for (let beat = 1; beat < beatsPerBar; beat++) {
-        const beatX = x + (beat * pixelsPerBeat);
         markers.push(
           <div
-            key={`beat-${bar}-${beat}`}
-            className="absolute top-4 bottom-0 w-px bg-border/20"
-            style={{ left: beatX }}
+            key={`${bar}-${beat}`}
+            className="absolute top-0 bottom-0 border-l border-border/20"
+            style={{ left: bar * pixelsPerBar + beat * pixelsPerBeat }}
           />
         );
       }
@@ -139,72 +192,45 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     return markers;
   };
 
-  const renderWaveform = (track: Track, index: number) => {
-    const trackHeight = 60;
-    const trackY = index * (trackHeight + 8);
-    const waveformData = track.waveformData || [];
-    const duration = track.duration || 60;
-    const width = duration * pixelsPerSecond;
-
+  const renderTrack = (track: Track, index: number) => {
+    const trackHeight = 64;
+    const trackY = index * trackHeight;
+    
     return (
       <div
         key={track.id}
-        className="absolute bg-card/30 border border-border/30 rounded"
+        className="absolute bg-gradient-to-r from-primary/20 to-primary/40 border border-primary/30 rounded"
         style={{
-          top: trackY,
+          top: trackY + 8,
           left: 0,
-          width: width,
-          height: trackHeight
+          width: (track.duration || 60) * pixelsPerSecond,
+          height: trackHeight - 16
         }}
       >
-        {/* Track header */}
-        <div className="absolute -left-32 top-0 w-30 h-full flex items-center">
-          <div className="text-xs">
-            <div className="font-medium text-foreground truncate w-24">{track.name}</div>
-            <Badge 
-              variant="outline" 
-              className="text-xs mt-1"
-              style={{ color: getStemColor(track.stem_type) }}
-            >
-              {track.stem_type}
-            </Badge>
+        {/* Waveform placeholder */}
+        <div className="h-full p-2 flex items-center">
+          <div className="flex-1 h-8 bg-gradient-to-r from-neon-cyan/20 to-electric-blue/20 rounded flex items-center justify-center">
+            <span className="text-xs text-foreground/60">
+              {track.duration ? `${track.duration.toFixed(1)}s` : 'Audio'}
+            </span>
           </div>
         </div>
 
-        {/* Waveform visualization */}
-        <div className="h-full relative overflow-hidden rounded">
-          <svg width="100%" height="100%" className="absolute inset-0">
-            {waveformData.length > 0 ? (
-              <polyline
-                points={waveformData.map((value, i) => 
-                  `${(i / waveformData.length) * width},${trackHeight/2 + value * trackHeight/4}`
-                ).join(' ')}
-                fill="none"
-                stroke={getStemColor(track.stem_type)}
-                strokeWidth="1"
-                opacity="0.8"
-              />
-            ) : (
-              // Placeholder waveform
-              <rect
-                x="0"
-                y={trackHeight/2 - 2}
-                width="100%"
-                height="4"
-                fill={getStemColor(track.stem_type)}
-                opacity="0.3"
-              />
-            )}
-          </svg>
-          
-          {/* Mute/Solo overlay */}
-          {(track.isMuted || (tracks.some(t => t.isSolo) && !track.isSolo)) && (
-            <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
-              <span className="text-xs text-muted-foreground">
-                {track.isMuted ? 'MUTED' : 'SOLO OFF'}
-              </span>
-            </div>
-          )}
+        {/* Mute/Solo overlay */}
+        {(track.isMuted || (tracks.some(t => t.isSolo) && !track.isSolo)) && (
+          <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
+            <span className="text-xs text-muted-foreground">
+              {track.isMuted ? 'MUTED' : 'SOLO OFF'}
+            </span>
+          </div>
+        )}
+
+        {/* BPM sync indicator */}
+        <div className="absolute top-1 right-1">
+          <BPMSyncIndicator 
+            detectedBPM={track.duration ? 120 : undefined} // Placeholder
+            sessionBPM={bpm}
+          />
         </div>
       </div>
     );
@@ -253,40 +279,49 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
             variant={isLooping ? "default" : "outline"}
             size="sm"
             onClick={() => setIsLooping(!isLooping)}
-            className={isLooping ? "bg-neon-cyan text-black" : "border-border/50"}
+            className="border-border/50"
           >
-            <Repeat className="w-4 h-4" />
+            Loop
           </Button>
-
-          {isLooping && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span>Loop: {formatPosition(loopStart)} - {formatPosition(loopEnd)}</span>
-            </div>
-          )}
         </div>
       </div>
 
-      {/* Timeline Content */}
+      {/* Main Timeline Area */}
       <div className="flex-1 relative overflow-auto">
         <div className="flex">
           {/* Track names sidebar */}
-          <div className="w-32 flex-shrink-0 bg-card/10 border-r border-border/30">
+          <div className="w-48 flex-shrink-0 bg-card/10 border-r border-border/30">
             <div className="h-8"></div> {/* Spacer for ruler */}
             {tracks.map((track, index) => (
               <div
                 key={track.id}
-                className="h-16 border-b border-border/20 p-2 flex flex-col justify-center"
+                className="h-16 border-b border-border/20 p-2 flex flex-col justify-center group cursor-pointer hover:bg-card/20 transition-colors"
+                onClick={() => handleTrackPlay(track)}
+                title={track.name} // Show full name on hover
               >
-                <div className="text-xs font-medium text-foreground truncate">
+                <div className="text-xs font-medium text-foreground truncate max-w-full mb-1">
                   {track.name}
                 </div>
-                <Badge 
-                  variant="outline" 
-                  className="text-xs mt-1 w-fit"
-                  style={{ color: getStemColor(track.stem_type) }}
-                >
-                  {track.stem_type}
-                </Badge>
+                <div className="flex items-center justify-between">
+                  <Badge 
+                    variant="outline" 
+                    className="text-xs"
+                    style={{ color: getStemColor(track.stem_type) }}
+                  >
+                    {track.stem_type}
+                  </Badge>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleTrackPlay(track);
+                    }}
+                  >
+                    <Play className="w-3 h-3" />
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
@@ -330,24 +365,16 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                 </div>
               )}
 
-              {/* Track waveforms */}
-              {tracks.map((track, index) => renderWaveform(track, index))}
-
               {/* Playhead */}
               <div
-                className="absolute top-0 bottom-0 w-0.5 bg-neon-cyan shadow-lg z-20"
-                style={{
-                  left: currentTime * pixelsPerSecond,
-                  boxShadow: '0 0 10px #00f5ff'
-                }}
+                className="absolute top-0 bottom-0 w-0.5 bg-neon-cyan shadow-neon-cyan shadow-[0_0_10px] z-10"
+                style={{ left: currentTime * pixelsPerSecond }}
               >
-                <div className="absolute -top-2 -left-2 w-4 h-4 bg-neon-cyan rounded-full shadow-lg"></div>
+                <div className="absolute -top-2 -left-2 w-4 h-4 bg-neon-cyan rounded-full shadow-neon-cyan shadow-[0_0_10px]" />
               </div>
 
-              {/* Grid lines */}
-              <div className="absolute inset-0 pointer-events-none">
-                {renderBarMarkers()}
-              </div>
+              {/* Track waveforms */}
+              {tracks.map((track, index) => renderTrack(track, index))}
             </div>
           </div>
         </div>
