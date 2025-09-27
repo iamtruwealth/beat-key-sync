@@ -75,16 +75,24 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
 
   // Initialize audio clips from tracks - ensure proper positioning
   useEffect(() => {
+    console.log('Checking clips initialization:', { 
+      audioClipsLength: audioClips.length, 
+      tracksLength: tracks.length,
+      trackDurations: Array.from(trackDurations.entries())
+    });
+    
     if (audioClips.length === 0 && tracks.length > 0) {
       const initialClips: AudioClip[] = tracks.map(track => {
         const duration = trackDurations.get(track.id) || track.analyzed_duration || track.duration || 60;
-        return {
+        const clip = {
           id: `${track.id}-clip-0`,
           trackId: track.id,
           startTime: 0, // Always start at beginning
           endTime: duration,
           originalTrack: track
         };
+        console.log('Creating initial clip for track:', track.name, clip);
+        return clip;
       });
       setAudioClips(initialClips);
       console.log('Initialized audio clips:', initialClips);
@@ -102,16 +110,22 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     const clip = audioClips.find(c => c.id === clipId);
     if (clip) {
       setCopiedClip(clip);
+      console.log('Copied clip:', clip);
       toast({
         title: "Clip Copied",
         description: `${clip.originalTrack.name} copied to clipboard`,
       });
+    } else {
+      console.error('Could not find clip to copy:', clipId);
     }
   }, [audioClips, toast]);
 
   // Paste clip function
   const pasteClip = useCallback((targetTime: number, targetTrackId?: string) => {
-    if (!copiedClip) return;
+    if (!copiedClip) {
+      console.log('No clip to paste');
+      return;
+    }
 
     const snappedTime = snapToGrid(targetTime);
     const duration = copiedClip.endTime - copiedClip.startTime;
@@ -125,6 +139,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       originalTrack: copiedClip.originalTrack
     };
 
+    console.log('Pasting clip:', newClip);
     setAudioClips(prev => [...prev, newClip]);
     toast({
       title: "Clip Pasted",
@@ -135,7 +150,10 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   // Duplicate clip function
   const duplicateClip = useCallback((clipId: string) => {
     const clip = audioClips.find(c => c.id === clipId);
-    if (!clip) return;
+    if (!clip) {
+      console.error('Could not find clip to duplicate:', clipId);
+      return;
+    }
 
     const duration = clip.endTime - clip.startTime;
     const newStartTime = snapToGrid(clip.endTime);
@@ -149,6 +167,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       originalTrack: clip.originalTrack
     };
 
+    console.log('Duplicating clip:', clip, 'New clip:', newClip);
     setAudioClips(prev => [...prev, newClip]);
     toast({
       title: "Clip Duplicated",
@@ -158,13 +177,22 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
 
   // Delete clip function
   const deleteClip = useCallback((clipId: string) => {
-    setAudioClips(prev => prev.filter(c => c.id !== clipId));
+    console.log('Deleting clip:', clipId);
+    setAudioClips(prev => {
+      const filtered = prev.filter(c => c.id !== clipId);
+      console.log('Clips after deletion:', filtered);
+      return filtered;
+    });
     setSelectedClips(prev => {
       const newSet = new Set(prev);
       newSet.delete(clipId);
       return newSet;
     });
-  }, []);
+    toast({
+      title: "Clip Deleted",
+      description: "Audio clip removed",
+    });
+  }, [toast]);
 
   // Keyboard shortcuts
   useEffect(() => {
