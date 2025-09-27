@@ -26,7 +26,8 @@ import {
   Save,
   Download,
   Clock,
-  Layers
+  Layers,
+  LayoutDashboard
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -269,7 +270,19 @@ const CookMode = () => {
       />
 
       {/* View Switcher - At Very Top Center of Page */}
-      <div className="flex justify-center p-4 border-b border-border/30 bg-card/20 backdrop-blur-sm">
+      <div className="flex items-center justify-between p-4 border-b border-border/30 bg-card/20 backdrop-blur-sm">
+        {/* Dashboard Button - Far Left */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => navigate('/dashboard')}
+          className="flex items-center gap-2 border-border/50 hover:bg-card/30"
+        >
+          <LayoutDashboard className="w-4 h-4" />
+          Dashboard
+        </Button>
+
+        {/* View Switcher - Center */}
         <Tabs value={activeView} onValueChange={(value) => setActiveView(value as 'timeline' | 'mixer')}>
           <TabsList className="bg-background/80 border border-border/30">
             <TabsTrigger 
@@ -288,6 +301,9 @@ const CookMode = () => {
             </TabsTrigger>
           </TabsList>
         </Tabs>
+
+        {/* Empty space for balance */}
+        <div className="w-24" />
       </div>
 
       {/* Header */}
