@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Upload, Music, DollarSign, Loader2 } from 'lucide-react';
 import { useOptimizedAudioAnalysis } from '@/hooks/useOptimizedAudioAnalysis';
+import { Progress } from '@/components/ui/progress';
 
 interface BeatUploadFormProps {
   onSuccess?: () => void;
@@ -30,7 +31,7 @@ export function BeatUploadForm({ onSuccess }: BeatUploadFormProps) {
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [artworkFile, setArtworkFile] = useState<File | null>(null);
   const [analysisResults, setAnalysisResults] = useState<any>(null);
-  const { analyzeFile, isAnalyzing } = useOptimizedAudioAnalysis();
+  const { analyzeFile, isAnalyzing, progress } = useOptimizedAudioAnalysis();
 
   const { getRootProps: getAudioRootProps, getInputProps: getAudioInputProps } = useDropzone({
     accept: {
@@ -218,7 +219,11 @@ export function BeatUploadForm({ onSuccess }: BeatUploadFormProps) {
               {isAnalyzing ? (
                 <>
                   <Loader2 className="h-8 w-8 mx-auto mb-2 text-primary animate-spin" />
-                  <p className="text-sm text-primary">Analyzing with advanced algorithms...</p>
+                  <p className="text-sm text-primary mb-3">Analyzing with advanced algorithms...</p>
+                  <div className="w-full max-w-xs mx-auto">
+                    <Progress value={progress} className="h-2" />
+                    <p className="text-xs text-muted-foreground mt-1 text-center">{progress}% complete</p>
+                  </div>
                 </>
               ) : (
                 <>
