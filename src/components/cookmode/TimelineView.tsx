@@ -434,13 +434,18 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         });
         
         audio.addEventListener('canplay', () => {
-          console.log('Audio can play:', track.name);
-          // Sync with current playback state
-          if (isPlaying) {
-            audio.currentTime = currentTime;
-            audio.play().catch(error => {
-              console.error('Error starting playback:', error);
-            });
+          // Only log once when first loaded, not on every canplay event
+          if (!audio.hasAttribute('data-initialized')) {
+            console.log('Audio loaded:', track.name);
+            audio.setAttribute('data-initialized', 'true');
+            
+            // Sync with current playback state only on initial load
+            if (isPlaying) {
+              audio.currentTime = currentTime;
+              audio.play().catch(error => {
+                console.error('Error starting playback:', error);
+              });
+            }
           }
         });
 
