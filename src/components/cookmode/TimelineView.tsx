@@ -315,9 +315,11 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
               
               {/* Playhead */}
               <div
-                className="absolute top-0 h-full w-0.5 bg-primary z-20 pointer-events-none"
-                style={{ left: `${(currentTime / timelineLength) * (totalBars * pixelsPerBar)}px` }}
-              />
+                className="absolute top-0 h-full w-1 bg-primary z-20 pointer-events-none shadow-lg"
+                style={{ left: `${currentTime * pixelsPerSecond}px` }}
+              >
+                <div className="absolute top-0 w-3 h-3 bg-primary rounded-full -translate-x-1 -translate-y-1"></div>
+              </div>
             </div>
           </div>
 
