@@ -222,8 +222,15 @@ export class SessionLoopEngine {
 
   dispose() {
     this.players.forEach(p => {
-      p.stop();
-      p.dispose();
+      try {
+        if (p.state !== 'stopped') {
+          p.stop();
+        }
+        p.dispose();
+      } catch (error) {
+        console.warn('Error disposing player:', error);
+        p.dispose(); // Still try to dispose even if stop fails
+      }
     });
     this.gains.forEach(g => g.dispose());
     this.players.clear();

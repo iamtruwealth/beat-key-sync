@@ -209,10 +209,12 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
           {onDuplicateClip && (
             <button
               onClick={(e) => {
+                console.log('Duplicate button clicked for clip:', clip.id);
                 e.stopPropagation();
+                e.preventDefault();
                 onDuplicateClip(clip.id);
               }}
-              className="absolute top-1 right-1 w-6 h-6 bg-primary/80 hover:bg-primary text-white rounded text-xs font-bold opacity-80 hover:opacity-100 transition-opacity"
+              className="absolute top-1 right-1 w-6 h-6 bg-primary/80 hover:bg-primary text-white rounded text-xs font-bold opacity-80 hover:opacity-100 transition-opacity z-10 cursor-pointer"
               title="Duplicate clip"
             >
               ⧉
