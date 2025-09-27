@@ -66,6 +66,29 @@ const CookMode = () => {
     }
   }, [sessionId, session, joinSession]);
 
+  // Enable audio context on first user interaction
+  useEffect(() => {
+    const enableAudio = () => {
+      // Create a dummy audio context to enable audio
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      if (audioContext.state === 'suspended') {
+        audioContext.resume().then(() => {
+          console.log('Audio context enabled');
+        });
+      }
+      document.removeEventListener('click', enableAudio);
+      document.removeEventListener('keydown', enableAudio);
+    };
+
+    document.addEventListener('click', enableAudio);
+    document.addEventListener('keydown', enableAudio);
+
+    return () => {
+      document.removeEventListener('click', enableAudio);
+      document.removeEventListener('keydown', enableAudio);
+    };
+  }, []);
+
   const handleCreateSession = async () => {
     if (!sessionConfig.name || !sessionConfig.bpm) {
       toast.error('Please fill in all session details');

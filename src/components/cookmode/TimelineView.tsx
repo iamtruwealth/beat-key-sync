@@ -56,24 +56,51 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   useEffect(() => {
     tracks.forEach(track => {
       if (!audioElements.has(track.id)) {
-        const audio = new Audio(track.file_url);
+        console.log('Creating audio element for track:', track.name, 'URL:', track.file_url);
+        
+        if (!track.file_url) {
+          console.error('Track has no file_url:', track);
+          toast({
+            title: "Audio Error",
+            description: `Track ${track.name} has no audio file`,
+            variant: "destructive"
+          });
+          return;
+        }
+
+        const audio = new Audio();
         audio.volume = (track.volume || 100) / 100;
         audio.muted = track.isMuted || false;
         audio.currentTime = currentTime;
+        audio.crossOrigin = "anonymous"; // For CORS
         
-        // Sync with current playback state
-        if (isPlaying) {
-          audio.play().catch(console.error);
-        }
+        audio.addEventListener('loadeddata', () => {
+          console.log('Audio loaded successfully for:', track.name);
+        });
+        
+        audio.addEventListener('canplay', () => {
+          console.log('Audio can play:', track.name);
+          // Sync with current playback state
+          if (isPlaying) {
+            audio.currentTime = currentTime;
+            audio.play().catch(error => {
+              console.error('Error starting playback:', error);
+            });
+          }
+        });
         
         audio.addEventListener('error', (e) => {
-          console.error('Audio error for track:', track.name, e);
+          console.error('Audio error for track:', track.name, e, 'Audio error object:', audio.error);
           toast({
-            title: "Playback Error",
-            description: `Could not load ${track.name}`,
+            title: "Audio Error",
+            description: `Could not load ${track.name}: ${audio.error?.message || 'Unknown error'}`,
             variant: "destructive"
           });
         });
+        
+        // Set the source after adding event listeners
+        audio.src = track.file_url;
+        audio.load(); // Explicitly load the audio
         
         setAudioElements(prev => new Map(prev.set(track.id, audio)));
       }
@@ -101,7 +128,24 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         if (isPlaying && audio.paused) {
           console.log('Starting playback for track:', trackId);
           audio.currentTime = currentTime;
-          audio.play().catch(console.error);
+          
+          // Create a user interaction promise to satisfy browser autoplay policies
+          const playPromise = audio.play();
+          if (playPromise !== undefined) {
+            playPromise
+              .then(() => {
+                console.log('Audio started successfully for:', trackId);
+              })
+              .catch(error => {
+                console.error('Autoplay prevented for track:', trackId, error);
+                if (error.name === 'NotAllowedError') {
+                  toast({
+                    title: "User Interaction Required",
+                    description: "Click anywhere to enable audio playback",
+                  });
+                }
+              });
+          }
         } else if (!isPlaying && !audio.paused) {
           console.log('Pausing playback for track:', trackId);
           audio.pause();
@@ -110,12 +154,13 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         console.error('Error syncing audio playback:', error);
       }
     });
-  }, [isPlaying, audioElements]);
+  }, [isPlaying, audioElements, currentTime, toast]);
 
-  // Sync current time
+  // Sync current time - less frequent updates
   useEffect(() => {
-    audioElements.forEach(audio => {
-      if (Math.abs(audio.currentTime - currentTime) > 0.5) {
+    audioElements.forEach((audio, trackId) => {
+      if (Math.abs(audio.currentTime - currentTime) > 1.0) {
+        console.log(`Seeking track ${trackId} from ${audio.currentTime} to ${currentTime}`);
         audio.currentTime = currentTime;
       }
     });

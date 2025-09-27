@@ -71,10 +71,14 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
 
   const handleVolumeChange = (value: number[]) => {
     setMasterVolume(value[0]);
+    console.log('Setting master volume to:', value[0]);
     // Apply master volume to all audio elements
     const audioElements = document.querySelectorAll('audio');
-    audioElements.forEach(audio => {
-      audio.volume = value[0] / 100;
+    console.log('Found audio elements:', audioElements.length);
+    audioElements.forEach((audio, index) => {
+      const newVolume = value[0] / 100;
+      audio.volume = newVolume;
+      console.log(`Set audio element ${index} volume to:`, newVolume);
     });
   };
 
