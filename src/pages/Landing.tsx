@@ -54,6 +54,30 @@ function FuturisticLandingContent() {
   }, []);
 
   useEffect(() => {
+    const maybeRedirect = async () => {
+      // If we landed here during a protected route refresh, restore destination
+      const redirectTo = (() => { try { return sessionStorage.getItem('redirectTo'); } catch { return null; } })();
+      if (redirectTo) {
+        try { sessionStorage.removeItem('redirectTo'); } catch {}
+        navigate(redirectTo, { replace: true });
+        return;
+      }
+
+      // If authenticated on landing, route to proper dashboard
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+        const role = (profile as any)?.role || 'artist';
+        navigate(role === 'producer' ? '/producer-dashboard' : '/artist-dashboard', { replace: true });
+      }
+    };
+
+    maybeRedirect();
+  }, [user, navigate]);
+  useEffect(() => {
     const fetchFeaturedBeats = async () => {
       try {
         // Get featured beat packs and their tracks instead of individual featured beats
