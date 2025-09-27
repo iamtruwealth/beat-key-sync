@@ -263,13 +263,13 @@ export function useCookModeSession(sessionId?: string) {
 
       const bpm = session?.target_bpm || 120;
       const beatsPerSecond = bpm / 60;
-      const subdivision = 32; // 32nd notes for smooth UI while staying beat-locked
+      const subdivision = 8; // Use 8th notes instead of 32nd notes for more stable timing
       const stepSeconds = 1 / (beatsPerSecond * subdivision);
 
       const tick = () => {
         const elapsed = (Date.now() - startTimeRef.current) / 1000;
-        // Quantize DOWN to prevent jitter/backwards jumps
-        const quantized = Math.floor(elapsed / stepSeconds) * stepSeconds;
+        // Use less aggressive quantization to prevent micro-jumps
+        const quantized = Math.round(elapsed / stepSeconds) * stepSeconds;
         setCurrentTime(quantized);
         rafId = requestAnimationFrame(tick);
       };

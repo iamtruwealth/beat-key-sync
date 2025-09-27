@@ -169,13 +169,16 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         audio.addEventListener('canplay', () => {
           console.log('Audio can play:', track.name);
           if (isPlaying) {
-            const startAt = currentTime < 0.05 ? 0 : currentTime;
-            audio.currentTime = startAt;
+            // Don't reset to 0 for very small times - use the actual currentTime
+            audio.currentTime = currentTime;
             audio.play().catch(error => {
               console.error('Error starting playback:', error);
             });
-          } else if (currentTime < 0.05) {
-            audio.currentTime = 0;
+          } else {
+            // Only reset to 0 if currentTime is actually 0
+            if (currentTime === 0) {
+              audio.currentTime = 0;
+            }
           }
         });
 
@@ -212,11 +215,10 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         if (!audio.src) return;
         
         if (isPlaying && audio.paused) {
-          console.log('Starting playback for track:', trackId);
+          console.log('Starting playback for track:', trackId, 'at time:', currentTime);
           
-          if (currentTime < 0.05) {
-            audio.currentTime = 0;
-          } else if (Math.abs(audio.currentTime - currentTime) > 0.5) {
+          // Always use the actual currentTime, don't reset small values to 0
+          if (Math.abs(audio.currentTime - currentTime) > 0.1) {
             audio.currentTime = currentTime;
           }
           
