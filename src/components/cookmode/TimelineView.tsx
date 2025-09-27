@@ -756,12 +756,11 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                 </div>
               )}
 
-              {/* BPM sync indicator */}
+              {/* Clip name */}
               <div className="absolute top-1 left-1">
-                <BPMSyncIndicator 
-                  detectedBPM={waveformData ? 120 : undefined} // Use placeholder BPM when waveform available
-                  sessionBPM={bpm}
-                />
+                <Badge variant="outline" className="text-xs bg-background/80 text-foreground">
+                  {clip.originalTrack.name}
+                </Badge>
               </div>
             </div>
           );
