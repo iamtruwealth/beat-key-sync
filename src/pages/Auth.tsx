@@ -53,7 +53,7 @@ export default function AuthPage() {
     });
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session) {
         const redirectTo = (() => { try { return sessionStorage.getItem('redirectTo'); } catch { return null; } })();
         if (redirectTo) {
@@ -61,15 +61,25 @@ export default function AuthPage() {
           navigate(redirectTo);
           return;
         }
-        // Get user profile to determine role
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', session.user.id)
-          .single();
         
-        const role = profile?.role || 'artist';
-        navigate(role === 'artist' ? '/artist-dashboard' : '/producer-dashboard');
+        // Defer Supabase calls with setTimeout to prevent deadlock
+        setTimeout(async () => {
+          try {
+            // Get user profile to determine role
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('role')
+              .eq('id', session.user.id)
+              .single();
+            
+            const role = profile?.role || 'artist';
+            navigate(role === 'artist' ? '/artist-dashboard' : '/producer-dashboard');
+          } catch (error) {
+            console.error('Error fetching profile:', error);
+            // Default to artist dashboard if profile fetch fails
+            navigate('/artist-dashboard');
+          }
+        }, 0);
       }
     });
 
