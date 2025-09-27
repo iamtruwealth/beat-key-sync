@@ -199,7 +199,11 @@ const Collaborate = () => {
                   <p className="text-muted-foreground">
                     Real-time collaboration sessions with audio streaming and live editing.
                   </p>
-                  <Button className="mt-4" variant="outline">
+                  <Button 
+                    className="mt-4" 
+                    variant="outline"
+                    onClick={() => window.location.href = '/cook-mode'}
+                  >
                     Enter Cook Mode
                   </Button>
                 </div>
