@@ -64,11 +64,16 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
     if (!containerRef.current || waveSurferRef.current) return;
 
     try {
+      const waveColor = getStemWaveColor(track.stem_type);
+      const progressColor = getStemProgressColor(track.stem_type);
+      
+      console.log(`Creating WaveSurfer for ${track.name} with colors:`, { waveColor, progressColor });
+      
       const waveSurfer = WaveSurfer.create({
         container: containerRef.current,
-        waveColor: getStemWaveColor(track.stem_type),
-        progressColor: getStemProgressColor(track.stem_type),
-        cursorColor: '#00ffff', // Neon cyan cursor
+        waveColor: waveColor,
+        progressColor: progressColor,
+        cursorColor: '#00ffff',
         barWidth: 3,
         barGap: 1,
         barRadius: 2,
@@ -80,9 +85,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
         fillParent: false,
         mediaControls: false,
         autoplay: false,
-        backend: 'WebAudio',
-        // Add visual enhancements
-        plugins: []
+        backend: 'WebAudio'
       });
 
       waveSurferRef.current = waveSurfer;
@@ -91,16 +94,38 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
       waveSurfer.load(track.file_url).then(() => {
         setIsLoaded(true);
         setError(null);
-        console.log(`WaveSurfer loaded for track: ${track.name}`);
+        console.log(`WaveSurfer loaded for track: ${track.name}, final colors:`, {
+          waveColor: waveSurfer.options.waveColor,
+          progressColor: waveSurfer.options.progressColor
+        });
+        
+        // Force color update after loading
+        waveSurfer.setOptions({
+          waveColor: waveColor,
+          progressColor: progressColor
+        });
+        
       }).catch((err) => {
         console.error(`Failed to load waveform for track ${track.name}:`, err);
         setError('Failed to load waveform');
         setIsLoaded(false);
       });
 
-      // Prevent WaveSurfer from playing audio
+      // Prevent WaveSurfer from playing audio and force colors
       waveSurfer.on('ready', () => {
-        waveSurfer.pause(); // Ensure it never plays
+        waveSurfer.pause();
+        
+        // Direct canvas manipulation for colors
+        const canvas = containerRef.current?.querySelector('canvas');
+        if (canvas) {
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            // Apply color filter directly to canvas
+            canvas.style.filter = `hue-rotate(${getHueRotationForStem(track.stem_type)}deg) saturate(300%) brightness(120%)`;
+          }
+        }
+        
+        console.log(`WaveSurfer ready for ${track.name}, applied colors:`, { waveColor, progressColor });
       });
 
       return () => {
@@ -213,6 +238,19 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
               filter: isMuted ? 'grayscale(100%)' : 'none'
             }}
           />
+          
+          {/* Add custom CSS for WaveSurfer colors */}
+          <style>{`
+            #${containerId} wave {
+              fill: ${getStemWaveColor(track.stem_type)} !important;
+            }
+            #${containerId} .wavesurfer-cursor {
+              border-color: #00ffff !important;
+            }
+            #${containerId} canvas {
+              filter: hue-rotate(0deg) saturate(2) brightness(1.2) !important;
+            }
+          `}</style>
           
           {/* Loading overlay with neon effect */}
           {!isLoaded && !error && (
@@ -349,6 +387,19 @@ const getStemBorderColor = (stemType: string): string => {
     other: 'border-gray-400'
   };
   return colors[stemType as keyof typeof colors] || colors.other;
+};
+
+// Get hue rotation for CSS filter
+const getHueRotationForStem = (stemType: string): number => {
+  const rotations = {
+    drums: 300,    // Pink/Magenta
+    bass: 180,     // Cyan
+    melody: 120,   // Green
+    vocals: 270,   // Purple
+    fx: 30,        // Orange
+    other: 0       // White/Gray
+  };
+  return rotations[stemType as keyof typeof rotations] || rotations.other;
 };
 
 const formatTime = (seconds: number): string => {
