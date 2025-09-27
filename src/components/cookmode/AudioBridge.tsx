@@ -165,7 +165,7 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
     if (isPlaying && !sessionLoopEngine.isPlaying) {
       sessionLoopEngine.start();
     } else if (!isPlaying && sessionLoopEngine.isPlaying) {
-      sessionLoopEngine.stop();
+      sessionLoopEngine.pause();
     }
   }, [isPlaying]);
 

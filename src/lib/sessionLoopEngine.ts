@@ -137,7 +137,10 @@ export class SessionLoopEngine {
     await this.initialize();
     
     try {
-      Tone.Transport.position = 0;
+      // If resuming from pause, keep current position; otherwise start from beginning
+      if (Tone.Transport.state !== 'paused') {
+        Tone.Transport.position = 0;
+      }
       Tone.Transport.start("+0.05");
       this.startTransportTicker();
       console.log('Session playback started');
