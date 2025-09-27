@@ -45,26 +45,11 @@ export default function UploadPage() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { analyzeFile, isAnalyzing, progress: analysisProgress } = useOptimizedAudioAnalysis();
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const analyzeAudioFileLocal = async (fileData: UploadedFile, index: number) => {
-    try {
-      setUploadedFiles(prev => prev.map((file, i) => i === index ? { ...file, status: 'analyzing' } : file));
-      const analysis = await analyzeFile(fileData.file);
-      setUploadedFiles(prev => prev.map((file, i) => i === index ? { ...file, analysis, status: 'pending' } : file));
-      toast({
-        title: "Analysis Complete",
-        description: `${fileData.title} - Key: ${analysis.key}, BPM: ${analysis.bpm}`
-      });
-    } catch (error) {
-      console.error('Error analyzing audio:', error);
-      setUploadedFiles(prev => prev.map((file, i) => i === index ? { ...file, status: 'error' } : file));
-      toast({
-        title: "Analysis Failed",
-        description: (error as Error).message || `Failed to analyze ${fileData.title}`,
-        variant: "destructive"
-      });
-    }
+    // Just mark as pending - analysis will happen after upload
+    setUploadedFiles(prev => prev.map((file, i) => i === index ? { ...file, status: 'pending' } : file));
   };
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
@@ -209,12 +194,28 @@ export default function UploadPage() {
           price_cents: priceCents,
           is_free: fileData.isFree,
           genre: fileData.genre || null,
-          bpm: fileData.manualBpm || fileData.analysis?.bpm || null,
-          key: fileData.manualKey || fileData.analysis?.key || null,
+          // Use manual input, analysis will update these later
+          manual_bpm: fileData.manualBpm || null,
+          bpm: fileData.manualBpm || null,
+          manual_key: fileData.manualKey || null,
+          key: fileData.manualKey || null,
           tags: fileData.tags.filter(Boolean),
+          metadata: {
+            analysisStatus: 'pending'
+          }
         }).select().single();
 
         if (beatError) throw beatError;
+
+        // Trigger background analysis
+        try {
+          setUploadedFiles(prev => prev.map(file => file === fileData ? { ...file, status: 'analyzing' } : file));
+          await supabase.functions.invoke('analyze-beat', {
+            body: { beatId: insertedBeat.id }
+          });
+        } catch (analysisError) {
+          console.warn('Background analysis failed to start:', analysisError);
+        }
 
         if (!fileData.isFree) {
           await supabase.functions.invoke('create-beat-product', { body: { beatId: insertedBeat.id } });
@@ -222,7 +223,7 @@ export default function UploadPage() {
 
         setUploadedFiles(prev => prev.map(file => file === fileData ? { ...file, status: 'complete', progress: 100 } : file));
       }
-      toast({ title: "Upload Complete", description: `Successfully uploaded ${uploadedFiles.length} beats` });
+      toast({ title: "Upload Complete", description: `Successfully uploaded ${uploadedFiles.length} beats. Analysis running in background.` });
       setUploadedFiles([]);
     } catch (error) {
       console.error('Upload error:', error);
@@ -279,8 +280,8 @@ export default function UploadPage() {
                 <div className="flex items-center gap-2">
                   {fileData.status === 'analyzing' && (
                     <div className="flex items-center gap-2">
-                      <Progress value={analysisProgress} className="w-16 h-2" />
-                      <span className="text-xs text-muted-foreground">{analysisProgress}%</span>
+                      <Progress value={50} className="w-16 h-2" />
+                      <span className="text-xs text-muted-foreground">Analyzing...</span>
                     </div>
                   )}
                   <Badge variant={fileData.status === 'complete' ? 'default' : fileData.status === 'error' ? 'destructive' : 'secondary'}>
@@ -311,20 +312,29 @@ export default function UploadPage() {
                   <Textarea value={fileData.description || ''} onChange={(e) => updateFileField(index, 'description', e.target.value)} placeholder="Describe your beat..." rows={2} />
                 </div>
 
-                {fileData.analysis && (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label>BPM</Label>
-                      <Input type="number" min="60" max="200" placeholder="Enter BPM" value={fileData.manualBpm ?? fileData.analysis.bpm ?? ''} onChange={(e) => updateFileField(index, 'manualBpm', e.target.value ? parseInt(e.target.value) : undefined)} />
-                      <p className="text-xs text-muted-foreground mt-1">Detected: {fileData.analysis.bpm} BPM</p>
-                    </div>
-                    <div>
-                      <Label>Musical Key</Label>
-                      <Input value={fileData.manualKey ?? fileData.analysis.key ?? ''} onChange={(e) => updateFileField(index, 'manualKey', e.target.value)} placeholder="C Major, A Minor..." />
-                       <p className="text-xs text-muted-foreground mt-1">Detected: {fileData.analysis.key}</p>
-                    </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>BPM</Label>
+                    <Input 
+                      type="number" 
+                      min="60" 
+                      max="200" 
+                      placeholder="Enter BPM" 
+                      value={fileData.manualBpm ?? ''} 
+                      onChange={(e) => updateFileField(index, 'manualBpm', e.target.value ? parseInt(e.target.value) : undefined)} 
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Will be auto-detected after upload if left empty</p>
                   </div>
-                )}
+                  <div>
+                    <Label>Musical Key</Label>
+                    <Input 
+                      value={fileData.manualKey ?? ''} 
+                      onChange={(e) => updateFileField(index, 'manualKey', e.target.value)} 
+                      placeholder="C Major, A Minor..." 
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Will be auto-detected after upload if left empty</p>
+                  </div>
+                </div>
 
                 <div className="space-y-4">
                   <div className="flex items-center space-x-2">
