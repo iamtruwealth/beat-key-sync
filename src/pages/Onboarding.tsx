@@ -20,17 +20,16 @@ export default function Onboarding() {
 
       setUser(user);
 
-      // Get user profile to determine role
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
-      const role = profile?.role || 'artist';
+      const role = (profile?.role as 'artist' | 'producer' | null) ?? null;
       setUserRole(role);
 
-      // If artist, redirect to dashboard immediately
+      // If artist, redirect to dashboard immediately (only when role is resolved)
       if (role === 'artist') {
         navigate('/artist-dashboard');
       }
