@@ -530,6 +530,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           }
           return { ...t, bars: resolvedBars };
         })}
+        clips={audioClips}
         bpm={bpm}
         isPlaying={isPlaying}
         currentTime={currentTime}

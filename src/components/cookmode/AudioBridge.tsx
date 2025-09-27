@@ -14,8 +14,16 @@ interface Track {
   analyzed_duration?: number;
 }
 
+interface TimelineClip {
+  id: string;
+  startTime: number; // seconds
+  endTime: number;   // seconds
+  originalTrack: Track;
+}
+
 interface AudioBridgeProps {
   tracks: Track[];
+  clips?: TimelineClip[];
   bpm: number;
   isPlaying: boolean;
   currentTime: number;
@@ -26,6 +34,7 @@ interface AudioBridgeProps {
 
 export const AudioBridge: React.FC<AudioBridgeProps> = ({
   tracks,
+  clips,
   bpm,
   isPlaying,
   currentTime,
@@ -68,6 +77,25 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
     });
   }, []);
 
+  // Convert timeline clips (with seconds) to engine clips (beats)
+  const createClipsFromTimeline = useCallback((timelineClips: TimelineClip[], currentBPM: number): Clip[] => {
+    const secondsPerBeat = 60 / currentBPM;
+    return timelineClips.map(tc => {
+      const durationSec = Math.max(0, tc.endTime - tc.startTime);
+      const offsetInBeats = Math.round((tc.startTime / secondsPerBeat) * 1000) / 1000;
+      const durationInBeats = Math.max(1, Math.round((durationSec / secondsPerBeat) * 1000) / 1000);
+      const track = tc.originalTrack;
+      return {
+        id: tc.id,
+        url: track.file_url,
+        offsetInBeats,
+        durationInBeats,
+        gain: track.volume || 1,
+        muted: track.isMuted || false,
+      } as Clip;
+    });
+  }, []);
+
   // Initialize engine once
   useEffect(() => {
     const initEngine = async () => {
@@ -75,10 +103,14 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
         await sessionLoopEngine.initialize();
         // Set initial BPM and clips
         sessionLoopEngine.setBpm(bpm);
-        if (tracks.length > 0) {
-          const clips = createClipsFromTracks(tracks, bpm);
-          console.log('AudioBridge: Initial clips:', clips);
-          await sessionLoopEngine.setClips(clips);
+        if (Array.isArray(clips) && clips.length > 0) {
+          const engineClips = createClipsFromTimeline(clips, bpm);
+          console.log('AudioBridge: Initial timeline clips:', engineClips);
+          await sessionLoopEngine.setClips(engineClips);
+        } else if (tracks.length > 0) {
+          const engineClips = createClipsFromTracks(tracks, bpm);
+          console.log('AudioBridge: Initial track clips:', engineClips);
+          await sessionLoopEngine.setClips(engineClips);
           previousTracks.current = [...tracks];
         }
         isInitialized.current = true;
@@ -115,16 +147,20 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
       previousBPM.current = bpm;
       
       // Recreate clips with new BPM timing
-      if (tracks.length > 0) {
-        const clips = createClipsFromTracks(tracks, bpm);
-        sessionLoopEngine.setClips(clips);
+      if (Array.isArray(clips) && clips.length > 0) {
+        const engineClips = createClipsFromTimeline(clips, bpm);
+        sessionLoopEngine.setClips(engineClips);
+      } else if (tracks.length > 0) {
+        const engineClips = createClipsFromTracks(tracks, bpm);
+        sessionLoopEngine.setClips(engineClips);
       }
     }
-  }, [bpm, tracks, createClipsFromTracks]);
+  }, [bpm, tracks, clips, createClipsFromTracks, createClipsFromTimeline]);
 
-  // Handle track changes
+  // Handle track changes (when not using timeline clips)
   useEffect(() => {
     if (!isInitialized.current) return;
+    if (Array.isArray(clips) && clips.length > 0) return;
 
     const tracksChanged = 
       tracks.length !== previousTracks.current.length ||
@@ -139,30 +175,53 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
 
     if (tracksChanged) {
       console.log('AudioBridge: Tracks changed, updating clips');
-      const clips = createClipsFromTracks(tracks, bpm);
-      console.log('AudioBridge: Created clips:', clips);
-      sessionLoopEngine.setClips(clips);
+      const engineClips = createClipsFromTracks(tracks, bpm);
+      console.log('AudioBridge: Created clips from tracks:', engineClips);
+      sessionLoopEngine.setClips(engineClips);
       previousTracks.current = [...tracks];
     }
-  }, [tracks, bpm, createClipsFromTracks]);
+  }, [tracks, bpm, clips, createClipsFromTracks]);
+
+  // Handle timeline clip changes
+  useEffect(() => {
+    if (!isInitialized.current) return;
+    if (Array.isArray(clips) && clips.length > 0) {
+      const engineClips = createClipsFromTimeline(clips, bpm);
+      console.log('AudioBridge: Timeline clips changed, updating engine clips');
+      sessionLoopEngine.setClips(engineClips);
+    }
+  }, [clips, bpm, createClipsFromTimeline]);
 
   // Handle track property updates (volume, mute, solo)
   useEffect(() => {
     if (!isInitialized.current) return;
 
-    tracks.forEach(track => {
-      // Handle solo logic: if any track is solo, mute all non-solo tracks
+    if (Array.isArray(clips) && clips.length > 0) {
+      // Update per-clip using associated track state
       const hasSoloTracks = tracks.some(t => t.isSolo);
-      let shouldMute = track.isMuted || false;
-      
-      if (hasSoloTracks) {
-        shouldMute = !track.isSolo;
-      }
-
-      sessionLoopEngine.muteClip(track.id, shouldMute);
-      sessionLoopEngine.updateClipGain(track.id, track.volume || 1);
-    });
-  }, [tracks]);
+      clips.forEach(tc => {
+        const tr = tracks.find(t => t.id === tc.originalTrack.id);
+        if (!tr) return;
+        let shouldMute = tr.isMuted || false;
+        if (hasSoloTracks) {
+          shouldMute = !tr.isSolo;
+        }
+        sessionLoopEngine.muteClip(tc.id, shouldMute);
+        sessionLoopEngine.updateClipGain(tc.id, tr.volume || 1);
+      });
+    } else {
+      // Fallback: per-track behavior
+      tracks.forEach(track => {
+        const hasSoloTracks = tracks.some(t => t.isSolo);
+        let shouldMute = track.isMuted || false;
+        if (hasSoloTracks) {
+          shouldMute = !track.isSolo;
+        }
+        sessionLoopEngine.muteClip(track.id, shouldMute);
+        sessionLoopEngine.updateClipGain(track.id, track.volume || 1);
+      });
+    }
+  }, [tracks, clips]);
 
   // Handle playback state changes
   useEffect(() => {
