@@ -371,9 +371,14 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     });
   }, [tracks, toast]);
 
-  // Sync playback state with main controls - improved for clip system and looping
+  // Sync playback state with main controls - precise BPM timing with simultaneous start
   useEffect(() => {
-    console.log('Timeline syncing playback state:', { isPlaying, currentTime, audioElementsCount: audioElementsRef.current.size });
+    console.log('Timeline syncing playback state:', { isPlaying, currentTime, bpm, secondsPerBeat, audioElementsCount: audioElementsRef.current.size });
+    
+    // Collect all audio elements that need to start/stop simultaneously
+    const audioToStart: { audio: HTMLAudioElement; trackId: string; clipTime: number }[] = [];
+    const audioToStop: { audio: HTMLAudioElement; trackId: string }[] = [];
+    
     audioElementsRef.current.forEach((audio, trackId) => {
       try {
         if (!audio.src) return;
@@ -388,33 +393,12 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         const shouldPlay = isPlaying && activeClips.length > 0;
         
         if (shouldPlay && audio.paused) {
-          console.log('Starting playback for track:', trackId);
-          
-          // Set audio time relative to clip start (precise BPM timing)
-          const activeClip = activeClips[0]; // Use first active clip
-          const clipTime = currentTime - activeClip.startTime;
-          
-          // Ensure precise timing alignment
-          const alignedClipTime = Math.max(0, clipTime);
-          audio.currentTime = alignedClipTime;
-          
-          const playPromise = audio.play();
-          if (playPromise !== undefined) {
-            playPromise
-              .then(() => console.log('Audio started successfully for:', trackId, 'at time:', alignedClipTime))
-              .catch(error => {
-                console.error('Autoplay prevented for track:', trackId, error);
-                if (error.name === 'NotAllowedError') {
-                  toast({
-                    title: "User Interaction Required",
-                    description: "Click anywhere to enable audio playback",
-                  });
-                }
-              });
-          }
+          // Calculate precise clip time for BPM sync
+          const activeClip = activeClips[0];
+          const clipTime = Math.max(0, currentTime - activeClip.startTime);
+          audioToStart.push({ audio, trackId, clipTime });
         } else if (!shouldPlay && !audio.paused) {
-          console.log('Pausing playback for track:', trackId);
-          audio.pause();
+          audioToStop.push({ audio, trackId });
         }
         
         // Handle loop restart - reset all audio to beginning when currentTime is near zero
@@ -426,7 +410,45 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         console.error('Error syncing audio playback:', error);
       }
     });
-  }, [isPlaying, currentTime, audioClips, toast]);
+    
+    // Stop audio that should be stopped
+    audioToStop.forEach(({ audio, trackId }) => {
+      console.log('Pausing playback for track:', trackId);
+      audio.pause();
+    });
+    
+    // Start all audio simultaneously for perfect BPM sync
+    if (audioToStart.length > 0) {
+      console.log('Starting simultaneous playback for tracks:', audioToStart.map(a => a.trackId));
+      
+      // Set all currentTime values first (faster than individual play() calls)
+      audioToStart.forEach(({ audio, clipTime }) => {
+        audio.currentTime = clipTime;
+      });
+      
+      // Start all audio elements simultaneously using Promise.all for perfect sync
+      const playPromises = audioToStart.map(({ audio, trackId, clipTime }) => {
+        return audio.play()
+          .then(() => {
+            console.log('Audio started successfully for:', trackId, 'at time:', clipTime);
+          })
+          .catch(error => {
+            console.error('Autoplay prevented for track:', trackId, error);
+            if (error.name === 'NotAllowedError') {
+              toast({
+                title: "User Interaction Required", 
+                description: "Click anywhere to enable audio playback",
+              });
+            }
+          });
+      });
+      
+      // Wait for all to start (but don't block the effect)
+      Promise.all(playPromises).then(() => {
+        console.log('All audio tracks started simultaneously');
+      });
+    }
+  }, [isPlaying, currentTime, audioClips, bpm, secondsPerBeat, toast]);
 
   // Sync current time with clip playback
   useEffect(() => {
