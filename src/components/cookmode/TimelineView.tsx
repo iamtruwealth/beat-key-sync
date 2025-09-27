@@ -449,6 +449,8 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         }
 
         const audio = new Audio();
+        // Enable seamless looping
+        audio.loop = true;
         audio.volume = track.volume !== undefined ? track.volume : 1;
         audio.muted = track.isMuted || false;
         audio.currentTime = currentTime;
@@ -483,21 +485,22 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         });
 
         audio.addEventListener('ended', () => {
-          console.log('Audio ended for track:', track.name);
-          // Ensure audio is properly stopped and reset
-          audio.pause();
+          console.log('Audio ended for track:', track.name, '- seamless loop restart');
+          // For seamless looping, immediately restart without pause
           audio.currentTime = 0;
+          if (isPlaying) {
+            audio.play().catch(console.error);
+          }
         });
 
         audio.addEventListener('timeupdate', () => {
           // Get actual duration from the audio element
           const actualDuration = trackDurations.get(track.id) || track.analyzed_duration || track.duration || audio.duration;
           
-          // Stop audio if it exceeds the expected duration to prevent noise
-          if (actualDuration && audio.currentTime >= actualDuration) {
-            console.log(`Stopping track ${track.name} at ${audio.currentTime}s (duration: ${actualDuration}s)`);
-            audio.pause();
-            audio.currentTime = actualDuration; // Set to exact end
+          // Implement seamless looping by restarting just before the end
+          if (actualDuration && audio.currentTime >= actualDuration - 0.05) {
+            console.log(`Seamless loop restart for ${track.name} at ${audio.currentTime}s`);
+            audio.currentTime = 0; // Immediate restart for seamless loop
           }
         });
         
@@ -728,13 +731,8 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         // Update base volume for master fader control
         audio.setAttribute('data-base-volume', trackVolume.toString());
         
-        // Also check if track should be stopped due to duration
-        const actualDuration = trackDurations.get(track.id) || track.analyzed_duration || track.duration || audio.duration;
-        if (actualDuration && audio.currentTime >= actualDuration && !audio.paused) {
-          console.log(`Stopping track ${track.name} - exceeded duration`);
-          audio.pause();
-          audio.currentTime = actualDuration;
-        }
+        // Also check if track should be stopped due to duration - removed for seamless looping
+        // Seamless looping is now handled by audio.loop = true and timeupdate event
       }
     });
   }, [tracks, trackDurations, masterVolume]);
