@@ -14,6 +14,7 @@ interface Track {
   file_url: string;
   stem_type: string;
   duration?: number;
+  bars?: number; // Number of bars in this track
   volume?: number;
   isMuted?: boolean;
   isSolo?: boolean;
@@ -85,15 +86,18 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     // Always recreate clips when tracks change to ensure all tracks get clips
     if (tracks.length > 0) {
       const initialClips: AudioClip[] = tracks.map(track => {
-        const duration = trackDurations.get(track.id) || track.analyzed_duration || track.duration || 60;
+        // Calculate clip duration based on bars if available, otherwise use track duration
+        const clipBars = track.bars || 8; // Default to 8 bars if not specified
+        const clipDuration = clipBars * secondsPerBar;
+        
         const clip = {
           id: `${track.id}-clip-0`,
           trackId: track.id,
-          startTime: 0, // Always start at beginning
-          endTime: duration,
+          startTime: 0,
+          endTime: clipDuration, // Use bars-based duration for clip length
           originalTrack: track
         };
-        console.log('Creating clip for track:', track.name, 'ID:', track.id, 'Clip:', clip);
+        console.log('Creating clip for track:', track.name, 'Bars:', clipBars, 'Duration:', clipDuration, 'Clip:', clip);
         return clip;
       });
       
@@ -622,28 +626,15 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
             isVisible: clipWidth > 0 && clipLeft >= 0
           });
 
-          // Generate waveform bars for visualization - only show actual audio duration
+          // Generate waveform bars for visualization - show waveform within clip's bar duration
           let waveformBars: number[] = [];
-          const totalDuration = trackDurations.get(track.id) || clip.originalTrack.analyzed_duration || clip.originalTrack.duration || 0;
+          const clipBars = clip.originalTrack.bars || 8;
+          const clipDuration = clipBars * secondsPerBar;
           
-          // Visual width defaults to the full clip, but we clamp to actual audio if known
-          let visualWidth = clipWidth;
-          let actualAudioInClip = clip.endTime - clip.startTime;
-          if (totalDuration > 0) {
-            actualAudioInClip = Math.max(0, Math.min(clip.endTime, totalDuration) - clip.startTime);
-            visualWidth = Math.max(0, Math.min(clipWidth, actualAudioInClip * pixelsPerSecond));
-          }
-          
-          if (waveformData?.peaks && totalDuration > 0 && actualAudioInClip > 0) {
-            // Slice waveform data to match the actual audio portion inside the clip window
-            const startRatio = clip.startTime / totalDuration;
-            const endRatio = Math.min((clip.startTime + actualAudioInClip) / totalDuration, 1);
-            const startIndex = Math.floor(startRatio * waveformData.peaks.length);
-            const endIndex = Math.ceil(endRatio * waveformData.peaks.length);
-            const clippedPeaks = waveformData.peaks.slice(startIndex, endIndex);
-            
-            const targetBars = Math.max(Math.floor(visualWidth / 8), 16);
-            waveformBars = generateWaveformBars(clippedPeaks, targetBars);
+          if (waveformData?.peaks) {
+            // The waveform should fill the entire clip (which is based on bars)
+            const targetBars = Math.max(Math.floor(clipWidth / 8), clipBars * 4); // 4 waveform bars per musical bar
+            waveformBars = generateWaveformBars(waveformData.peaks, targetBars);
           }
 
           return (
@@ -730,7 +721,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                 ) : (
                   <div className="flex-1 h-8 bg-gradient-to-r from-neon-cyan/20 to-electric-blue/20 rounded flex items-center justify-center">
                     <span className="text-xs text-foreground/60">
-                      {(Math.max(0, Math.min(clip.endTime, (clip.startTime + totalDuration)) - clip.startTime)).toFixed(1)}s
+                      {clipBars} bars ({clipDuration.toFixed(1)}s)
                     </span>
                   </div>
                 )}
