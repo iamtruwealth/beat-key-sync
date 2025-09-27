@@ -12,7 +12,8 @@ import {
   Volume2,
   Clock,
   Activity,
-  Settings
+  Settings,
+  RotateCcw
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
@@ -22,8 +23,10 @@ interface SessionControlsProps {
   currentTime: number;
   bpm: number;
   sessionKey?: string;
+  isLooping?: boolean;
   onTogglePlayback: () => void;
   onSeek: (time: number) => void;
+  onToggleLoop?: () => void;
   onUpdateBpm?: (bpm: number) => void;
   onUpdateKey?: (key: string) => void;
 }
@@ -33,8 +36,10 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
   currentTime,
   bpm,
   sessionKey,
+  isLooping = false,
   onTogglePlayback,
   onSeek,
+  onToggleLoop,
   onUpdateBpm,
   onUpdateKey
 }) => {
@@ -159,6 +164,16 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
               }}
             >
               <Square className="w-4 h-4" />
+            </Button>
+
+            <Button
+              variant={isLooping ? "default" : "ghost"}
+              size="sm"
+              className={`p-2 ${isLooping ? 'bg-neon-cyan text-black' : ''}`}
+              onClick={onToggleLoop}
+              disabled={!onToggleLoop}
+            >
+              <RotateCcw className="w-4 h-4" />
             </Button>
           </div>
 
