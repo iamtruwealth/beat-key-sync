@@ -247,36 +247,44 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   useEffect(() => {
     audioElementsRef.current.forEach((audio, trackId) => {
       if (isPlaying && audio.paused) {
-        tlog('Starting audio', trackId, { setTo: currentTime.toFixed(3) });
-        audio.currentTime = currentTime;
+        const desired = loopLength > 0 ? (currentTime % loopLength) : currentTime;
+        tlog('Starting audio', trackId, { setTo: desired.toFixed(3) });
+        audio.currentTime = desired;
         audio.play().catch((e) => tlog('audio.play error', trackId, e));
       } else if (!isPlaying && !audio.paused) {
         tlog('Pausing audio', trackId, { at: audio.currentTime.toFixed(3) });
         audio.pause();
       }
     });
-  }, [isPlaying]);
+  }, [isPlaying, loopLength, currentTime]);
 
   // Sync currentTime from the session system to actual audio time
   useEffect(() => {
     if (isPlaying) {
       audioElementsRef.current.forEach((audio, trackId) => {
-        const delta = Math.abs(audio.currentTime - currentTime);
-        if (!audio.paused && delta > 0.5) {
-          tlog('Desync detected', trackId, { audioTime: audio.currentTime.toFixed(3), sessionTime: currentTime.toFixed(3), delta: delta.toFixed(3) });
-          audio.currentTime = currentTime;
+        const desired = loopLength > 0 ? (currentTime % loopLength) : currentTime;
+        const delta = Math.abs(audio.currentTime - desired);
+        if (!audio.paused && delta > 0.2) {
+          tlog('Desync detected', trackId, { audioTime: audio.currentTime.toFixed(3), desiredTime: desired.toFixed(3), delta: delta.toFixed(3) });
+          audio.currentTime = desired;
         }
       });
     }
-  }, [currentTime, isPlaying]);
+  }, [currentTime, isPlaying, loopLength]);
 
   // Debug: session time vs loop length
   useEffect(() => {
     if (!isPlaying || !loopLength) return;
     if (currentTime > loopLength + 0.05) {
-      tlog('Session time exceeded loopLength', { currentTime, loopLength, overBy: (currentTime - loopLength).toFixed(3) });
+      const now = Date.now();
+      if (now - (loopSignalRef.current || 0) > 300) {
+        loopSignalRef.current = now;
+        const clamped = currentTime % loopLength;
+        tlog('Session time exceeded loopLength -> clamping via onSeek', { currentTime, loopLength, clamped });
+        onSeek(clamped);
+      }
     }
-  }, [currentTime, isPlaying, loopLength]);
+  }, [currentTime, isPlaying, loopLength, onSeek]);
 
   // Update track volume/mute without recreating audio elements
   useEffect(() => {
