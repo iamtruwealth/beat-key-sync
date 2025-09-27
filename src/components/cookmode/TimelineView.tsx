@@ -66,10 +66,18 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const beatsPerBar = 4;
   const secondsPerBar = secondsPerBeat * beatsPerBar;
   
-  // Calculate session length based on longest clip (in bars)
-  const longestClipBars = Math.max(...tracks.map(t => t.bars || 8), 8);
-  const sessionDuration = longestClipBars * secondsPerBar; // Session ends when longest clip ends
-  const totalBars = longestClipBars;
+  // Calculate session length based on the LAST ending clip (not longest)
+  const lastClipEndTime = Math.max(
+    ...audioClips.map(clip => clip.endTime),
+    ...tracks.map(track => {
+      const clipBars = track.bars || 8;
+      return clipBars * secondsPerBar; // Default clip if no clips exist yet
+    }),
+    8 * secondsPerBar // Minimum 8 bars
+  );
+  
+  const sessionDuration = lastClipEndTime; // Session ends when the last clip ends
+  const totalBars = Math.ceil(sessionDuration / secondsPerBar);
   
   const pixelsPerSecond = 40;
   const pixelsPerBeat = pixelsPerSecond * secondsPerBeat;
