@@ -38,59 +38,35 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
   const isInitialized = useRef<boolean>(false);
   const lastTickRef = useRef<number>(0);
 
-  // Convert tracks to clips with proper duration detection
-  const createClipsFromTracks = useCallback(async (tracks: Track[], currentBPM: number): Promise<Clip[]> => {
+  // Convert tracks to clips - keep synchronous for now to fix audio
+  const createClipsFromTracks = useCallback((tracks: Track[], currentBPM: number): Clip[] => {
     const secondsPerBeat = 60 / currentBPM;
     const secondsPerBar = secondsPerBeat * 4;
 
-    const clips: Clip[] = [];
-    
-    for (const track of tracks) {
-      // Try to get actual audio duration first
-      let actualDuration = track.analyzed_duration || track.duration;
-      
-      // If no duration available, try to load the audio to get duration
-      if (!actualDuration || actualDuration <= 0) {
-        try {
-          const audio = new Audio();
-          await new Promise<void>((resolve, reject) => {
-            audio.onloadedmetadata = () => {
-              actualDuration = audio.duration;
-              console.log(`Detected duration for ${track.name}: ${actualDuration} seconds`);
-              resolve();
-            };
-            audio.onerror = () => reject(new Error('Failed to load audio'));
-            audio.src = track.file_url;
-          });
-        } catch (error) {
-          console.warn(`Could not detect duration for ${track.name}:`, error);
-        }
-      }
-
-      // Calculate duration in beats based on actual audio duration or track data
+    return tracks.map(track => {
+      // Calculate duration in beats based on track data
+      const knownDuration = track.analyzed_duration || track.duration;
       let durationInBeats: number;
       
       if (track.bars) {
         durationInBeats = track.bars * 4; // bars * 4 beats per bar
-      } else if (actualDuration && actualDuration > 0) {
-        const estimatedBars = Math.max(1, Math.round(actualDuration / secondsPerBar));
+      } else if (knownDuration && knownDuration > 0) {
+        const estimatedBars = Math.max(1, Math.round(knownDuration / secondsPerBar));
         durationInBeats = estimatedBars * 4;
-        console.log(`${track.name}: ${actualDuration}s = ${estimatedBars} bars = ${durationInBeats} beats`);
       } else {
-        durationInBeats = 16; // Default 4 bars
+        // Use a longer default to ensure we don't cut off tracks
+        durationInBeats = 32; // Default 8 bars instead of 4
       }
 
-      clips.push({
+      return {
         id: track.id,
         url: track.file_url,
-        offsetInBeats: 0, // All tracks start at the beginning for now
+        offsetInBeats: 0,
         durationInBeats,
         gain: track.volume || 1,
         muted: track.isMuted || false
-      });
-    }
-    
-    return clips;
+      };
+    });
   }, []);
 
   // Initialize engine once
@@ -101,7 +77,7 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
         // Set initial BPM and clips
         sessionLoopEngine.setBpm(bpm);
         if (tracks.length > 0) {
-          const clips = await createClipsFromTracks(tracks, bpm);
+          const clips = createClipsFromTracks(tracks, bpm);
           console.log('AudioBridge: Initial clips:', clips);
           await sessionLoopEngine.setClips(clips);
           previousTracks.current = [...tracks];
@@ -134,49 +110,41 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
 
   // Handle BPM changes
   useEffect(() => {
-    const updateBPM = async () => {
-      if (isInitialized.current && bpm !== previousBPM.current) {
-        console.log(`AudioBridge: BPM changed from ${previousBPM.current} to ${bpm}`);
-        sessionLoopEngine.setBpm(bpm);
-        previousBPM.current = bpm;
-        
-        // Recreate clips with new BPM timing
-        if (tracks.length > 0) {
-          const clips = await createClipsFromTracks(tracks, bpm);
-          sessionLoopEngine.setClips(clips);
-        }
+    if (isInitialized.current && bpm !== previousBPM.current) {
+      console.log(`AudioBridge: BPM changed from ${previousBPM.current} to ${bpm}`);
+      sessionLoopEngine.setBpm(bpm);
+      previousBPM.current = bpm;
+      
+      // Recreate clips with new BPM timing
+      if (tracks.length > 0) {
+        const clips = createClipsFromTracks(tracks, bpm);
+        sessionLoopEngine.setClips(clips);
       }
-    };
-    
-    updateBPM();
+    }
   }, [bpm, tracks, createClipsFromTracks]);
 
   // Handle track changes
   useEffect(() => {
-    const updateTracks = async () => {
-      if (!isInitialized.current) return;
+    if (!isInitialized.current) return;
 
-      const tracksChanged = 
-        tracks.length !== previousTracks.current.length ||
-        tracks.some((track, index) => {
-          const prevTrack = previousTracks.current[index];
-          return !prevTrack || 
-                 track.id !== prevTrack.id || 
-                 track.file_url !== prevTrack.file_url ||
-                 track.volume !== prevTrack.volume ||
-                 track.isMuted !== prevTrack.isMuted;
-        });
+    const tracksChanged = 
+      tracks.length !== previousTracks.current.length ||
+      tracks.some((track, index) => {
+        const prevTrack = previousTracks.current[index];
+        return !prevTrack || 
+               track.id !== prevTrack.id || 
+               track.file_url !== prevTrack.file_url ||
+               track.volume !== prevTrack.volume ||
+               track.isMuted !== prevTrack.isMuted;
+      });
 
-      if (tracksChanged) {
-        console.log('AudioBridge: Tracks changed, updating clips');
-        const clips = await createClipsFromTracks(tracks, bpm);
-        console.log('AudioBridge: Created clips:', clips);
-        sessionLoopEngine.setClips(clips);
-        previousTracks.current = [...tracks];
-      }
-    };
-    
-    updateTracks();
+    if (tracksChanged) {
+      console.log('AudioBridge: Tracks changed, updating clips');
+      const clips = createClipsFromTracks(tracks, bpm);
+      console.log('AudioBridge: Created clips:', clips);
+      sessionLoopEngine.setClips(clips);
+      previousTracks.current = [...tracks];
+    }
   }, [tracks, bpm, createClipsFromTracks]);
 
   // Handle track property updates (volume, mute, solo)
