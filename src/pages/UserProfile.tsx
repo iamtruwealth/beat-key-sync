@@ -225,7 +225,7 @@ export default function UserProfile() {
     return <Navigate to="/404" replace />;
   }
 
-  const profileUrl = `${window.location.origin}/${username}`;
+  const profileUrl = `https://beatpackz.store/${username}`;
 
   return (
     <div className="min-h-screen bg-background">

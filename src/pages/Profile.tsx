@@ -430,7 +430,7 @@ export default function ProfilePage() {
                   Your public profile will show your bio, genres, and recent work
                 </p>
                 <Button variant="outline" asChild>
-                  <a href={`/${profile.username || profile.id}`} target="_blank" rel="noopener noreferrer">
+                  <a href={`https://beatpackz.store/${profile.username || profile.id}`} target="_blank" rel="noopener noreferrer">
                     <ExternalLink className="w-4 h-4 mr-2" />
                     View Public Profile
                   </a>

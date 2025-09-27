@@ -15,8 +15,8 @@ export function ShareProfile({ username, producerName }: ShareProfileProps) {
   const { toast } = useToast();
 
   const profileUrl = username.startsWith('producer/') 
-    ? `${window.location.origin}/${username}`
-    : `${window.location.origin}/${username}`;
+    ? `https://beatpackz.store/${username}`
+    : `https://beatpackz.store/${username}`;
 
   const copyToClipboard = async () => {
     try {

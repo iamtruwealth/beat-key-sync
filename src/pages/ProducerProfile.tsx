@@ -294,7 +294,7 @@ export default function ProducerProfile() {
     );
   }
 
-  const profileUrl = `${window.location.origin}/${profile.username || `producer/${id}`}`;
+  const profileUrl = `https://beatpackz.store/${profile.username || `producer/${id}`}`;
 
   return (
     <div className="min-h-screen bg-background">
