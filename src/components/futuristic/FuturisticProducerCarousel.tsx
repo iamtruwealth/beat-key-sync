@@ -8,6 +8,7 @@ import { Users, Star, Music, MapPin } from 'lucide-react';
 
 interface Producer {
   id: string;
+  username?: string;
   producer_name: string;
   producer_logo_url: string;
   genres: string[];
@@ -24,10 +25,10 @@ export function FuturisticProducerCarousel() {
   useEffect(() => {
     const fetchFeaturedProducers = async () => {
       try {
-        // Get producer IDs that have producer names 
+        // Get producer IDs and usernames that have producer names 
         const { data: producerIds, error } = await supabase
           .from('profiles')
-          .select('id')
+          .select('id, username')
           .not('producer_name', 'is', null)
           .eq('public_profile_enabled', true)
           .eq('role', 'producer')
@@ -37,14 +38,15 @@ export function FuturisticProducerCarousel() {
         if (error) throw error;
 
         if (producerIds) {
-          // Use the secure function to get public profile data
+          // Use the secure function to get public profile data and merge username
           const producerData = await Promise.all(
-            producerIds.map(async ({ id }) => {
+            producerIds.map(async ({ id, username }) => {
               const { data } = await supabase.rpc('get_public_profile_info', { profile_id: id });
-              return data?.[0];
+              const base = data?.[0];
+              return base ? { ...base, username } : null;
             })
           );
-          setProducers(producerData.filter(Boolean) || []);
+          setProducers((producerData.filter(Boolean) as Producer[]) || []);
         }
       } catch (error) {
         console.error('Error fetching producers:', error);
@@ -107,7 +109,7 @@ export function FuturisticProducerCarousel() {
             {producers.map((producer, index) => (
               <CarouselItem key={producer.id} className="pl-2 md:pl-4 basis-1/2 md:basis-1/4 lg:basis-1/6">
                 <ScrollAnimationWrapper animation="scale-in" delay={index * 100}>
-                  <Link to={`/producer/${producer.id}`} className="block group">
+                  <Link to={`/${producer.username || producer.id}`} className="block group">
                     <div className="relative text-center">
                       {/* Futuristic Vinyl Disk with Producer Photo */}
                       <div className="w-24 h-24 mx-auto mb-4 relative group-hover:scale-110 transition-transform duration-300">

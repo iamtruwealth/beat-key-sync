@@ -26,6 +26,7 @@ import verifiedBadge from '@/assets/verified-badge.png';
 
 interface Producer {
   id: string;
+  username?: string;
   producer_name?: string;
   producer_logo_url?: string;
   genres?: string[];
@@ -62,10 +63,10 @@ export default function BrowseProducers() {
   const loadData = async () => {
     setLoading(true);
     
-    // Load producers - get IDs first
+    // Load producers - get IDs and usernames first
     const { data: producerIds } = await supabase
       .from('profiles')
-      .select('id')
+      .select('id, username')
       .eq('role', 'producer')
       .eq('public_profile_enabled', true)
       .order('track_upload_count', { ascending: false });
@@ -73,9 +74,10 @@ export default function BrowseProducers() {
     if (producerIds) {
       // Use secure function to get public profile data
       const producerData = await Promise.all(
-        producerIds.map(async ({ id }) => {
+        producerIds.map(async ({ id, username }) => {
           const { data } = await supabase.rpc('get_public_profile_info', { profile_id: id });
-          return data?.[0];
+          const base = data?.[0];
+          return base ? { ...base, username } : null;
         })
       );
       setProducers(producerData.filter(Boolean) || []);
@@ -126,8 +128,8 @@ export default function BrowseProducers() {
     navigate(`/pack/${packId}`);
   };
 
-  const handleViewProducer = (producerId: string) => {
-    navigate(`/producer/${producerId}`);
+  const handleViewProducer = (username: string | undefined, producerId: string) => {
+    navigate(`/${username || producerId}`);
   };
 
   if (loading) {
@@ -279,7 +281,7 @@ export default function BrowseProducers() {
                       <Button 
                         size="sm" 
                         className="flex-1 bg-gradient-to-r from-neon-cyan to-electric-blue hover:from-neon-cyan-glow hover:to-electric-blue-glow neon-glow-hover"
-                        onClick={() => handleViewProducer(producer.id)}
+                        onClick={() => handleViewProducer(producer.username, producer.id)}
                       >
                         <User className="w-4 h-4 mr-1" />
                         View Profile
