@@ -14,6 +14,7 @@ import { CookModeDAW } from '@/components/cookmode/CookModeDAW';
 import { CookModeChat } from '@/components/cookmode/CookModeChat';
 import { SessionParticipants } from '@/components/cookmode/SessionParticipants';
 import { SessionControls } from '@/components/cookmode/SessionControls';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Play, 
   Square, 
@@ -23,7 +24,9 @@ import {
   Settings,
   Share2,
   Save,
-  Download
+  Download,
+  Clock,
+  Layers
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -239,6 +242,28 @@ const CookMode = () => {
         title={`Cook Mode: ${session.name} | BeatPackz`}
         description="Live beat creation session in progress"
       />
+
+      {/* View Switcher - At Very Top Center of Page */}
+      <div className="flex justify-center p-4 border-b border-border/30 bg-card/20 backdrop-blur-sm">
+        <Tabs value="timeline" onValueChange={() => {}}>
+          <TabsList className="bg-background/80 border border-border/30">
+            <TabsTrigger 
+              value="timeline" 
+              className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+            >
+              <Clock className="w-4 h-4" />
+              Timeline
+            </TabsTrigger>
+            <TabsTrigger 
+              value="mixer" 
+              className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+            >
+              <Layers className="w-4 h-4" />
+              Mixer
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
 
       {/* Header */}
       <div className="border-b border-border/50 bg-card/30 backdrop-blur-sm">
