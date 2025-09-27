@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Play, Pause, RotateCcw, Volume2, VolumeX } from "lucide-react";
 import { BPMSyncIndicator } from './BPMSyncIndicator';
 import { useToast } from "@/hooks/use-toast";
+import { useWaveformGenerator } from '@/hooks/useWaveformGenerator';
+import { generateWaveformBars } from '@/lib/waveformGenerator';
 
 interface Track {
   id: string;
@@ -15,6 +17,7 @@ interface Track {
   isMuted?: boolean;
   isSolo?: boolean;
   waveform_data?: number[];
+  analyzed_duration?: number; // Actual audio duration from analysis
 }
 
 interface TimelineViewProps {
@@ -41,13 +44,14 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const [timelineWidth, setTimelineWidth] = useState(0);
   const audioElementsRef = useRef<Map<string, HTMLAudioElement>>(new Map());
   const blobSrcTriedRef = useRef<Set<string>>(new Set());
+  const [trackDurations, setTrackDurations] = useState<Map<string, number>>(new Map());
   const { toast } = useToast();
 
   // Calculate timing constants
   const secondsPerBeat = 60 / bpm;
   const beatsPerBar = 4;
   const secondsPerBar = secondsPerBeat * beatsPerBar;
-  const maxDuration = Math.max(...tracks.map(t => t.duration || 60), 60);
+  const maxDuration = Math.max(...tracks.map(t => trackDurations.get(t.id) || t.analyzed_duration || t.duration || 60), 60);
   const totalBars = Math.ceil(maxDuration / secondsPerBar);
   const pixelsPerSecond = 40;
   const pixelsPerBeat = pixelsPerSecond * secondsPerBeat;
@@ -78,6 +82,11 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         
         audio.addEventListener('loadeddata', () => {
           console.log('Audio loaded successfully for:', track.name);
+          // Update actual duration from audio element
+          const actualDuration = audio.duration;
+          if (actualDuration && actualDuration > 0) {
+            setTrackDurations(prev => new Map(prev.set(track.id, actualDuration)));
+          }
         });
         
         audio.addEventListener('canplay', () => {
@@ -300,28 +309,60 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     return markers;
   };
 
-  const renderTrack = (track: Track, index: number) => {
-    const trackHeight = 64;
+  const WaveformTrack: React.FC<{ 
+    track: Track; 
+    index: number; 
+    pixelsPerSecond: number; 
+    trackHeight: number;
+  }> = ({ track, index, pixelsPerSecond, trackHeight }) => {
+    const { waveformData, isLoading } = useWaveformGenerator({ 
+      audioUrl: track.file_url,
+      targetWidth: 500 
+    });
+
     const trackY = index * trackHeight;
-    
+    const actualDuration = trackDurations.get(track.id) || track.analyzed_duration || track.duration || 60;
+    const trackWidth = actualDuration * pixelsPerSecond;
+
+    // Generate waveform bars for visualization
+    const waveformBars = waveformData ? generateWaveformBars(waveformData.peaks, Math.floor(trackWidth / 4)) : [];
+
     return (
       <div
-        key={track.id}
-        className="absolute bg-gradient-to-r from-primary/20 to-primary/40 border border-primary/30 rounded"
+        className="absolute bg-gradient-to-r from-primary/20 to-primary/40 border border-primary/30 rounded overflow-hidden"
         style={{
           top: trackY + 8,
           left: 0,
-          width: (track.duration || 60) * pixelsPerSecond,
+          width: trackWidth,
           height: trackHeight - 16
         }}
       >
-        {/* Waveform placeholder */}
-        <div className="h-full p-2 flex items-center">
-          <div className="flex-1 h-8 bg-gradient-to-r from-neon-cyan/20 to-electric-blue/20 rounded flex items-center justify-center">
-            <span className="text-xs text-foreground/60">
-              {track.duration ? `${track.duration.toFixed(1)}s` : 'Audio'}
-            </span>
-          </div>
+        {/* Waveform visualization */}
+        <div className="h-full p-1 flex items-center">
+          {isLoading ? (
+            <div className="flex-1 h-8 bg-gradient-to-r from-neon-cyan/20 to-electric-blue/20 rounded flex items-center justify-center">
+              <span className="text-xs text-foreground/60">Loading...</span>
+            </div>
+          ) : waveformBars.length > 0 ? (
+            <div className="flex-1 h-8 flex items-end justify-center gap-px">
+              {waveformBars.map((bar, i) => (
+                <div
+                  key={i}
+                  className="bg-gradient-to-t from-neon-cyan/60 to-electric-blue/60 rounded-sm min-w-[1px]"
+                  style={{
+                    height: `${Math.max(bar * 100, 2)}%`,
+                    width: Math.max(trackWidth / waveformBars.length - 1, 1)
+                  }}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="flex-1 h-8 bg-gradient-to-r from-neon-cyan/20 to-electric-blue/20 rounded flex items-center justify-center">
+              <span className="text-xs text-foreground/60">
+                {actualDuration.toFixed(1)}s
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Mute/Solo overlay */}
@@ -336,7 +377,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         {/* BPM sync indicator */}
         <div className="absolute top-1 right-1">
           <BPMSyncIndicator 
-            detectedBPM={track.duration ? 120 : undefined} // Placeholder
+            detectedBPM={waveformData ? undefined : 120} // Use actual BPM when available
             sessionBPM={bpm}
           />
         </div>
@@ -482,7 +523,15 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
               </div>
 
               {/* Track waveforms */}
-              {tracks.map((track, index) => renderTrack(track, index))}
+              {tracks.map((track, index) => (
+                <WaveformTrack 
+                  key={track.id}
+                  track={track} 
+                  index={index} 
+                  pixelsPerSecond={pixelsPerSecond}
+                  trackHeight={68}
+                />
+              ))}
             </div>
           </div>
         </div>
