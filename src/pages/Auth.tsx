@@ -31,9 +31,15 @@ export default function AuthPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check if user is already logged in and redirect based on role
+    // Check if user is already logged in and redirect based on role or intended path
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session) {
+        const redirectTo = (() => { try { return sessionStorage.getItem('redirectTo'); } catch { return null; } })();
+        if (redirectTo) {
+          try { sessionStorage.removeItem('redirectTo'); } catch {}
+          navigate(redirectTo);
+          return;
+        }
         // Get user profile to determine role
         const { data: profile } = await supabase
           .from('profiles')
@@ -49,6 +55,12 @@ export default function AuthPage() {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session) {
+        const redirectTo = (() => { try { return sessionStorage.getItem('redirectTo'); } catch { return null; } })();
+        if (redirectTo) {
+          try { sessionStorage.removeItem('redirectTo'); } catch {}
+          navigate(redirectTo);
+          return;
+        }
         // Get user profile to determine role
         const { data: profile } = await supabase
           .from('profiles')

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 
@@ -14,6 +14,7 @@ export function RoleProtectedRoute({ children, allowedRoles }: RoleProtectedRout
   const [loading, setLoading] = useState(true);
   const [initialLoad, setInitialLoad] = useState(true);
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     let mounted = true;
@@ -28,6 +29,7 @@ export function RoleProtectedRoute({ children, allowedRoles }: RoleProtectedRout
         if (!session) {
           // Only redirect on initial load if there's no session
           if (initialLoad) {
+            try { sessionStorage.setItem('redirectTo', location.pathname + location.search); } catch {}
             navigate("/auth");
           }
           return;
@@ -69,6 +71,7 @@ export function RoleProtectedRoute({ children, allowedRoles }: RoleProtectedRout
       if (!mounted) return;
       
       if (!session) {
+        try { sessionStorage.setItem('redirectTo', location.pathname + location.search); } catch {}
         navigate("/auth");
         return;
       }
