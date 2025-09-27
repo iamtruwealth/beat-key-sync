@@ -58,6 +58,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const prevTimeRef = useRef<Map<string, number>>(new Map());
   const loopSignalRef = useRef<number>(0);
   const prevSessionTimeRef = useRef<number>(0);
+  const playingRef = useRef<boolean>(isPlaying);
   // Calculate loop length based on actual audio duration (not fixed 4 bars)
   const maxTrackDuration = Math.max(...tracks.map(t => trackDurations.get(t.id) || t.analyzed_duration || t.duration || 0), 0);
   const loopLength = maxTrackDuration > 0 ? maxTrackDuration : (16 * 60 / bpm); // Use actual track length or fallback to 4 bars
@@ -155,6 +156,11 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     }
   }, [timelineLength, onSeek, snapToGrid]);
 
+  // Keep playingRef in sync with isPlaying
+  useEffect(() => {
+    playingRef.current = isPlaying;
+  }, [isPlaying]);
+
   // Initialize audio elements ONCE per track - never recreate
   useEffect(() => {
     tracks.forEach(track => {
@@ -170,7 +176,14 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         // Debug event listeners
         const onPlay = () => tlog('audio:play', track.id, { ct: audio.currentTime.toFixed(3) });
         const onPause = () => tlog('audio:pause', track.id, { ct: audio.currentTime.toFixed(3) });
-        const onEnded = () => tlog('audio:ended', track.id, { ct: audio.currentTime.toFixed(3) });
+        const onEnded = () => { 
+          tlog('audio:ended', track.id, { ct: audio.currentTime.toFixed(3) });
+          if (playingRef.current) {
+            audio.currentTime = 0;
+            audio.play().catch((e) => tlog('ended-restart error', track.id, e));
+            tlog('ended-restart', track.id);
+          }
+        };
         const onWaiting = () => tlog('audio:waiting', track.id);
         const onStalled = () => tlog('audio:stalled', track.id);
         const onSeeking = () => tlog('audio:seeking', track.id, { to: audio.currentTime.toFixed(3) });
@@ -193,6 +206,12 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           const last = lastLogRef.current.get(track.id) || 0;
           const prev = prevTimeRef.current.get(track.id) || 0;
           const ct = audio.currentTime;
+          // Near-end wrap fallback to avoid stalls if native loop misses by a few ms
+          if (Number.isFinite(audio.duration) && audio.duration > 0 && (audio.duration - ct) <= 0.005) {
+            tlog('loop:wrap-near-end', track.id, { ct: ct.toFixed(3), dur: audio.duration.toFixed(3) });
+            audio.currentTime = 0;
+            return;
+          }
           // Throttle logs
           if (now - last > 500) {
             const deltaToSession = Math.abs(ct - currentTime);
