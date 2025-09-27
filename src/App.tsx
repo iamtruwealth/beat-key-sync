@@ -86,12 +86,6 @@ const App = () => (
               </AudioProvider>
             } />
             
-            {/* Public producer profile */}
-            <Route path="/producer/:id" element={
-              <AudioProvider>
-                <ProducerProfile />
-              </AudioProvider>
-            } />
             
             {/* Public beat pack sharing */}
             <Route path="/pack/:id" element={
