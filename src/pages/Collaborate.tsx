@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,7 @@ import { RoyaltyMarketplace } from '@/components/collaboration/RoyaltyMarketplac
 
 const Collaborate = () => {
   const [activeTab, setActiveTab] = useState('projects');
+  const navigate = useNavigate();
 
   const collaborationStats = [
     {
@@ -202,7 +204,7 @@ const Collaborate = () => {
                   <Button 
                     className="mt-4" 
                     variant="outline"
-                    onClick={() => window.location.href = '/cook-mode'}
+                    onClick={() => navigate('/cook-mode')}
                   >
                     Enter Cook Mode
                   </Button>
