@@ -36,6 +36,7 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
   const previousBPM = useRef<number>(bpm);
   const previousTracks = useRef<Track[]>([]);
   const isInitialized = useRef<boolean>(false);
+  const lastTickRef = useRef<number>(0);
 
   // Convert tracks to clips
   const createClipsFromTracks = useCallback((tracks: Track[], currentBPM: number): Clip[] => {
@@ -100,7 +101,10 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
 
   // Keep tick handler updated without re-initializing the engine
   useEffect(() => {
-    sessionLoopEngine.onTick = onTick;
+    sessionLoopEngine.onTick = (seconds: number) => {
+      lastTickRef.current = seconds;
+      onTick(seconds);
+    };
   }, [onTick]);
 
   // Handle BPM changes
@@ -178,11 +182,20 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
     }
   }, []);
 
-  // Sync engine position when parent seeks (e.g., Stop button resets to 0)
+  // Keep engine in sync with parent time
   useEffect(() => {
     if (!isInitialized.current) return;
-    if (!isPlaying && currentTime === 0) {
-      sessionLoopEngine.seek(0);
+
+    if (!isPlaying) {
+      // Always sync when paused/stopped
+      sessionLoopEngine.seek(currentTime);
+      return;
+    }
+
+    // While playing, only seek when there's a large jump (manual seek/back/forward)
+    const delta = Math.abs(currentTime - (lastTickRef.current ?? 0));
+    if (delta > 0.25) {
+      sessionLoopEngine.seek(currentTime);
     }
   }, [currentTime, isPlaying]);
 
