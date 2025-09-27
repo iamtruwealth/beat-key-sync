@@ -190,6 +190,24 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
     }
   };
 
+  // Handle track deletions coming from TimelineView
+  const handleTracksUpdateFromTimeline = async (updatedTracks: Track[]) => {
+    const currentIds = new Set(tracks.map(t => t.id));
+    const updatedIds = new Set(updatedTracks.map(t => t.id));
+
+    // Tracks present before but not in updated list are deletions
+    const removedIds = Array.from(currentIds).filter(id => !updatedIds.has(id));
+
+    for (const id of removedIds) {
+      try {
+        await onRemoveTrack(id);
+        toast.success('Track Deleted');
+      } catch (err) {
+        console.error('Failed to remove track from session:', err);
+        toast.error('Failed to delete track');
+      }
+    }
+  };
   const getStemColor = (stemType: string) => {
     const colors = {
       melody: 'text-neon-cyan',
@@ -198,11 +216,9 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
       vocal: 'text-neon-cyan',
       fx: 'text-electric-blue',
       other: 'text-muted-foreground'
-    };
+    } as const;
     return colors[stemType as keyof typeof colors] || colors.other;
   };
-
-  const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${minutes}:${secs.toString().padStart(2, '0')}`;
@@ -335,6 +351,7 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
                 bpm={bpm}
                 onPlayPause={onPlayPause}
                 onSeek={onSeek}
+                onTracksUpdate={handleTracksUpdateFromTimeline}
               />
             )}
           </TabsContent>
