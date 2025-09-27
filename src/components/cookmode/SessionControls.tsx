@@ -184,12 +184,13 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
             <Button
               variant={metronomeEnabled ? "default" : "ghost"}
               size="sm"
-              className={`p-2 ${metronomeEnabled ? 'bg-electric-blue text-black' : ''}`}
+              className={`p-2 gap-1 ${metronomeEnabled ? 'bg-electric-blue text-black' : ''}`}
               onClick={onToggleMetronome}
               disabled={!onToggleMetronome}
               title="Toggle Metronome"
             >
               <Timer className="w-4 h-4" />
+              <span className="text-xs">Click</span>
             </Button>
           </div>
 
