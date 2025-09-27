@@ -180,8 +180,17 @@ const CookMode = () => {
                       <SelectTrigger className="bg-background/50 border-border/50 focus:border-neon-cyan/50">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="max-h-48 overflow-y-auto">
+                        <div className="p-1 text-xs font-medium text-muted-foreground border-b border-border/50 mb-1">
+                          Major Keys
+                        </div>
                         {['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'].map(key => (
+                          <SelectItem key={key} value={key}>{key}</SelectItem>
+                        ))}
+                        <div className="p-1 text-xs font-medium text-muted-foreground border-b border-border/50 mb-1 mt-2">
+                          Minor Keys
+                        </div>
+                        {['Cm', 'C#m', 'Dm', 'D#m', 'Em', 'Fm', 'F#m', 'Gm', 'G#m', 'Am', 'A#m', 'Bm'].map(key => (
                           <SelectItem key={key} value={key}>{key}</SelectItem>
                         ))}
                       </SelectContent>

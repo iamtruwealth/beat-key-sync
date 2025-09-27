@@ -102,7 +102,10 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
     }
   };
 
-  const keys = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+  const keys = [
+    'C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B',
+    'Cm', 'C#m', 'Dm', 'D#m', 'Em', 'Fm', 'F#m', 'Gm', 'G#m', 'Am', 'A#m', 'Bm'
+  ];
 
   return (
     <div className="bg-card/30 backdrop-blur-sm border-b border-border/50">
@@ -209,11 +212,22 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
                 <div className="flex items-center gap-2">
                   <Settings className="w-4 h-4 text-electric-blue" />
                   <Select value={sessionKey} onValueChange={handleKeyChange}>
-                    <SelectTrigger className="w-12 h-6 text-xs border-none bg-transparent p-0">
+                    <SelectTrigger className="w-14 h-6 text-xs border-none bg-transparent p-0">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-background border-border">
-                      {keys.map((key) => (
+                    <SelectContent className="bg-background border-border max-h-48 overflow-y-auto">
+                      <div className="p-1 text-xs font-medium text-muted-foreground border-b border-border/50 mb-1">
+                        Major Keys
+                      </div>
+                      {keys.slice(0, 12).map((key) => (
+                        <SelectItem key={key} value={key} className="text-xs">
+                          {key}
+                        </SelectItem>
+                      ))}
+                      <div className="p-1 text-xs font-medium text-muted-foreground border-b border-border/50 mb-1 mt-2">
+                        Minor Keys
+                      </div>
+                      {keys.slice(12).map((key) => (
                         <SelectItem key={key} value={key} className="text-xs">
                           {key}
                         </SelectItem>
