@@ -40,6 +40,7 @@ import ProducerProfile from "./pages/ProducerProfile";
 import UserProfile from "./pages/UserProfile";
 import Onboarding from "./pages/Onboarding";
 import Collaborate from "./pages/Collaborate";
+import CookMode from "./pages/CookMode";
 
 import { FuturisticWaveformPlayer } from "./components/player/FuturisticWaveformPlayer";
 
@@ -320,6 +321,16 @@ const App = () => (
                     <Collaborate />
                   </main>
                 </div>
+              </RoleProtectedRoute>
+            } />
+            <Route path="/cook-mode" element={
+              <RoleProtectedRoute allowedRoles={['producer']}>
+                <CookMode />
+              </RoleProtectedRoute>
+            } />
+            <Route path="/cook-mode/:sessionId" element={
+              <RoleProtectedRoute allowedRoles={['producer']}>
+                <CookMode />
               </RoleProtectedRoute>
             } />
             
