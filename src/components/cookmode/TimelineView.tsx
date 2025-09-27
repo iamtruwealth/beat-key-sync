@@ -73,17 +73,23 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const pixelsPerBeat = pixelsPerSecond * secondsPerBeat;
   const pixelsPerBar = pixelsPerBeat * beatsPerBar;
 
-  // Initialize audio clips from tracks
+  // Initialize audio clips from tracks - ensure proper positioning
   useEffect(() => {
-    const initialClips: AudioClip[] = tracks.map(track => ({
-      id: `${track.id}-clip-0`,
-      trackId: track.id,
-      startTime: 0,
-      endTime: trackDurations.get(track.id) || track.analyzed_duration || track.duration || 60,
-      originalTrack: track
-    }));
-    setAudioClips(initialClips);
-  }, [tracks, trackDurations]);
+    if (audioClips.length === 0 && tracks.length > 0) {
+      const initialClips: AudioClip[] = tracks.map(track => {
+        const duration = trackDurations.get(track.id) || track.analyzed_duration || track.duration || 60;
+        return {
+          id: `${track.id}-clip-0`,
+          trackId: track.id,
+          startTime: 0, // Always start at beginning
+          endTime: duration,
+          originalTrack: track
+        };
+      });
+      setAudioClips(initialClips);
+      console.log('Initialized audio clips:', initialClips);
+    }
+  }, [tracks, trackDurations, audioClips.length]);
 
   // Grid snapping function
   const snapToGrid = (time: number): number => {
@@ -306,36 +312,34 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     });
   }, [tracks, toast]);
 
-  // Sync playback state with main controls
+  // Sync playback state with main controls - improved for clip system
   useEffect(() => {
     console.log('Timeline syncing playback state:', { isPlaying, audioElementsCount: audioElementsRef.current.size });
     audioElementsRef.current.forEach((audio, trackId) => {
       try {
-        if (!audio.src) {
-          // Skip elements with empty source (cleanup state)
-          return;
-        }
-        if (isPlaying && audio.paused) {
+        if (!audio.src) return;
+        
+        // Find active clips for this track at current time
+        const activeClips = audioClips.filter(clip => 
+          clip.trackId === trackId && 
+          currentTime >= clip.startTime && 
+          currentTime < clip.endTime
+        );
+        
+        const shouldPlay = isPlaying && activeClips.length > 0;
+        
+        if (shouldPlay && audio.paused) {
           console.log('Starting playback for track:', trackId);
           
-          // Check if we're within the track's actual duration
-          const actualDuration = trackDurations.get(trackId) || tracks.find(t => t.id === trackId)?.analyzed_duration || tracks.find(t => t.id === trackId)?.duration || audio.duration;
+          // Set audio time relative to clip start
+          const activeClip = activeClips[0]; // Use first active clip
+          const clipTime = currentTime - activeClip.startTime;
+          audio.currentTime = clipTime;
           
-          if (actualDuration && currentTime >= actualDuration) {
-            // Don't start playback if we're past the track's end
-            console.log(`Not starting track ${trackId} - past duration (${currentTime}s >= ${actualDuration}s)`);
-            return;
-          }
-          
-          audio.currentTime = currentTime;
-          
-          // Create a user interaction promise to satisfy browser autoplay policies
           const playPromise = audio.play();
           if (playPromise !== undefined) {
             playPromise
-              .then(() => {
-                console.log('Audio started successfully for:', trackId);
-              })
+              .then(() => console.log('Audio started successfully for:', trackId))
               .catch(error => {
                 console.error('Autoplay prevented for track:', trackId, error);
                 if (error.name === 'NotAllowedError') {
@@ -346,7 +350,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                 }
               });
           }
-        } else if (!isPlaying && !audio.paused) {
+        } else if (!shouldPlay && !audio.paused) {
           console.log('Pausing playback for track:', trackId);
           audio.pause();
         }
@@ -354,30 +358,34 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         console.error('Error syncing audio playback:', error);
       }
     });
-  }, [isPlaying, currentTime, toast]);
+  }, [isPlaying, currentTime, audioClips, toast]);
 
-  // Sync current time - less frequent updates
+  // Sync current time with clip playback
   useEffect(() => {
     audioElementsRef.current.forEach((audio, trackId) => {
-      const actualDuration = trackDurations.get(trackId) || tracks.find(t => t.id === trackId)?.analyzed_duration || tracks.find(t => t.id === trackId)?.duration || audio.duration;
+      // Find active clips for this track at current time
+      const activeClips = audioClips.filter(clip => 
+        clip.trackId === trackId && 
+        currentTime >= clip.startTime && 
+        currentTime < clip.endTime
+      );
       
-      // Stop audio if it's playing beyond its duration
-      if (actualDuration && audio.currentTime >= actualDuration && !audio.paused) {
-        console.log(`Auto-stopping track ${trackId} at end of duration`);
-        audio.pause();
-        audio.currentTime = actualDuration;
-        return;
-      }
-      
-      // Only seek if there's a significant difference and we're within track duration
-      if (Math.abs(audio.currentTime - currentTime) > 1.0) {
-        if (!actualDuration || currentTime < actualDuration) {
-          console.log(`Seeking track ${trackId} from ${audio.currentTime} to ${currentTime}`);
-          audio.currentTime = currentTime;
+      if (activeClips.length > 0) {
+        const activeClip = activeClips[0];
+        const clipTime = currentTime - activeClip.startTime;
+        
+        // Only seek if there's a significant difference
+        if (Math.abs(audio.currentTime - clipTime) > 1.0) {
+          console.log(`Seeking track ${trackId} from ${audio.currentTime} to ${clipTime} (clip time)`);
+          audio.currentTime = clipTime;
         }
+      } else if (!audio.paused) {
+        // No active clip, pause audio
+        console.log(`No active clip for track ${trackId}, pausing`);
+        audio.pause();
       }
     });
-  }, [currentTime, trackDurations, tracks]);
+  }, [currentTime, audioClips]);
 
   // Audio playback handler for individual tracks (toggle mute/solo)
   const handleTrackPlay = useCallback(async (track: Track) => {
