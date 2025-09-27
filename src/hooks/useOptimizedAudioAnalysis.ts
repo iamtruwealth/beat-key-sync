@@ -126,35 +126,7 @@ export function useOptimizedAudioAnalysis() {
     });
 
     try {
-      // Quick filename analysis first
-      setAnalysisState(prev => ({ ...prev, progress: 10 }));
-      const filenameResult = parseFilenameForMetadata(file.name);
-      
-      // If filename analysis has high confidence, consider skipping audio analysis
-      if (filenameResult.confidence > 0.8 && filenameResult.bpm && filenameResult.key) {
-        const quickResult: AudioAnalysisResult = {
-          bpm: filenameResult.bpm,
-          key: filenameResult.key,
-          compatibleKeys: [],
-          duration: 0,
-          confidenceScore: filenameResult.confidence,
-          metadata: {
-            filenameAnalysis: filenameResult,
-          },
-        };
-
-        setAnalysisState(prev => ({ ...prev, progress: 100 }));
-        setCachedResult(file, quickResult);
-        
-        toast({
-          title: "Quick analysis complete",
-          description: `High-confidence filename analysis for ${file.name}`,
-        });
-
-        return quickResult;
-      }
-
-      // Proceed with Web Worker analysis
+      // Always proceed with full audio analysis - don't skip based on filename confidence
       setAnalysisState(prev => ({ ...prev, progress: 25 }));
       
       const arrayBuffer = await file.arrayBuffer();
@@ -183,8 +155,8 @@ export function useOptimizedAudioAnalysis() {
       setCachedResult(file, result);
 
       toast({
-        title: "Analysis complete",
-        description: `Successfully analyzed ${file.name}`,
+        title: "Audio analysis complete",
+        description: `Audio analyzed: BPM ${result.bpm}, Key ${result.key} (${Math.round((result.confidenceScore || 0) * 100)}% confidence)`,
       });
 
       return result;
