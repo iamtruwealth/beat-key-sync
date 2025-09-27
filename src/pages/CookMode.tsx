@@ -57,6 +57,7 @@ const CookMode = () => {
     addTrack,
     removeTrack,
     togglePlayback,
+    stopPlayback,
     seekTo,
     updateTrack,
     updateSessionSettings,
@@ -69,6 +70,14 @@ const CookMode = () => {
       joinSession(sessionId);
     }
   }, [sessionId, session, joinSession]);
+
+  // Expose stopPlayback globally for stop button
+  useEffect(() => {
+    (window as any).stopPlayback = stopPlayback;
+    return () => {
+      delete (window as any).stopPlayback;
+    };
+  }, [stopPlayback]);
 
   // Enable audio context on first user interaction
   useEffect(() => {

@@ -156,10 +156,13 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
               size="sm"
               className="p-2"
               onClick={() => {
-                onSeek(0);
-                // Stop playback if playing
-                if (isPlaying) {
-                  onTogglePlayback();
+                if (typeof (window as any).stopPlayback === 'function') {
+                  (window as any).stopPlayback();
+                } else {
+                  onSeek(0);
+                  if (isPlaying) {
+                    onTogglePlayback();
+                  }
                 }
               }}
             >

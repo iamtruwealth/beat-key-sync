@@ -310,11 +310,9 @@ export function useCookModeSession(sessionId?: string) {
     const newIsPlaying = !isPlaying;
     slog('togglePlayback', { newIsPlaying });
     
-    // Always reset to 0 when starting to ensure clean looping
+    // When starting playback, resume from paused position
     if (newIsPlaying) {
-      setCurrentTime(0);
-      pausedTimeRef.current = 0;
-      startTimeRef.current = Date.now();
+      startTimeRef.current = Date.now() - pausedTimeRef.current * 1000;
     }
     
     setIsPlaying(newIsPlaying);
@@ -325,7 +323,7 @@ export function useCookModeSession(sessionId?: string) {
         event: 'playback-control',
         payload: {
           isPlaying: newIsPlaying,
-          currentTime: 0
+          currentTime: pausedTimeRef.current
         }
       });
     }
@@ -491,6 +489,24 @@ export function useCookModeSession(sessionId?: string) {
     }
   }, []);
 
+  const stopPlayback = useCallback(() => {
+    setIsPlaying(false);
+    setCurrentTime(0);
+    pausedTimeRef.current = 0;
+    startTimeRef.current = Date.now();
+    
+    if (channelRef.current) {
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'playback-control',
+        payload: {
+          isPlaying: false,
+          currentTime: 0
+        }
+      });
+    }
+  }, []);
+
   const updateSessionSettings = useCallback(async (updates: { bpm?: number; key?: string }) => {
     try {
       if (!session) throw new Error('No active session');
@@ -577,6 +593,7 @@ export function useCookModeSession(sessionId?: string) {
     addTrack,
     removeTrack,
     togglePlayback,
+    stopPlayback,
     seekTo,
     updateTrack,
     updateSessionSettings,
