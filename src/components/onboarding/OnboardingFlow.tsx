@@ -93,7 +93,10 @@ export function OnboardingFlow({ userRole, userId, onComplete }: OnboardingFlowP
         setCompletedSteps(progressData.completed_steps || []);
         setIsCompleted(progressData.is_completed);
         
+        // If already completed or skipped, redirect immediately
         if (progressData.is_completed || progressData.is_skipped) {
+          console.log('Onboarding already complete, redirecting to dashboard');
+          navigate('/producer-dashboard');
           onComplete?.();
           return;
         }
@@ -150,15 +153,49 @@ export function OnboardingFlow({ userRole, userId, onComplete }: OnboardingFlowP
     }
   };
 
-  const nextStep = () => {
-    const newStep = Math.min(currentStep + 1, steps.length);
-    updateProgress(newStep, newStep === steps.length);
+  const nextStep = async () => {
+    if (!guide) return;
     
-    if (newStep <= steps.length) {
-      const stepData = steps[newStep - 1];
-      if (stepData && stepData.route) {
-        navigate(stepData.route);
+    const newStep = Math.min(currentStep + 1, steps.length);
+    const isCompleting = newStep === steps.length;
+    
+    try {
+      // Update progress in database
+      await supabase
+        .from('user_onboarding_progress')
+        .update({
+          current_step: newStep,
+          completed_steps: [...completedSteps, currentStep],
+          is_completed: isCompleting,
+          completed_at: isCompleting ? new Date().toISOString() : null
+        })
+        .eq('user_id', userId)
+        .eq('guide_id', guide.id);
+
+      // Update local state
+      setCurrentStep(newStep);
+      setCompletedSteps([...completedSteps, currentStep]);
+      
+      if (isCompleting) {
+        setIsCompleted(true);
+        // Navigate to producer dashboard after completion
+        setTimeout(() => {
+          navigate('/producer-dashboard');
+        }, 2000);
+      } else {
+        // Navigate to the route for the next step if it exists
+        const stepData = steps[newStep - 1];
+        if (stepData?.route && stepData.route !== '/onboarding') {
+          navigate(stepData.route);
+        }
       }
+    } catch (error) {
+      console.error('Error updating onboarding progress:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update progress. Please try again.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -175,9 +212,15 @@ export function OnboardingFlow({ userRole, userId, onComplete }: OnboardingFlowP
         .eq('user_id', userId)
         .eq('guide_id', guide.id);
 
+      navigate('/producer-dashboard');
       onComplete?.();
     } catch (error) {
       console.error('Error skipping onboarding:', error);
+      toast({
+        title: "Error", 
+        description: "Failed to skip onboarding. Please try again.",
+        variant: "destructive"
+      });
     }
   };
 
