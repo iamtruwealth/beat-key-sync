@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { AudioAnalysisResult, parseFilenameForMetadata } from '@/lib/audioAnalysis';
+import { AudioAnalysisResult, parseFilenameForMetadata, analyzeAudioFile } from '@/lib/audioAnalysis';
 import { useToast } from '@/hooks/use-toast';
 
 export type { AudioAnalysisResult };
@@ -70,7 +70,7 @@ export function useOptimizedAudioAnalysis() {
   }, []);
 
   const getCacheKey = (file: File): string => {
-    return `audio_analysis_${file.name}_${file.size}_${file.lastModified}`;
+    return `audio_analysis_v2_${file.name}_${file.size}_${file.lastModified}`;
   };
 
   const getCachedResult = (file: File): AudioAnalysisResult | null => {
@@ -115,9 +115,7 @@ export function useOptimizedAudioAnalysis() {
       return cachedResult;
     }
 
-    if (!workerRef.current) {
-      throw new Error('Worker not initialized');
-    }
+    // Proceed with main-thread analysis using analyzeAudioFile
 
     setAnalysisState({
       isAnalyzing: true,
@@ -129,27 +127,10 @@ export function useOptimizedAudioAnalysis() {
       // Always proceed with full audio analysis - don't skip based on filename confidence
       setAnalysisState(prev => ({ ...prev, progress: 25 }));
       
-      const arrayBuffer = await file.arrayBuffer();
-      const requestId = Math.random().toString(36).substr(2, 9);
-      
-      // Create promise for worker response
-      const workerPromise = new Promise<AudioAnalysisResult>((resolve, reject) => {
-        pendingRequests.current.set(requestId, { resolve, reject });
-      });
-
-      // Send work to worker
-      workerRef.current.postMessage({
-        id: requestId,
-        type: 'ANALYZE_FILE',
-        data: {
-          arrayBuffer,
-          filename: file.name
-        }
-      });
-
       setAnalysisState(prev => ({ ...prev, progress: 50 }));
       
-      const result = await workerPromise;
+      // Perform analysis on the main thread using our robust library implementation
+      const result = await analyzeAudioFile(file);
       
       setAnalysisState(prev => ({ ...prev, progress: 100 }));
       setCachedResult(file, result);
