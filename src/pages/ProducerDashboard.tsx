@@ -12,6 +12,7 @@ import { BeatSalesTracker } from "@/components/beats/BeatSalesTracker";
 import { UserVerificationManager } from "@/components/admin/UserVerificationManager";
 import { OnboardingManager } from "@/components/onboarding/OnboardingManager";
 import { StatsCard } from "@/components/dashboard/StatsCard";
+import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { 
   Bell, 
   MessageSquare, 
@@ -74,24 +75,59 @@ export default function ProducerDashboard() {
   const [recentSales, setRecentSales] = useState<any[]>([]);
   const [totalEarnings, setTotalEarnings] = useState(0);
   const [isMasterAccount, setIsMasterAccount] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [userRole, setUserRole] = useState<'producer' | 'artist' | null>(null);
   const navigate = useNavigate();
 
+  // Get user data first
   useEffect(() => {
-    loadDashboardData();
-  }, []);
+    const loadUserData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        navigate('/auth');
+        return;
+      }
+
+      setCurrentUser(user);
+
+      // Get user profile to determine role
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      const role = profile?.role || 'producer';
+      setUserRole(role);
+    };
+
+    loadUserData();
+  }, [navigate]);
+
+  // Check onboarding status
+  const { needsOnboarding, loading: onboardingLoading } = useOnboardingStatus(currentUser?.id, userRole);
+
+  useEffect(() => {
+    if (currentUser && userRole && !onboardingLoading) {
+      if (needsOnboarding) {
+        navigate('/onboarding');
+        return;
+      }
+      loadDashboardData();
+    }
+  }, [currentUser, userRole, needsOnboarding, onboardingLoading]);
 
   const loadDashboardData = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!currentUser) return;
 
     // Check if user is master account
-    setIsMasterAccount(user.email === 'iamtruwealth@gmail.com');
+    setIsMasterAccount(currentUser.email === 'iamtruwealth@gmail.com');
 
     // Load notifications
     const { data: notificationsData } = await supabase
       .from('notifications')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', currentUser.id)
       .is('read_at', null)
       .order('created_at', { ascending: false })
       .limit(5);
@@ -105,7 +141,7 @@ export default function ProducerDashboard() {
         *,
         sender:profiles!messages_sender_id_fkey(first_name, last_name, producer_name)
       `)
-      .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
+      .or(`sender_id.eq.${currentUser.id},recipient_id.eq.${currentUser.id}`)
       .order('created_at', { ascending: false })
       .limit(5);
     
@@ -115,7 +151,7 @@ export default function ProducerDashboard() {
     const { data: beatPacksData } = await supabase
       .from('beat_packs')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', currentUser.id)
       .order('created_at', { ascending: false })
       .limit(6);
     
@@ -125,7 +161,7 @@ export default function ProducerDashboard() {
     const { data: beatsData } = await supabase
       .from('beats')
       .select('*')
-      .eq('producer_id', user.id)
+      .eq('producer_id', currentUser.id)
       .order('created_at', { ascending: false })
       .limit(10);
     
@@ -138,7 +174,7 @@ export default function ProducerDashboard() {
         *,
         beats(title)
       `)
-      .eq('producer_id', user.id)
+      .eq('producer_id', currentUser.id)
       .order('created_at', { ascending: false })
       .limit(5);
     
@@ -148,11 +184,20 @@ export default function ProducerDashboard() {
     const { data: profile } = await supabase
       .from('profiles')
       .select('total_earnings_cents')
-      .eq('id', user.id)
+      .eq('id', currentUser.id)
       .single();
     
     setTotalEarnings(profile?.total_earnings_cents || 0);
   };
+
+  // Show loading while checking onboarding status
+  if (onboardingLoading || !currentUser || !userRole) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-lg">Loading...</div>
+      </div>
+    );
+  }
 
   const totalSales = recentSales.reduce((sum, sale) => sum + (sale.amount_received || 0), 0);
   const formatCurrency = (cents: number) => (cents / 100).toFixed(2);

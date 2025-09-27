@@ -59,8 +59,9 @@ export function OnboardingFlow({ userRole, userId, onComplete }: OnboardingFlowP
         .single();
 
       if (guideError || !guideData) {
-        console.error('No onboarding guide found for role:', userRole);
-        onComplete?.();
+        console.error('No onboarding guide found for role:', userRole, guideError);
+        // Instead of calling onComplete, just set loading to false and show a fallback
+        setLoading(false);
         return;
       }
 
@@ -192,7 +193,23 @@ export function OnboardingFlow({ userRole, userId, onComplete }: OnboardingFlowP
   }
 
   if (!guide || steps.length === 0) {
-    return null;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 to-secondary/5">
+        <Card className="w-full max-w-md mx-4">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl">Onboarding Not Available</CardTitle>
+            <CardDescription>
+              No onboarding guide is currently configured. You can proceed to your dashboard.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={() => navigate('/producer-dashboard')} className="w-full">
+              Go to Producer Dashboard
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   const currentStepData = steps[currentStep - 1];
