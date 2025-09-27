@@ -56,6 +56,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const { toast } = useToast();
   const lastLogRef = useRef<Map<string, number>>(new Map());
   const prevTimeRef = useRef<Map<string, number>>(new Map());
+  const loopSignalRef = useRef<number>(0);
   // Calculate loop length based on actual audio duration (not fixed 4 bars)
   const maxTrackDuration = Math.max(...tracks.map(t => trackDurations.get(t.id) || t.analyzed_duration || t.duration || 0), 0);
   const loopLength = maxTrackDuration > 0 ? maxTrackDuration : (16 * 60 / bpm); // Use actual track length or fallback to 4 bars
@@ -205,6 +206,14 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           // Detect native loop (time jump backwards)
           if (prev && ct + 0.05 < prev) {
             tlog('audio:native-loop', track.id, { from: prev.toFixed(3), to: ct.toFixed(3) });
+            if (isPlaying) {
+              const now2 = Date.now();
+              if (now2 - (loopSignalRef.current || 0) > 500) {
+                loopSignalRef.current = now2;
+                tlog('sync: resetting session time to 0 after native loop', { trackId: track.id });
+                onSeek(0);
+              }
+            }
           }
           prevTimeRef.current.set(track.id, ct);
         });
