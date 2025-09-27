@@ -243,15 +243,6 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       if (isPlaying) {
         if (track) audio.muted = !!track.isMuted;
         const desired = loopLength > 0 ? (currentTime % loopLength) : currentTime;
-        // Ensure source is attached before playing
-        if (!audio.src || audio.src.length === 0) {
-          const src = track?.file_url;
-          if (src) {
-            tlog('Attaching source before play', trackId);
-            audio.src = src;
-            audio.load();
-          }
-        }
         if (audio.paused) {
           tlog('Starting audio', trackId, { setTo: desired.toFixed(3) });
           audio.currentTime = desired;
@@ -260,16 +251,11 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       } else {
         if (!audio.paused) {
           tlog('Pausing audio', trackId, { at: audio.currentTime.toFixed(3) });
+          audio.pause();
         }
-        audio.pause();
         audio.currentTime = 0;
+        // Keep source but ensure it's truly stopped
         audio.muted = true;
-        // Hard stop: detach source to prevent background playback
-        if (audio.src) {
-          tlog('Detaching source on pause', trackId);
-          audio.removeAttribute('src');
-          audio.load();
-        }
       }
     });
   }, [isPlaying, loopLength, currentTime, tracks]);
