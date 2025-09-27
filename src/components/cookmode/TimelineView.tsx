@@ -97,9 +97,18 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         return clip;
       });
       
-      // Only update if clips actually changed
-      const clipsChanged = initialClips.length !== audioClips.length || 
-        initialClips.some(clip => !audioClips.find(existing => existing.id === clip.id));
+      // Only update if clips actually changed (including duration updates)
+      const clipsChanged =
+        initialClips.length !== audioClips.length ||
+        initialClips.some((newClip) => {
+          const existing = audioClips.find((e) => e.id === newClip.id);
+          if (!existing) return true;
+          return (
+            existing.startTime !== newClip.startTime ||
+            existing.endTime !== newClip.endTime ||
+            existing.originalTrack.id !== newClip.originalTrack.id
+          );
+        });
       
       if (clipsChanged) {
         console.log('Updating audio clips - old:', audioClips, 'new:', initialClips);
