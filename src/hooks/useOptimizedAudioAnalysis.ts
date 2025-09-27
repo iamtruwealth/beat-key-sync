@@ -38,7 +38,7 @@ export function useOptimizedAudioAnalysis() {
 
   // Initialize Web Worker
   useEffect(() => {
-    workerRef.current = new Worker('/audio-analysis-worker.js');
+    workerRef.current = new Worker('/essentia-worker.js');
     
     workerRef.current.onmessage = (e: MessageEvent<WorkerMessage>) => {
       const { id, type, result, error } = e.data;

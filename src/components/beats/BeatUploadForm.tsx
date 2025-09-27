@@ -8,7 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Upload, Music, DollarSign } from 'lucide-react';
+import { Upload, Music, DollarSign, Loader2 } from 'lucide-react';
+import { useOptimizedAudioAnalysis } from '@/hooks/useOptimizedAudioAnalysis';
 
 interface BeatUploadFormProps {
   onSuccess?: () => void;
@@ -28,14 +29,40 @@ export function BeatUploadForm({ onSuccess }: BeatUploadFormProps) {
   });
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [artworkFile, setArtworkFile] = useState<File | null>(null);
+  const [analysisResults, setAnalysisResults] = useState<any>(null);
+  const { analyzeFile, isAnalyzing } = useOptimizedAudioAnalysis();
 
   const { getRootProps: getAudioRootProps, getInputProps: getAudioInputProps } = useDropzone({
     accept: {
       'audio/*': ['.mp3', '.wav', '.flac', '.aac']
     },
     maxFiles: 1,
-    onDrop: (acceptedFiles) => {
-      setAudioFile(acceptedFiles[0]);
+    onDrop: async (acceptedFiles) => {
+      const file = acceptedFiles[0];
+      setAudioFile(file);
+      
+      if (file) {
+        try {
+          // Auto-analyze the audio file
+          const results = await analyzeFile(file);
+          setAnalysisResults(results);
+          
+          // Auto-populate form fields with detected values
+          setFormData(prev => ({
+            ...prev,
+            title: prev.title || file.name.replace(/\.[^/.]+$/, ''),
+            bpm: prev.bpm || results.bpm?.toString() || '',
+            key: prev.key || results.key || ''
+          }));
+        } catch (error) {
+          console.error('Analysis failed:', error);
+          // Still set the file name as title
+          setFormData(prev => ({
+            ...prev,
+            title: prev.title || file.name.replace(/\.[^/.]+$/, '')
+          }));
+        }
+      }
     }
   });
 
@@ -96,7 +123,7 @@ export function BeatUploadForm({ onSuccess }: BeatUploadFormProps) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      // Create beat record
+      // Create beat record with analysis results
       const priceCents = formData.isFree ? 0 : Math.round(parseFloat(formData.price) * 100);
       const tags = formData.tags.split(',').map(tag => tag.trim()).filter(Boolean);
 
@@ -107,12 +134,24 @@ export function BeatUploadForm({ onSuccess }: BeatUploadFormProps) {
           title: formData.title,
           description: formData.description,
           audio_file_url: audioUrl,
+          file_url: audioUrl,
           artwork_url: artworkUrl,
           price_cents: priceCents,
           is_free: formData.isFree,
           genre: formData.genre || null,
-          bpm: formData.bpm ? parseInt(formData.bpm) : null,
-          key: formData.key || null,
+          // Use detected values if available, otherwise use manual input
+          detected_bpm: analysisResults?.bpm || null,
+          manual_bpm: formData.bpm ? parseInt(formData.bpm) : null,
+          bpm: formData.bpm ? parseInt(formData.bpm) : analysisResults?.bpm || null,
+          detected_key: analysisResults?.key || null,
+          manual_key: formData.key || null,
+          key: formData.key || analysisResults?.key || null,
+          duration: analysisResults?.duration || null,
+          metadata: {
+            confidenceScore: analysisResults?.confidenceScore || 0,
+            compatibleKeys: analysisResults?.compatibleKeys || [],
+            analysisMetadata: analysisResults?.metadata || {}
+          },
           tags,
         })
         .select()
@@ -147,6 +186,7 @@ export function BeatUploadForm({ onSuccess }: BeatUploadFormProps) {
       });
       setAudioFile(null);
       setArtworkFile(null);
+      setAnalysisResults(null);
       
       onSuccess?.();
     } catch (error) {
@@ -175,13 +215,29 @@ export function BeatUploadForm({ onSuccess }: BeatUploadFormProps) {
               className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center cursor-pointer hover:border-muted-foreground/50 transition-colors"
             >
               <input {...getAudioInputProps()} />
-              <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-              {audioFile ? (
-                <p className="text-sm">{audioFile.name}</p>
+              {isAnalyzing ? (
+                <>
+                  <Loader2 className="h-8 w-8 mx-auto mb-2 text-primary animate-spin" />
+                  <p className="text-sm text-primary">Analyzing audio with Essentia.js...</p>
+                </>
               ) : (
-                <p className="text-sm text-muted-foreground">
-                  Drop audio file here or click to browse
-                </p>
+                <>
+                  <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                  {audioFile ? (
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium">{audioFile.name}</p>
+                      {analysisResults && (
+                        <p className="text-xs text-muted-foreground">
+                          Analysis complete • Confidence: {Math.round((analysisResults.confidenceScore || 0) * 100)}%
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Drop audio file here or click to browse
+                    </p>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -242,22 +298,36 @@ export function BeatUploadForm({ onSuccess }: BeatUploadFormProps) {
           {/* Technical Details */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <Label htmlFor="bpm">BPM</Label>
+              <Label htmlFor="bpm" className="flex items-center gap-2">
+                BPM
+                {analysisResults?.bpm && (
+                  <span className="text-xs px-2 py-1 bg-primary/10 text-primary rounded-full">
+                    Detected: {analysisResults.bpm}
+                  </span>
+                )}
+              </Label>
               <Input
                 id="bpm"
                 type="number"
                 value={formData.bpm}
                 onChange={(e) => setFormData(prev => ({ ...prev, bpm: e.target.value }))}
-                placeholder="120"
+                placeholder={analysisResults?.bpm?.toString() || "120"}
               />
             </div>
             <div>
-              <Label htmlFor="key">Key</Label>
+              <Label htmlFor="key" className="flex items-center gap-2">
+                Key
+                {analysisResults?.key && (
+                  <span className="text-xs px-2 py-1 bg-primary/10 text-primary rounded-full">
+                    Detected: {analysisResults.key}
+                  </span>
+                )}
+              </Label>
               <Input
                 id="key"
                 value={formData.key}
                 onChange={(e) => setFormData(prev => ({ ...prev, key: e.target.value }))}
-                placeholder="C Major, A Minor..."
+                placeholder={analysisResults?.key || "C Major, A Minor..."}
               />
             </div>
             <div>
