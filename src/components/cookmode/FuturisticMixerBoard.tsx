@@ -81,50 +81,50 @@ export const FuturisticMixerBoard: React.FC<FuturisticMixerBoardProps> = ({
     }
   };
 
-  // Generate random waveform data for visualization
-  const generateWaveformData = useCallback(() => {
-    return Array.from({ length: 32 }, () => Math.random() * 0.8 + 0.1);
-  }, []);
+  const [audioLevels, setAudioLevels] = useState<{ [trackId: string]: number }>({});
 
-  const [waveformData, setWaveformData] = useState<{ [trackId: string]: number[] }>({});
-
+  // Simulate real-time audio levels (replace with actual audio analysis)
   useEffect(() => {
     const interval = setInterval(() => {
-      const newWaveformData: { [trackId: string]: number[] } = {};
+      const newAudioLevels: { [trackId: string]: number } = {};
       tracks.forEach(track => {
         if (!track.isMuted) {
-          newWaveformData[track.id] = generateWaveformData();
+          // Simulate real audio levels - replace with actual audio analysis
+          newAudioLevels[track.id] = Math.random() * track.volume;
         } else {
-          newWaveformData[track.id] = Array(32).fill(0);
+          newAudioLevels[track.id] = 0;
         }
       });
-      setWaveformData(newWaveformData);
-    }, 100);
+      setAudioLevels(newAudioLevels);
+    }, 50);
 
     return () => clearInterval(interval);
-  }, [tracks, generateWaveformData]);
+  }, [tracks]);
 
   const VerticalFader: React.FC<{
     track: Track;
     onVolumeChange: (value: number) => void;
   }> = ({ track, onVolumeChange }) => {
     const faderRef = useRef<HTMLDivElement>(null);
+    const handleRef = useRef<HTMLDivElement>(null);
     const [isDragging, setIsDragging] = useState(false);
     const [smoothVolume, setSmoothVolume] = useState(track.volume * 100);
+    const [dragOffset, setDragOffset] = useState(0);
 
     // Smooth volume interpolation
     useEffect(() => {
+      if (isDragging) return; // Don't smooth while dragging
+      
       const targetVolume = track.volume * 100;
       const startTime = Date.now();
-      const duration = 150; // ms
+      const duration = 100;
       const startVolume = smoothVolume;
 
       const animate = () => {
         const elapsed = Date.now() - startTime;
         const progress = Math.min(elapsed / duration, 1);
         
-        // Easing function for smooth transition
-        const easeOut = 1 - Math.pow(1 - progress, 3);
+        const easeOut = 1 - Math.pow(1 - progress, 2);
         const currentVolume = startVolume + (targetVolume - startVolume) * easeOut;
         
         setSmoothVolume(currentVolume);
@@ -135,87 +135,96 @@ export const FuturisticMixerBoard: React.FC<FuturisticMixerBoardProps> = ({
       };
       
       requestAnimationFrame(animate);
-    }, [track.volume]);
+    }, [track.volume, isDragging]);
 
     const handleMouseDown = (e: React.MouseEvent) => {
       e.preventDefault();
       setIsDragging(true);
       setDraggedFader(track.id);
+      
+      if (handleRef.current && faderRef.current) {
+        const handleRect = handleRef.current.getBoundingClientRect();
+        const faderRect = faderRef.current.getBoundingClientRect();
+        const handleCenter = handleRect.top + handleRect.height / 2;
+        setDragOffset(e.clientY - handleCenter);
+      }
     };
 
     const handleMouseMove = useCallback((e: MouseEvent) => {
       if (!isDragging || !faderRef.current) return;
 
       const rect = faderRef.current.getBoundingClientRect();
-      const y = e.clientY - rect.top;
+      const adjustedY = e.clientY - dragOffset - rect.top;
       const height = rect.height;
-      // More granular control with 0.1 step precision
-      const rawValue = Math.max(0, Math.min(100, 100 - (y / height) * 100));
-      const value = Math.round(rawValue * 10) / 10; // Round to 1 decimal place
+      
+      // Invert Y axis so dragging up increases volume
+      const rawValue = Math.max(0, Math.min(100, 100 - (adjustedY / height) * 100));
+      const value = Math.round(rawValue * 2) / 2; // Round to 0.5 steps for smooth control
+      
+      setSmoothVolume(value);
       onVolumeChange(value);
-    }, [isDragging, onVolumeChange]);
+    }, [isDragging, onVolumeChange, dragOffset]);
 
     const handleMouseUp = useCallback(() => {
       setIsDragging(false);
       setDraggedFader(null);
+      setDragOffset(0);
     }, []);
 
     useEffect(() => {
       if (isDragging) {
         document.addEventListener('mousemove', handleMouseMove);
         document.addEventListener('mouseup', handleMouseUp);
+        document.body.style.cursor = 'grabbing';
+        document.body.style.userSelect = 'none';
+        
         return () => {
           document.removeEventListener('mousemove', handleMouseMove);
           document.removeEventListener('mouseup', handleMouseUp);
+          document.body.style.cursor = '';
+          document.body.style.userSelect = '';
         };
       }
     }, [isDragging, handleMouseMove, handleMouseUp]);
 
     const faderPosition = smoothVolume;
-    const trackWaveform = waveformData[track.id] || [];
+    const audioLevel = audioLevels[track.id] || 0;
+    const glowIntensity = audioLevel * 100;
 
     return (
       <div className="relative flex flex-col items-center h-full">
         {/* Volume readout */}
-        <div className="text-xs font-mono text-muted-foreground mb-2 min-w-[3rem] text-center">
-          {smoothVolume.toFixed(1)}
-        </div>
-        
-        {/* Waveform visualization */}
-        <div className="w-16 h-12 mb-2 bg-background/30 rounded border border-border/30 p-1 overflow-hidden">
-          <div className="flex items-end justify-center h-full gap-px">
-            {trackWaveform.map((level, index) => (
-              <div
-                key={index}
-                className={`bg-gradient-to-t ${getStemColor(track.stem_type)} transition-all duration-75 min-w-[2px] ${
-                  track.isMuted ? 'opacity-20' : 'opacity-80'
-                }`}
-                style={{
-                  height: `${level * 100 * (track.volume)}%`,
-                  minHeight: '2px'
-                }}
-              />
-            ))}
-          </div>
+        <div className="text-xs font-mono text-muted-foreground mb-3 min-w-[3rem] text-center bg-background/50 px-2 py-1 rounded border border-border/30">
+          {smoothVolume.toFixed(1)}dB
         </div>
         
         {/* Fader track */}
         <div 
           ref={faderRef}
-          className="relative w-8 h-48 bg-background/30 rounded-lg border border-border/50 cursor-pointer group hover:border-border transition-all duration-200 shadow-inner"
+          className="relative w-10 h-52 bg-background/40 rounded-lg border-2 border-border/50 cursor-grab active:cursor-grabbing group hover:border-border transition-all duration-200 shadow-inner"
           onMouseDown={handleMouseDown}
         >
-          {/* Track background with gradient */}
-          <div className={`absolute inset-0 rounded-lg bg-gradient-to-t ${getStemColor(track.stem_type)} opacity-15 group-hover:opacity-25 transition-opacity`} />
+          {/* Track background with subtle gradient */}
+          <div className={`absolute inset-1 rounded-md bg-gradient-to-t ${getStemColor(track.stem_type)} opacity-10 group-hover:opacity-15 transition-opacity`} />
           
-          {/* Volume level indicator with smooth animation */}
+          {/* Audio level glow effect */}
+          {!track.isMuted && audioLevel > 0.01 && (
+            <div 
+              className={`absolute inset-0 rounded-lg bg-gradient-to-t ${getStemColor(track.stem_type)} transition-all duration-75`}
+              style={{ 
+                opacity: Math.min(glowIntensity * 0.008, 0.6),
+                boxShadow: `inset 0 0 ${glowIntensity * 0.3}px hsl(var(--neon-cyan) / ${Math.min(glowIntensity * 0.01, 0.8)})`
+              }}
+            />
+          )}
+          
+          {/* Volume level indicator */}
           <div 
-            className={`absolute bottom-0 left-0 right-0 rounded-lg bg-gradient-to-t ${getStemColor(track.stem_type)} transition-all duration-100 ${
-              track.isMuted ? 'opacity-20' : 'opacity-70'
-            } shadow-lg`}
+            className={`absolute bottom-1 left-1 right-1 rounded-md bg-gradient-to-t ${getStemColor(track.stem_type)} transition-all duration-150 ${
+              track.isMuted ? 'opacity-20' : 'opacity-60'
+            }`}
             style={{ 
-              height: `${faderPosition}%`,
-              boxShadow: `0 0 10px hsl(var(--neon-cyan) / 0.3)`
+              height: `${Math.max((faderPosition / 100) * (100 - 2), 0)}%`
             }}
           />
           
@@ -224,7 +233,7 @@ export const FuturisticMixerBoard: React.FC<FuturisticMixerBoardProps> = ({
             {[0, 25, 50, 75, 100].map(level => (
               <div
                 key={level}
-                className="absolute left-0 right-0 h-px bg-border/30"
+                className="absolute left-1 right-1 h-px bg-border/20"
                 style={{ bottom: `${level}%` }}
               />
             ))}
@@ -232,34 +241,53 @@ export const FuturisticMixerBoard: React.FC<FuturisticMixerBoardProps> = ({
           
           {/* Fader handle */}
           <div 
-            className={`absolute w-10 h-6 -left-1 bg-card border-2 border-border rounded-lg shadow-2xl cursor-pointer transition-all duration-150 ${
+            ref={handleRef}
+            className={`absolute w-12 h-8 -left-1 bg-card border-2 border-border rounded-xl shadow-2xl cursor-grab active:cursor-grabbing transition-all duration-100 ${
               isDragging || draggedFader === track.id 
-                ? 'border-neon-cyan shadow-neon-cyan/50 scale-110' 
-                : 'hover:border-border/80 hover:shadow-lg'
+                ? 'border-neon-cyan shadow-neon-cyan/60 scale-105' 
+                : 'hover:border-border/80 hover:shadow-xl'
             } backdrop-blur-sm`}
             style={{ 
               bottom: `${faderPosition}%`,
-              transform: `translateY(50%) ${isDragging ? 'scale(1.1)' : 'scale(1)'}`
+              transform: `translateY(50%) ${isDragging ? 'scale(1.05)' : ''}`,
+              boxShadow: isDragging 
+                ? '0 0 20px hsl(var(--neon-cyan) / 0.5), 0 10px 30px rgba(0,0,0,0.3)' 
+                : '0 5px 15px rgba(0,0,0,0.2)'
             }}
           >
-            {/* Handle gradient */}
-            <div className="absolute inset-0 rounded-lg bg-gradient-to-b from-card/90 to-background/90" />
+            {/* Handle surface */}
+            <div className="absolute inset-0 rounded-xl bg-gradient-to-b from-card/95 to-background/95 border border-border/30" />
             
-            {/* Handle grip lines */}
-            <div className="absolute inset-0 flex flex-col justify-center items-center gap-0.5">
-              <div className="w-4 h-0.5 bg-border/60 rounded-full" />
-              <div className="w-4 h-0.5 bg-border/60 rounded-full" />
-              <div className="w-4 h-0.5 bg-border/60 rounded-full" />
+            {/* Handle center indicator */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className={`w-6 h-1 rounded-full ${getStemColor(track.stem_type).replace('from-', 'bg-').replace('to-electric-blue', '').replace('to-neon-cyan', '').replace('to-neon-magenta', '')} opacity-60`} />
             </div>
+            
+            {/* Handle grip texture */}
+            <div className="absolute inset-0 flex flex-col justify-center items-center gap-1">
+              <div className="w-6 h-0.5 bg-border/40 rounded-full" />
+              <div className="w-6 h-0.5 bg-border/40 rounded-full" />
+            </div>
+            
+            {/* Real-time audio glow on handle */}
+            {!track.isMuted && audioLevel > 0.01 && (
+              <div 
+                className={`absolute inset-0 rounded-xl bg-gradient-to-t ${getStemColor(track.stem_type)} transition-all duration-75`}
+                style={{ 
+                  opacity: Math.min(glowIntensity * 0.015, 0.4),
+                  boxShadow: `0 0 ${glowIntensity * 0.8}px hsl(var(--neon-cyan) / ${Math.min(glowIntensity * 0.02, 0.9)})`
+                }}
+              />
+            )}
           </div>
         </div>
         
-        {/* dB markings */}
-        <div className="absolute right-10 top-16 text-xs text-muted-foreground/40 space-y-6 pointer-events-none">
-          <div>0dB</div>
+        {/* dB scale */}
+        <div className="absolute right-12 top-16 text-xs text-muted-foreground/40 space-y-12 pointer-events-none font-mono">
+          <div>+6</div>
+          <div>0</div>
           <div>-12</div>
           <div>-24</div>
-          <div>-36</div>
           <div>-∞</div>
         </div>
       </div>
