@@ -257,12 +257,16 @@ export default function UploadPage() {
         console.log('Database record created, triggering background analysis');
         setUploadedFiles(prev => prev.map(file => file === fileData ? { ...file, progress: 90 } : file));
 
-        // Trigger background analysis
+        // Trigger background analysis only if manual BPM/Key not provided
         try {
-          setUploadedFiles(prev => prev.map(file => file === fileData ? { ...file, status: 'analyzing' } : file));
-          await supabase.functions.invoke('analyze-beat', {
-            body: { beatId: insertedBeat.id }
-          });
+          if (!fileData.manualBpm && !fileData.manualKey) {
+            setUploadedFiles(prev => prev.map(file => file === fileData ? { ...file, status: 'analyzing' } : file));
+            await supabase.functions.invoke('analyze-beat', {
+              body: { beatId: insertedBeat.id }
+            });
+          } else {
+            console.log('Skipping background analysis: manual BPM/Key provided');
+          }
         } catch (analysisError) {
           console.warn('Background analysis failed to start:', analysisError);
         }
