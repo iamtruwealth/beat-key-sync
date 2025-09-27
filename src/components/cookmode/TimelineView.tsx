@@ -9,6 +9,7 @@ import { useWaveformGenerator } from '@/hooks/useWaveformGenerator';
 import { generateWaveformBars } from '@/lib/waveformGenerator';
 import { AudioBridge } from './AudioBridge';
 import { WaveformTrack } from './WaveformTrack';
+import { DraggableClip } from './DraggableClip';
 
 interface Track {
   id: string;
@@ -98,22 +99,61 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     }
   }, [currentTime, onSeek]);
 
-  // Store track durations as clips are created
+  // Store track durations as clips are created with improved duration detection
   useEffect(() => {
-    if (tracks.length > 0) {
-      tracks.forEach(track => {
-        const knownDuration = track.analyzed_duration || track.duration;
-        if (knownDuration && knownDuration > 0) {
-          setTrackDurations(prev => new Map(prev.set(track.id, knownDuration)));
-        } else if (track.bars) {
-          const calculatedDuration = track.bars * secondsPerBar;
-          setTrackDurations(prev => new Map(prev.set(track.id, calculatedDuration)));
+    const detectTrackDurations = async () => {
+      if (tracks.length > 0) {
+        const newDurations = new Map(trackDurations);
+        
+        for (const track of tracks) {
+          if (!trackDurations.has(track.id)) {
+            let detectedDuration = track.analyzed_duration || track.duration;
+            
+            // Try to detect actual audio duration
+            if (!detectedDuration || detectedDuration <= 0) {
+              try {
+                const audio = new Audio();
+                await new Promise<void>((resolve, reject) => {
+                  const timeout = setTimeout(() => reject(new Error('Timeout')), 5000);
+                  audio.onloadedmetadata = () => {
+                    clearTimeout(timeout);
+                    detectedDuration = audio.duration;
+                    console.log(`Detected duration for ${track.name}: ${detectedDuration} seconds`);
+                    resolve();
+                  };
+                  audio.onerror = () => {
+                    clearTimeout(timeout);
+                    reject(new Error('Failed to load'));
+                  };
+                  audio.src = track.file_url;
+                });
+                
+                if (detectedDuration && detectedDuration > 0) {
+                  newDurations.set(track.id, detectedDuration);
+                }
+              } catch (error) {
+                console.warn(`Could not detect duration for ${track.name}:`, error);
+              }
+            } else {
+              newDurations.set(track.id, detectedDuration);
+            }
+            
+            // Also calculate from bars if available
+            if (track.bars) {
+              const calculatedDuration = track.bars * secondsPerBar;
+              newDurations.set(track.id, calculatedDuration);
+            }
+          }
         }
-      });
-    }
-  }, [tracks, secondsPerBar]);
+        
+        setTrackDurations(newDurations);
+      }
+    };
+    
+    detectTrackDurations();
+  }, [tracks, secondsPerBar, trackDurations]);
 
-  // Initialize audio clips from tracks - ensure proper positioning
+  // Initialize audio clips from tracks - ensure proper positioning with actual durations
   useEffect(() => {
     console.log('Checking clips initialization:', { 
       audioClipsLength: audioClips.length, 
@@ -125,23 +165,30 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     // Always recreate clips when tracks change to ensure all tracks get clips
     if (tracks.length > 0) {
       const initialClips: AudioClip[] = tracks.map(track => {
-        // Prefer computed bars from actual duration if bars not provided
+        // Prefer actual detected duration over defaults
         const knownDuration = trackDurations.get(track.id) || track.analyzed_duration || track.duration;
         let resolvedBars: number = track.bars ?? 0;
-        if (!resolvedBars) {
-          if (knownDuration && knownDuration > 0) {
-            resolvedBars = Math.max(1, Math.round(knownDuration / secondsPerBar));
-          } else {
-            resolvedBars = 4; // sensible default for typical loops
-          }
+        let clipDuration: number;
+        
+        if (track.bars) {
+          // Use specified bars
+          resolvedBars = track.bars;
+          clipDuration = track.bars * secondsPerBar;
+        } else if (knownDuration && knownDuration > 0) {
+          // Use actual detected duration and calculate bars
+          clipDuration = knownDuration;
+          resolvedBars = Math.max(1, Math.round(knownDuration / secondsPerBar));
+        } else {
+          // Fallback to default
+          resolvedBars = 4;
+          clipDuration = 4 * secondsPerBar;
         }
-        const clipDuration = resolvedBars * secondsPerBar;
         
         const clip: AudioClip = {
           id: `${track.id}-clip-0`,
           trackId: track.id,
           startTime: 0,
-          endTime: clipDuration, // Use bars-based duration for clip length
+          endTime: clipDuration, // Use actual duration when available
           originalTrack: track
         };
         console.log('Creating clip for track:', track.name, 'Bars:', resolvedBars, 'Duration:', clipDuration, 'Known duration:', knownDuration, 'Clip:', clip);
@@ -166,7 +213,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         setAudioClips(initialClips);
       }
     }
-  }, [tracks, trackDurations]);
+  }, [tracks, trackDurations, secondsPerBar]);
 
   // Grid snapping function
   const snapToGrid = (time: number): number => {
@@ -243,6 +290,21 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       description: `${clip.originalTrack.name} duplicated`,
     });
   }, [audioClips, snapToGrid, toast]);
+
+  // Move clip function for drag and drop
+  const moveClip = useCallback((clipId: string, newStartTime: number) => {
+    setAudioClips(prev => prev.map(clip => {
+      if (clip.id === clipId) {
+        const duration = clip.endTime - clip.startTime;
+        return {
+          ...clip,
+          startTime: newStartTime,
+          endTime: newStartTime + duration
+        };
+      }
+      return clip;
+    }));
+  }, []);
 
   // Delete track function
   const deleteTrack = useCallback((trackId: string) => {
@@ -425,7 +487,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     return markers;
   };
 
-  // Enhanced Waveform Track Component using WaveSurfer.js
+  // Enhanced Waveform Track Component with draggable functionality
   const EnhancedWaveformTrack: React.FC<{
     track: Track;
     clips: AudioClip[];
@@ -463,43 +525,34 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           if (!isVisible) return null;
 
           return (
-            <div
+            <DraggableClip
               key={clip.id}
-              className="absolute"
-              style={{
-                left: clipLeft,
-                width: clipWidth,
-                height: trackHeight - 8,
-                top: 4
-              }}
-            >
-              <WaveformTrack
-                clip={clip}
-                containerId={`wave-${clip.id}`}
-                currentTime={currentTime}
-                isPlaying={isPlaying}
-                pixelsPerSecond={pixelsPerSecond}
-                trackHeight={trackHeight - 8}
-                onClipClick={(clipId, event) => {
-                  const newSelection = new Set(selectedClips);
-                  if (event.ctrlKey || event.metaKey) {
-                    if (newSelection.has(clipId)) {
-                      newSelection.delete(clipId);
-                    } else {
-                      newSelection.add(clipId);
-                    }
+              clip={clip}
+              currentTime={currentTime}
+              isPlaying={isPlaying}
+              pixelsPerSecond={pixelsPerSecond}
+              trackHeight={trackHeight}
+              selectedClips={selectedClips}
+              secondsPerBeat={secondsPerBeat}
+              onClipMove={moveClip}
+              onClipSelect={(clipId, event) => {
+                const newSelection = new Set(selectedClips);
+                if (event.ctrlKey || event.metaKey) {
+                  if (newSelection.has(clipId)) {
+                    newSelection.delete(clipId);
                   } else {
-                    newSelection.clear();
                     newSelection.add(clipId);
                   }
-                  setSelectedClips(newSelection);
-                }}
-                onClipDoubleClick={(clipId) => {
-                  copyClip(clipId);
-                }}
-                className={selectedClips.has(clip.id) ? 'ring-2 ring-primary' : ''}
-              />
-            </div>
+                } else {
+                  newSelection.clear();
+                  newSelection.add(clipId);
+                }
+                setSelectedClips(newSelection);
+              }}
+              onClipDoubleClick={(clipId) => {
+                copyClip(clipId);
+              }}
+            />
           );
         })}
       </div>
