@@ -82,13 +82,21 @@ export class SessionLoopEngine {
         // Wait for buffer to load - buffer loads automatically with URL in constructor
         await new Promise<void>((resolve, reject) => {
           if (player.loaded) {
+            console.log(`Clip ${clip.id} already loaded`);
             resolve();
           } else {
+            console.log(`Waiting for clip ${clip.id} to load...`);
+            const timeout = setTimeout(() => {
+              reject(new Error(`Timeout loading clip ${clip.id}`));
+            }, 10000); // 10 second timeout
+            
             const checkLoaded = () => {
               if (player.loaded) {
+                clearTimeout(timeout);
+                console.log(`Clip ${clip.id} loaded successfully`);
                 resolve();
               } else {
-                setTimeout(checkLoaded, 10);
+                setTimeout(checkLoaded, 100);
               }
             };
             checkLoaded();

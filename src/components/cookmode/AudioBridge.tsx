@@ -118,6 +118,7 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
     if (tracksChanged) {
       console.log('AudioBridge: Tracks changed, updating clips');
       const clips = createClipsFromTracks(tracks, bpm);
+      console.log('AudioBridge: Created clips:', clips);
       sessionLoopEngine.setClips(clips);
       previousTracks.current = [...tracks];
     }
