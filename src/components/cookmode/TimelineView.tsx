@@ -43,6 +43,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   onTracksUpdate,
   onToolAction
 }) => {
+  console.log('TimelineView render:', { isPlaying, currentTime, tracksCount: tracks.length });
   const [activeTool] = useState<ToolType>('draw');
   const [snapEnabled] = useState(true);
   const timelineRef = useRef<HTMLDivElement>(null);
@@ -315,10 +316,13 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
               
               {/* Playhead */}
               <div
-                className="absolute top-0 h-full w-1 bg-primary z-20 pointer-events-none shadow-lg"
+                className="absolute top-0 h-full w-1 bg-red-500 z-20 pointer-events-none shadow-lg"
                 style={{ left: `${currentTime * pixelsPerSecond}px` }}
               >
-                <div className="absolute top-0 w-3 h-3 bg-primary rounded-full -translate-x-1 -translate-y-1"></div>
+                <div className="absolute top-0 w-3 h-3 bg-red-500 rounded-full -translate-x-1 -translate-y-1"></div>
+                <div className="absolute -top-6 -left-8 text-xs bg-black/80 text-white px-1 rounded">
+                  {formatTime(currentTime)}
+                </div>
               </div>
             </div>
           </div>
