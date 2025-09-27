@@ -7,7 +7,7 @@ import { BPMSyncIndicator } from './BPMSyncIndicator';
 import { useToast } from "@/hooks/use-toast";
 import { useWaveformGenerator } from '@/hooks/useWaveformGenerator';
 import { generateWaveformBars } from '@/lib/waveformGenerator';
-import { toneAudioEngine } from '@/lib/toneAudioEngine';
+import { AudioBridge } from './AudioBridge';
 
 interface Track {
   id: string;
@@ -60,38 +60,12 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const [audioClips, setAudioClips] = useState<AudioClip[]>([]);
   const [selectedClips, setSelectedClips] = useState<Set<string>>(new Set());
   const [copiedClip, setCopiedClip] = useState<AudioClip | null>(null);
-  const [engineInitialized, setEngineInitialized] = useState(false);
   const { toast } = useToast();
-
-  // Initialize Tone.js engine
-  useEffect(() => {
-    const initEngine = async () => {
-      try {
-        await toneAudioEngine.initialize();
-        setEngineInitialized(true);
-      } catch (error) {
-        console.error('Failed to initialize audio engine:', error);
-        toast({
-          title: "Audio Error",
-          description: "Failed to initialize audio engine",
-          variant: "destructive"
-        });
-      }
-    };
-    initEngine();
-  }, [toast]);
 
   // Calculate timing constants with precise BPM
   const secondsPerBeat = 60 / bpm; // Precise: 60 seconds / beats per minute
   const beatsPerBar = 4;
   const secondsPerBar = secondsPerBeat * beatsPerBar;
-
-  // Update engine BPM when it changes
-  useEffect(() => {
-    if (engineInitialized) {
-      toneAudioEngine.setBPM(bpm);
-    }
-  }, [bpm, engineInitialized]);
 
   // Calculate fallback session length based on clips and tracks
   const lastClipEndTime = Math.max(
@@ -108,127 +82,35 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     4 * secondsPerBar // Minimum 4 bars
   );
    
-
-  // Calculate session length based on Tone.js loop duration
-  const sessionDurationFromEngine = engineInitialized 
-    ? (toneAudioEngine.loopDurationInBeats * 60) / bpm 
-    : lastClipEndTime;
-  const sessionDuration = sessionDurationFromEngine || 4 * secondsPerBar; // Fallback to 4 bars
+  // Calculate session length based on clips and tracks
+  const sessionDuration = lastClipEndTime || 4 * secondsPerBar; // Fallback to 4 bars
   const totalBars = Math.ceil(sessionDuration / secondsPerBar);
   
   const pixelsPerSecond = 40;
   const pixelsPerBeat = pixelsPerSecond * secondsPerBeat;
   const pixelsPerBar = pixelsPerBeat * beatsPerBar;
 
-  // Initialize tracks with Tone.js engine
+  // Handle tick updates from AudioBridge
+  const handleTick = useCallback((seconds: number) => {
+    if (Math.abs(seconds - currentTime) > 0.05) {
+      onSeek(seconds);
+    }
+  }, [currentTime, onSeek]);
+
+  // Store track durations as clips are created
   useEffect(() => {
-    if (!engineInitialized || tracks.length === 0) return;
-
-    const initializeTracks = async () => {
-      try {
-        // Clear existing tracks from engine
-        tracks.forEach(track => {
-          toneAudioEngine.removeTrack(track.id);
-        });
-
-        // Add tracks to engine
-        for (const track of tracks) {
-          if (track.file_url) {
-            // Calculate duration in beats
-            const knownDuration = track.analyzed_duration || track.duration;
-            const durationInBeats = knownDuration 
-              ? Math.max(4, Math.round((knownDuration / secondsPerBeat) / 4) * 4) // Round to nearest 4 beats
-              : (track.bars || 4) * 4; // Default to 4 bars = 16 beats
-
-            await toneAudioEngine.addTrack(
-              track.id,
-              track.file_url,
-              0, // Start at beginning
-              durationInBeats,
-              track.volume || 1,
-              track.isMuted || false,
-              track.isSolo || false
-            );
-
-            // Store duration for UI
-            const actualDuration = durationInBeats * secondsPerBeat;
-            setTrackDurations(prev => new Map(prev.set(track.id, actualDuration)));
-          }
+    if (tracks.length > 0) {
+      tracks.forEach(track => {
+        const knownDuration = track.analyzed_duration || track.duration;
+        if (knownDuration && knownDuration > 0) {
+          setTrackDurations(prev => new Map(prev.set(track.id, knownDuration)));
+        } else if (track.bars) {
+          const calculatedDuration = track.bars * secondsPerBar;
+          setTrackDurations(prev => new Map(prev.set(track.id, calculatedDuration)));
         }
-      } catch (error) {
-        console.error('Failed to initialize tracks:', error);
-        toast({
-          title: "Audio Error", 
-          description: "Failed to load audio tracks",
-          variant: "destructive"
-        });
-      }
-    };
-
-    initializeTracks();
-  }, [tracks, engineInitialized, secondsPerBeat, toast]);
-
-  // Handle playback state changes
-  useEffect(() => {
-    if (!engineInitialized) return;
-
-    if (isPlaying && !toneAudioEngine.isPlaying) {
-      toneAudioEngine.startPlayback();
-    } else if (!isPlaying && toneAudioEngine.isPlaying) {
-      toneAudioEngine.stopPlayback(); 
+      });
     }
-  }, [isPlaying, engineInitialized]);
-
-  // Sync currentTime with Tone.js transport position
-  useEffect(() => {
-    if (!engineInitialized || !isPlaying) return;
-
-    const updatePosition = () => {
-      const position = toneAudioEngine.getCurrentPosition();
-      const loopDurationSec = (toneAudioEngine.loopDurationInBeats * 60) / bpm || sessionDuration;
-      const displayPos = loopDurationSec > 0 ? (position % loopDurationSec) : position;
-
-      if (Math.abs(displayPos - currentTime) > 0.05) {
-        onSeek(displayPos);
-      }
-    };
-
-    const intervalId = setInterval(updatePosition, 100);
-    return () => clearInterval(intervalId);
-  }, [engineInitialized, isPlaying, bpm, currentTime, onSeek, sessionDuration]);
-
-  // Update track properties in engine
-  const updateTrackProperties = useCallback((trackId: string, updates: Partial<Track>) => {
-    if (!engineInitialized) return;
-
-    if (updates.volume !== undefined) {
-      toneAudioEngine.updateTrackVolume(trackId, updates.volume);
-    }
-    if (updates.isMuted !== undefined) {
-      toneAudioEngine.muteTrack(trackId, updates.isMuted);
-    }
-    if (updates.isSolo !== undefined) {
-      toneAudioEngine.soloTrack(trackId, updates.isSolo);
-    }
-  }, [engineInitialized]);
-
-  // Sync currentTime with Tone.js transport position
-  useEffect(() => {
-    if (!engineInitialized || !isPlaying) return;
-
-    const updatePosition = () => {
-      const position = toneAudioEngine.getCurrentPosition();
-      const loopDurationSec = (toneAudioEngine.loopDurationInBeats * 60) / bpm || sessionDuration;
-      const displayPos = loopDurationSec > 0 ? (position % loopDurationSec) : position;
-
-      if (Math.abs(displayPos - currentTime) > 0.05) {
-        onSeek(displayPos);
-      }
-    };
-
-    const intervalId = setInterval(updatePosition, 100);
-    return () => clearInterval(intervalId);
-  }, [engineInitialized, isPlaying, bpm, currentTime, onSeek, sessionDuration]);
+  }, [tracks, secondsPerBar]);
 
   // Initialize audio clips from tracks - ensure proper positioning
   useEffect(() => {
@@ -387,11 +269,6 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       return newSet;
     });
     
-    // Remove track from Tone.js engine
-    if (engineInitialized) {
-      toneAudioEngine.removeTrack(trackId);
-    }
-    
     // Update tracks via callback
     if (onTracksUpdate) {
       const updatedTracks = tracks.filter(t => t.id !== trackId);
@@ -402,7 +279,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       title: "Track Deleted",
       description: `${track.name} removed from session`,
     });
-  }, [tracks, audioClips, onTracksUpdate, toast, engineInitialized]);
+  }, [tracks, audioClips, onTracksUpdate, toast]);
 
   // Delete clip function
   const deleteClip = useCallback((clipId: string) => {
@@ -458,24 +335,21 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
 
   // Audio playback handler for individual tracks (mute/unmute)
   const handleTrackPlay = useCallback(async (track: Track) => {
-    if (engineInitialized) {
-      const newMutedState = !(track.isMuted || false);
-      toneAudioEngine.muteTrack(track.id, newMutedState);
-      
-      // Update track in parent component
-      if (onTracksUpdate) {
-        const updatedTracks = tracks.map(t => 
-          t.id === track.id ? { ...t, isMuted: newMutedState } : t
-        );
-        onTracksUpdate(updatedTracks);
-      }
-      
-      toast({
-        title: newMutedState ? "Track Muted" : "Track Unmuted",
-        description: track.name,
-      });
+    const newMutedState = !(track.isMuted || false);
+    
+    // Update track in parent component
+    if (onTracksUpdate) {
+      const updatedTracks = tracks.map(t => 
+        t.id === track.id ? { ...t, isMuted: newMutedState } : t
+      );
+      onTracksUpdate(updatedTracks);
     }
-  }, [engineInitialized, tracks, onTracksUpdate, toast]);
+    
+    toast({
+      title: newMutedState ? "Track Muted" : "Track Unmuted",
+      description: track.name,
+    });
+  }, [tracks, onTracksUpdate, toast]);
 
   // Update timeline width
   useEffect(() => {
@@ -483,41 +357,6 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       setTimelineWidth(timelineRef.current.offsetWidth);
     }
   }, []);
-
-  // Automatic loop logic - handled by Tone.js engine
-  useEffect(() => {
-    // Session duration is handled by the engine's loop region
-  }, []);
-
-  // Track volume and settings sync with engine  
-  useEffect(() => {
-    if (!engineInitialized) return;
-    
-    tracks.forEach(track => {
-      updateTrackProperties(track.id, {
-        volume: (track.volume || 1) * (masterVolume / 100),
-        isMuted: track.isMuted,
-        isSolo: track.isSolo
-      });
-    });
-  }, [tracks, masterVolume, engineInitialized, updateTrackProperties]);
-
-  // Cleanup when component unmounts
-  useEffect(() => {
-    return () => {
-      if (engineInitialized) {
-        toneAudioEngine.dispose();
-      }
-    };
-  }, [engineInitialized]);
-
-  // Handle seeking  
-  const handleSeek = useCallback((time: number) => {
-    if (engineInitialized) {
-      toneAudioEngine.seekTo(time);
-    }
-    onSeek(time);
-  }, [engineInitialized, onSeek]);
 
   const handleTimelineClick = useCallback((event: React.MouseEvent) => {
     if (!timelineRef.current) return;
@@ -530,126 +369,85 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     if (copiedClip && (event.ctrlKey || event.metaKey)) {
       pasteClip(time);
     } else {
-      // Otherwise seek to that position  
-      handleSeek(Math.max(0, Math.min(time, sessionDuration)));
+      // Otherwise seek to the clicked position
+      onSeek(time);
     }
-    
-    // Clear selection if clicking on empty space
-    if (!event.ctrlKey && !event.metaKey) {
-      setSelectedClips(new Set());
-    }
-  }, [pixelsPerSecond, sessionDuration, handleSeek, snapToGrid, copiedClip, pasteClip]);
+  }, [copiedClip, pasteClip, onSeek, snapToGrid, pixelsPerSecond]);
 
+  // Utility functions
   const formatTime = (seconds: number) => {
+    const bars = Math.floor(seconds / secondsPerBar);
+    const beats = Math.floor((seconds % secondsPerBar) / secondsPerBeat);
+    return `${bars + 1}.${beats + 1}`;
+  };
+
+  const formatPosition = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${minutes}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const formatPosition = (seconds: number) => {
-    const bar = Math.floor(seconds / secondsPerBar) + 1;
-    const beat = Math.floor((seconds % secondsPerBar) / secondsPerBeat) + 1;
-    return `${bar}.${beat}`;
-  };
-
   const getStemColor = (stemType: string) => {
     const colors = {
-      melody: '#00f5ff',
-      drums: '#0080ff', 
-      bass: '#ff00ff',
-      vocal: '#00f5ff',
-      fx: '#0080ff',
-      other: '#888888'
+      drums: 'bg-red-500/20 border-red-500',
+      bass: 'bg-blue-500/20 border-blue-500',
+      melody: 'bg-green-500/20 border-green-500',
+      vocals: 'bg-purple-500/20 border-purple-500',
+      other: 'bg-gray-500/20 border-gray-500'
     };
     return colors[stemType as keyof typeof colors] || colors.other;
   };
 
+  // Render bar markers
   const renderBarMarkers = () => {
     const markers = [];
     for (let bar = 0; bar < totalBars; bar++) {
+      const x = bar * pixelsPerBar;
       markers.push(
-        <div
-          key={bar}
-          className="absolute top-0 bottom-0 border-l border-border/30"
-          style={{ left: bar * pixelsPerBar }}
-        >
-          <span className="absolute top-1 left-1 text-xs text-muted-foreground font-mono">
-            {bar + 1}
-          </span>
+        <div key={`bar-${bar}`} className="absolute h-full">
+          <div className="w-px h-full bg-white/20 relative" style={{ left: x }}>
+            <span className="absolute -top-4 left-1 text-xs text-gray-400">
+              {bar + 1}
+            </span>
+          </div>
+          {/* Beat markers */}
+          {[1, 2, 3].map(beat => (
+            <div
+              key={`beat-${bar}-${beat}`}
+              className="absolute w-px h-full bg-white/10"
+              style={{ left: x + beat * pixelsPerBeat }}
+            />
+          ))}
         </div>
       );
-      
-      // Beat markers
-      for (let beat = 1; beat < beatsPerBar; beat++) {
-        markers.push(
-          <div
-            key={`${bar}-${beat}`}
-            className="absolute top-0 bottom-0 border-l border-border/20"
-            style={{ left: bar * pixelsPerBar + beat * pixelsPerBeat }}
-          />
-        );
-      }
     }
     return markers;
   };
 
-  const WaveformTrack: React.FC<{ 
-    track: Track; 
-    index: number; 
-    pixelsPerSecond: number; 
+  // Waveform Track Component
+  const WaveformTrack: React.FC<{
+    track: Track;
+    clips: AudioClip[];
+    trackY: number;
     trackHeight: number;
-  }> = ({ track, index, pixelsPerSecond, trackHeight }) => {
-    // Account for master track space (84px) + this track's position
-    const masterTrackHeight = 84;
-    const trackY = masterTrackHeight + (index - 1) * trackHeight; // index-1 because we're already offset by +1
-    const trackClips = audioClips.filter(clip => clip.trackId === track.id);
-    
-    console.log(`WaveformTrack for ${track.name}:`, {
+  }> = ({ track, clips, trackY, trackHeight }) => {
+    const trackClips = clips.filter(clip => clip.trackId === track.id);
+
+    console.log('WaveformTrack for', track.name, ':', {
       trackId: track.id,
-      trackClips: trackClips,
-      totalClips: audioClips.length,
-      allClipTrackIds: audioClips.map(c => c.trackId)
+      trackClips,
+      totalClips: clips.length,
+      allClipTrackIds: clips.map(c => c.trackId)
     });
 
     return (
-      <div 
-        className="absolute overflow-hidden" 
-        style={{ 
-          top: trackY,
-          height: trackHeight,
-          width: '100%'
-        }}
-      >
-        {/* Track background with proper bounds */}
-        <div 
-          className="absolute inset-0 border-b border-border/10" 
-          style={{ 
-            top: 0,
-            height: trackHeight,
-            left: 0,
-            right: 0 
-          }} 
-        />
-        
-        {trackClips.length === 0 ? (
-          // Fallback: create temporary clip if none exist
-          <div className="text-red-500 p-2 text-xs">
-            No clips found for {track.name} (ID: {track.id})
-            <br />
-            Track clips: {trackClips.length}, Total clips: {audioClips.length}
-          </div>
-        ) : (
-          trackClips.map((clip) => {
-          const { waveformData, isLoading } = useWaveformGenerator({ 
-            audioUrl: clip.originalTrack.file_url,
-            targetWidth: 500 
-          });
-
+      <div className="relative w-full h-full">
+        {trackClips.map(clip => {
           const clipWidth = (clip.endTime - clip.startTime) * pixelsPerSecond;
           const clipLeft = clip.startTime * pixelsPerSecond;
-          const isSelected = selectedClips.has(clip.id);
+          const isVisible = clipLeft < timelineWidth && clipLeft + clipWidth > 0;
 
-          console.log(`Rendering clip for ${clip.originalTrack.name}:`, {
+          console.log('Rendering clip for', track.name, ':', {
             clipId: clip.id,
             startTime: clip.startTime,
             endTime: clip.endTime,
@@ -658,339 +456,212 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
             pixelsPerSecond,
             trackY,
             trackHeight,
-            isVisible: clipWidth > 0 && clipLeft >= 0
+            isVisible
           });
 
-          // Generate waveform bars for visualization - show waveform within clip's bar duration
-          let waveformBars: number[] = [];
-          const clipDuration = clip.endTime - clip.startTime;
-          const clipBars = Math.max(1, Math.round(clipDuration / secondsPerBar));
-          
-          if (waveformData?.peaks) {
-            // The waveform should fill the entire clip (which is based on bars)
-            const targetBars = Math.max(Math.floor(clipWidth / 8), clipBars * 4); // 4 waveform bars per musical bar
-            waveformBars = generateWaveformBars(waveformData.peaks, targetBars);
-          }
+          if (!isVisible) return null;
 
           return (
             <div
               key={clip.id}
-              className={`absolute bg-gradient-to-r border rounded overflow-hidden cursor-pointer group transition-all ${
-                isSelected 
-                  ? 'from-neon-cyan/40 to-electric-blue/60 border-neon-cyan shadow-neon-cyan shadow-[0_0_10px]' 
-                  : 'from-primary/20 to-primary/40 border-primary/30 hover:border-primary/50'
-              }`}
+              className={`absolute border-2 rounded cursor-pointer overflow-hidden ${
+                selectedClips.has(clip.id) ? 'ring-2 ring-primary' : ''
+              } ${getStemColor(track.stem_type)}`}
               style={{
-                top: 8, // position within this track lane only
                 left: clipLeft,
                 width: clipWidth,
-                height: trackHeight - 16,
-                zIndex: 10,
-                minWidth: '20px',
+                height: trackHeight - 8,
+                top: 4
               }}
-              title={`${clip.originalTrack.name} - Click to select, Double-click to duplicate`}
               onClick={(e) => {
                 e.stopPropagation();
-                console.log('Clip clicked:', clip.originalTrack.name, 'Clip ID:', clip.id);
-                setSelectedClips(prev => {
-                  const newSet = new Set(prev);
-                  if (e.ctrlKey || e.metaKey) {
-                    if (newSet.has(clip.id)) {
-                      newSet.delete(clip.id);
-                      console.log('Removed from selection:', clip.id);
-                    } else {
-                      newSet.add(clip.id);
-                      console.log('Added to selection:', clip.id);
-                    }
+                const newSelection = new Set(selectedClips);
+                if (e.ctrlKey || e.metaKey) {
+                  if (newSelection.has(clip.id)) {
+                    newSelection.delete(clip.id);
                   } else {
-                    newSet.clear();
-                    newSet.add(clip.id);
-                    console.log('Single selection:', clip.id);
+                    newSelection.add(clip.id);
                   }
-                  console.log('New selection:', Array.from(newSet));
-                  return newSet;
-                });
-              }}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                console.log('Right-click on clip:', clip.originalTrack.name, 'Clip ID:', clip.id);
-                setSelectedClips(new Set([clip.id]));
-                // Simple context menu using confirm dialogs for now
-                const action = prompt('Action: (c)opy, (d)uplicate, (delete)');
-                console.log('Context menu action:', action);
-                switch(action?.toLowerCase()) {
-                  case 'c':
-                  case 'copy':
-                    copyClip(clip.id);
-                    break;
-                  case 'd':
-                  case 'duplicate':
-                    duplicateClip(clip.id);
-                    break;
-                  case 'delete':
-                    deleteClip(clip.id);
-                    break;
+                } else {
+                  newSelection.clear();
+                  newSelection.add(clip.id);
                 }
+                setSelectedClips(newSelection);
               }}
               onDoubleClick={() => {
-                console.log('Double-click on clip:', clip.originalTrack.name, 'Clip ID:', clip.id);
-                duplicateClip(clip.id);
+                copyClip(clip.id);
               }}
             >
-              {/* Waveform visualization */}
-              <div className="h-full p-1 flex items-center overflow-hidden">
-                {isLoading ? (
-                  <div className="flex-1 h-8 bg-gradient-to-r from-neon-cyan/20 to-electric-blue/20 rounded flex items-center justify-center">
-                    <span className="text-xs text-foreground/60">Loading...</span>
-                  </div>
-                ) : waveformBars.length > 0 ? (
-                  <div className="flex-1 h-8 flex items-end gap-px overflow-hidden">
-                    {waveformBars.map((bar, i) => (
-                      <div
-                        key={i}
-                        className="bg-gradient-to-t from-neon-cyan/60 to-electric-blue/60 rounded-sm flex-1 min-w-[1px]"
-                        style={{ height: `${Math.max(bar * 100, 2)}%` }}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex-1 h-8 bg-gradient-to-r from-neon-cyan/20 to-electric-blue/20 rounded flex items-center justify-center">
-                    <span className="text-xs text-foreground/60">
-                      {clipBars} bars ({clipDuration.toFixed(1)}s)
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Selection indicator */}
-              {isSelected && (
-                <div className="absolute inset-0 border-2 border-neon-cyan rounded pointer-events-none">
-                  <div className="absolute -top-6 left-0 bg-neon-cyan text-black text-xs px-1 rounded">
-                    {clip.originalTrack.name}
-                  </div>
-                </div>
-              )}
-
-              {/* Clip actions (visible on hover) - high z-index to stay on top */}
-              <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 z-20 bg-background/90 rounded p-0.5">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-4 w-4 p-0 text-xs hover:bg-primary/20"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    duplicateClip(clip.id);
-                  }}
-                  title="Duplicate (Ctrl+D)"
-                >
-                  ⧉
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-4 w-4 p-0 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/20"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (confirm(`Delete clip "${clip.originalTrack.name}"?`)) {
-                      deleteClip(clip.id);
-                    }
-                  }}
-                  title="Delete Clip (Del)"
-                >
-                  ×
-                </Button>
-              </div>
-
-              {/* Mute/Solo overlay */}
-              {(track.isMuted || (tracks.some(t => t.isSolo) && !track.isSolo)) && (
-                <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
-                  <span className="text-xs text-muted-foreground">
-                    {track.isMuted ? 'MUTED' : 'SOLO OFF'}
-                  </span>
-                </div>
-              )}
-
-              {/* Clip name - moved to bottom to avoid covering controls */}
-              <div className="absolute bottom-1 left-1 z-10">
-                <Badge variant="outline" className="text-xs bg-background/90 text-foreground border-primary/30 px-1 py-0">
-                  {clip.originalTrack.name.length > 15 ? 
-                    `${clip.originalTrack.name.substring(0, 15)}...` : 
-                    clip.originalTrack.name
-                  }
+              <div className="flex items-center justify-between p-1 h-full">
+                <span className="text-xs font-medium text-white truncate">
+                  {track.name}
+                </span>
+                <Badge variant="outline" className="text-xs">
+                  {formatTime(clip.startTime)}
                 </Badge>
               </div>
             </div>
           );
-        })
-        )}
+        })}
       </div>
     );
   };
 
   return (
-    <div className="h-full flex flex-col bg-background/50">
-      {/* Instructions Panel */}
-      <div className="px-4 py-2 bg-card/10 border-b border-border/30 text-xs text-muted-foreground">
-        <span className="font-medium">Timeline Controls:</span> Click to select clips • Double-click to duplicate • Right-click for menu • 
-        <span className="font-medium">Shortcuts:</span> Ctrl+C copy • Ctrl+V paste • Ctrl+D duplicate • Del delete • Ctrl+Click timeline to paste
-      </div>
+    <>
+      {/* Audio Bridge - handles all audio engine logic */}
+      <AudioBridge
+        tracks={tracks}
+        bpm={bpm}
+        isPlaying={isPlaying}
+        onTick={handleTick}
+        onPlayPause={onPlayPause}
+        onSeek={onSeek}
+      />
+      
+      <div className="timeline-view h-full flex flex-col bg-black/20"
+           onClick={() => setSelectedClips(new Set())}>
+        
+        {/* Instructions Panel */}
+        <div className="bg-black/40 border-b border-white/10 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-medium text-white">Timeline Controls</h3>
+            <BPMSyncIndicator />
+          </div>
+          <div className="flex items-center gap-4 text-xs text-gray-400">
+            <span>Click: Seek</span>
+            <span>Ctrl+Click: Paste Clip</span>
+            <span>Double-click Clip: Copy</span>
+            <span>Ctrl+C/V/D: Copy/Paste/Duplicate</span>
+            <span>Del: Delete</span>
+          </div>
+        </div>
 
-      {/* Main Timeline Area */}
-      <div className="flex-1 relative overflow-auto">
-        <div className="flex">
-          {/* Track names sidebar */}
-          <div className="w-48 flex-shrink-0 bg-card/10 border-r border-border/30">
-            <div className="h-8"></div> {/* Spacer for ruler */}
-            
-            {/* Master Track */}
-            <div className="h-20 border-b-2 border-neon-cyan/30 p-2 flex flex-col justify-center bg-gradient-to-r from-neon-cyan/10 to-electric-blue/10">
-              <div className="text-xs font-bold text-neon-cyan mb-2 flex items-center gap-2">
-                <Volume2 className="w-3 h-3" />
-                MASTER
+        {/* Main Timeline Area */}
+        <div className="flex flex-1 overflow-hidden">
+          {/* Track Names Sidebar */}
+          <div className="w-48 bg-black/60 border-r border-white/10 flex flex-col">
+            {/* Master Volume */}
+            <div className="p-3 border-b border-white/10">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-medium text-white">Master</span>
+                <span className="text-xs text-gray-400">{masterVolume}%</span>
               </div>
-              <div className="flex items-center gap-2">
-                <Volume2 className="w-3 h-3 text-neon-cyan" />
-                <Slider
-                  value={[masterVolume]}
-                  onValueChange={(value) => setMasterVolume(value[0])}
-                  max={100}
-                  min={0}
-                  step={1}
-                  className="flex-1 h-2"
-                />
-                <span className="text-xs text-neon-cyan font-mono w-8">
-                  {masterVolume}
-                </span>
-              </div>
+              <Slider
+                value={[masterVolume]}
+                onValueChange={(value) => setMasterVolume(value[0])}
+                max={150}
+                step={1}
+                className="w-full"
+              />
             </div>
 
+            {/* Track Controls */}
             {tracks.map((track, index) => {
-              console.log(`Sidebar track ${index}: ${track.name} (ID: ${track.id})`);
+              console.log('Sidebar track', index, ':', track.name, '(ID:', track.id, ')');
               return (
-                <div
-                  key={track.id}
-                  className="h-[68px] border-b border-border/20 p-2 flex flex-col justify-center group cursor-pointer hover:bg-card/20 transition-colors relative"
-                  onClick={() => handleTrackPlay(track)}
-                  title={track.name} // Show full name on hover
-                >
-                  <div className="text-xs font-medium text-foreground truncate max-w-full mb-1">
-                    {track.name}
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <Badge 
-                      variant="outline" 
-                      className="text-xs"
-                      style={{ color: getStemColor(track.stem_type) }}
-                    >
-                      {track.stem_type}
-                    </Badge>
+                <div key={track.id} className="p-3 border-b border-white/10 bg-black/20">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-medium text-white truncate" title={track.name}>
+                      {track.name}
+                    </span>
                     <div className="flex items-center gap-1">
                       <Button
-                        variant="ghost"
                         size="sm"
-                        className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleTrackPlay(track);
-                        }}
+                        variant={track.isMuted ? "destructive" : "outline"}
+                        className="h-6 w-6 p-0"
+                        onClick={() => handleTrackPlay(track)}
                       >
-                        <Play className="w-3 h-3" />
+                        {track.isMuted ? <VolumeX className="h-3 w-3" /> : <Volume2 className="h-3 w-3" />}
                       </Button>
                       <Button
-                        variant="ghost"
                         size="sm"
-                        className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-300"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (confirm(`Delete track "${track.name}"? This will remove the track and all its clips from the session.`)) {
-                            deleteTrack(track.id);
-                          }
-                        }}
-                        title="Delete Track"
+                        variant="ghost"
+                        className="h-6 w-6 p-0 text-red-400 hover:text-red-300"
+                        onClick={() => deleteTrack(track.id)}
                       >
                         ×
                       </Button>
                     </div>
                   </div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs text-gray-400">Vol</span>
+                    <span className="text-xs text-gray-400">{Math.round((track.volume || 1) * 100)}%</span>
+                  </div>
+                  <Slider
+                    value={[Math.round((track.volume || 1) * 100)]}
+                    onValueChange={(value) => {
+                      if (onTracksUpdate) {
+                        const updatedTracks = tracks.map(t => 
+                          t.id === track.id ? { ...t, volume: value[0] / 100 } : t
+                        );
+                        onTracksUpdate(updatedTracks);
+                      }
+                    }}
+                    max={150}
+                    step={1}
+                    className="w-full"
+                  />
+                  <Badge variant="outline" className="text-xs mt-1">
+                    {track.stem_type}
+                  </Badge>
                 </div>
               );
             })}
           </div>
 
-          {/* Timeline area */}
-          <div className="flex-1 relative">
+          {/* Timeline Area */}
+          <div className="flex-1 relative overflow-x-auto" ref={timelineRef}>
             {/* Ruler */}
-            <div 
-              className="h-8 bg-card/20 border-b border-border/30 relative"
-              style={{ width: totalBars * pixelsPerBar }}
-            >
+            <div className="h-8 bg-black/40 border-b border-white/10 relative">
               {renderBarMarkers()}
+              <div className="absolute top-1 left-2 text-xs text-gray-400">
+                Position: {formatPosition(currentTime)} | Bar: {formatTime(currentTime)}
+              </div>
             </div>
 
-            {/* Tracks area */}
+            {/* Playhead */}
             <div
-              ref={timelineRef}
-              className="relative cursor-pointer"
-              style={{ 
-                height: 84 + (tracks.length * 68), // Master track (84px) + user tracks (68px each)
-                minHeight: 200,
-                width: totalBars * pixelsPerBar
-              }}
-              onClick={handleTimelineClick}
+              className="absolute top-8 bottom-0 w-0.5 bg-primary z-20 pointer-events-none"
+              style={{ left: (currentTime % sessionDuration) * pixelsPerSecond }}
             >
-              {/* Session duration indicator */}
-              <div
-                className="absolute top-0 bottom-0 w-0.5 bg-yellow-400/60 z-5"
-                style={{ left: sessionDuration * pixelsPerSecond }}
-              >
-                <div className="absolute -top-6 -left-8 text-xs text-yellow-400 font-mono">
-                  END ({totalBars} bars)
-                </div>
-              </div>
+              <div className="absolute -top-2 -left-1 w-3 h-3 bg-primary rotate-45" />
+            </div>
 
-              {/* Playhead */}
-              <div
-                className="absolute top-0 bottom-0 w-0.5 bg-neon-cyan shadow-neon-cyan shadow-[0_0_10px] z-10"
-                style={{ left: currentTime * pixelsPerSecond }}
-              >
-                <div className="absolute -top-2 -left-2 w-4 h-4 bg-neon-cyan rounded-full shadow-neon-cyan shadow-[0_0_10px]" />
+            {/* Master Output Visualization */}
+            <div className="h-12 bg-gradient-to-r from-primary/10 to-secondary/10 border-b border-white/10 relative">
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-xs text-gray-400">Master Output</span>
               </div>
+            </div>
 
-              {/* Master track visual */}
-              <div
-                className="absolute bg-gradient-to-r from-neon-cyan/20 to-electric-blue/20 border-2 border-neon-cyan/40 rounded overflow-hidden"
-                style={{
-                  top: 8,
-                  left: 0,
-                  width: sessionDuration * pixelsPerSecond,
-                  height: 64
-                }}
-              >
-                <div className="h-full p-2 flex items-center justify-center">
-                  <div className="text-sm font-bold text-neon-cyan flex items-center gap-2">
-                    <Volume2 className="w-4 h-4" />
-                    MASTER OUTPUT
-                  </div>
-                </div>
-              </div>
-
-              {/* Track waveforms */}
+            {/* Timeline with Tracks */}
+            <div className="relative" onClick={handleTimelineClick}>
               {tracks.map((track, index) => {
-                console.log(`Rendering track ${index}: ${track.name} (ID: ${track.id})`);
+                const trackY = index * 72;
+                const trackHeight = 68;
+                
+                console.log('Rendering track', index, ':', track.name, '(ID:', track.id, ')');
+                
                 return (
-                  <WaveformTrack 
+                  <div
                     key={track.id}
-                    track={track} 
-                    index={index + 1} // Offset by 1 for master track
-                    pixelsPerSecond={pixelsPerSecond}
-                    trackHeight={68}
-                  />
+                    className="relative border-b border-white/10"
+                    style={{ height: trackHeight }}
+                  >
+                    <WaveformTrack
+                      track={track}
+                      clips={audioClips}
+                      trackY={trackY}
+                      trackHeight={trackHeight}
+                    />
+                  </div>
                 );
               })}
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
