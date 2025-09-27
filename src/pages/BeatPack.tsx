@@ -384,7 +384,7 @@ export default function BeatPackPage() {
       <StickyHeader />
         {beatPack && (
           <MetaTags
-            title={`${beatPack.name} | Beat Pack by ${beatPack.producer_name || 'Unknown Producer'} | BeatPackz`}
+            title={`Beat pack ${beatPack.name} from ${beatPack.producer_name || 'Unknown Producer'}`}
             description={beatPack.description || `Discover premium beats in ${beatPack.name}. High-quality tracks by ${beatPack.producer_name || 'Unknown Producer'}. Stream, download, and purchase professional beats.`}
             image={getArtworkUrl()}
             url={currentUrl}
