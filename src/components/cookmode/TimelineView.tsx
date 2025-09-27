@@ -808,38 +808,41 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
               </div>
             </div>
 
-            {tracks.map((track, index) => (
-              <div
-                key={track.id}
-                className="h-16 border-b border-border/20 p-2 flex flex-col justify-center group cursor-pointer hover:bg-card/20 transition-colors"
-                onClick={() => handleTrackPlay(track)}
-                title={track.name} // Show full name on hover
-              >
-                <div className="text-xs font-medium text-foreground truncate max-w-full mb-1">
-                  {track.name}
+            {tracks.map((track, index) => {
+              console.log(`Sidebar track ${index}: ${track.name} (ID: ${track.id})`);
+              return (
+                <div
+                  key={track.id}
+                  className="h-16 border-b border-border/20 p-2 flex flex-col justify-center group cursor-pointer hover:bg-card/20 transition-colors"
+                  onClick={() => handleTrackPlay(track)}
+                  title={track.name} // Show full name on hover
+                >
+                  <div className="text-xs font-medium text-foreground truncate max-w-full mb-1">
+                    {track.name}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Badge 
+                      variant="outline" 
+                      className="text-xs"
+                      style={{ color: getStemColor(track.stem_type) }}
+                    >
+                      {track.stem_type}
+                    </Badge>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleTrackPlay(track);
+                      }}
+                    >
+                      <Play className="w-3 h-3" />
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <Badge 
-                    variant="outline" 
-                    className="text-xs"
-                    style={{ color: getStemColor(track.stem_type) }}
-                  >
-                    {track.stem_type}
-                  </Badge>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleTrackPlay(track);
-                    }}
-                  >
-                    <Play className="w-3 h-3" />
-                  </Button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Timeline area */}
@@ -908,15 +911,18 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
               </div>
 
               {/* Track waveforms */}
-              {tracks.map((track, index) => (
-                <WaveformTrack 
-                  key={track.id}
-                  track={track} 
-                  index={index + 1} // Offset by 1 for master track
-                  pixelsPerSecond={pixelsPerSecond}
-                  trackHeight={68}
-                />
-              ))}
+              {tracks.map((track, index) => {
+                console.log(`Rendering track ${index}: ${track.name} (ID: ${track.id})`);
+                return (
+                  <WaveformTrack 
+                    key={track.id}
+                    track={track} 
+                    index={index + 1} // Offset by 1 for master track
+                    pixelsPerSecond={pixelsPerSecond}
+                    trackHeight={68}
+                  />
+                );
+              })}
             </div>
           </div>
         </div>
