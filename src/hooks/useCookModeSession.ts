@@ -290,13 +290,20 @@ export function useCookModeSession(sessionId?: string) {
     const newIsPlaying = !isPlaying;
     setIsPlaying(newIsPlaying);
     
+    // Reset to beginning if at a very large time
+    if (currentTime > 60) {
+      setCurrentTime(0);
+      pausedTimeRef.current = 0;
+      startTimeRef.current = Date.now();
+    }
+    
     if (channelRef.current) {
       channelRef.current.send({
         type: 'broadcast',
         event: 'playback-control',
         payload: {
           isPlaying: newIsPlaying,
-          currentTime: currentTime
+          currentTime: currentTime > 60 ? 0 : currentTime
         }
       });
     }

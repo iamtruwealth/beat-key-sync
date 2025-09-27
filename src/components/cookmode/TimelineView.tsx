@@ -138,9 +138,11 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
 
   // Initialize audio elements for all tracks
   useEffect(() => {
+    console.log('Audio initialization effect running for tracks:', tracks.map(t => t.id));
+    
     tracks.forEach(track => {
       if (!audioElementsRef.current.has(track.id)) {
-        console.log('Creating audio element for track:', track.name, 'URL:', track.file_url);
+        console.log('Creating NEW audio element for track:', track.name);
         
         if (!track.file_url) {
           console.error('Track has no file_url:', track);
@@ -161,7 +163,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         
         // Only add event listeners once when creating the audio element
         audio.addEventListener('loadeddata', () => {
-          console.log('Audio loaded successfully for:', track.name);
+          console.log('Audio loaded for:', track.name);
           const actualDuration = audio.duration;
           if (actualDuration && actualDuration > 0) {
             setTrackDurations(prev => new Map(prev.set(track.id, actualDuration)));
@@ -187,12 +189,13 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     // Remove audio elements for tracks that no longer exist
     audioElementsRef.current.forEach((audio, trackId) => {
       if (!tracks.find(t => t.id === trackId)) {
+        console.log('Removing audio element for:', trackId);
         audio.pause();
         audio.src = '';
         audioElementsRef.current.delete(trackId);
       }
     });
-  }, [tracks.map(t => t.id).join(',')]); // Only depend on track IDs, not the entire track objects
+  }, [tracks.length]); // Only depend on track count, not the full objects
 
   // Separate effect for updating audio properties (volume, mute)
   useEffect(() => {
