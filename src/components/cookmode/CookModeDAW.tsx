@@ -145,6 +145,46 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
       }
     }
   };
+
+  // Global window-level drag and drop to ensure drops work anywhere in the timeline
+  React.useEffect(() => {
+    const onWindowDragOver = (e: DragEvent) => {
+      if (!e.dataTransfer) return;
+      e.preventDefault();
+      setIsDragOver(true);
+    };
+
+    const onWindowDrop = async (e: DragEvent) => {
+      if (!e.dataTransfer) return;
+      e.preventDefault();
+      setIsDragOver(false);
+
+      const files = Array.from(e.dataTransfer.files || []);
+      const audioFiles = files.filter(file => file.type.startsWith('audio/'));
+      if (audioFiles.length === 0) return;
+
+      for (const file of audioFiles) {
+        if (validateAudioFile(file)) {
+          const trackName = file.name.replace(/\.[^/.]+$/, "");
+          try {
+            await onAddTrack(file, trackName, 'other');
+            toast.success(`Added "${trackName}" to session`);
+          } catch (error) {
+            toast.error(`Failed to add "${trackName}"`);
+          }
+        }
+      }
+    };
+
+    window.addEventListener('dragover', onWindowDragOver);
+    window.addEventListener('drop', onWindowDrop);
+
+    return () => {
+      window.removeEventListener('dragover', onWindowDragOver);
+      window.removeEventListener('drop', onWindowDrop);
+    };
+  }, [onAddTrack]);
+
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file && validateAudioFile(file)) {
