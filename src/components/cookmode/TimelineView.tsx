@@ -601,6 +601,18 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           const clipLeft = clip.startTime * pixelsPerSecond;
           const isSelected = selectedClips.has(clip.id);
 
+          console.log(`Rendering clip for ${clip.originalTrack.name}:`, {
+            clipId: clip.id,
+            startTime: clip.startTime,
+            endTime: clip.endTime,
+            clipWidth,
+            clipLeft,
+            pixelsPerSecond,
+            trackY,
+            trackHeight,
+            isVisible: clipWidth > 0 && clipLeft >= 0
+          });
+
           // Generate waveform bars for visualization
           const waveformBars = waveformData ? generateWaveformBars(waveformData.peaks, Math.floor(clipWidth / 4)) : [];
 
@@ -616,8 +628,12 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                 top: trackY + 8,
                 left: clipLeft,
                 width: clipWidth,
-                height: trackHeight - 16
+                height: trackHeight - 16,
+                zIndex: 10, // Ensure it's above other elements
+                minWidth: '20px', // Ensure it's always visible
+                background: isSelected ? '#00f5ff40' : '#ff004040' // Debug colors
               }}
+              title={`${clip.originalTrack.name} - Click to select, Double-click to duplicate`}
               onClick={(e) => {
                 e.stopPropagation();
                 console.log('Clip clicked:', clip.originalTrack.name, 'Clip ID:', clip.id);
