@@ -210,15 +210,18 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
 
   // Sync playback state
   useEffect(() => {
+    console.log('Playback sync effect triggered:', { isPlaying, currentTime, tracksCount: tracks.length });
+    
     audioElementsRef.current.forEach((audio, trackId) => {
       try {
         if (!audio.src) return;
         
         if (isPlaying && audio.paused) {
-          console.log('Starting playback for track:', trackId, 'at time:', currentTime);
+          console.log('Starting playback for track:', trackId, 'at time:', currentTime, 'audio.currentTime:', audio.currentTime);
           
           // Always use the actual currentTime, don't reset small values to 0
           if (Math.abs(audio.currentTime - currentTime) > 0.1) {
+            console.log('Adjusting audio time from', audio.currentTime, 'to', currentTime);
             audio.currentTime = currentTime;
           }
           

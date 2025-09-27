@@ -270,6 +270,7 @@ export function useCookModeSession(sessionId?: string) {
         const elapsed = (Date.now() - startTimeRef.current) / 1000;
         // Use less aggressive quantization to prevent micro-jumps
         const quantized = Math.round(elapsed / stepSeconds) * stepSeconds;
+        console.log('Timing update:', { elapsed, quantized, stepSeconds });
         setCurrentTime(quantized);
         rafId = requestAnimationFrame(tick);
       };
