@@ -192,7 +192,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ error: errorMessage }),
       { 
-        status: error.message.includes("temporarily disabled") ? 503 : 400,
+        status: (error instanceof Error && error.message.includes("temporarily disabled")) ? 503 : 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" } 
       }
     );

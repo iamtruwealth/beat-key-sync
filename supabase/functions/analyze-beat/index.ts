@@ -175,16 +175,30 @@ Deno.serve(async (req) => {
 
     console.log(`Analysis complete for ${beat.title}:`, result);
 
-    // Update beat with analysis results
+    // Update beat with analysis results - only set detected fields, preserve manual fields
+    const updateData: any = {
+      detected_bpm: result.bpm,
+      detected_key: result.key,
+      metadata: result.metadata
+    };
+
+    // Only update bpm/key if no manual values exist
+    const { data: currentBeat } = await supabase
+      .from('beats')
+      .select('manual_bpm, manual_key')
+      .eq('id', beatId)
+      .single();
+
+    if (!currentBeat?.manual_bpm) {
+      updateData.bpm = result.bpm;
+    }
+    if (!currentBeat?.manual_key) {
+      updateData.key = result.key;
+    }
+
     const { error: updateError } = await supabase
       .from('beats')
-      .update({
-        detected_bpm: result.bpm,
-        bpm: result.bpm,
-        detected_key: result.key,
-        key: result.key,
-        metadata: result.metadata
-      })
+      .update(updateData)
       .eq('id', beatId);
 
     if (updateError) {

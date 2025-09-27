@@ -49,8 +49,9 @@ serve(async (req) => {
       event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
       logStep("Webhook signature verified", { eventType: event.type });
     } catch (err) {
-      logStep("Webhook signature verification failed", { error: err.message });
-      return new Response(`Webhook Error: ${err.message}`, { status: 400 });
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      logStep("Webhook signature verification failed", { error: errorMessage });
+      return new Response(`Webhook Error: ${errorMessage}`, { status: 400 });
     }
 
     // Handle payment completion
@@ -89,13 +90,26 @@ serve(async (req) => {
           throw new Error(`Failed to record sale: ${saleError.message}`);
         }
 
-        // Update producer earnings
+        // Calculate producer earnings
         const producerEarnings = amountReceived - platformFee;
+
+        // First get current earnings
+        const { data: currentProfile } = await supabaseAdmin
+          .from("profiles")
+          .select("total_earnings_cents, available_balance_cents")
+          .eq("id", producerId)
+          .single();
+
+        // Calculate new earnings
+        const newTotalEarnings = (currentProfile?.total_earnings_cents || 0) + producerEarnings;
+        const newAvailableBalance = (currentProfile?.available_balance_cents || 0) + producerEarnings;
+
+        // Update producer earnings
         const { error: profileError } = await supabaseAdmin
           .from("profiles")
           .update({
-            total_earnings_cents: supabaseAdmin.raw(`total_earnings_cents + ${producerEarnings}`),
-            available_balance_cents: supabaseAdmin.raw(`available_balance_cents + ${producerEarnings}`),
+            total_earnings_cents: newTotalEarnings,
+            available_balance_cents: newAvailableBalance,
           })
           .eq("id", producerId);
 
