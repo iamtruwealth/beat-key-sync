@@ -251,7 +251,13 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
   };
 
   return (
-    <div className="h-full flex flex-col bg-background/50">
+    <div 
+      className="h-full flex flex-col bg-background/50"
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
       {/* Content Area */}
       <div 
         className={`flex-1 overflow-hidden relative ${isDragOver ? 'bg-neon-cyan/5' : ''}`}
@@ -262,11 +268,11 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
       >
         {/* Drag overlay */}
         {isDragOver && (
-          <div className="absolute inset-0 z-50 bg-background/80 backdrop-blur-sm border-2 border-dashed border-neon-cyan flex items-center justify-center">
-            <div className="text-center">
+          <div className="absolute inset-0 z-40 bg-background/80 backdrop-blur-sm border-2 border-dashed border-neon-cyan flex items-center justify-center pointer-events-none">
+            <div className="text-center pointer-events-none">
               <Upload className="w-16 h-16 text-neon-cyan mx-auto mb-4" />
               <h3 className="text-xl font-semibold text-neon-cyan mb-2">Drop Audio Files Here</h3>
-              <p className="text-muted-foreground">WAV, MP3, OGG, AAC, M4A files supported</p>
+              <p className="text-muted-foreground pointer-events-none">WAV, MP3, OGG, AAC, M4A files supported</p>
             </div>
           </div>
         )}
