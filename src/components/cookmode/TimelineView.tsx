@@ -48,21 +48,28 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const [snapEnabled] = useState(true);
   const timelineRef = useRef<HTMLDivElement>(null);
   const [selectedClips, setSelectedClips] = useState<string[]>([]);
-  const [timelineLength, setTimelineLength] = useState(60);
   const [zoom, setZoom] = useState(1);
   const audioElementsRef = useRef<Map<string, HTMLAudioElement>>(new Map());
   const [trackDurations, setTrackDurations] = useState<Map<string, number>>(new Map());
   const { toast } = useToast();
 
-  // Calculate timing constants
-  const secondsPerBeat = 60 / bpm;
+  // Calculate timing constants for looping
+  const loopBars = 4; // Standard 4-bar loop
   const beatsPerBar = 4;
+  const totalBeats = loopBars * beatsPerBar; // 16 beats total
+  const secondsPerBeat = 60 / bpm;
+  const loopLength = totalBeats * secondsPerBeat; // Total loop duration in seconds
   const secondsPerBar = secondsPerBeat * beatsPerBar;
-  const maxDuration = Math.max(...tracks.map(t => trackDurations.get(t.id) || t.analyzed_duration || t.duration || 60), 60);
-  const totalBars = Math.ceil(maxDuration / secondsPerBar);
+  
+  // Timeline display calculations  
+  const maxDuration = Math.max(loopLength, ...tracks.map(t => trackDurations.get(t.id) || t.analyzed_duration || t.duration || 0));
+  const timelineLength = Math.max(loopLength, maxDuration); // Use loop length or track length, whichever is longer
+  const totalBars = Math.ceil(timelineLength / secondsPerBar);
   const pixelsPerSecond = 40 * zoom;
   const pixelsPerBeat = pixelsPerSecond * secondsPerBeat;
   const pixelsPerBar = pixelsPerBeat * beatsPerBar;
+  
+  console.log('Loop calculation:', { bpm, loopLength, timelineLength, totalBars });
 
   const snapToGrid = useCallback((time: number) => {
     if (!snapEnabled) return time;
@@ -208,21 +215,24 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     });
   }, [tracks.map(t => `${t.id}-${t.volume}-${t.isMuted}`).join(',')]);
 
-  // Sync playback state
+  // Sync playback state with looping
   useEffect(() => {
-    console.log('Playback sync effect triggered:', { isPlaying, currentTime, tracksCount: tracks.length });
+    console.log('Playback sync effect triggered:', { isPlaying, currentTime, tracksCount: tracks.length, loopLength });
     
     audioElementsRef.current.forEach((audio, trackId) => {
       try {
         if (!audio.src) return;
         
         if (isPlaying && audio.paused) {
-          console.log('Starting playback for track:', trackId, 'at time:', currentTime, 'audio.currentTime:', audio.currentTime);
+          console.log('Starting playback for track:', trackId, 'at time:', currentTime);
           
-          // Always use the actual currentTime, don't reset small values to 0
-          if (Math.abs(audio.currentTime - currentTime) > 0.1) {
-            console.log('Adjusting audio time from', audio.currentTime, 'to', currentTime);
-            audio.currentTime = currentTime;
+          // Calculate position within the loop for looping audio
+          const loopPosition = currentTime % loopLength;
+          
+          // Set audio to loop position
+          if (Math.abs(audio.currentTime - loopPosition) > 0.1) {
+            console.log('Adjusting audio time from', audio.currentTime, 'to', loopPosition);
+            audio.currentTime = loopPosition;
           }
           
           audio.play().catch(error => {
@@ -236,7 +246,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         console.error('Error syncing playback for track:', trackId, error);
       }
     });
-  }, [isPlaying, currentTime]);
+  }, [isPlaying, currentTime, loopLength]);
 
   const getStemColor = (stemType: string): string => {
     const colors: Record<string, string> = {
@@ -325,6 +335,19 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                 <div className="absolute top-0 w-3 h-3 bg-red-500 rounded-full -translate-x-1 -translate-y-1"></div>
                 <div className="absolute -top-6 -left-8 text-xs bg-black/80 text-white px-1 rounded">
                   {formatTime(currentTime)}
+                </div>
+              </div>
+              
+              {/* Loop region indicator - 4 bars */}
+              <div
+                className="absolute top-0 h-full bg-primary/10 border-l-2 border-r-2 border-primary/30 z-10 pointer-events-none"
+                style={{ 
+                  left: '0px',
+                  width: `${loopLength * pixelsPerSecond}px`
+                }}
+              >
+                <div className="absolute -top-6 left-2 text-xs text-primary font-medium">
+                  Loop: {loopBars} bars ({formatTime(loopLength)})
                 </div>
               </div>
             </div>

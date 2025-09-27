@@ -250,7 +250,7 @@ export function useCookModeSession(sessionId?: string) {
     }
   }, [toast]);
 
-  // BPM-synchronized time tracking
+  // BPM-synchronized time tracking with looping
   const startTimeRef = useRef<number>(0);
   const pausedTimeRef = useRef<number>(0);
 
@@ -265,13 +265,23 @@ export function useCookModeSession(sessionId?: string) {
       const beatsPerSecond = bpm / 60;
       const subdivision = 8; // Use 8th notes instead of 32nd notes for more stable timing
       const stepSeconds = 1 / (beatsPerSecond * subdivision);
+      
+      // Calculate loop length (4 bars = 16 beats)
+      const loopBars = 4;
+      const beatsPerBar = 4;
+      const totalBeats = loopBars * beatsPerBar;
+      const loopLength = totalBeats / beatsPerSecond; // Loop length in seconds
 
       const tick = () => {
         const elapsed = (Date.now() - startTimeRef.current) / 1000;
         // Use less aggressive quantization to prevent micro-jumps
         const quantized = Math.round(elapsed / stepSeconds) * stepSeconds;
-        console.log('Timing update:', { elapsed, quantized, stepSeconds });
-        setCurrentTime(quantized);
+        
+        // Handle looping - reset to 0 when reaching loop end
+        const loopedTime = quantized % loopLength;
+        
+        console.log('Timing update:', { elapsed, quantized, loopedTime, loopLength });
+        setCurrentTime(loopedTime);
         rafId = requestAnimationFrame(tick);
       };
 
@@ -290,8 +300,8 @@ export function useCookModeSession(sessionId?: string) {
     const newIsPlaying = !isPlaying;
     setIsPlaying(newIsPlaying);
     
-    // Reset to beginning if at a very large time
-    if (currentTime > 60) {
+    // If starting playback and we're beyond a reasonable time, reset to 0
+    if (newIsPlaying && currentTime > 32) { // 32 seconds = 8 bars at 120 BPM
       setCurrentTime(0);
       pausedTimeRef.current = 0;
       startTimeRef.current = Date.now();
@@ -303,7 +313,7 @@ export function useCookModeSession(sessionId?: string) {
         event: 'playback-control',
         payload: {
           isPlaying: newIsPlaying,
-          currentTime: currentTime > 60 ? 0 : currentTime
+          currentTime: newIsPlaying && currentTime > 32 ? 0 : currentTime
         }
       });
     }
