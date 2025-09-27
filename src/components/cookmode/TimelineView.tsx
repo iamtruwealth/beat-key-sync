@@ -57,6 +57,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const lastLogRef = useRef<Map<string, number>>(new Map());
   const prevTimeRef = useRef<Map<string, number>>(new Map());
   const loopSignalRef = useRef<number>(0);
+  const loopRafRef = useRef<Map<string, number>>(new Map());
   // Calculate loop length based on actual audio duration (not fixed 4 bars)
   const maxTrackDuration = Math.max(...tracks.map(t => trackDurations.get(t.id) || t.analyzed_duration || t.duration || 0), 0);
   const loopLength = maxTrackDuration > 0 ? maxTrackDuration : (16 * 60 / bpm); // Use actual track length or fallback to 4 bars
@@ -163,8 +164,8 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         const audio = new Audio();
         audio.volume = 0.8;
         audio.crossOrigin = "anonymous";
-        audio.preload = 'metadata';
-        audio.loop = true; // Native looping
+audio.preload = 'auto';
+        audio.loop = false; // We'll loop manually with RAF for tighter timing
 
         // Debug event listeners
         const onPlay = () => tlog('audio:play', track.id, { ct: audio.currentTime.toFixed(3) });
@@ -192,14 +193,6 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           const last = lastLogRef.current.get(track.id) || 0;
           const prev = prevTimeRef.current.get(track.id) || 0;
           const ct = audio.currentTime;
-          
-          // Pre-emptive loop: seek to 0 slightly before the end to avoid delay
-          if (audio.duration > 0 && ct > audio.duration - 0.1 && ct < audio.duration) {
-            tlog('pre-emptive loop', track.id, { ct: ct.toFixed(3), dur: audio.duration.toFixed(3) });
-            audio.currentTime = 0;
-            return;
-          }
-          
           // Throttle logs
           if (now - last > 500) {
             const deltaToSession = Math.abs(ct - currentTime);
@@ -258,6 +251,41 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       }
     });
   }, [isPlaying, loopLength, currentTime]);
+
+  // High-resolution loop watcher to avoid start delay
+  useEffect(() => {
+    if (!isPlaying) {
+      // cancel watchers
+      loopRafRef.current.forEach((id) => cancelAnimationFrame(id));
+      loopRafRef.current.clear();
+      return;
+    }
+
+    audioElementsRef.current.forEach((audio, trackId) => {
+      if (loopRafRef.current.has(trackId)) return;
+      const tick = () => {
+        const dur = audio.duration;
+        if (Number.isFinite(dur) && dur > 0) {
+          const ct = audio.currentTime;
+          const remaining = dur - ct;
+          if (remaining <= 0.02) {
+            if (ct > 0) {
+              audio.currentTime = 0;
+              tlog('loop-raf:seek0', trackId, { ct: ct.toFixed(3), dur: dur.toFixed(3) });
+            }
+          }
+        }
+        const id = requestAnimationFrame(tick);
+        loopRafRef.current.set(trackId, id);
+      };
+      tick();
+    });
+
+    return () => {
+      loopRafRef.current.forEach((id) => cancelAnimationFrame(id));
+      loopRafRef.current.clear();
+    };
+  }, [isPlaying]);
 
   // Sync currentTime from the session system to actual audio time
   useEffect(() => {
