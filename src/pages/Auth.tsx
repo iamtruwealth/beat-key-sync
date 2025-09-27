@@ -65,18 +65,30 @@ export default function AuthPage() {
         // Defer Supabase calls with setTimeout to prevent deadlock
         setTimeout(async () => {
           try {
+            console.log('Auth state changed, fetching profile for user:', session.user.id);
+            
             // Get user profile to determine role
-            const { data: profile } = await supabase
+            const { data: profile, error: profileError } = await supabase
               .from('profiles')
               .select('role')
               .eq('id', session.user.id)
               .single();
             
+            console.log('Profile fetch result:', { profile, profileError });
+            
+            if (profileError) {
+              console.error('Error fetching profile:', profileError);
+              // Default to artist dashboard if profile fetch fails
+              navigate('/artist-dashboard');
+              return;
+            }
+            
             const role = profile?.role || 'artist';
+            console.log('Redirecting user to dashboard based on role:', role);
             navigate(role === 'artist' ? '/artist-dashboard' : '/producer-dashboard');
           } catch (error) {
-            console.error('Error fetching profile:', error);
-            // Default to artist dashboard if profile fetch fails
+            console.error('Error in auth state change handler:', error);
+            // Default to artist dashboard if anything fails
             navigate('/artist-dashboard');
           }
         }, 0);
@@ -328,19 +340,41 @@ export default function AuthPage() {
     e.preventDefault();
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
+    try {
+      console.log('Attempting to sign in with email:', email);
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
 
-    if (error) {
+      console.log('Sign in response:', { data, error });
+
+      if (error) {
+        console.error('Sign in error:', error);
+        toast({
+          title: "Sign in failed",
+          description: error.message,
+          variant: "destructive"
+        });
+        setLoading(false);
+        return;
+      }
+
+      console.log('Sign in successful, session:', data.session);
+      
+      // Don't set loading to false here - let the auth state change handle the redirect
+      // The onAuthStateChange callback will handle navigation
+      
+    } catch (error: any) {
+      console.error('Unexpected sign in error:', error);
       toast({
         title: "Sign in failed",
-        description: error.message,
+        description: error.message || "An unexpected error occurred",
         variant: "destructive"
       });
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
