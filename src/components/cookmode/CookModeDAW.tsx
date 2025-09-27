@@ -47,6 +47,8 @@ interface CookModeDAWProps {
   onUpdateTrack: (trackId: string, updates: Partial<Track>) => void;
   onPlayPause: () => void;
   onSeek: (time: number) => void;
+  externalActiveView?: 'timeline' | 'mixer';
+  onActiveViewChange?: (view: 'timeline' | 'mixer') => void;
 }
 
 export const CookModeDAW: React.FC<CookModeDAWProps> = ({
@@ -58,7 +60,9 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
   onRemoveTrack,
   onUpdateTrack,
   onPlayPause,
-  onSeek
+  onSeek,
+  externalActiveView,
+  onActiveViewChange
 }) => {
   const [isAddingTrack, setIsAddingTrack] = useState(false);
   const [activeView, setActiveView] = useState<'timeline' | 'mixer'>('timeline');
@@ -69,6 +73,13 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
     file: null as File | null
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Controlled/uncontrolled view state
+  const view = externalActiveView ?? activeView;
+  const handleViewChange = (value: string) => {
+    if (onActiveViewChange) onActiveViewChange(value as 'timeline' | 'mixer');
+    else setActiveView(value as 'timeline' | 'mixer');
+  };
 
   const stemTypes = [
     { value: 'melody', label: 'Melody' },
@@ -230,7 +241,7 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
             </div>
           </div>
         )}
-        <Tabs value={activeView} onValueChange={(value) => setActiveView(value as 'timeline' | 'mixer')}>
+        <Tabs value={view} onValueChange={handleViewChange}>
           <TabsContent value="timeline" className="h-full m-0">
             {tracks.length === 0 ? (
               <div className="h-full flex items-center justify-center">

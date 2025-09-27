@@ -34,6 +34,7 @@ const CookMode = () => {
   const { sessionId } = useParams();
   const navigate = useNavigate();
   const [isHost, setIsHost] = useState(false);
+  const [activeView, setActiveView] = useState<'timeline' | 'mixer'>('timeline');
   const [sessionConfig, setSessionConfig] = useState({
     bpm: 120,
     key: 'C',
@@ -245,7 +246,7 @@ const CookMode = () => {
 
       {/* View Switcher - At Very Top Center of Page */}
       <div className="flex justify-center p-4 border-b border-border/30 bg-card/20 backdrop-blur-sm">
-        <Tabs value="timeline" onValueChange={() => {}}>
+        <Tabs value={activeView} onValueChange={(value) => setActiveView(value as 'timeline' | 'mixer')}>
           <TabsList className="bg-background/80 border border-border/30">
             <TabsTrigger 
               value="timeline" 
@@ -341,6 +342,8 @@ const CookMode = () => {
               onUpdateTrack={updateTrack}
               onPlayPause={togglePlayback}
               onSeek={(time) => {/* implement seek functionality */}}
+              externalActiveView={activeView}
+              onActiveViewChange={(v) => setActiveView(v)}
             />
           </div>
         </div>
