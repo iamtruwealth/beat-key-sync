@@ -272,67 +272,44 @@ const CookMode = () => {
         description="Live beat creation session in progress"
       />
 
-      {/* View Switcher - At Very Top Center of Page */}
-      <div className="flex items-center justify-between p-4 border-b border-border/30 bg-card/20 backdrop-blur-sm">
-        {/* Dashboard Button - Far Left */}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => navigate('/dashboard')}
-          className="flex items-center gap-2 border-border/50 hover:bg-card/30"
-        >
-          <LayoutDashboard className="w-4 h-4" />
-          Dashboard
-        </Button>
+      {/* Combined Header with View Switcher */}
+      <div className="border-b border-border/30 bg-card/20 backdrop-blur-sm">
+        {/* Top Row - Dashboard Button, View Switcher, Empty Space */}
+        <div className="flex items-center justify-between p-4 pb-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate('/dashboard')}
+            className="flex items-center gap-2 border-border/50 hover:bg-card/30"
+          >
+            <LayoutDashboard className="w-4 h-4" />
+            Dashboard
+          </Button>
 
-        {/* View Switcher - Center */}
-        <Tabs value={activeView} onValueChange={(value) => setActiveView(value as 'timeline' | 'mixer')}>
-          <TabsList className="bg-background/80 border border-border/30">
-            <TabsTrigger 
-              value="timeline" 
-              className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-            >
-              <Clock className="w-4 h-4" />
-              Timeline
-            </TabsTrigger>
-            <TabsTrigger 
-              value="mixer" 
-              className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-            >
-              <Layers className="w-4 h-4" />
-              Mixer
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+          <Tabs value={activeView} onValueChange={(value) => setActiveView(value as 'timeline' | 'mixer')}>
+            <TabsList className="bg-background/80 border border-border/30">
+              <TabsTrigger 
+                value="timeline" 
+                className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              >
+                <Clock className="w-4 h-4" />
+                Timeline
+              </TabsTrigger>
+              <TabsTrigger 
+                value="mixer" 
+                className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              >
+                <Layers className="w-4 h-4" />
+                Mixer
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
 
-        {/* Empty space for balance */}
-        <div className="w-24" />
-      </div>
+          <div className="w-24" />
+        </div>
 
-      {/* Editing Toolbar */}
-      <CookModeToolbar
-        activeTool={activeTool}
-        onToolChange={(tool) => {
-          setActiveTool(tool);
-          toast.success(`Switched to ${tool} tool`);
-        }}
-        snapEnabled={snapEnabled}
-        onSnapToggle={() => {
-          setSnapEnabled(prev => {
-            const newValue = !prev;
-            toast.info(`Snap ${newValue ? 'enabled' : 'disabled'}`);
-            return newValue;
-          });
-        }}
-        onUndo={() => toast.info('Undo action')}
-        onRedo={() => toast.info('Redo action')}
-        canUndo={false}
-        canRedo={false}
-      />
-
-      {/* Header */}
-      <div className="border-b border-border/50 bg-card/30 backdrop-blur-sm">
-        <div className="flex items-center justify-between p-4">
+        {/* Bottom Row - Session Info and Action Buttons */}
+        <div className="flex items-center justify-between px-4 pb-4">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <div className="p-2 rounded-lg bg-gradient-to-br from-neon-cyan/20 to-electric-blue/20 border border-neon-cyan/30">
@@ -375,6 +352,27 @@ const CookMode = () => {
           </div>
         </div>
       </div>
+
+      {/* Editing Toolbar */}
+      <CookModeToolbar
+        activeTool={activeTool}
+        onToolChange={(tool) => {
+          setActiveTool(tool);
+          toast.success(`Switched to ${tool} tool`);
+        }}
+        snapEnabled={snapEnabled}
+        onSnapToggle={() => {
+          setSnapEnabled(prev => {
+            const newValue = !prev;
+            toast.info(`Snap ${newValue ? 'enabled' : 'disabled'}`);
+            return newValue;
+          });
+        }}
+        onUndo={() => toast.info('Undo action')}
+        onRedo={() => toast.info('Redo action')}
+        canUndo={false}
+        canRedo={false}
+      />
 
       {/* Main Interface */}
       <div className="flex h-[calc(100vh-80px)]">
