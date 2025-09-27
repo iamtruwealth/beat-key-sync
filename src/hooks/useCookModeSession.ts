@@ -97,6 +97,13 @@ export function useCookModeSession(sessionId?: string) {
           })
           .on('broadcast', { event: 'track-removed' }, ({ payload }) => {
             setTracks(prev => prev.filter(track => track.id !== payload.trackId));
+          })
+          .on('broadcast', { event: 'session-settings-updated' }, ({ payload }) => {
+            setSession(prev => prev ? {
+              ...prev,
+              ...(payload.bpm && { target_bpm: payload.bpm }),
+              ...(payload.key && { target_genre: payload.key })
+            } : null);
           });
 
         await channel.subscribe();
@@ -371,6 +378,51 @@ export function useCookModeSession(sessionId?: string) {
     }
   }, []);
 
+  const updateSessionSettings = useCallback(async (updates: { bpm?: number; key?: string }) => {
+    try {
+      if (!session) throw new Error('No active session');
+
+      const { error } = await supabase
+        .from('collaboration_projects')
+        .update({ 
+          ...(updates.bpm && { target_bpm: updates.bpm }),
+          ...(updates.key && { target_genre: updates.key }),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', session.id);
+
+      if (error) throw error;
+
+      // Update local session state
+      setSession(prev => prev ? {
+        ...prev,
+        ...(updates.bpm && { target_bpm: updates.bpm }),
+        ...(updates.key && { target_genre: updates.key })
+      } : null);
+
+      // Broadcast changes to other participants
+      if (channelRef.current) {
+        channelRef.current.send({
+          type: 'broadcast',
+          event: 'session-settings-updated',
+          payload: updates
+        });
+      }
+
+      toast({
+        title: "Settings Updated",
+        description: `Session ${updates.bpm ? 'BPM' : ''}${updates.bpm && updates.key ? ' and ' : ''}${updates.key ? 'key' : ''} updated`,
+      });
+    } catch (error) {
+      console.error('Error updating session settings:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update session settings",
+        variant: "destructive"
+      });
+    }
+  }, [session, toast]);
+
   const saveSession = useCallback(async () => {
     try {
       if (!session) throw new Error('No active session');
@@ -413,6 +465,7 @@ export function useCookModeSession(sessionId?: string) {
     removeTrack,
     togglePlayback,
     updateTrack,
+    updateSessionSettings,
     saveSession
   };
 }

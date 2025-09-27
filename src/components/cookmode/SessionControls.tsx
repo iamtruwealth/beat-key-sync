@@ -11,26 +11,37 @@ import {
   SkipForward,
   Volume2,
   Clock,
-  Activity
+  Activity,
+  Settings
 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 
 interface SessionControlsProps {
   isPlaying: boolean;
   currentTime: number;
   bpm: number;
+  sessionKey?: string;
   onTogglePlayback: () => void;
   onSeek: (time: number) => void;
+  onUpdateBpm?: (bpm: number) => void;
+  onUpdateKey?: (key: string) => void;
 }
 
 export const SessionControls: React.FC<SessionControlsProps> = ({
   isPlaying,
   currentTime,
   bpm,
+  sessionKey,
   onTogglePlayback,
-  onSeek
+  onSeek,
+  onUpdateBpm,
+  onUpdateKey
 }) => {
   const [masterVolume, setMasterVolume] = useState(75);
   const [sessionDuration, setSessionDuration] = useState(0);
+  const [isEditingBpm, setIsEditingBpm] = useState(false);
+  const [tempBpm, setTempBpm] = useState(bpm.toString());
 
   // Calculate session duration
   useEffect(() => {
@@ -66,6 +77,32 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
       audio.volume = value[0] / 100;
     });
   };
+
+  const handleBpmEdit = () => {
+    setIsEditingBpm(true);
+    setTempBpm(bpm.toString());
+  };
+
+  const handleBpmSave = () => {
+    const newBpm = parseInt(tempBpm);
+    if (newBpm >= 60 && newBpm <= 200 && onUpdateBpm) {
+      onUpdateBpm(newBpm);
+    }
+    setIsEditingBpm(false);
+  };
+
+  const handleBpmCancel = () => {
+    setTempBpm(bpm.toString());
+    setIsEditingBpm(false);
+  };
+
+  const handleKeyChange = (key: string) => {
+    if (onUpdateKey) {
+      onUpdateKey(key);
+    }
+  };
+
+  const keys = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
   return (
     <div className="bg-card/30 backdrop-blur-sm border-b border-border/50">
@@ -129,17 +166,65 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
           </div>
         </div>
 
-        {/* Center Section - BPM and Status */}
+        {/* Center Section - BPM, Key and Status */}
         <div className="flex items-center gap-6">
           <Card className="bg-card/50 border-border/50">
             <CardContent className="p-2">
               <div className="flex items-center gap-2">
                 <Activity className="w-4 h-4 text-neon-cyan" />
-                <span className="text-sm font-semibold text-foreground">{bpm}</span>
-                <span className="text-xs text-muted-foreground">BPM</span>
+                {isEditingBpm ? (
+                  <div className="flex items-center gap-1">
+                    <Input
+                      value={tempBpm}
+                      onChange={(e) => setTempBpm(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleBpmSave();
+                        if (e.key === 'Escape') handleBpmCancel();
+                      }}
+                      onBlur={handleBpmSave}
+                      className="w-12 h-6 text-xs p-1 text-center"
+                      autoFocus
+                    />
+                    <span className="text-xs text-muted-foreground">BPM</span>
+                  </div>
+                ) : (
+                  <>
+                    <span 
+                      className="text-sm font-semibold text-foreground cursor-pointer hover:text-neon-cyan"
+                      onClick={handleBpmEdit}
+                      title="Click to edit BPM"
+                    >
+                      {bpm}
+                    </span>
+                    <span className="text-xs text-muted-foreground">BPM</span>
+                  </>
+                )}
               </div>
             </CardContent>
           </Card>
+
+          {sessionKey && (
+            <Card className="bg-card/50 border-border/50">
+              <CardContent className="p-2">
+                <div className="flex items-center gap-2">
+                  <Settings className="w-4 h-4 text-electric-blue" />
+                  <Select value={sessionKey} onValueChange={handleKeyChange}>
+                    <SelectTrigger className="w-12 h-6 text-xs border-none bg-transparent p-0">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background border-border">
+                      {keys.map((key) => (
+                        <SelectItem key={key} value={key} className="text-xs">
+                          {key}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <span className="text-xs text-muted-foreground">Key</span>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <Badge 
             variant="outline" 

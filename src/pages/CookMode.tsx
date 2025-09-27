@@ -50,6 +50,7 @@ const CookMode = () => {
     removeTrack,
     togglePlayback,
     updateTrack,
+    updateSessionSettings,
     saveSession
   } = useCookModeSession(sessionId);
 
@@ -285,8 +286,11 @@ const CookMode = () => {
             isPlaying={isPlaying}
             currentTime={currentTime}
             bpm={session.target_bpm || 120}
+            sessionKey={session.target_genre}
             onTogglePlayback={togglePlayback}
             onSeek={(time) => {/* implement seek */}}
+            onUpdateBpm={(bpm) => updateSessionSettings({ bpm })}
+            onUpdateKey={(key) => updateSessionSettings({ key })}
           />
 
           <Separator className="border-border/50" />
