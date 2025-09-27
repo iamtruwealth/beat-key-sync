@@ -250,7 +250,7 @@ export function useCookModeSession(sessionId?: string) {
     }
   }, [toast]);
 
-  // BPM-synchronized time tracking with looping
+  // BPM-synchronized time tracking with dynamic looping based on track length
   const startTimeRef = useRef<number>(0);
   const pausedTimeRef = useRef<number>(0);
 
@@ -263,25 +263,27 @@ export function useCookModeSession(sessionId?: string) {
 
       const bpm = session?.target_bpm || 120;
       const beatsPerSecond = bpm / 60;
-      const subdivision = 8; // Use 8th notes instead of 32nd notes for more stable timing
+      const subdivision = 16; // Use 16th notes for precise timing
       const stepSeconds = 1 / (beatsPerSecond * subdivision);
       
-      // Calculate loop length (4 bars = 16 beats)
-      const loopBars = 4;
-      const beatsPerBar = 4;
-      const totalBeats = loopBars * beatsPerBar;
-      const loopLength = totalBeats / beatsPerSecond; // Loop length in seconds
+      // Calculate loop length based on actual track durations
+      // This will be determined by the longest track in the session
+      const maxTrackDuration = Math.max(...tracks.map(t => t.duration || 0), 16 * 60 / bpm);
+      const loopLength = maxTrackDuration; // Use actual track length
 
       const tick = () => {
         const elapsed = (Date.now() - startTimeRef.current) / 1000;
-        // Use less aggressive quantization to prevent micro-jumps
         const quantized = Math.round(elapsed / stepSeconds) * stepSeconds;
         
         // Handle looping - reset to 0 when reaching loop end
         const loopedTime = quantized % loopLength;
         
-        console.log('Timing update:', { elapsed, quantized, loopedTime, loopLength });
-        setCurrentTime(loopedTime);
+        // Only update if time actually changed to prevent excessive updates
+        if (Math.abs(loopedTime - currentTime) > stepSeconds / 2) {
+          console.log('Timing update:', { elapsed, quantized, loopedTime, loopLength, maxTrackDuration });
+          setCurrentTime(loopedTime);
+        }
+        
         rafId = requestAnimationFrame(tick);
       };
 
@@ -294,7 +296,7 @@ export function useCookModeSession(sessionId?: string) {
     return () => {
       if (rafId) cancelAnimationFrame(rafId);
     };
-  }, [isPlaying, session?.target_bpm]);
+  }, [isPlaying, session?.target_bpm, tracks.length]); // Add tracks.length to dependency
 
   const togglePlayback = useCallback(() => {
     const newIsPlaying = !isPlaying;
