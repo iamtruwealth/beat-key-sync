@@ -159,6 +159,20 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         // Add new clips to existing ones instead of replacing
         console.log('Adding new clips to existing arrangement - existing:', audioClips, 'new:', newClips);
         setAudioClips(prev => [...prev, ...newClips]);
+        
+        // Register add clip actions with UndoManager
+        newClips.forEach(clip => {
+          const addClipAction = {
+            type: ActionType.ADD_CLIP,
+            payload: { trackId: clip.trackId, clip },
+            undo: () => {
+              console.log(`🔄 Undoing add clip: ${clip.originalTrack.name}`);
+              setAudioClips(prev => prev.filter(c => c.id !== clip.id));
+            },
+            description: `Add clip "${clip.originalTrack.name}" to timeline`
+          };
+          undoManager.push(addClipAction);
+        });
       }
       
       // Remove clips for tracks that no longer exist
@@ -215,6 +229,19 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
 
     console.log('Pasting clip:', newClip);
     setAudioClips(prev => [...prev, newClip]);
+    
+    // Register paste action with UndoManager
+    const pasteClipAction = {
+      type: ActionType.ADD_CLIP,
+      payload: { trackId: newClip.trackId, clip: newClip },
+      undo: () => {
+        console.log(`🔄 Undoing paste clip: ${newClip.originalTrack.name}`);
+        setAudioClips(prev => prev.filter(c => c.id !== newClip.id));
+      },
+      description: `Paste clip "${newClip.originalTrack.name}" at ${snappedTime.toFixed(2)}s`
+    };
+    undoManager.push(pasteClipAction);
+    
     toast({
       title: "Clip Pasted",
       description: `${copiedClip.originalTrack.name} pasted at ${Math.floor(snappedTime / secondsPerBar) + 1}.${Math.floor((snappedTime % secondsPerBar) / secondsPerBeat) + 1}`,
@@ -243,6 +270,19 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
 
     console.log('Duplicating clip:', clip, 'New clip:', newClip);
     setAudioClips(prev => [...prev, newClip]);
+    
+    // Register duplicate action with UndoManager
+    const duplicateClipAction = {
+      type: ActionType.DUPLICATE_CLIP,
+      payload: { trackId: newClip.trackId, clip: newClip },
+      undo: () => {
+        console.log(`🔄 Undoing duplicate clip: ${newClip.originalTrack.name}`);
+        setAudioClips(prev => prev.filter(c => c.id !== newClip.id));
+      },
+      description: `Duplicate clip "${newClip.originalTrack.name}"`
+    };
+    undoManager.push(duplicateClipAction);
+    
     toast({
       title: "Clip Duplicated",
       description: `${clip.originalTrack.name} duplicated`,
@@ -312,7 +352,10 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     const track = tracks.find(t => t.id === trackId);
     if (!track) return;
     
-    console.log('Deleting track:', track.name, 'ID:', trackId);
+    // Get all clips that will be removed
+    const clipsToRemove = audioClips.filter(clip => clip.trackId === trackId);
+    
+    console.log('Deleting track:', track.name, 'ID:', trackId, 'Clips to remove:', clipsToRemove);
     
     // Remove all clips for this track
     setAudioClips(prev => {
@@ -338,6 +381,20 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       const updatedTracks = tracks.filter(t => t.id !== trackId);
       onTracksUpdate(updatedTracks);
     }
+
+    // Register delete track action with UndoManager (restores clips but not the track itself)
+    if (clipsToRemove.length > 0) {
+      const deleteTrackAction = {
+        type: ActionType.REMOVE_TRACK,
+        payload: { track, clips: clipsToRemove },
+        undo: () => {
+          console.log(`🔄 Undoing delete track: ${track.name} - restoring ${clipsToRemove.length} clips`);
+          setAudioClips(prev => [...prev, ...clipsToRemove]);
+        },
+        description: `Delete track "${track.name}" and ${clipsToRemove.length} clips`
+      };
+      undoManager.push(deleteTrackAction);
+    }
     
     toast({
       title: "Track Deleted",
@@ -347,6 +404,12 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
 
   // Delete clip function
   const deleteClip = useCallback((clipId: string) => {
+    const clipToDelete = audioClips.find(c => c.id === clipId);
+    if (!clipToDelete) {
+      console.warn('Clip not found for deletion:', clipId);
+      return;
+    }
+
     console.log('Deleting clip:', clipId);
     setAudioClips(prev => {
       const filtered = prev.filter(c => c.id !== clipId);
@@ -358,11 +421,24 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       newSet.delete(clipId);
       return newSet;
     });
+
+    // Register delete action with UndoManager
+    const deleteClipAction = {
+      type: ActionType.REMOVE_CLIP,
+      payload: { trackId: clipToDelete.trackId, clip: clipToDelete },
+      undo: () => {
+        console.log(`🔄 Undoing delete clip: ${clipToDelete.originalTrack.name}`);
+        setAudioClips(prev => [...prev, clipToDelete]);
+      },
+      description: `Delete clip "${clipToDelete.originalTrack.name}"`
+    };
+    undoManager.push(deleteClipAction);
+
     toast({
       title: "Clip Deleted",
       description: "Audio clip removed",
     });
-  }, [toast]);
+  }, [audioClips, toast]);
 
   // Keyboard shortcuts
   useEffect(() => {

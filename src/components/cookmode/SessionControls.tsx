@@ -197,36 +197,6 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
               <span className="text-xs">Click</span>
             </Button>
 
-            {/* Test Action Button - for testing undo functionality */}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="p-2 text-xs border border-dashed border-muted-foreground/30"
-              onClick={() => {
-                console.log('🧪 Creating test undo action');
-                let testValue = 0;
-                undoManager.push({
-                  type: 'TEST_ACTION',
-                  payload: { testValue },
-                  undo: () => {
-                    console.log('🔄 Test undo executed');
-                    toast({
-                      title: "Undo Test",
-                      description: "Test undo action executed successfully!",
-                    });
-                  },
-                  description: 'Test action for undo functionality'
-                });
-                toast({
-                  title: "Test Action Added",
-                  description: "Use the undo button to test undo functionality",
-                });
-              }}
-              title="Add test action to test undo functionality"
-            >
-              Test
-            </Button>
-
             <Button
               variant="ghost"
               size="sm"
