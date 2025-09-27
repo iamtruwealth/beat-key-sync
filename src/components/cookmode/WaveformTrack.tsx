@@ -32,6 +32,7 @@ interface WaveformTrackProps {
   trackHeight: number;
   onClipClick?: (clipId: string, event: React.MouseEvent) => void;
   onClipDoubleClick?: (clipId: string) => void;
+  onDuplicateClip?: (clipId: string) => void;
   className?: string;
 }
 
@@ -44,6 +45,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
   trackHeight,
   onClipClick,
   onClipDoubleClick,
+  onDuplicateClip,
   className = ""
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -203,20 +205,31 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
             </div>
           )}
           
-          {/* Track name overlay */}
-          <div className="absolute top-1 left-2 right-2">
-            <span className="text-xs font-medium text-white truncate block">
-              {track.name}
-            </span>
-          </div>
+          {/* Duplicate button */}
+          {onDuplicateClip && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDuplicateClip(clip.id);
+              }}
+              className="absolute top-1 right-1 w-6 h-6 bg-primary/80 hover:bg-primary text-white rounded text-xs font-bold opacity-80 hover:opacity-100 transition-opacity"
+              title="Duplicate clip"
+            >
+              ⧉
+            </button>
+          )}
           
-          {/* Time markers */}
-          <div className="absolute bottom-1 left-2 text-xs text-white/70">
-            {formatTime(clip.startTime)}
-          </div>
-          <div className="absolute bottom-1 right-2 text-xs text-white/70">
-            {formatTime(clip.endTime)}
-          </div>
+          {/* Time markers - only show if not hiding titles */}
+          {!className.includes('clip-hide-titles') && (
+            <>
+              <div className="absolute bottom-1 left-2 text-xs text-white/70">
+                {formatTime(clip.startTime)}
+              </div>
+              <div className="absolute bottom-1 right-2 text-xs text-white/70">
+                {formatTime(clip.endTime)}
+              </div>
+            </>
+          )}
         </>
       )}
     </div>

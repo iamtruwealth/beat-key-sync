@@ -423,7 +423,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       markers.push(
         <div key={`bar-${bar}`} className="absolute h-full z-30 pointer-events-none">
           <div className="w-px h-full bg-white/20 relative" style={{ left: x }}>
-            <span className="absolute top-1 left-1 text-xs text-gray-300 z-30">
+            <span className="absolute -top-6 left-1 text-xs text-gray-300 z-30 bg-gray-900/80 px-1 rounded">
               {bar + 1}
             </span>
           </div>
@@ -505,6 +505,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
               onClipDoubleClick={(clipId) => {
                 duplicateClip(clipId);
               }}
+              onDuplicateClip={duplicateClip}
               className={selectedClips.has(clip.id) ? 'ring-2 ring-primary' : ''}
             />
           );
@@ -549,7 +550,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           <div className="flex items-center gap-4 text-xs text-gray-400">
             <span>Click: Seek</span>
             <span>Ctrl+Click: Paste Clip</span>
-            <span>Double-click Clip: Duplicate</span>
+            <span>⧉ Button: Duplicate</span>
             <span>Ctrl+C/V/D: Copy/Paste/Duplicate</span>
             <span>Del: Delete</span>
           </div>

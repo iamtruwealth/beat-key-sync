@@ -33,6 +33,7 @@ interface DraggableClipProps {
   onClipMove: (clipId: string, newStartTime: number) => void;
   onClipClick?: (clipId: string, event: React.MouseEvent) => void;
   onClipDoubleClick?: (clipId: string) => void;
+  onDuplicateClip?: (clipId: string) => void;
   className?: string;
 }
 
@@ -46,6 +47,7 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
   onClipMove,
   onClipClick,
   onClipDoubleClick,
+  onDuplicateClip,
   className = ""
 }) => {
   const clipRef = useRef<HTMLDivElement>(null);
@@ -165,6 +167,7 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
         isPlaying={isPlaying}
         pixelsPerSecond={pixelsPerSecond}
         trackHeight={trackHeight - 8}
+        onDuplicateClip={onDuplicateClip}
         className={`clip-hide-titles ${isDragging ? 'opacity-80' : ''}`}
       />
       
