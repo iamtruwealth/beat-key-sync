@@ -144,17 +144,25 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
 
   const handleTimelineClick = useCallback((event: React.MouseEvent) => {
     if (!timelineRef.current) return;
-    
-    const rect = timelineRef.current.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const timelineWidth = rect.width - 200;
-    const clickTime = (x - 200) / timelineWidth * timelineLength;
-    
-    if (clickTime >= 0) {
-      const snappedTime = snapToGrid(clickTime);
-      onSeek(Math.max(0, snappedTime));
-    }
-  }, [timelineLength, onSeek, snapToGrid]);
+
+    const container = timelineRef.current;
+    const rect = container.getBoundingClientRect();
+    const scrollX = container.scrollLeft;
+
+    // Track lane header uses w-48 (12rem = 192px)
+    const headerWidth = 192;
+
+    // Adjust for container position, horizontal scroll, and left header gutter
+    const rawX = event.clientX - rect.left + scrollX - headerWidth;
+    const timelinePixelWidth = loopLength * pixelsPerSecond;
+
+    // Clamp within visible timeline range
+    const xClamped = Math.max(0, Math.min(rawX, timelinePixelWidth));
+    const clickTime = xClamped / pixelsPerSecond;
+
+    const snappedTime = snapToGrid(clickTime);
+    onSeek(Math.max(0, Math.min(snappedTime, loopLength)));
+  }, [loopLength, pixelsPerSecond, onSeek, snapToGrid]);
 
   // Keep playingRef in sync with isPlaying
   useEffect(() => {
