@@ -181,10 +181,12 @@ class ToneAudioEngine {
     console.log('Playback paused');
   }
 
-  seekTo(positionInBeats: number): void {
+  seekTo(positionInSeconds: number): void {
+    // Convert seconds to beats, then to Tone.js position
+    const positionInBeats = (positionInSeconds * this.currentBPM) / 60;
     const positionInBars = positionInBeats / 4;
     Tone.Transport.position = `${positionInBars}:0:0`;
-    console.log(`Seeked to ${positionInBeats} beats (${positionInBars} bars)`);
+    console.log(`Seeked to ${positionInSeconds} seconds (${positionInBeats} beats, ${positionInBars} bars)`);
   }
 
   setBPM(newBPM: number): void {
@@ -199,6 +201,22 @@ class ToneAudioEngine {
   }
 
   getCurrentPosition(): number {
+    // Convert Tone.js position to seconds
+    const position = Tone.Transport.position;
+    if (typeof position === 'string') {
+      // Parse "bars:beats:sixteenths" format
+      const parts = position.split(':').map(Number);
+      const bars = parts[0] || 0;
+      const beats = parts[1] || 0;
+      const sixteenths = parts[2] || 0;
+      const totalBeats = (bars * 4) + beats + (sixteenths / 4);
+      // Convert beats to seconds using current BPM
+      return (totalBeats * 60) / this.currentBPM;
+    }
+    return 0;
+  }
+
+  getCurrentPositionInBeats(): number {
     // Convert Tone.js position to beats
     const position = Tone.Transport.position;
     if (typeof position === 'string') {

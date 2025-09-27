@@ -92,24 +92,27 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       toneAudioEngine.setBPM(bpm);
     }
   }, [bpm, engineInitialized]);
-  
-  // Calculate session length based on the LAST ending clip (not longest)
+
+  // Calculate fallback session length based on clips and tracks
   const lastClipEndTime = Math.max(
     ...(audioClips.length > 0 ? audioClips.map(c => c.endTime) : []),
     ...tracks.map(track => {
-      // Prefer actual audio duration to infer bars when not explicitly provided
       const knownDuration = trackDurations.get(track.id) || track.analyzed_duration || track.duration;
       if (knownDuration && knownDuration > 0) {
         const estimatedBars = Math.max(1, Math.round(knownDuration / secondsPerBar));
         return estimatedBars * secondsPerBar;
       }
-      const clipBars = track.bars || 4; // sensible default for loops
-      return clipBars * secondsPerBar; // Default clip if no clips exist yet
+      const clipBars = track.bars || 4;
+      return clipBars * secondsPerBar;
     }),
     4 * secondsPerBar // Minimum 4 bars
   );
-  
-  const sessionDuration = lastClipEndTime; // Session ends when the last clip ends
+   
+  // Calculate session length based on Tone.js loop duration
+  const sessionDurationFromEngine = engineInitialized 
+    ? (toneAudioEngine.loopDurationInBeats * 60) / bpm 
+    : lastClipEndTime;
+  const sessionDuration = sessionDurationFromEngine || 4 * secondsPerBar; // Fallback to 4 bars
   const totalBars = Math.ceil(sessionDuration / secondsPerBar);
   
   const pixelsPerSecond = 40;
@@ -175,14 +178,29 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     }
   }, [isPlaying, engineInitialized]);
 
-  // Handle seeking
-  const handleSeek = useCallback((time: number) => {
-    if (engineInitialized) {
-      const positionInBeats = time / secondsPerBeat;
-      toneAudioEngine.seekTo(positionInBeats);
-    }
-    onSeek(time);
-  }, [engineInitialized, secondsPerBeat, onSeek]);
+  // Sync currentTime with Tone.js transport position
+  useEffect(() => {
+    if (!engineInitialized || !isPlaying) return;
+
+    const updatePosition = () => {
+      const position = toneAudioEngine.getCurrentPosition();
+      const loopDuration = (toneAudioEngine.loopDurationInBeats * 60) / bpm;
+      
+      // Handle loop reset - if we've gone past the loop end, reset to 0
+      if (position >= loopDuration) {
+        onSeek(0);
+        return;
+      }
+      
+      // Update current time if there's a significant difference
+      if (Math.abs(position - currentTime) > 0.1) {
+        onSeek(position);
+      }
+    };
+
+    const intervalId = setInterval(updatePosition, 100); // Update 10 times per second
+    return () => clearInterval(intervalId);
+  }, [engineInitialized, isPlaying, bpm, currentTime, onSeek]);
 
   // Update track properties in engine
   const updateTrackProperties = useCallback((trackId: string, updates: Partial<Track>) => {
@@ -198,6 +216,30 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       toneAudioEngine.soloTrack(trackId, updates.isSolo);
     }
   }, [engineInitialized]);
+
+  // Sync currentTime with Tone.js transport position
+  useEffect(() => {
+    if (!engineInitialized || !isPlaying) return;
+
+    const updatePosition = () => {
+      const position = toneAudioEngine.getCurrentPosition();
+      const loopDuration = (toneAudioEngine.loopDurationInBeats * 60) / bpm;
+      
+      // Handle loop reset - if we've gone past the loop end, reset to 0
+      if (position >= loopDuration) {
+        onSeek(0);
+        return;
+      }
+      
+      // Update current time if there's a significant difference
+      if (Math.abs(position - currentTime) > 0.1) {
+        onSeek(position);
+      }
+    };
+
+    const intervalId = setInterval(updatePosition, 100); // Update 10 times per second
+    return () => clearInterval(intervalId);
+  }, [engineInitialized, isPlaying, bpm, currentTime, onSeek]);
 
   // Initialize audio clips from tracks - ensure proper positioning
   useEffect(() => {
@@ -479,6 +521,14 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       }
     };
   }, [engineInitialized]);
+
+  // Handle seeking  
+  const handleSeek = useCallback((time: number) => {
+    if (engineInitialized) {
+      toneAudioEngine.seekTo(time);
+    }
+    onSeek(time);
+  }, [engineInitialized, onSeek]);
 
   const handleTimelineClick = useCallback((event: React.MouseEvent) => {
     if (!timelineRef.current) return;
