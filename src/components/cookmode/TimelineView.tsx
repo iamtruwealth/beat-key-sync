@@ -65,7 +65,8 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
 
   // Metronome state
   const audioContextRef = useRef<AudioContext | null>(null);
-  const [lastBeatTime, setLastBeatTime] = useState(-1);
+  const metronomeIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastMetronomeBeatRef = useRef(-1);
 
   // Calculate timing constants with precise BPM
   const secondsPerBeat = 60 / bpm; // Precise: 60 seconds / beats per minute
@@ -134,21 +135,40 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     oscillator.stop(audioContext.currentTime + 0.1);
   }, [metronomeEnabled]);
 
-  // Metronome timing effect
+  // Metronome timing effect - optimized to avoid re-renders
   useEffect(() => {
     if (!isPlaying || !metronomeEnabled) {
-      setLastBeatTime(-1);
+      lastMetronomeBeatRef.current = -1;
+      if (metronomeIntervalRef.current) {
+        clearInterval(metronomeIntervalRef.current);
+        metronomeIntervalRef.current = null;
+      }
       return;
     }
 
-    const currentBeat = Math.floor(currentTime / secondsPerBeat);
-    
-    if (currentBeat !== lastBeatTime && currentBeat >= 0) {
-      const isDownbeat = currentBeat % beatsPerBar === 0;
-      playMetronomeClick(isDownbeat);
-      setLastBeatTime(currentBeat);
-    }
-  }, [currentTime, isPlaying, metronomeEnabled, secondsPerBeat, beatsPerBar, lastBeatTime, playMetronomeClick]);
+    // Use interval instead of watching currentTime changes
+    metronomeIntervalRef.current = setInterval(() => {
+      // Get fresh current time from audio elements
+      const audioElements = Array.from(audioElementsRef.current.values());
+      if (audioElements.length === 0) return;
+      
+      const avgCurrentTime = audioElements.reduce((sum, audio) => sum + audio.currentTime, 0) / audioElements.length;
+      const currentBeat = Math.floor(avgCurrentTime / secondsPerBeat);
+      
+      if (currentBeat !== lastMetronomeBeatRef.current && currentBeat >= 0) {
+        const isDownbeat = currentBeat % beatsPerBar === 0;
+        playMetronomeClick(isDownbeat);
+        lastMetronomeBeatRef.current = currentBeat;
+      }
+    }, 50); // Check every 50ms for accuracy
+
+    return () => {
+      if (metronomeIntervalRef.current) {
+        clearInterval(metronomeIntervalRef.current);
+        metronomeIntervalRef.current = null;
+      }
+    };
+  }, [isPlaying, metronomeEnabled, secondsPerBeat, beatsPerBar, playMetronomeClick]);
 
   // Initialize audio clips from tracks - ensure proper positioning
   useEffect(() => {
