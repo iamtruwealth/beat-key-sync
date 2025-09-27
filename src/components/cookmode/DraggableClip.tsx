@@ -165,7 +165,7 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
         isPlaying={isPlaying}
         pixelsPerSecond={pixelsPerSecond}
         trackHeight={trackHeight - 8}
-        className={isDragging ? 'opacity-80' : ''}
+        className={`clip-hide-titles ${isDragging ? 'opacity-80' : ''}`}
       />
       
       {/* Drag handle indicator */}

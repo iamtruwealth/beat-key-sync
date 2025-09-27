@@ -421,9 +421,9 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     for (let bar = 0; bar < totalBars; bar++) {
       const x = bar * pixelsPerBar;
       markers.push(
-        <div key={`bar-${bar}`} className="absolute h-full">
+        <div key={`bar-${bar}`} className="absolute h-full z-30 pointer-events-none">
           <div className="w-px h-full bg-white/20 relative" style={{ left: x }}>
-            <span className="absolute -top-4 left-1 text-xs text-gray-400">
+            <span className="absolute top-1 left-1 text-xs text-gray-300 z-30">
               {bar + 1}
             </span>
           </div>
@@ -517,7 +517,18 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     <>
       {/* Audio Bridge - handles all audio engine logic */}
       <AudioBridge
-        tracks={tracks}
+        tracks={tracks.map((t) => {
+          const knownDuration = trackDurations.get(t.id) || t.analyzed_duration || t.duration;
+          let resolvedBars: number = t.bars ?? 0;
+          if (!resolvedBars) {
+            if (knownDuration && knownDuration > 0) {
+              resolvedBars = Math.max(1, Math.round(knownDuration / secondsPerBar));
+            } else {
+              resolvedBars = 8; // Ensure minimum 8 bars if unknown
+            }
+          }
+          return { ...t, bars: resolvedBars };
+        })}
         bpm={bpm}
         isPlaying={isPlaying}
         currentTime={currentTime}
@@ -538,7 +549,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           <div className="flex items-center gap-4 text-xs text-gray-400">
             <span>Click: Seek</span>
             <span>Ctrl+Click: Paste Clip</span>
-            <span>Double-click Clip: Copy</span>
+            <span>Double-click Clip: Duplicate</span>
             <span>Ctrl+C/V/D: Copy/Paste/Duplicate</span>
             <span>Del: Delete</span>
           </div>
