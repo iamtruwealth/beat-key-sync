@@ -699,7 +699,14 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     });
 
     return (
-      <div className="relative overflow-hidden" style={{ height: trackHeight }}>
+      <div 
+        className="absolute overflow-hidden" 
+        style={{ 
+          top: trackY,
+          height: trackHeight,
+          width: '100%'
+        }}
+      >
         {/* Track background with proper bounds */}
         <div 
           className="absolute inset-0 border-b border-border/10" 
