@@ -114,7 +114,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     }
   }, [tracks, secondsPerBar]);
 
-  // Initialize audio clips from tracks - ensure proper positioning
+  // Initialize audio clips from tracks - preserve existing arrangement
   useEffect(() => {
     console.log('Checking clips initialization:', { 
       audioClipsLength: audioClips.length, 
@@ -123,50 +123,52 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       trackNames: tracks.map(t => t.name)
     });
     
-    // Always recreate clips when tracks change to ensure all tracks get clips
     if (tracks.length > 0) {
-      const initialClips: AudioClip[] = tracks.map(track => {
-        // Prefer computed bars from actual duration if bars not provided
-        const knownDuration = trackDurations.get(track.id) || track.analyzed_duration || track.duration;
-        let resolvedBars: number = track.bars ?? 0;
-        if (!resolvedBars) {
-          if (knownDuration && knownDuration > 0) {
-            resolvedBars = Math.max(1, Math.round(knownDuration / secondsPerBar));
-          } else {
-            // If no duration is known yet, default to 4 bars (not 8) and wait for analysis
-            resolvedBars = 4; // More conservative default - 4 bars
+      // Find tracks that don't have any clips yet
+      const existingTrackIds = new Set(audioClips.map(clip => clip.trackId));
+      const newTracks = tracks.filter(track => !existingTrackIds.has(track.id));
+      
+      // Only create clips for NEW tracks, preserve existing clips
+      if (newTracks.length > 0) {
+        const newClips: AudioClip[] = newTracks.map(track => {
+          // Prefer computed bars from actual duration if bars not provided
+          const knownDuration = trackDurations.get(track.id) || track.analyzed_duration || track.duration;
+          let resolvedBars: number = track.bars ?? 0;
+          if (!resolvedBars) {
+            if (knownDuration && knownDuration > 0) {
+              resolvedBars = Math.max(1, Math.round(knownDuration / secondsPerBar));
+            } else {
+              // If no duration is known yet, default to 4 bars (not 8) and wait for analysis
+              resolvedBars = 4; // More conservative default - 4 bars
+            }
           }
-        }
-        const clipDuration = resolvedBars * secondsPerBar;
-        
-        const clip: AudioClip = {
-          id: `${track.id}-clip-0`,
-          trackId: track.id,
-          startTime: 0,
-          endTime: clipDuration, // Use bars-based duration for clip length
-          originalTrack: track
-        };
-        console.log('Creating clip for track:', track.name, 'Bars:', resolvedBars, 'Duration:', clipDuration, 'Known duration:', knownDuration, 'Clip:', clip);
-        return clip;
-      });
-      
-      // Only update if clips actually changed (including duration updates)
-      const clipsChanged =
-        initialClips.length !== audioClips.length ||
-        initialClips.some((newClip) => {
-          const existing = audioClips.find((e) => e.id === newClip.id);
-          if (!existing) return true;
-          return (
-            existing.startTime !== newClip.startTime ||
-            existing.endTime !== newClip.endTime ||
-            existing.originalTrack.id !== newClip.originalTrack.id
-          );
+          const clipDuration = resolvedBars * secondsPerBar;
+          
+          const clip: AudioClip = {
+            id: `${track.id}-clip-0`,
+            trackId: track.id,
+            startTime: 0,
+            endTime: clipDuration, // Use bars-based duration for clip length
+            originalTrack: track
+          };
+          console.log('Creating clip for NEW track:', track.name, 'Bars:', resolvedBars, 'Duration:', clipDuration, 'Known duration:', knownDuration, 'Clip:', clip);
+          return clip;
         });
-      
-      if (clipsChanged) {
-        console.log('Updating audio clips - old:', audioClips, 'new:', initialClips);
-        setAudioClips(initialClips);
+        
+        // Add new clips to existing ones instead of replacing
+        console.log('Adding new clips to existing arrangement - existing:', audioClips, 'new:', newClips);
+        setAudioClips(prev => [...prev, ...newClips]);
       }
+      
+      // Remove clips for tracks that no longer exist
+      const currentTrackIds = new Set(tracks.map(t => t.id));
+      setAudioClips(prev => {
+        const filteredClips = prev.filter(clip => currentTrackIds.has(clip.trackId));
+        if (filteredClips.length !== prev.length) {
+          console.log('Removed clips for deleted tracks - before:', prev, 'after:', filteredClips);
+        }
+        return filteredClips;
+      });
     }
   }, [tracks, trackDurations]);
 
