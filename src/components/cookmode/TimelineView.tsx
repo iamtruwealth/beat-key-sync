@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useWaveformGenerator } from '@/hooks/useWaveformGenerator';
 import { generateWaveformBars } from '@/lib/waveformGenerator';
 import { AudioBridge } from './AudioBridge';
+import { WaveformTrack } from './WaveformTrack';
 
 interface Track {
   id: string;
@@ -424,8 +425,8 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     return markers;
   };
 
-  // Waveform Track Component
-  const WaveformTrack: React.FC<{
+  // Enhanced Waveform Track Component using WaveSurfer.js
+  const EnhancedWaveformTrack: React.FC<{
     track: Track;
     clips: AudioClip[];
     trackY: number;
@@ -464,42 +465,40 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           return (
             <div
               key={clip.id}
-              className={`absolute border-2 rounded cursor-pointer overflow-hidden ${
-                selectedClips.has(clip.id) ? 'ring-2 ring-primary' : ''
-              } ${getStemColor(track.stem_type)}`}
+              className="absolute"
               style={{
                 left: clipLeft,
                 width: clipWidth,
                 height: trackHeight - 8,
                 top: 4
               }}
-              onClick={(e) => {
-                e.stopPropagation();
-                const newSelection = new Set(selectedClips);
-                if (e.ctrlKey || e.metaKey) {
-                  if (newSelection.has(clip.id)) {
-                    newSelection.delete(clip.id);
-                  } else {
-                    newSelection.add(clip.id);
-                  }
-                } else {
-                  newSelection.clear();
-                  newSelection.add(clip.id);
-                }
-                setSelectedClips(newSelection);
-              }}
-              onDoubleClick={() => {
-                copyClip(clip.id);
-              }}
             >
-              <div className="flex items-center justify-between p-1 h-full">
-                <span className="text-xs font-medium text-white truncate">
-                  {track.name}
-                </span>
-                <Badge variant="outline" className="text-xs">
-                  {formatTime(clip.startTime)}
-                </Badge>
-              </div>
+              <WaveformTrack
+                clip={clip}
+                containerId={`wave-${clip.id}`}
+                currentTime={currentTime}
+                isPlaying={isPlaying}
+                pixelsPerSecond={pixelsPerSecond}
+                trackHeight={trackHeight - 8}
+                onClipClick={(clipId, event) => {
+                  const newSelection = new Set(selectedClips);
+                  if (event.ctrlKey || event.metaKey) {
+                    if (newSelection.has(clipId)) {
+                      newSelection.delete(clipId);
+                    } else {
+                      newSelection.add(clipId);
+                    }
+                  } else {
+                    newSelection.clear();
+                    newSelection.add(clipId);
+                  }
+                  setSelectedClips(newSelection);
+                }}
+                onClipDoubleClick={(clipId) => {
+                  copyClip(clipId);
+                }}
+                className={selectedClips.has(clip.id) ? 'ring-2 ring-primary' : ''}
+              />
             </div>
           );
         })}
@@ -650,7 +649,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                     className="relative border-b border-white/10"
                     style={{ height: trackHeight }}
                   >
-                    <WaveformTrack
+                    <EnhancedWaveformTrack
                       track={track}
                       clips={audioClips}
                       trackY={trackY}
