@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
 import { Play, Pause, RotateCcw, Volume2, VolumeX } from "lucide-react";
 import { BPMSyncIndicator } from './BPMSyncIndicator';
 import { useToast } from "@/hooks/use-toast";
@@ -45,6 +46,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const audioElementsRef = useRef<Map<string, HTMLAudioElement>>(new Map());
   const blobSrcTriedRef = useRef<Set<string>>(new Set());
   const [trackDurations, setTrackDurations] = useState<Map<string, number>>(new Map());
+  const [masterVolume, setMasterVolume] = useState(100);
   const { toast } = useToast();
 
   // Calculate timing constants
@@ -269,16 +271,17 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     }
   }, [currentTime, isLooping, loopStart, loopEnd, onSeek]);
 
-  // Update track volumes and mute states
+  // Update track volumes and mute states with master volume
   useEffect(() => {
     tracks.forEach(track => {
       const audio = audioElementsRef.current.get(track.id);
       if (audio) {
-        const newVolume = track.volume !== undefined ? track.volume : 1;
-        audio.volume = newVolume;
+        const trackVolume = track.volume !== undefined ? track.volume : 1;
+        const baseVolume = trackVolume * (masterVolume / 100);
+        audio.volume = baseVolume;
         audio.muted = track.isMuted || false;
         // Update base volume for master fader control
-        audio.setAttribute('data-base-volume', newVolume.toString());
+        audio.setAttribute('data-base-volume', trackVolume.toString());
         
         // Also check if track should be stopped due to duration
         const actualDuration = trackDurations.get(track.id) || track.analyzed_duration || track.duration || audio.duration;
@@ -289,7 +292,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         }
       }
     });
-  }, [tracks, trackDurations]);
+  }, [tracks, trackDurations, masterVolume]);
 
   // Cleanup audio elements when component unmounts
   useEffect(() => {
@@ -503,6 +506,29 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           {/* Track names sidebar */}
           <div className="w-48 flex-shrink-0 bg-card/10 border-r border-border/30">
             <div className="h-8"></div> {/* Spacer for ruler */}
+            
+            {/* Master Track */}
+            <div className="h-20 border-b-2 border-neon-cyan/30 p-2 flex flex-col justify-center bg-gradient-to-r from-neon-cyan/10 to-electric-blue/10">
+              <div className="text-xs font-bold text-neon-cyan mb-2 flex items-center gap-2">
+                <Volume2 className="w-3 h-3" />
+                MASTER
+              </div>
+              <div className="flex items-center gap-2">
+                <Volume2 className="w-3 h-3 text-neon-cyan" />
+                <Slider
+                  value={[masterVolume]}
+                  onValueChange={(value) => setMasterVolume(value[0])}
+                  max={100}
+                  min={0}
+                  step={1}
+                  className="flex-1 h-2"
+                />
+                <span className="text-xs text-neon-cyan font-mono w-8">
+                  {masterVolume}
+                </span>
+              </div>
+            </div>
+
             {tracks.map((track, index) => (
               <div
                 key={track.id}
@@ -552,7 +578,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
               ref={timelineRef}
               className="relative cursor-pointer"
               style={{ 
-                height: tracks.length * 68,
+                height: (tracks.length * 68) + 84, // Extra height for master track
                 minHeight: 200,
                 width: totalBars * pixelsPerBar
               }}
@@ -584,12 +610,30 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                 <div className="absolute -top-2 -left-2 w-4 h-4 bg-neon-cyan rounded-full shadow-neon-cyan shadow-[0_0_10px]" />
               </div>
 
+              {/* Master track visual */}
+              <div
+                className="absolute bg-gradient-to-r from-neon-cyan/20 to-electric-blue/20 border-2 border-neon-cyan/40 rounded overflow-hidden"
+                style={{
+                  top: 8,
+                  left: 0,
+                  width: maxDuration * pixelsPerSecond,
+                  height: 64
+                }}
+              >
+                <div className="h-full p-2 flex items-center justify-center">
+                  <div className="text-sm font-bold text-neon-cyan flex items-center gap-2">
+                    <Volume2 className="w-4 h-4" />
+                    MASTER OUTPUT
+                  </div>
+                </div>
+              </div>
+
               {/* Track waveforms */}
               {tracks.map((track, index) => (
                 <WaveformTrack 
                   key={track.id}
                   track={track} 
-                  index={index} 
+                  index={index + 1} // Offset by 1 for master track
                   pixelsPerSecond={pixelsPerSecond}
                   trackHeight={68}
                 />
