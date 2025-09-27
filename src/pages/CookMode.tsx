@@ -275,79 +275,79 @@ const CookMode = () => {
       {/* Combined Header with View Switcher */}
       <div className="border-b border-border/30 bg-card/20 backdrop-blur-sm">
         {/* Top Row - Dashboard Button, View Switcher, Empty Space */}
-        <div className="flex items-center justify-between p-4 pb-2">
+        <div className="flex items-center justify-between px-3 py-2">
           <Button
             variant="outline"
             size="sm"
             onClick={() => navigate('/dashboard')}
-            className="flex items-center gap-2 border-border/50 hover:bg-card/30"
+            className="flex items-center gap-1.5 text-xs h-8 px-2 border-border/50 hover:bg-card/30"
           >
-            <LayoutDashboard className="w-4 h-4" />
+            <LayoutDashboard className="w-3 h-3" />
             Dashboard
           </Button>
 
           <Tabs value={activeView} onValueChange={(value) => setActiveView(value as 'timeline' | 'mixer')}>
-            <TabsList className="bg-background/80 border border-border/30">
+            <TabsList className="bg-background/80 border border-border/30 h-8">
               <TabsTrigger 
                 value="timeline" 
-                className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                className="flex items-center gap-1.5 text-xs px-3 h-6 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
               >
-                <Clock className="w-4 h-4" />
+                <Clock className="w-3 h-3" />
                 Timeline
               </TabsTrigger>
               <TabsTrigger 
                 value="mixer" 
-                className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                className="flex items-center gap-1.5 text-xs px-3 h-6 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
               >
-                <Layers className="w-4 h-4" />
+                <Layers className="w-3 h-3" />
                 Mixer
               </TabsTrigger>
             </TabsList>
           </Tabs>
 
-          <div className="w-24" />
+          <div className="w-20" />
         </div>
 
         {/* Bottom Row - Session Info and Action Buttons */}
-        <div className="flex items-center justify-between px-4 pb-4">
-          <div className="flex items-center gap-4">
+        <div className="flex items-center justify-between px-3 pb-2">
+          <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-gradient-to-br from-neon-cyan/20 to-electric-blue/20 border border-neon-cyan/30">
-                <Zap className="w-5 h-5 text-neon-cyan animate-pulse" />
+              <div className="p-1.5 rounded-md bg-gradient-to-br from-neon-cyan/20 to-electric-blue/20 border border-neon-cyan/30">
+                <Zap className="w-4 h-4 text-neon-cyan animate-pulse" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-foreground">{session.name}</h1>
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                <h1 className="text-lg font-bold text-foreground">{session.name}</h1>
+                <div className="flex items-center gap-3 text-xs text-muted-foreground">
                   <span>{session.target_bpm} BPM</span>
                   <span>Key: {session.target_genre}</span>
-                  <Badge variant="outline" className="text-xs">
+                  <Badge variant="outline" className="text-xs h-5">
                     <Users className="w-3 h-3 mr-1" />
-                    {participants.length} online
+                    {participants.length}
                   </Badge>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <Button
               variant="outline"
               size="sm"
               onClick={shareSessionLink}
-              className="border-border/50 hover:border-neon-cyan/50"
+              className="text-xs h-8 px-2 border-border/50 hover:border-neon-cyan/50"
             >
-              <Share2 className="w-4 h-4 mr-2" />
-              Share Link
+              <Share2 className="w-3 h-3 mr-1.5" />
+              Share
             </Button>
             
             <Button
               variant="outline"
               size="sm"
               onClick={handleSaveAndPublish}
-              className="border-border/50 hover:border-electric-blue/50"
+              className="text-xs h-8 px-2 border-border/50 hover:border-electric-blue/50"
             >
-              <Save className="w-4 h-4 mr-2" />
-              Save & Publish
+              <Save className="w-3 h-3 mr-1.5" />
+              Save
             </Button>
           </div>
         </div>
