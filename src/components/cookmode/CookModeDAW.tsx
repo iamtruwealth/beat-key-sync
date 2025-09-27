@@ -133,15 +133,31 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
     console.log('Drag enter event triggered');
     e.preventDefault();
     e.stopPropagation();
-    if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+  };
+
+  // Simple test handler
+  const handleSimpleDrop = (e: React.DragEvent) => {
+    console.log('=== SIMPLE DROP TEST ===');
+    e.preventDefault();
+    alert('Drop detected!');
   };
 
   const handleDragOver = (e: React.DragEvent) => {
-    console.log('Drag over event triggered');
+    console.log('Drag over event triggered', {
+      types: Array.from(e.dataTransfer.types),
+      effectAllowed: e.dataTransfer.effectAllowed,
+      dropEffect: e.dataTransfer.dropEffect
+    });
     e.preventDefault();
     e.stopPropagation();
-    if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
-    setIsDragOver(true);
+    
+    // Check if files are being dragged
+    if (e.dataTransfer.types.includes('Files')) {
+      e.dataTransfer.dropEffect = 'copy';
+      setIsDragOver(true);
+    } else {
+      e.dataTransfer.dropEffect = 'none';
+    }
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
@@ -152,7 +168,11 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
   };
 
   const handleDrop = async (e: React.DragEvent) => {
-    console.log('Drop event triggered');
+    console.log('=== DROP EVENT FIRED ===');
+    console.log('Drop event triggered', {
+      types: Array.from(e.dataTransfer.types),
+      files: e.dataTransfer.files.length
+    });
     e.preventDefault();
     e.stopPropagation();
     setIsDragOver(false);
@@ -256,7 +276,7 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
       onDragEnter={handleDragEnter}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
+      onDrop={handleSimpleDrop}
     >
       {/* Content Area */}
       <div 
