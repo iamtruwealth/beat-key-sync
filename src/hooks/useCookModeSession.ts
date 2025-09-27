@@ -87,6 +87,9 @@ export function useCookModeSession(sessionId?: string) {
             setIsPlaying(payload.isPlaying);
             setCurrentTime(payload.currentTime);
           })
+          .on('broadcast', { event: 'seek' }, ({ payload }) => {
+            setCurrentTime(payload.currentTime);
+          })
           .on('broadcast', { event: 'track-added' }, ({ payload }) => {
             setTracks(prev => [...prev, payload.track]);
           })
@@ -247,6 +250,29 @@ export function useCookModeSession(sessionId?: string) {
     }
   }, [toast]);
 
+  // Time tracking
+  const startTimeRef = useRef<number>(0);
+  const pausedTimeRef = useRef<number>(0);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    
+    if (isPlaying) {
+      startTimeRef.current = Date.now() - pausedTimeRef.current * 1000;
+      
+      interval = setInterval(() => {
+        const elapsed = (Date.now() - startTimeRef.current) / 1000;
+        setCurrentTime(elapsed);
+      }, 100);
+    } else {
+      pausedTimeRef.current = currentTime;
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isPlaying]);
+
   const togglePlayback = useCallback(() => {
     const newIsPlaying = !isPlaying;
     setIsPlaying(newIsPlaying);
@@ -262,6 +288,25 @@ export function useCookModeSession(sessionId?: string) {
       });
     }
   }, [isPlaying, currentTime]);
+
+  const seekTo = useCallback((time: number) => {
+    setCurrentTime(time);
+    pausedTimeRef.current = time;
+    
+    if (isPlaying) {
+      startTimeRef.current = Date.now() - time * 1000;
+    }
+
+    if (channelRef.current) {
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'seek',
+        payload: {
+          currentTime: time
+        }
+      });
+    }
+  }, [isPlaying]);
 
   const addTrack = useCallback(async (file: File, trackName: string, stemType: string) => {
     try {
@@ -464,6 +509,7 @@ export function useCookModeSession(sessionId?: string) {
     addTrack,
     removeTrack,
     togglePlayback,
+    seekTo,
     updateTrack,
     updateSessionSettings,
     saveSession

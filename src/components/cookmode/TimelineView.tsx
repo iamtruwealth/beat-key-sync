@@ -52,45 +52,83 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const pixelsPerBeat = pixelsPerSecond * secondsPerBeat;
   const pixelsPerBar = pixelsPerBeat * beatsPerBar;
 
-  // Audio playback handler for individual tracks
-  const handleTrackPlay = useCallback(async (track: Track) => {
-    try {
-      const audioKey = track.id;
-      let audio = audioElements.get(audioKey);
-      
-      if (!audio) {
-        audio = new Audio(track.file_url);
+  // Initialize audio elements for all tracks
+  useEffect(() => {
+    tracks.forEach(track => {
+      if (!audioElements.has(track.id)) {
+        const audio = new Audio(track.file_url);
         audio.volume = (track.volume || 100) / 100;
         audio.muted = track.isMuted || false;
+        audio.currentTime = currentTime;
         
-        // Add to our audio elements map
-        setAudioElements(prev => new Map(prev.set(audioKey, audio!)));
+        // Sync with current playback state
+        if (isPlaying) {
+          audio.play().catch(console.error);
+        }
         
         audio.addEventListener('error', (e) => {
-          console.error('Audio error:', e);
+          console.error('Audio error for track:', track.name, e);
           toast({
             title: "Playback Error",
-            description: `Could not play ${track.name}`,
+            description: `Could not load ${track.name}`,
             variant: "destructive"
           });
         });
+        
+        setAudioElements(prev => new Map(prev.set(track.id, audio)));
       }
-      
-      if (audio.paused) {
-        await audio.play();
-        toast({
-          title: "Playing Track",
-          description: track.name,
-        });
-      } else {
+    });
+
+    // Remove audio elements for tracks that no longer exist
+    audioElements.forEach((audio, trackId) => {
+      if (!tracks.find(t => t.id === trackId)) {
         audio.pause();
+        audio.src = '';
+        setAudioElements(prev => {
+          const newMap = new Map(prev);
+          newMap.delete(trackId);
+          return newMap;
+        });
       }
-    } catch (error) {
-      console.error('Error playing track:', error);
+    });
+  }, [tracks, toast]);
+
+  // Sync playback state with main controls
+  useEffect(() => {
+    console.log('Timeline syncing playback state:', { isPlaying, audioElementsCount: audioElements.size });
+    audioElements.forEach((audio, trackId) => {
+      try {
+        if (isPlaying && audio.paused) {
+          console.log('Starting playback for track:', trackId);
+          audio.currentTime = currentTime;
+          audio.play().catch(console.error);
+        } else if (!isPlaying && !audio.paused) {
+          console.log('Pausing playback for track:', trackId);
+          audio.pause();
+        }
+      } catch (error) {
+        console.error('Error syncing audio playback:', error);
+      }
+    });
+  }, [isPlaying, audioElements]);
+
+  // Sync current time
+  useEffect(() => {
+    audioElements.forEach(audio => {
+      if (Math.abs(audio.currentTime - currentTime) > 0.5) {
+        audio.currentTime = currentTime;
+      }
+    });
+  }, [currentTime, audioElements]);
+
+  // Audio playback handler for individual tracks (toggle mute/solo)
+  const handleTrackPlay = useCallback(async (track: Track) => {
+    const audio = audioElements.get(track.id);
+    if (audio) {
+      audio.muted = !audio.muted;
       toast({
-        title: "Playback Error", 
-        description: `Could not play ${track.name}`,
-        variant: "destructive"
+        title: audio.muted ? "Track Muted" : "Track Unmuted",
+        description: track.name,
       });
     }
   }, [audioElements, toast]);

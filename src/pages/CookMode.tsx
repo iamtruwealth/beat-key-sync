@@ -53,6 +53,7 @@ const CookMode = () => {
     addTrack,
     removeTrack,
     togglePlayback,
+    seekTo,
     updateTrack,
     updateSessionSettings,
     saveSession
@@ -323,7 +324,7 @@ const CookMode = () => {
             bpm={session.target_bpm || 120}
             sessionKey={session.target_genre}
             onTogglePlayback={togglePlayback}
-            onSeek={(time) => {/* implement seek */}}
+            onSeek={seekTo}
             onUpdateBpm={(bpm) => updateSessionSettings({ bpm })}
             onUpdateKey={(key) => updateSessionSettings({ key })}
           />
@@ -341,7 +342,7 @@ const CookMode = () => {
               onRemoveTrack={removeTrack}
               onUpdateTrack={updateTrack}
               onPlayPause={togglePlayback}
-              onSeek={(time) => {/* implement seek functionality */}}
+              onSeek={seekTo}
               externalActiveView={activeView}
               onActiveViewChange={(v) => setActiveView(v)}
             />
