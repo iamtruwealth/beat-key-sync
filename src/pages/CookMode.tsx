@@ -416,7 +416,7 @@ const CookMode = () => {
         </div>
 
         {/* Right Sidebar */}
-        <div className="w-80 border-l border-border/50 bg-card/20 backdrop-blur-sm flex flex-col relative z-30">
+        <div className="w-80 border-l border-border/50 bg-card/20 backdrop-blur-sm flex flex-col relative z-50">
           {/* Participants */}
           <div className="p-4 border-b border-border/50">
             <SessionParticipants participants={participants} />

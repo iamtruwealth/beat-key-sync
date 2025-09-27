@@ -308,11 +308,14 @@ export function useCookModeSession(sessionId?: string) {
 
   const togglePlayback = useCallback(() => {
     const newIsPlaying = !isPlaying;
-    slog('togglePlayback', { newIsPlaying });
+    slog('togglePlayback', { newIsPlaying, at: Number.isFinite(currentTime) ? currentTime.toFixed(3) : currentTime });
     
-    // When starting playback, resume from paused position
     if (newIsPlaying) {
-      startTimeRef.current = Date.now() - pausedTimeRef.current * 1000;
+      // Resume from the current visual position
+      startTimeRef.current = Date.now() - currentTime * 1000;
+    } else {
+      // On pause, capture the position so we resume accurately
+      pausedTimeRef.current = currentTime;
     }
     
     setIsPlaying(newIsPlaying);
@@ -323,11 +326,11 @@ export function useCookModeSession(sessionId?: string) {
         event: 'playback-control',
         payload: {
           isPlaying: newIsPlaying,
-          currentTime: pausedTimeRef.current
+          currentTime
         }
       });
     }
-  }, [isPlaying]);
+  }, [isPlaying, currentTime]);
 
   const seekTo = useCallback((time: number) => {
     // Quantize seek position to nearest beat for exact loop points
