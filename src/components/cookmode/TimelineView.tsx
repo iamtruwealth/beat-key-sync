@@ -597,7 +597,12 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
             targetWidth: 500 
           });
 
-          const clipWidth = (clip.endTime - clip.startTime) * pixelsPerSecond;
+          const totalDuration = trackDurations.get(track.id) || clip.originalTrack.analyzed_duration || clip.originalTrack.duration || 0;
+          // Visualize only the actual sound of the source within this clip's window
+          const displayEndTime = Math.min(clip.endTime, clip.startTime + (totalDuration || 0));
+          const displayDuration = Math.max(0, displayEndTime - clip.startTime);
+
+          const clipWidth = displayDuration * pixelsPerSecond;
           const clipLeft = clip.startTime * pixelsPerSecond;
           const isSelected = selectedClips.has(clip.id);
 
@@ -605,6 +610,8 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
             clipId: clip.id,
             startTime: clip.startTime,
             endTime: clip.endTime,
+            displayEndTime,
+            displayDuration,
             clipWidth,
             clipLeft,
             pixelsPerSecond,
@@ -613,32 +620,17 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
             isVisible: clipWidth > 0 && clipLeft >= 0
           });
 
-          // Generate waveform bars for visualization - show only the clip's 8-bar segment
+          // Generate waveform bars for visualization - only the portion that actually sounds
           let waveformBars: number[] = [];
-          if (waveformData?.peaks) {
-            // For 8 bars, calculate the exact segment we need
-            const clipDuration = clip.endTime - clip.startTime;
-            const barsInClip = Math.round(clipDuration / secondsPerBar); // Should be 8 bars
-            const beatsInClip = barsInClip * beatsPerBar; // Should be 32 beats
-            
-            // Calculate how many waveform bars to show (one per beat or fraction)
-            const targetBars = Math.floor(clipWidth / 8); // Adjust density based on clip width
-            
-            // Use only the portion of waveform data that corresponds to this clip
-            const totalDuration = trackDurations.get(track.id) || clip.originalTrack.analyzed_duration || clip.originalTrack.duration || 60;
-            
-            if (totalDuration > 0) {
-              const startRatio = clip.startTime / totalDuration;
-              const endRatio = clip.endTime / totalDuration;
-              
-              // Slice the waveform data to match exactly the clip's time range
-              const startIndex = Math.floor(startRatio * waveformData.peaks.length);
-              const endIndex = Math.ceil(endRatio * waveformData.peaks.length);
-              const clippedPeaks = waveformData.peaks.slice(startIndex, endIndex);
-              
-              // Generate bars from the clipped segment only
-              waveformBars = generateWaveformBars(clippedPeaks, Math.max(targetBars, 16));
-            }
+          if (waveformData?.peaks && totalDuration > 0 && displayDuration > 0) {
+            // Slice from the start of the source up to the clip's visible duration
+            const endRatio = Math.min(displayDuration / totalDuration, 1);
+            const endIndex = Math.max(1, Math.ceil(endRatio * waveformData.peaks.length));
+            const clippedPeaks = waveformData.peaks.slice(0, endIndex);
+
+            // Density based on width (no effect on audio)
+            const targetBars = Math.max(Math.floor(clipWidth / 8), 16);
+            waveformBars = generateWaveformBars(clippedPeaks, targetBars);
           }
 
           return (
