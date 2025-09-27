@@ -78,7 +78,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         const estimatedBars = Math.max(1, Math.round(knownDuration / secondsPerBar));
         return estimatedBars * secondsPerBar;
       }
-      const clipBars = track.bars || 8; // Default to 8 bars if unknown
+      const clipBars = track.bars || 4; // Default to 4 bars if unknown
       return clipBars * secondsPerBar;
     }),
     0 // No minimum - let it be based purely on content

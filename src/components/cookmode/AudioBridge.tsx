@@ -57,16 +57,19 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
       const knownDuration = track.analyzed_duration || track.duration;
       let durationInBeats: number;
       
+      console.log(`Creating clip for track: ${track.name} Bars: ${track.bars} Duration: ${knownDuration} Known duration: ${track.duration}`);
+      
       if (track.bars) {
         durationInBeats = track.bars * 4; // bars * 4 beats per bar
       } else if (knownDuration && knownDuration > 0) {
         const estimatedBars = Math.max(1, Math.round(knownDuration / secondsPerBar));
         durationInBeats = estimatedBars * 4;
       } else {
-        durationInBeats = 16; // Default 4 bars when duration unknown
+        // Default to 4 bars (16 beats) when duration is unknown
+        durationInBeats = 16; // 4 bars * 4 beats per bar
       }
 
-      return {
+      const clip = {
         id: track.id,
         url: track.file_url,
         offsetInBeats: 0, // All tracks start at the beginning for now
@@ -74,6 +77,9 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
         gain: track.volume || 1,
         muted: track.isMuted || false
       };
+      
+      console.log(`Clip:`, clip);
+      return clip;
     });
   }, []);
 
