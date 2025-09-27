@@ -220,6 +220,52 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     });
   }, [audioClips, snapToGrid, toast]);
 
+  // Delete track function
+  const deleteTrack = useCallback((trackId: string) => {
+    const track = tracks.find(t => t.id === trackId);
+    if (!track) return;
+    
+    console.log('Deleting track:', track.name, 'ID:', trackId);
+    
+    // Remove all clips for this track
+    setAudioClips(prev => {
+      const filtered = prev.filter(clip => clip.trackId !== trackId);
+      console.log('Clips after track deletion:', filtered);
+      return filtered;
+    });
+    
+    // Remove from selected clips
+    setSelectedClips(prev => {
+      const newSet = new Set(prev);
+      prev.forEach(clipId => {
+        const clip = audioClips.find(c => c.id === clipId);
+        if (clip && clip.trackId === trackId) {
+          newSet.delete(clipId);
+        }
+      });
+      return newSet;
+    });
+    
+    // Clean up audio element
+    const audioElement = audioElementsRef.current.get(trackId);
+    if (audioElement) {
+      audioElement.pause();
+      audioElement.src = '';
+      audioElementsRef.current.delete(trackId);
+    }
+    
+    // Update tracks via callback
+    if (onTracksUpdate) {
+      const updatedTracks = tracks.filter(t => t.id !== trackId);
+      onTracksUpdate(updatedTracks);
+    }
+    
+    toast({
+      title: "Track Deleted",
+      description: `${track.name} removed from session`,
+    });
+  }, [tracks, audioClips, onTracksUpdate, toast]);
+
   // Delete clip function
   const deleteClip = useCallback((clipId: string) => {
     console.log('Deleting clip:', clipId);
@@ -820,6 +866,20 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                 <Button
                   variant="ghost"
                   size="sm"
+                  className="h-5 w-5 p-0 text-xs text-red-400 hover:text-red-300"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (confirm(`Delete clip "${clip.originalTrack.name}"?`)) {
+                      deleteClip(clip.id);
+                    }
+                  }}
+                  title="Delete Clip (Del)"
+                >
+                  ×
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
                   className="h-5 w-5 p-0 text-xs"
                   onClick={(e) => {
                     e.stopPropagation();
@@ -896,7 +956,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
               return (
                 <div
                   key={track.id}
-                  className="h-[68px] border-b border-border/20 p-2 flex flex-col justify-center group cursor-pointer hover:bg-card/20 transition-colors"
+                  className="h-[68px] border-b border-border/20 p-2 flex flex-col justify-center group cursor-pointer hover:bg-card/20 transition-colors relative"
                   onClick={() => handleTrackPlay(track)}
                   title={track.name} // Show full name on hover
                 >
@@ -911,17 +971,33 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                     >
                       {track.stem_type}
                     </Badge>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleTrackPlay(track);
-                      }}
-                    >
-                      <Play className="w-3 h-3" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleTrackPlay(track);
+                        }}
+                      >
+                        <Play className="w-3 h-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-300"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm(`Delete track "${track.name}"? This will remove the track and all its clips from the session.`)) {
+                            deleteTrack(track.id);
+                          }
+                        }}
+                        title="Delete Track"
+                      >
+                        ×
+                      </Button>
+                    </div>
                   </div>
                 </div>
               );
