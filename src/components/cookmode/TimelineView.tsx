@@ -51,9 +51,6 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   onTracksUpdate
 }) => {
   const timelineRef = useRef<HTMLDivElement>(null);
-  const [isLooping, setIsLooping] = useState(false);
-  const [loopStart, setLoopStart] = useState(0);
-  const [loopEnd, setLoopEnd] = useState(32);
   const [timelineWidth, setTimelineWidth] = useState(0);
   const audioElementsRef = useRef<Map<string, HTMLAudioElement>>(new Map());
   const blobSrcTriedRef = useRef<Set<string>>(new Set());
@@ -64,12 +61,16 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const [copiedClip, setCopiedClip] = useState<AudioClip | null>(null);
   const { toast } = useToast();
 
-  // Calculate timing constants
-  const secondsPerBeat = 60 / bpm;
+  // Calculate timing constants with precise BPM
+  const secondsPerBeat = 60 / bpm; // Precise: 60 seconds / beats per minute
   const beatsPerBar = 4;
   const secondsPerBar = secondsPerBeat * beatsPerBar;
-  const maxDuration = Math.max(...tracks.map(t => trackDurations.get(t.id) || t.analyzed_duration || t.duration || 60), 60);
-  const totalBars = Math.ceil(maxDuration / secondsPerBar);
+  
+  // Calculate session length based on longest clip (in bars)
+  const longestClipBars = Math.max(...tracks.map(t => t.bars || 8), 8);
+  const sessionDuration = longestClipBars * secondsPerBar; // Session ends when longest clip ends
+  const totalBars = longestClipBars;
+  
   const pixelsPerSecond = 40;
   const pixelsPerBeat = pixelsPerSecond * secondsPerBeat;
   const pixelsPerBar = pixelsPerBeat * beatsPerBar;
@@ -362,9 +363,9 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     });
   }, [tracks, toast]);
 
-  // Sync playback state with main controls - improved for clip system
+  // Sync playback state with main controls - improved for clip system and looping
   useEffect(() => {
-    console.log('Timeline syncing playback state:', { isPlaying, audioElementsCount: audioElementsRef.current.size });
+    console.log('Timeline syncing playback state:', { isPlaying, currentTime, audioElementsCount: audioElementsRef.current.size });
     audioElementsRef.current.forEach((audio, trackId) => {
       try {
         if (!audio.src) return;
@@ -381,15 +382,18 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         if (shouldPlay && audio.paused) {
           console.log('Starting playback for track:', trackId);
           
-          // Set audio time relative to clip start
+          // Set audio time relative to clip start (precise BPM timing)
           const activeClip = activeClips[0]; // Use first active clip
           const clipTime = currentTime - activeClip.startTime;
-          audio.currentTime = clipTime;
+          
+          // Ensure precise timing alignment
+          const alignedClipTime = Math.max(0, clipTime);
+          audio.currentTime = alignedClipTime;
           
           const playPromise = audio.play();
           if (playPromise !== undefined) {
             playPromise
-              .then(() => console.log('Audio started successfully for:', trackId))
+              .then(() => console.log('Audio started successfully for:', trackId, 'at time:', alignedClipTime))
               .catch(error => {
                 console.error('Autoplay prevented for track:', trackId, error);
                 if (error.name === 'NotAllowedError') {
@@ -403,6 +407,12 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         } else if (!shouldPlay && !audio.paused) {
           console.log('Pausing playback for track:', trackId);
           audio.pause();
+        }
+        
+        // Handle loop restart - reset all audio to beginning when currentTime is near zero
+        if (currentTime < 0.1 && audio.currentTime > 0.5) {
+          console.log('Loop restart detected - resetting audio for track:', trackId);
+          audio.currentTime = 0;
         }
       } catch (error) {
         console.error('Error syncing audio playback:', error);
@@ -456,12 +466,14 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     }
   }, []);
 
-  // Handle loop logic
+  // Automatic loop logic - loop when reaching end of longest clip
   useEffect(() => {
-    if (isLooping && currentTime >= loopEnd) {
-      onSeek(loopStart);
+    // Always loop at the end of the session (when longest clip ends)
+    if (currentTime >= sessionDuration) {
+      console.log(`Auto-looping: currentTime ${currentTime}s >= sessionDuration ${sessionDuration}s`);
+      onSeek(0); // Go back to zero and restart
     }
-  }, [currentTime, isLooping, loopStart, loopEnd, onSeek]);
+  }, [currentTime, sessionDuration, onSeek]);
 
   // Update track volumes and mute states with master volume
   useEffect(() => {
@@ -516,14 +528,14 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       pasteClip(time);
     } else {
       // Otherwise seek to that position
-      onSeek(Math.max(0, Math.min(time, maxDuration)));
+      onSeek(Math.max(0, Math.min(time, sessionDuration)));
     }
     
     // Clear selection if clicking on empty space
     if (!event.ctrlKey && !event.metaKey) {
       setSelectedClips(new Set());
     }
-  }, [pixelsPerSecond, maxDuration, onSeek, snapToGrid, copiedClip, pasteClip]);
+  }, [pixelsPerSecond, sessionDuration, onSeek, snapToGrid, copiedClip, pasteClip]);
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -882,23 +894,15 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
               }}
               onClick={handleTimelineClick}
             >
-              {/* Loop region */}
-              {isLooping && (
-                <div
-                  className="absolute top-0 bottom-0 bg-neon-cyan/10 border-x-2 border-neon-cyan/50"
-                  style={{
-                    left: loopStart * pixelsPerSecond,
-                    width: (loopEnd - loopStart) * pixelsPerSecond
-                  }}
-                >
-                  <div className="absolute -top-8 left-0 text-xs text-neon-cyan">
-                    {formatPosition(loopStart)}
-                  </div>
-                  <div className="absolute -top-8 right-0 text-xs text-neon-cyan">
-                    {formatPosition(loopEnd)}
-                  </div>
+              {/* Session duration indicator */}
+              <div
+                className="absolute top-0 bottom-0 w-0.5 bg-yellow-400/60 z-5"
+                style={{ left: sessionDuration * pixelsPerSecond }}
+              >
+                <div className="absolute -top-6 -left-8 text-xs text-yellow-400 font-mono">
+                  END ({totalBars} bars)
                 </div>
-              )}
+              </div>
 
               {/* Playhead */}
               <div
@@ -914,7 +918,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                 style={{
                   top: 8,
                   left: 0,
-                  width: maxDuration * pixelsPerSecond,
+                  width: sessionDuration * pixelsPerSecond,
                   height: 64
                 }}
               >
