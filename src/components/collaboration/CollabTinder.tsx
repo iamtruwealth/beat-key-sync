@@ -6,7 +6,6 @@ import { GlassMorphismSection } from '@/components/futuristic/GlassMorphismSecti
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Heart, X, Music, Clock, MessageSquare, Star, Zap, Shuffle } from 'lucide-react';
-
 interface ProducerProfile {
   id: string;
   producer_name: string;
@@ -24,7 +23,6 @@ interface ProducerProfile {
     file_url: string;
   };
 }
-
 export const CollabTinder: React.FC = () => {
   const [currentProfile, setCurrentProfile] = useState<ProducerProfile | null>(null);
   const [profiles, setProfiles] = useState<ProducerProfile[]>([]);
@@ -32,21 +30,24 @@ export const CollabTinder: React.FC = () => {
   const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | null>(null);
   const [matches, setMatches] = useState<ProducerProfile[]>([]);
   const [showMatches, setShowMatches] = useState(false);
-  const { toast } = useToast();
-
+  const {
+    toast
+  } = useToast();
   useEffect(() => {
     loadProducerProfiles();
   }, []);
-
   const loadProducerProfiles = async () => {
     try {
-      const { data: user } = await supabase.auth.getUser();
+      const {
+        data: user
+      } = await supabase.auth.getUser();
       if (!user.user) return;
 
       // Get profiles of producers with public profiles enabled
-      const { data: profilesData, error } = await supabase
-        .from('profiles')
-        .select(`
+      const {
+        data: profilesData,
+        error
+      } = await supabase.from('profiles').select(`
           id,
           producer_name,
           producer_logo_url,
@@ -55,13 +56,7 @@ export const CollabTinder: React.FC = () => {
           verification_status,
           followers_count,
           public_profile_enabled
-        `)
-        .eq('public_profile_enabled', true)
-        .eq('role', 'producer')
-        .neq('id', user.user.id)
-        .not('producer_name', 'is', null)
-        .limit(20);
-
+        `).eq('public_profile_enabled', true).eq('role', 'producer').neq('id', user.user.id).not('producer_name', 'is', null).limit(20);
       if (error) throw error;
 
       // Add some mock data for demo
@@ -76,7 +71,6 @@ export const CollabTinder: React.FC = () => {
           file_url: ''
         }
       }));
-
       setProfiles(enrichedProfiles);
       if (enrichedProfiles.length > 0) {
         setCurrentProfile(enrichedProfiles[0]);
@@ -92,92 +86,66 @@ export const CollabTinder: React.FC = () => {
       setLoading(false);
     }
   };
-
   const handleSwipe = (direction: 'left' | 'right') => {
     if (!currentProfile) return;
-
     setSwipeDirection(direction);
-    
     setTimeout(() => {
       if (direction === 'right') {
         // Add to matches
         setMatches(prev => [...prev, currentProfile]);
         toast({
           title: "It's a Match! 🎵",
-          description: `You and ${currentProfile.producer_name} both want to collaborate!`,
+          description: `You and ${currentProfile.producer_name} both want to collaborate!`
         });
       }
 
       // Move to next profile
       const currentIndex = profiles.findIndex(p => p.id === currentProfile.id);
       const nextIndex = currentIndex + 1;
-      
       if (nextIndex < profiles.length) {
         setCurrentProfile(profiles[nextIndex]);
       } else {
         setCurrentProfile(null);
       }
-      
       setSwipeDirection(null);
     }, 300);
   };
-
   const resetStack = () => {
     loadProducerProfiles();
   };
-
   if (loading) {
-    return (
-      <GlassMorphismSection>
+    return <GlassMorphismSection>
         <div className="text-center py-8">
           <div className="animate-spin w-8 h-8 border-2 border-neon-magenta border-t-transparent rounded-full mx-auto mb-4" />
           <p className="text-muted-foreground">Loading producer profiles...</p>
         </div>
-      </GlassMorphismSection>
-    );
+      </GlassMorphismSection>;
   }
-
-  return (
-    <div className="space-y-6">
+  return <div className="space-y-6">
       {/* Header */}
       <div className="text-center">
-        <h2 className="text-3xl font-bold bg-gradient-to-r from-neon-magenta to-electric-blue bg-clip-text text-transparent mb-2">
-          Producer Tinder
-        </h2>
+        <h2 className="text-3xl font-bold bg-gradient-to-r from-neon-magenta to-electric-blue bg-clip-text text-transparent mb-2">Producers To Collab With </h2>
         <p className="text-muted-foreground">Swipe right to collaborate, left to skip</p>
         <div className="flex items-center justify-center gap-4 mt-4">
-          <Button
-            variant="outline"
-            onClick={() => setShowMatches(!showMatches)}
-            className="border-neon-magenta/30 hover:bg-neon-magenta/20"
-          >
+          <Button variant="outline" onClick={() => setShowMatches(!showMatches)} className="border-neon-magenta/30 hover:bg-neon-magenta/20">
             <Heart className="w-4 h-4 mr-2" />
             Matches ({matches.length})
           </Button>
-          <Button
-            variant="outline"
-            onClick={resetStack}
-            className="border-electric-blue/30 hover:bg-electric-blue/20"
-          >
+          <Button variant="outline" onClick={resetStack} className="border-electric-blue/30 hover:bg-electric-blue/20">
             <Shuffle className="w-4 h-4 mr-2" />
             New Stack
           </Button>
         </div>
       </div>
 
-      {showMatches ? (
-        <GlassMorphismSection variant="gradient">
+      {showMatches ? <GlassMorphismSection variant="gradient">
           <div className="space-y-4">
             <h3 className="text-xl font-bold text-neon-magenta">Your Matches</h3>
-            {matches.length === 0 ? (
-              <div className="text-center py-8">
+            {matches.length === 0 ? <div className="text-center py-8">
                 <Heart className="w-16 h-16 text-neon-magenta mx-auto mb-4 opacity-50" />
                 <p className="text-muted-foreground">No matches yet. Keep swiping!</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {matches.map((match) => (
-                  <Card key={match.id} className="glass-morphism border-neon-magenta/30">
+              </div> : <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {matches.map(match => <Card key={match.id} className="glass-morphism border-neon-magenta/30">
                     <CardHeader className="pb-3">
                       <div className="flex items-center gap-3">
                         <div className="w-12 h-12 rounded-full bg-gradient-to-br from-neon-magenta/20 to-electric-blue/20 flex items-center justify-center">
@@ -194,31 +162,17 @@ export const CollabTinder: React.FC = () => {
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <Button 
-                        size="sm" 
-                        className="w-full bg-neon-magenta/10 hover:bg-neon-magenta/20 text-neon-magenta border border-neon-magenta/30"
-                      >
+                      <Button size="sm" className="w-full bg-neon-magenta/10 hover:bg-neon-magenta/20 text-neon-magenta border border-neon-magenta/30">
                         <MessageSquare className="w-3 h-3 mr-2" />
                         Start Chat
                       </Button>
                     </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
+                  </Card>)}
+              </div>}
           </div>
-        </GlassMorphismSection>
-      ) : (
-        <div className="flex justify-center">
+        </GlassMorphismSection> : <div className="flex justify-center">
           <div className="relative w-full max-w-md">
-            {currentProfile ? (
-              <Card 
-                className={`glass-morphism border-border/50 transition-all duration-300 transform ${
-                  swipeDirection === 'left' ? '-translate-x-full rotate-12 opacity-0' :
-                  swipeDirection === 'right' ? 'translate-x-full -rotate-12 opacity-0' :
-                  'translate-x-0 rotate-0 opacity-100'
-                }`}
-              >
+            {currentProfile ? <Card className={`glass-morphism border-border/50 transition-all duration-300 transform ${swipeDirection === 'left' ? '-translate-x-full rotate-12 opacity-0' : swipeDirection === 'right' ? 'translate-x-full -rotate-12 opacity-0' : 'translate-x-0 rotate-0 opacity-100'}`}>
                 <CardHeader className="text-center">
                   <div className="w-24 h-24 rounded-full bg-gradient-to-br from-neon-magenta/20 to-electric-blue/20 mx-auto mb-4 flex items-center justify-center">
                     <span className="text-3xl font-bold text-neon-magenta">
@@ -229,12 +183,10 @@ export const CollabTinder: React.FC = () => {
                     {currentProfile.producer_name}
                   </CardTitle>
                   <div className="flex items-center justify-center gap-2">
-                    {currentProfile.verification_status === 'verified' && (
-                      <Badge className="bg-neon-cyan/20 text-neon-cyan">
+                    {currentProfile.verification_status === 'verified' && <Badge className="bg-neon-cyan/20 text-neon-cyan">
                         <Star className="w-3 h-3 mr-1" />
                         Verified
-                      </Badge>
-                    )}
+                      </Badge>}
                     <Badge variant="outline">
                       {currentProfile.followers_count} followers
                     </Badge>
@@ -242,25 +194,19 @@ export const CollabTinder: React.FC = () => {
                 </CardHeader>
                 
                 <CardContent className="space-y-4">
-                  {currentProfile.bio && (
-                    <p className="text-sm text-center text-muted-foreground">
+                  {currentProfile.bio && <p className="text-sm text-center text-muted-foreground">
                       {currentProfile.bio}
-                    </p>
-                  )}
+                    </p>}
                   
                   {/* Genres */}
-                  {currentProfile.genres && currentProfile.genres.length > 0 && (
-                    <div className="text-center">
+                  {currentProfile.genres && currentProfile.genres.length > 0 && <div className="text-center">
                       <p className="text-sm font-medium mb-2">Genres</p>
                       <div className="flex flex-wrap justify-center gap-2">
-                        {currentProfile.genres.slice(0, 4).map(genre => (
-                          <Badge key={genre} variant="outline" className="text-xs">
+                        {currentProfile.genres.slice(0, 4).map(genre => <Badge key={genre} variant="outline" className="text-xs">
                             {genre}
-                          </Badge>
-                        ))}
+                          </Badge>)}
                       </div>
-                    </div>
-                  )}
+                    </div>}
 
                   {/* Stats */}
                   <div className="grid grid-cols-2 gap-4 text-center">
@@ -281,56 +227,38 @@ export const CollabTinder: React.FC = () => {
                   </div>
 
                   {/* Featured Beat */}
-                  {currentProfile.featured_beat && (
-                    <div className="p-3 rounded-lg bg-background/20 text-center">
+                  {currentProfile.featured_beat && <div className="p-3 rounded-lg bg-background/20 text-center">
                       <p className="text-sm font-medium mb-1">Featured Beat</p>
                       <p className="text-sm text-neon-magenta">{currentProfile.featured_beat.title}</p>
                       <p className="text-xs text-muted-foreground">
                         {currentProfile.featured_beat.genre} • {currentProfile.featured_beat.bpm} BPM
                       </p>
-                    </div>
-                  )}
+                    </div>}
 
                   {/* Action Buttons */}
                   <div className="flex gap-4 mt-6">
-                    <Button
-                      onClick={() => handleSwipe('left')}
-                      size="lg"
-                      className="flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30"
-                    >
+                    <Button onClick={() => handleSwipe('left')} size="lg" className="flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30">
                       <X className="w-6 h-6" />
                     </Button>
-                    <Button
-                      onClick={() => handleSwipe('right')}
-                      size="lg"
-                      className="flex-1 bg-neon-magenta/10 hover:bg-neon-magenta/20 text-neon-magenta border border-neon-magenta/30"
-                    >
+                    <Button onClick={() => handleSwipe('right')} size="lg" className="flex-1 bg-neon-magenta/10 hover:bg-neon-magenta/20 text-neon-magenta border border-neon-magenta/30">
                       <Heart className="w-6 h-6" />
                     </Button>
                   </div>
                 </CardContent>
-              </Card>
-            ) : (
-              <GlassMorphismSection>
+              </Card> : <GlassMorphismSection>
                 <div className="text-center py-12">
                   <Shuffle className="w-16 h-16 text-neon-magenta mx-auto mb-4 opacity-50" />
                   <h3 className="text-xl font-semibold text-neon-magenta mb-2">No More Profiles</h3>
                   <p className="text-muted-foreground mb-4">
                     You've seen all available producers. Check back later for new profiles!
                   </p>
-                  <Button 
-                    onClick={resetStack}
-                    className="bg-gradient-to-r from-neon-magenta to-electric-blue"
-                  >
+                  <Button onClick={resetStack} className="bg-gradient-to-r from-neon-magenta to-electric-blue">
                     <Shuffle className="w-4 h-4 mr-2" />
                     Load New Profiles
                   </Button>
                 </div>
-              </GlassMorphismSection>
-            )}
+              </GlassMorphismSection>}
           </div>
-        </div>
-      )}
-    </div>
-  );
+        </div>}
+    </div>;
 };
