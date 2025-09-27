@@ -858,12 +858,12 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                 </div>
               )}
 
-              {/* Clip actions (visible on hover) */}
-              <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+              {/* Clip actions (visible on hover) - high z-index to stay on top */}
+              <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 z-20 bg-background/90 rounded p-0.5">
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-5 w-5 p-0 text-xs"
+                  className="h-4 w-4 p-0 text-xs hover:bg-primary/20"
                   onClick={(e) => {
                     e.stopPropagation();
                     duplicateClip(clip.id);
@@ -875,7 +875,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-5 w-5 p-0 text-xs text-red-400 hover:text-red-300"
+                  className="h-4 w-4 p-0 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/20"
                   onClick={(e) => {
                     e.stopPropagation();
                     if (confirm(`Delete clip "${clip.originalTrack.name}"?`)) {
@@ -883,18 +883,6 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                     }
                   }}
                   title="Delete Clip (Del)"
-                >
-                  ×
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-5 w-5 p-0 text-xs"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    deleteClip(clip.id);
-                  }}
-                  title="Delete (Del)"
                 >
                   ×
                 </Button>
@@ -909,10 +897,13 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                 </div>
               )}
 
-              {/* Clip name */}
-              <div className="absolute top-1 left-1">
-                <Badge variant="outline" className="text-xs bg-background/80 text-foreground">
-                  {clip.originalTrack.name}
+              {/* Clip name - moved to bottom to avoid covering controls */}
+              <div className="absolute bottom-1 left-1 z-10">
+                <Badge variant="outline" className="text-xs bg-background/90 text-foreground border-primary/30 px-1 py-0">
+                  {clip.originalTrack.name.length > 15 ? 
+                    `${clip.originalTrack.name.substring(0, 15)}...` : 
+                    clip.originalTrack.name
+                  }
                 </Badge>
               </div>
             </div>
