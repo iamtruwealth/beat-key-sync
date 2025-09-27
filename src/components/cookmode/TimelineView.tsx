@@ -476,8 +476,10 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
             const activeClip = activeClips[0];
             const clipTime = Math.max(0, currentTime - activeClip.startTime);
             
-            // Only seek if necessary to prevent glitches
-            if (Math.abs(audio.currentTime - clipTime) > 0.5) {
+            // Reset to beginning when starting playback from timeline start
+            if (currentTime === 0) {
+              audio.currentTime = 0;
+            } else if (Math.abs(audio.currentTime - clipTime) > 0.5) {
               audio.currentTime = clipTime;
             }
             
