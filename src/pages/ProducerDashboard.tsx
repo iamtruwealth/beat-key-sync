@@ -90,14 +90,17 @@ export default function ProducerDashboard() {
 
       setCurrentUser(user);
 
-      // Get user profile to determine role
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
-      const role = profile?.role || 'producer';
+      if (profileError) {
+        console.warn('ProducerDashboard role fetch error:', profileError.message);
+      }
+
+      const role = (profile?.role as 'producer' | 'artist' | null) ?? null;
       setUserRole(role);
     };
 

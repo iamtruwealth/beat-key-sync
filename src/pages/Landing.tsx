@@ -65,13 +65,21 @@ function FuturisticLandingContent() {
 
       // If authenticated on landing, route to proper dashboard
       if (user) {
-        const { data: profile } = await supabase
+        const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('role')
           .eq('id', user.id)
-          .single();
-        const role = (profile as any)?.role || 'artist';
-        navigate(role === 'producer' ? '/producer-dashboard' : '/artist-dashboard', { replace: true });
+          .maybeSingle();
+        
+        if (profileError) {
+          console.warn('Landing role fetch error:', profileError.message);
+          return; // Stay on landing to avoid redirect loops
+        }
+        
+        const role = (profile?.role as 'artist' | 'producer' | null) ?? null;
+        if (role) {
+          navigate(role === 'producer' ? '/producer-dashboard' : '/artist-dashboard', { replace: true });
+        }
       }
     };
 
