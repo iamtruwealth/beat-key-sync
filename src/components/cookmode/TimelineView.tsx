@@ -705,23 +705,21 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
               {/* Waveform visualization */}
               <div className="h-full p-1 flex items-center overflow-hidden">
                 {isLoading ? (
-                  <div className="h-8 bg-gradient-to-r from-neon-cyan/20 to-electric-blue/20 rounded flex items-center justify-center" style={{ width: `${Math.max(visualWidth, 0)}px` }}>
+                  <div className="flex-1 h-8 bg-gradient-to-r from-neon-cyan/20 to-electric-blue/20 rounded flex items-center justify-center">
                     <span className="text-xs text-foreground/60">Loading...</span>
                   </div>
                 ) : waveformBars.length > 0 ? (
-                  <div className="h-8" style={{ width: `${Math.max(visualWidth, 0)}px`, overflow: 'hidden' }}>
-                    <div className="h-full grid items-end" style={{ gridTemplateColumns: `repeat(${waveformBars.length}, 1fr)`, gap: '1px' }}>
-                      {waveformBars.map((bar, i) => (
-                        <div
-                          key={i}
-                          className="bg-gradient-to-t from-neon-cyan/60 to-electric-blue/60 rounded-sm"
-                          style={{ height: `${Math.max(bar * 100, 2)}%` }}
-                        />
-                      ))}
-                    </div>
+                  <div className="flex-1 h-8 flex items-end gap-px overflow-hidden">
+                    {waveformBars.map((bar, i) => (
+                      <div
+                        key={i}
+                        className="bg-gradient-to-t from-neon-cyan/60 to-electric-blue/60 rounded-sm flex-1 min-w-[1px]"
+                        style={{ height: `${Math.max(bar * 100, 2)}%` }}
+                      />
+                    ))}
                   </div>
                 ) : (
-                  <div className="h-8 bg-gradient-to-r from-neon-cyan/20 to-electric-blue/20 rounded flex items-center justify-center" style={{ width: `${Math.max(visualWidth, 0)}px` }}>
+                  <div className="flex-1 h-8 bg-gradient-to-r from-neon-cyan/20 to-electric-blue/20 rounded flex items-center justify-center">
                     <span className="text-xs text-foreground/60">
                       {(Math.max(0, Math.min(clip.endTime, (clip.startTime + totalDuration)) - clip.startTime)).toFixed(1)}s
                     </span>
