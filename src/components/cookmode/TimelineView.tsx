@@ -597,12 +597,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
             targetWidth: 500 
           });
 
-          const totalDuration = trackDurations.get(track.id) || clip.originalTrack.analyzed_duration || clip.originalTrack.duration || 0;
-          // Visualize only the actual sound of the source within this clip's window
-          const displayEndTime = Math.min(clip.endTime, clip.startTime + (totalDuration || 0));
-          const displayDuration = Math.max(0, displayEndTime - clip.startTime);
-
-          const clipWidth = displayDuration * pixelsPerSecond;
+          const clipWidth = (clip.endTime - clip.startTime) * pixelsPerSecond;
           const clipLeft = clip.startTime * pixelsPerSecond;
           const isSelected = selectedClips.has(clip.id);
 
@@ -610,8 +605,6 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
             clipId: clip.id,
             startTime: clip.startTime,
             endTime: clip.endTime,
-            displayEndTime,
-            displayDuration,
             clipWidth,
             clipLeft,
             pixelsPerSecond,
@@ -620,16 +613,23 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
             isVisible: clipWidth > 0 && clipLeft >= 0
           });
 
-          // Generate waveform bars for visualization - only the portion that actually sounds
+          // Generate waveform bars for visualization - only show actual audio duration
           let waveformBars: number[] = [];
-          if (waveformData?.peaks && totalDuration > 0 && displayDuration > 0) {
-            // Slice from the start of the source up to the clip's visible duration
-            const endRatio = Math.min(displayDuration / totalDuration, 1);
-            const endIndex = Math.max(1, Math.ceil(endRatio * waveformData.peaks.length));
-            const clippedPeaks = waveformData.peaks.slice(0, endIndex);
-
-            // Density based on width (no effect on audio)
-            const targetBars = Math.max(Math.floor(clipWidth / 8), 16);
+          const totalDuration = trackDurations.get(track.id) || clip.originalTrack.analyzed_duration || clip.originalTrack.duration || 0;
+          
+          if (waveformData?.peaks && totalDuration > 0) {
+            // Only show waveform up to the actual audio duration
+            const actualAudioInClip = Math.min(clip.endTime - clip.startTime, totalDuration - clip.startTime);
+            const visualWidth = actualAudioInClip * pixelsPerSecond;
+            
+            // Slice waveform data to match the actual audio portion
+            const startRatio = clip.startTime / totalDuration;
+            const endRatio = Math.min((clip.startTime + actualAudioInClip) / totalDuration, 1);
+            const startIndex = Math.floor(startRatio * waveformData.peaks.length);
+            const endIndex = Math.ceil(endRatio * waveformData.peaks.length);
+            const clippedPeaks = waveformData.peaks.slice(startIndex, endIndex);
+            
+            const targetBars = Math.max(Math.floor(visualWidth / 8), 16);
             waveformBars = generateWaveformBars(clippedPeaks, targetBars);
           }
 
@@ -646,9 +646,8 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                 left: clipLeft,
                 width: clipWidth,
                 height: trackHeight - 16,
-                zIndex: 10, // Ensure it's above other elements
-                minWidth: '20px', // Ensure it's always visible
-                background: isSelected ? '#00f5ff40' : '#ff004040' // Debug colors
+                zIndex: 10,
+                minWidth: '20px',
               }}
               title={`${clip.originalTrack.name} - Click to select, Double-click to duplicate`}
               onClick={(e) => {
