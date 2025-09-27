@@ -289,16 +289,10 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         });
 
         audio.addEventListener('timeupdate', () => {
-          // Stop at clip end if set, otherwise fall back to full track duration
-          const clipEnd = parseFloat((audio as any).dataset?.clipEnd || '');
-          if (!isNaN(clipEnd) && audio.currentTime >= clipEnd) {
-            audio.pause();
-            audio.currentTime = clipEnd;
-            return;
-          }
-
-          // Get actual duration from the audio element (safety net)
+          // Get actual duration from the audio element
           const actualDuration = trackDurations.get(track.id) || track.analyzed_duration || track.duration || audio.duration;
+          
+          // Stop audio if it exceeds the expected duration to prevent noise
           if (actualDuration && audio.currentTime >= actualDuration) {
             console.log(`Stopping track ${track.name} at ${audio.currentTime}s (duration: ${actualDuration}s)`);
             audio.pause();
@@ -378,12 +372,6 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           const activeClip = activeClips[0]; // Use first active clip
           const clipTime = currentTime - activeClip.startTime;
           audio.currentTime = clipTime;
-          // Store clip boundaries on the element so we can stop exactly at clip end
-          (audio as any).dataset = {
-            ...(audio as any).dataset,
-            clipStart: String(activeClip.startTime),
-            clipEnd: String(Math.max(0, activeClip.endTime - activeClip.startTime))
-          };
           
           const playPromise = audio.play();
           if (playPromise !== undefined) {
@@ -628,18 +616,18 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           // Generate waveform bars for visualization - slice to show only clip portion
           let waveformBars: number[] = [];
           if (waveformData?.peaks) {
-            // Use actual decoded audio duration for precise mapping
-            const audioDuration = Math.max(0.001, waveformData.duration || 0);
-            const clipDuration = Math.max(0, clip.endTime - clip.startTime);
-            const startRatio = Math.min(1, Math.max(0, clip.startTime / audioDuration));
-            const endRatio = Math.min(1, Math.max(startRatio, clip.endTime / audioDuration));
+            // Calculate which portion of the waveform to show based on clip timing
+            const totalDuration = trackDurations.get(track.id) || clip.originalTrack.analyzed_duration || clip.originalTrack.duration || 60;
+            const clipDuration = clip.endTime - clip.startTime;
+            const startRatio = clip.startTime / totalDuration;
+            const endRatio = clip.endTime / totalDuration;
             
             // Slice the waveform data to match the clip's time range
             const startIndex = Math.floor(startRatio * waveformData.peaks.length);
             const endIndex = Math.ceil(endRatio * waveformData.peaks.length);
             const clippedPeaks = waveformData.peaks.slice(startIndex, endIndex);
             
-            waveformBars = generateWaveformBars(clippedPeaks, Math.max(4, Math.floor(clipWidth / 4)));
+            waveformBars = generateWaveformBars(clippedPeaks, Math.floor(clipWidth / 4));
           }
 
           return (
@@ -715,7 +703,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                     <span className="text-xs text-foreground/60">Loading...</span>
                   </div>
                 ) : waveformBars.length > 0 ? (
-                  <div className="flex-1 h-8 flex items-end justify-start gap-px">
+                  <div className="flex-1 h-8 flex items-end justify-center gap-px">
                     {waveformBars.map((bar, i) => (
                       <div
                         key={i}
