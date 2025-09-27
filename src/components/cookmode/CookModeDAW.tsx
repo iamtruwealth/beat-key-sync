@@ -23,6 +23,7 @@ import {
 import { toast } from 'sonner';
 import { TimelineView } from './TimelineView';
 import { FuturisticMixerBoard } from './FuturisticMixerBoard';
+import { CookModeToolbar, ToolType } from './CookModeToolbar';
 
 interface Track {
   id: string;
@@ -43,7 +44,7 @@ interface CookModeDAWProps {
   isPlaying: boolean;
   currentTime: number;
   bpm: number;
-  sessionBpm?: number; // Add session BPM
+  sessionBpm?: number;
   onAddTrack: (file: File, trackName: string, stemType: string) => Promise<void>;
   onRemoveTrack: (trackId: string) => Promise<void>;
   onUpdateTrack: (trackId: string, updates: Partial<Track>) => void;
@@ -58,7 +59,7 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
   isPlaying,
   currentTime,
   bpm,
-  sessionBpm, // Add sessionBpm parameter
+  sessionBpm,
   onAddTrack,
   onRemoveTrack,
   onUpdateTrack,
@@ -70,6 +71,8 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
   const [isAddingTrack, setIsAddingTrack] = useState(false);
   const [activeView, setActiveView] = useState<'timeline' | 'mixer'>('timeline');
   const [isDragOver, setIsDragOver] = useState(false);
+  const [activeTool, setActiveTool] = useState<ToolType>('draw');
+  const [snapEnabled, setSnapEnabled] = useState(true);
   const [newTrackData, setNewTrackData] = useState({
     name: '',
     stemType: 'melody',
@@ -145,6 +148,7 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
       }
     }
   };
+
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file && validateAudioFile(file)) {
@@ -192,6 +196,27 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
     }
   };
 
+  const handleToolChange = (tool: ToolType) => {
+    setActiveTool(tool);
+    toast.success(`Switched to ${tool} tool`);
+  };
+
+  const handleSnapToggle = () => {
+    setSnapEnabled(prev => {
+      const newValue = !prev;
+      toast.info(`Snap ${newValue ? 'enabled' : 'disabled'}`);
+      return newValue;
+    });
+  };
+
+  const handleUndo = () => {
+    toast.info('Undo action');
+  };
+
+  const handleRedo = () => {
+    toast.info('Redo action');
+  };
+
   const getStemColor = (stemType: string) => {
     const colors = {
       melody: 'text-neon-cyan',
@@ -212,6 +237,18 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
 
   return (
     <div className="h-full flex flex-col bg-background/50">
+      {/* Editing Toolbar */}
+      <CookModeToolbar
+        activeTool={activeTool}
+        onToolChange={handleToolChange}
+        snapEnabled={snapEnabled}
+        onSnapToggle={handleSnapToggle}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+        canUndo={false}
+        canRedo={false}
+      />
+
       {/* Content Area */}
       <div 
         className={`flex-1 overflow-hidden relative ${isDragOver ? 'bg-neon-cyan/5' : ''}`}
@@ -237,118 +274,6 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
                   <Clock className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
                   <h4 className="text-lg font-medium text-foreground mb-2">No tracks in timeline</h4>
                   <p className="text-muted-foreground mb-4">Add your first track to see the arrangement view</p>
-                  <div className="space-y-3">
-                    <Dialog open={isAddingTrack} onOpenChange={setIsAddingTrack}>
-                      <DialogTrigger asChild>
-                        <Button className="bg-gradient-to-r from-neon-cyan to-electric-blue text-black hover:opacity-90">
-                          <Plus className="w-4 h-4 mr-2" />
-                          Add Track
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="bg-card border-border/50">{/* ... dialog content ... */}
-                      <DialogHeader>
-                        <DialogTitle className="text-neon-cyan">Add New Track</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="trackFile">Audio File</Label>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="outline"
-                              onClick={() => fileInputRef.current?.click()}
-                              className="border-border/50"
-                            >
-                              <Upload className="w-4 h-4 mr-2" />
-                              Choose File
-                            </Button>
-                            <span className="text-sm text-muted-foreground">
-                              {newTrackData.file?.name || 'No file selected'}
-                            </span>
-                          </div>
-                          <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept="audio/*"
-                            onChange={handleFileSelect}
-                            className="hidden"
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="trackName">Track Name</Label>
-                          <Input
-                            id="trackName"
-                            value={newTrackData.name}
-                            onChange={(e) => setNewTrackData(prev => ({ ...prev, name: e.target.value }))}
-                            placeholder="e.g., Main Melody"
-                            className="bg-background/50 border-border/50"
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label>Stem Type</Label>
-                          <Select 
-                            value={newTrackData.stemType} 
-                            onValueChange={(value) => setNewTrackData(prev => ({ ...prev, stemType: value }))}
-                          >
-                            <SelectTrigger className="bg-background/50 border-border/50">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {stemTypes.map(type => (
-                                <SelectItem key={type.value} value={type.value}>
-                                  {type.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div className="flex gap-2 pt-4">
-                          <Button
-                            onClick={handleAddTrack}
-                            className="flex-1 bg-gradient-to-r from-neon-cyan to-electric-blue text-black hover:opacity-90"
-                            disabled={!newTrackData.file || !newTrackData.name}
-                          >
-                            Add Track
-                          </Button>
-                          <Button
-                            variant="outline"
-                            onClick={() => setIsAddingTrack(false)}
-                            className="border-border/50"
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      </div>
-                    </DialogContent>
-                    </Dialog>
-                    <p className="text-xs text-muted-foreground">
-                      or drag and drop audio files anywhere
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <TimelineView
-                tracks={tracks}
-                isPlaying={isPlaying}
-                currentTime={currentTime}
-                bpm={bpm}
-                sessionBpm={sessionBpm} // Pass session BPM
-                onPlayPause={onPlayPause}
-                onSeek={onSeek}
-              />
-            )}
-          </TabsContent>
-
-          <TabsContent value="mixer" className="h-full m-0">
-            {tracks.length === 0 ? (
-              <div className="h-full flex items-center justify-center">
-                <div className="text-center p-8">
-                  <Layers className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                  <h4 className="text-lg font-medium text-foreground mb-2">No tracks in mixer</h4>
-                  <p className="text-muted-foreground mb-4">Add tracks to start mixing</p>
                   <div className="space-y-3">
                     <Dialog open={isAddingTrack} onOpenChange={setIsAddingTrack}>
                       <DialogTrigger asChild>
@@ -439,6 +364,33 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
                       or drag and drop audio files anywhere
                     </p>
                   </div>
+                </div>
+              </div>
+            ) : (
+              <TimelineView
+                tracks={tracks}
+                isPlaying={isPlaying}
+                currentTime={currentTime}
+                bpm={bpm}
+                sessionBpm={sessionBpm}
+                onPlayPause={onPlayPause}
+                onSeek={onSeek}
+                activeTool={activeTool}
+                snapEnabled={snapEnabled}
+                onToolAction={(action, data) => {
+                  console.log('Tool action:', action, data);
+                }}
+              />
+            )}
+          </TabsContent>
+
+          <TabsContent value="mixer" className="h-full m-0">
+            {tracks.length === 0 ? (
+              <div className="h-full flex items-center justify-center">
+                <div className="text-center p-8">
+                  <Layers className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                  <h4 className="text-lg font-medium text-foreground mb-2">No tracks in mixer</h4>
+                  <p className="text-muted-foreground mb-4">Add tracks to start mixing</p>
                 </div>
               </div>
             ) : (
