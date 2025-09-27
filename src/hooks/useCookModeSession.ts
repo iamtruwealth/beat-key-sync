@@ -180,7 +180,8 @@ export function useCookModeSession(sessionId?: string) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      const { data, error } = await supabase
+      // Create the collaboration project first
+      const { data: project, error: projectError } = await supabase
         .from('collaboration_projects')
         .insert({
           name: config.name,
@@ -190,29 +191,50 @@ export function useCookModeSession(sessionId?: string) {
           workspace_type: config.workspace_type,
           status: 'active'
         })
-        .select()
+        .select('id, created_by')
         .single();
 
-      if (error) throw error;
+      if (projectError) {
+        console.error('Project insert error:', projectError);
+        throw projectError;
+      }
 
-      await supabase
-        .from('collaboration_members')
-        .insert({
-          collaboration_id: data.id,
-          user_id: user.id,
-          role: 'creator',
-          status: 'accepted',
-          royalty_percentage: 100
-        });
+      // Try to add the creator as a member (non-blocking)
+      try {
+        const { error: memberError } = await supabase
+          .from('collaboration_members')
+          .insert({
+            collaboration_id: project.id,
+            user_id: user.id,
+            role: 'creator',
+            status: 'accepted',
+            royalty_percentage: 100
+          });
+        if (memberError) {
+          console.warn('Member insert warning:', memberError);
+          // Don't block session creation if membership insert fails
+        }
+      } catch (memberCatchErr) {
+        console.warn('Member insert caught error:', memberCatchErr);
+      }
 
-      setSession(data);
-      return data.id;
-    } catch (error) {
+      setSession({
+        id: project.id,
+        name: config.name,
+        target_bpm: config.bpm,
+        target_genre: config.key,
+        created_by: project.created_by,
+        status: 'active',
+        workspace_type: config.workspace_type,
+      });
+      return project.id;
+    } catch (error: any) {
       console.error('Error creating session:', error);
+      const message = error?.message || 'Failed to create session';
       toast({
-        title: "Error",
-        description: "Failed to create session",
-        variant: "destructive"
+        title: 'Error',
+        description: message,
+        variant: 'destructive',
       });
       throw error;
     }
