@@ -99,6 +99,25 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
             });
           }
         });
+
+        audio.addEventListener('ended', () => {
+          console.log('Audio ended for track:', track.name);
+          // Ensure audio is properly stopped and reset
+          audio.pause();
+          audio.currentTime = 0;
+        });
+
+        audio.addEventListener('timeupdate', () => {
+          // Get actual duration from the audio element
+          const actualDuration = trackDurations.get(track.id) || track.analyzed_duration || track.duration || audio.duration;
+          
+          // Stop audio if it exceeds the expected duration to prevent noise
+          if (actualDuration && audio.currentTime >= actualDuration) {
+            console.log(`Stopping track ${track.name} at ${audio.currentTime}s (duration: ${actualDuration}s)`);
+            audio.pause();
+            audio.currentTime = actualDuration; // Set to exact end
+          }
+        });
         
         audio.addEventListener('error', async (e) => {
           console.error('Audio error for track:', track.name, e, 'Audio error object:', audio.error);
@@ -160,6 +179,16 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         }
         if (isPlaying && audio.paused) {
           console.log('Starting playback for track:', trackId);
+          
+          // Check if we're within the track's actual duration
+          const actualDuration = trackDurations.get(trackId) || tracks.find(t => t.id === trackId)?.analyzed_duration || tracks.find(t => t.id === trackId)?.duration || audio.duration;
+          
+          if (actualDuration && currentTime >= actualDuration) {
+            // Don't start playback if we're past the track's end
+            console.log(`Not starting track ${trackId} - past duration (${currentTime}s >= ${actualDuration}s)`);
+            return;
+          }
+          
           audio.currentTime = currentTime;
           
           // Create a user interaction promise to satisfy browser autoplay policies
@@ -192,12 +221,25 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   // Sync current time - less frequent updates
   useEffect(() => {
     audioElementsRef.current.forEach((audio, trackId) => {
+      const actualDuration = trackDurations.get(trackId) || tracks.find(t => t.id === trackId)?.analyzed_duration || tracks.find(t => t.id === trackId)?.duration || audio.duration;
+      
+      // Stop audio if it's playing beyond its duration
+      if (actualDuration && audio.currentTime >= actualDuration && !audio.paused) {
+        console.log(`Auto-stopping track ${trackId} at end of duration`);
+        audio.pause();
+        audio.currentTime = actualDuration;
+        return;
+      }
+      
+      // Only seek if there's a significant difference and we're within track duration
       if (Math.abs(audio.currentTime - currentTime) > 1.0) {
-        console.log(`Seeking track ${trackId} from ${audio.currentTime} to ${currentTime}`);
-        audio.currentTime = currentTime;
+        if (!actualDuration || currentTime < actualDuration) {
+          console.log(`Seeking track ${trackId} from ${audio.currentTime} to ${currentTime}`);
+          audio.currentTime = currentTime;
+        }
       }
     });
-  }, [currentTime]);
+  }, [currentTime, trackDurations, tracks]);
 
   // Audio playback handler for individual tracks (toggle mute/solo)
   const handleTrackPlay = useCallback(async (track: Track) => {
@@ -232,16 +274,31 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       if (audio) {
         audio.volume = track.volume !== undefined ? track.volume : 1;
         audio.muted = track.isMuted || false;
+        
+        // Also check if track should be stopped due to duration
+        const actualDuration = trackDurations.get(track.id) || track.analyzed_duration || track.duration || audio.duration;
+        if (actualDuration && audio.currentTime >= actualDuration && !audio.paused) {
+          console.log(`Stopping track ${track.name} - exceeded duration`);
+          audio.pause();
+          audio.currentTime = actualDuration;
+        }
       }
     });
-  }, [tracks]);
+  }, [tracks, trackDurations]);
 
   // Cleanup audio elements when component unmounts
   useEffect(() => {
     return () => {
       audioElementsRef.current.forEach(audio => {
         audio.pause();
+        audio.currentTime = 0;
         audio.src = '';
+        // Remove all event listeners
+        audio.removeEventListener('loadeddata', () => {});
+        audio.removeEventListener('canplay', () => {});
+        audio.removeEventListener('ended', () => {});
+        audio.removeEventListener('timeupdate', () => {});
+        audio.removeEventListener('error', () => {});
       });
       audioElementsRef.current.clear();
     };
