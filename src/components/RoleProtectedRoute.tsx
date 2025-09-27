@@ -49,7 +49,13 @@ export function RoleProtectedRoute({ children, allowedRoles }: RoleProtectedRout
 
         if (!mounted) return;
 
-        const role = profile?.role || 'artist';
+        const role = (profile?.role as 'artist' | 'producer' | null) ?? null;
+        if (!role) {
+          // Role unresolved: avoid redirecting to prevent route ping-pong
+          setLoading(false);
+          setInitialLoad(false);
+          return;
+        }
         setUserRole(role);
 
         // Only redirect on role mismatch if this is not the initial load
@@ -94,7 +100,12 @@ export function RoleProtectedRoute({ children, allowedRoles }: RoleProtectedRout
 
         if (!mounted) return;
 
-        const role = profile?.role || 'artist';
+        const role = (profile?.role as 'artist' | 'producer' | null) ?? null;
+        if (!role) {
+          // Role unresolved: don't redirect to avoid loops
+          setLoading(false);
+          return;
+        }
         setUserRole(role);
 
         if (!allowedRoles.includes(role)) {
