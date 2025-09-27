@@ -1737,6 +1737,14 @@ export type Database = {
         Args: { beat_id: string }
         Returns: undefined
       }
+      is_collab_member: {
+        Args: { _collab_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_project_owner: {
+        Args: { _project_id: string; _user_id: string }
+        Returns: boolean
+      }
       signup_without_confirmation: {
         Args: {
           email_param: string
