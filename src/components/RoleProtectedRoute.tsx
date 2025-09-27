@@ -37,12 +37,15 @@ export function RoleProtectedRoute({ children, allowedRoles }: RoleProtectedRout
 
         setUser(session.user);
 
-        // Get user profile to determine role
-        const { data: profile } = await supabase
+        const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('role')
           .eq('id', session.user.id)
-          .single();
+          .maybeSingle();
+
+        if (profileError) {
+          console.warn('Profile fetch error (initial check):', profileError.message);
+        }
 
         if (!mounted) return;
 
@@ -79,11 +82,15 @@ export function RoleProtectedRoute({ children, allowedRoles }: RoleProtectedRout
       setUser(session.user);
 
       try {
-        const { data: profile } = await supabase
+        const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('role')
           .eq('id', session.user.id)
-          .single();
+          .maybeSingle();
+
+        if (profileError) {
+          console.warn('Profile fetch error (auth listener):', profileError.message);
+        }
 
         if (!mounted) return;
 

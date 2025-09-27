@@ -368,8 +368,25 @@ export default function AuthPage() {
         return;
       }
 
-      console.log('Sign in successful, session:', data.session);
-      // Navigation handled by onAuthStateChange
+      // Proactively route based on profile role to avoid waiting on auth listener
+      const userId = data.session?.user?.id;
+      if (userId) {
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', userId)
+          .maybeSingle();
+        
+        if (profileError) {
+          console.warn('Profile fetch after sign-in error:', profileError.message);
+        }
+        const role = profile?.role || 'artist';
+        console.log('Post-signin role resolved:', role);
+        navigate(role === 'artist' ? '/artist-dashboard' : '/producer-dashboard');
+      } else {
+        console.warn('No session user ID after sign-in; falling back to default dashboard');
+        navigate('/artist-dashboard');
+      }
 
     } catch (error: any) {
       console.error('Unexpected sign in error:', error);
@@ -379,7 +396,6 @@ export default function AuthPage() {
         variant: "destructive"
       });
     } finally {
-      // Always release the loading state to avoid getting stuck
       setLoading(false);
     }
   };
