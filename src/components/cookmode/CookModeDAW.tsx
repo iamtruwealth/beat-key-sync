@@ -24,7 +24,6 @@ import { toast } from 'sonner';
 import { TimelineView } from './TimelineView';
 import { FuturisticMixerBoard } from './FuturisticMixerBoard';
 
-
 interface Track {
   id: string;
   name: string;
@@ -44,7 +43,6 @@ interface CookModeDAWProps {
   isPlaying: boolean;
   currentTime: number;
   bpm: number;
-  sessionBpm?: number;
   onAddTrack: (file: File, trackName: string, stemType: string) => Promise<void>;
   onRemoveTrack: (trackId: string) => Promise<void>;
   onUpdateTrack: (trackId: string, updates: Partial<Track>) => void;
@@ -59,7 +57,6 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
   isPlaying,
   currentTime,
   bpm,
-  sessionBpm,
   onAddTrack,
   onRemoveTrack,
   onUpdateTrack,
@@ -77,26 +74,6 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
     file: null as File | null
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Add global event listeners to debug drop issues
-  React.useEffect(() => {
-    const handleGlobalDrop = (e: DragEvent) => {
-      console.log('Global drop event detected');
-      e.preventDefault();
-    };
-    
-    const handleGlobalDragOver = (e: DragEvent) => {
-      e.preventDefault();
-    };
-
-    document.addEventListener('drop', handleGlobalDrop);
-    document.addEventListener('dragover', handleGlobalDragOver);
-    
-    return () => {
-      document.removeEventListener('drop', handleGlobalDrop);
-      document.removeEventListener('dragover', handleGlobalDragOver);
-    };
-  }, []);
 
   // Controlled/uncontrolled view state
   const view = externalActiveView ?? activeView;
@@ -129,81 +106,43 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
     return true;
   };
 
-  const handleDragEnter = (e: React.DragEvent) => {
-    console.log('Drag enter event triggered');
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
-  // Simple test handler
-  const handleSimpleDrop = (e: React.DragEvent) => {
-    console.log('=== SIMPLE DROP TEST ===');
-    e.preventDefault();
-    alert('Drop detected!');
-  };
-
   const handleDragOver = (e: React.DragEvent) => {
-    console.log('Drag over event triggered', {
-      types: Array.from(e.dataTransfer.types),
-      effectAllowed: e.dataTransfer.effectAllowed,
-      dropEffect: e.dataTransfer.dropEffect
-    });
     e.preventDefault();
     e.stopPropagation();
-    
-    // Check if files are being dragged
-    if (e.dataTransfer.types.includes('Files')) {
-      e.dataTransfer.dropEffect = 'copy';
-      setIsDragOver(true);
-    } else {
-      e.dataTransfer.dropEffect = 'none';
-    }
+    setIsDragOver(true);
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
-    console.log('Drag leave event triggered');
     e.preventDefault();
     e.stopPropagation();
     setIsDragOver(false);
   };
 
   const handleDrop = async (e: React.DragEvent) => {
-    console.log('=== DROP EVENT FIRED ===');
-    console.log('Drop event triggered', {
-      types: Array.from(e.dataTransfer.types),
-      files: e.dataTransfer.files.length
-    });
     e.preventDefault();
     e.stopPropagation();
     setIsDragOver(false);
 
     const files = Array.from(e.dataTransfer.files);
-    console.log('Files dropped:', files);
     const audioFiles = files.filter(file => file.type.startsWith('audio/'));
-    console.log('Audio files:', audioFiles);
 
     if (audioFiles.length === 0) {
-      console.log('No audio files found');
       toast.error('Please drop audio files only');
       return;
     }
 
     for (const file of audioFiles) {
-      console.log('Processing file:', file.name, 'type:', file.type);
       if (validateAudioFile(file)) {
         const trackName = file.name.replace(/\.[^/.]+$/, "");
-        console.log('Adding track:', trackName);
         try {
           await onAddTrack(file, trackName, 'other');
           toast.success(`Added "${trackName}" to session`);
         } catch (error) {
-          console.error('Error adding track:', error);
           toast.error(`Failed to add "${trackName}"`);
         }
       }
     }
   };
-
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file && validateAudioFile(file)) {
@@ -251,7 +190,6 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
     }
   };
 
-
   const getStemColor = (stemType: string) => {
     const colors = {
       melody: 'text-neon-cyan',
@@ -271,24 +209,21 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
   };
 
   return (
-    <div 
-      className="h-full flex flex-col bg-background/50"
-      onDragEnter={handleDragEnter}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
-    >
+    <div className="h-full flex flex-col bg-background/50">
       {/* Content Area */}
       <div 
         className={`flex-1 overflow-hidden relative ${isDragOver ? 'bg-neon-cyan/5' : ''}`}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
       >
         {/* Drag overlay */}
         {isDragOver && (
-          <div className="absolute inset-0 z-10 bg-background/80 backdrop-blur-sm border-2 border-dashed border-neon-cyan flex items-center justify-center pointer-events-none">
-            <div className="text-center pointer-events-none">
+          <div className="absolute inset-0 z-50 bg-background/80 backdrop-blur-sm border-2 border-dashed border-neon-cyan flex items-center justify-center">
+            <div className="text-center">
               <Upload className="w-16 h-16 text-neon-cyan mx-auto mb-4" />
               <h3 className="text-xl font-semibold text-neon-cyan mb-2">Drop Audio Files Here</h3>
-              <p className="text-muted-foreground pointer-events-none">WAV, MP3, OGG, AAC, M4A files supported</p>
+              <p className="text-muted-foreground">WAV, MP3, OGG, AAC, M4A files supported</p>
             </div>
           </div>
         )}
@@ -300,6 +235,117 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
                   <Clock className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
                   <h4 className="text-lg font-medium text-foreground mb-2">No tracks in timeline</h4>
                   <p className="text-muted-foreground mb-4">Add your first track to see the arrangement view</p>
+                  <div className="space-y-3">
+                    <Dialog open={isAddingTrack} onOpenChange={setIsAddingTrack}>
+                      <DialogTrigger asChild>
+                        <Button className="bg-gradient-to-r from-neon-cyan to-electric-blue text-black hover:opacity-90">
+                          <Plus className="w-4 h-4 mr-2" />
+                          Add Track
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="bg-card border-border/50">{/* ... dialog content ... */}
+                      <DialogHeader>
+                        <DialogTitle className="text-neon-cyan">Add New Track</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="trackFile">Audio File</Label>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              onClick={() => fileInputRef.current?.click()}
+                              className="border-border/50"
+                            >
+                              <Upload className="w-4 h-4 mr-2" />
+                              Choose File
+                            </Button>
+                            <span className="text-sm text-muted-foreground">
+                              {newTrackData.file?.name || 'No file selected'}
+                            </span>
+                          </div>
+                          <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="audio/*"
+                            onChange={handleFileSelect}
+                            className="hidden"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="trackName">Track Name</Label>
+                          <Input
+                            id="trackName"
+                            value={newTrackData.name}
+                            onChange={(e) => setNewTrackData(prev => ({ ...prev, name: e.target.value }))}
+                            placeholder="e.g., Main Melody"
+                            className="bg-background/50 border-border/50"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>Stem Type</Label>
+                          <Select 
+                            value={newTrackData.stemType} 
+                            onValueChange={(value) => setNewTrackData(prev => ({ ...prev, stemType: value }))}
+                          >
+                            <SelectTrigger className="bg-background/50 border-border/50">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {stemTypes.map(type => (
+                                <SelectItem key={type.value} value={type.value}>
+                                  {type.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="flex gap-2 pt-4">
+                          <Button
+                            onClick={handleAddTrack}
+                            className="flex-1 bg-gradient-to-r from-neon-cyan to-electric-blue text-black hover:opacity-90"
+                            disabled={!newTrackData.file || !newTrackData.name}
+                          >
+                            Add Track
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => setIsAddingTrack(false)}
+                            className="border-border/50"
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    </DialogContent>
+                    </Dialog>
+                    <p className="text-xs text-muted-foreground">
+                      or drag and drop audio files anywhere
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <TimelineView
+                tracks={tracks}
+                isPlaying={isPlaying}
+                currentTime={currentTime}
+                bpm={bpm}
+                onPlayPause={onPlayPause}
+                onSeek={onSeek}
+              />
+            )}
+          </TabsContent>
+
+          <TabsContent value="mixer" className="h-full m-0">
+            {tracks.length === 0 ? (
+              <div className="h-full flex items-center justify-center">
+                <div className="text-center p-8">
+                  <Layers className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                  <h4 className="text-lg font-medium text-foreground mb-2">No tracks in mixer</h4>
+                  <p className="text-muted-foreground mb-4">Add tracks to start mixing</p>
                   <div className="space-y-3">
                     <Dialog open={isAddingTrack} onOpenChange={setIsAddingTrack}>
                       <DialogTrigger asChild>
@@ -390,38 +436,6 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
                       or drag and drop audio files anywhere
                     </p>
                   </div>
-                </div>
-              </div>
-            ) : (
-              <TimelineView
-                tracks={tracks}
-                isPlaying={isPlaying}
-                currentTime={currentTime}
-                bpm={bpm}
-                sessionBpm={sessionBpm}
-                onPlayPause={onPlayPause}
-                onSeek={onSeek}
-                onTracksUpdate={(updated) => {
-                  updated.forEach(u => {
-                    if (typeof u.duration === 'number' && u.duration > 0) {
-                      onUpdateTrack(u.id, { duration: u.duration });
-                    }
-                  });
-                }}
-                onToolAction={(action, data) => {
-                  console.log('Tool action:', action, data);
-                }}
-              />
-            )}
-          </TabsContent>
-
-          <TabsContent value="mixer" className="h-full m-0">
-            {tracks.length === 0 ? (
-              <div className="h-full flex items-center justify-center">
-                <div className="text-center p-8">
-                  <Layers className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                  <h4 className="text-lg font-medium text-foreground mb-2">No tracks in mixer</h4>
-                  <p className="text-muted-foreground mb-4">Add tracks to start mixing</p>
                 </div>
               </div>
             ) : (

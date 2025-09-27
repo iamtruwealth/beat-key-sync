@@ -14,7 +14,6 @@ import { CookModeDAW } from '@/components/cookmode/CookModeDAW';
 import { CookModeChat } from '@/components/cookmode/CookModeChat';
 import { SessionParticipants } from '@/components/cookmode/SessionParticipants';
 import { SessionControls } from '@/components/cookmode/SessionControls';
-import { CookModeToolbar, ToolType } from '@/components/cookmode/CookModeToolbar';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Play, 
@@ -37,8 +36,6 @@ const CookMode = () => {
   const navigate = useNavigate();
   const [isHost, setIsHost] = useState(false);
   const [activeView, setActiveView] = useState<'timeline' | 'mixer'>('timeline');
-  const [activeTool, setActiveTool] = useState<ToolType>('draw');
-  const [snapEnabled, setSnapEnabled] = useState(true);
   const [sessionConfig, setSessionConfig] = useState({
     bpm: 120,
     key: 'C',
@@ -57,7 +54,6 @@ const CookMode = () => {
     addTrack,
     removeTrack,
     togglePlayback,
-    stopPlayback,
     seekTo,
     updateTrack,
     updateSessionSettings,
@@ -70,8 +66,6 @@ const CookMode = () => {
       joinSession(sessionId);
     }
   }, [sessionId, session, joinSession]);
-
-  // Stop is handled via onStop prop, no globals
 
   // Enable audio context on first user interaction
   useEffect(() => {
@@ -275,107 +269,88 @@ const CookMode = () => {
         description="Live beat creation session in progress"
       />
 
-      {/* Combined Header with View Switcher */}
-      <div className="border-b border-border/30 bg-card/20 backdrop-blur-sm">
-        {/* Top Row - Dashboard Button, View Switcher, Empty Space */}
-        <div className="flex items-center justify-between px-3 py-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate('/dashboard')}
-            className="flex items-center gap-1.5 text-xs h-8 px-2 border-border/50 hover:bg-card/30"
-          >
-            <LayoutDashboard className="w-3 h-3" />
-            Dashboard
-          </Button>
+      {/* View Switcher - At Very Top Center of Page */}
+      <div className="flex items-center justify-between p-4 border-b border-border/30 bg-card/20 backdrop-blur-sm">
+        {/* Dashboard Button - Far Left */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => navigate('/dashboard')}
+          className="flex items-center gap-2 border-border/50 hover:bg-card/30"
+        >
+          <LayoutDashboard className="w-4 h-4" />
+          Dashboard
+        </Button>
 
-          <Tabs value={activeView} onValueChange={(value) => setActiveView(value as 'timeline' | 'mixer')}>
-            <TabsList className="bg-background/80 border border-border/30 h-8">
-              <TabsTrigger 
-                value="timeline" 
-                className="flex items-center gap-1.5 text-xs px-3 h-6 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-              >
-                <Clock className="w-3 h-3" />
-                Timeline
-              </TabsTrigger>
-              <TabsTrigger 
-                value="mixer" 
-                className="flex items-center gap-1.5 text-xs px-3 h-6 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-              >
-                <Layers className="w-3 h-3" />
-                Mixer
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+        {/* View Switcher - Center */}
+        <Tabs value={activeView} onValueChange={(value) => setActiveView(value as 'timeline' | 'mixer')}>
+          <TabsList className="bg-background/80 border border-border/30">
+            <TabsTrigger 
+              value="timeline" 
+              className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+            >
+              <Clock className="w-4 h-4" />
+              Timeline
+            </TabsTrigger>
+            <TabsTrigger 
+              value="mixer" 
+              className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+            >
+              <Layers className="w-4 h-4" />
+              Mixer
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
 
-          <div className="w-20" />
-        </div>
+        {/* Empty space for balance */}
+        <div className="w-24" />
+      </div>
 
-        {/* Bottom Row - Session Info and Action Buttons */}
-        <div className="flex items-center justify-between px-3 pb-2">
-          <div className="flex items-center gap-3">
+      {/* Header */}
+      <div className="border-b border-border/50 bg-card/30 backdrop-blur-sm">
+        <div className="flex items-center justify-between p-4">
+          <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-md bg-gradient-to-br from-neon-cyan/20 to-electric-blue/20 border border-neon-cyan/30">
-                <Zap className="w-4 h-4 text-neon-cyan animate-pulse" />
+              <div className="p-2 rounded-lg bg-gradient-to-br from-neon-cyan/20 to-electric-blue/20 border border-neon-cyan/30">
+                <Zap className="w-5 h-5 text-neon-cyan animate-pulse" />
               </div>
               <div>
-                <h1 className="text-lg font-bold text-foreground">{session.name}</h1>
-                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                <h1 className="text-xl font-bold text-foreground">{session.name}</h1>
+                <div className="flex items-center gap-4 text-sm text-muted-foreground">
                   <span>{session.target_bpm} BPM</span>
                   <span>Key: {session.target_genre}</span>
-                  <Badge variant="outline" className="text-xs h-5">
+                  <Badge variant="outline" className="text-xs">
                     <Users className="w-3 h-3 mr-1" />
-                    {participants.length}
+                    {participants.length} online
                   </Badge>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={shareSessionLink}
-              className="text-xs h-8 px-2 border-border/50 hover:border-neon-cyan/50"
+              className="border-border/50 hover:border-neon-cyan/50"
             >
-              <Share2 className="w-3 h-3 mr-1.5" />
-              Share
+              <Share2 className="w-4 h-4 mr-2" />
+              Share Link
             </Button>
             
             <Button
               variant="outline"
               size="sm"
               onClick={handleSaveAndPublish}
-              className="text-xs h-8 px-2 border-border/50 hover:border-electric-blue/50"
+              className="border-border/50 hover:border-electric-blue/50"
             >
-              <Save className="w-3 h-3 mr-1.5" />
-              Save
+              <Save className="w-4 h-4 mr-2" />
+              Save & Publish
             </Button>
           </div>
         </div>
       </div>
-
-      {/* Editing Toolbar */}
-      <CookModeToolbar
-        activeTool={activeTool}
-        onToolChange={(tool) => {
-          setActiveTool(tool);
-          toast.success(`Switched to ${tool} tool`);
-        }}
-        snapEnabled={snapEnabled}
-        onSnapToggle={() => {
-          setSnapEnabled(prev => {
-            const newValue = !prev;
-            toast.info(`Snap ${newValue ? 'enabled' : 'disabled'}`);
-            return newValue;
-          });
-        }}
-        onUndo={() => toast.info('Undo action')}
-        onRedo={() => toast.info('Redo action')}
-        canUndo={false}
-        canRedo={false}
-      />
 
       {/* Main Interface */}
       <div className="flex h-[calc(100vh-80px)]">
@@ -389,7 +364,6 @@ const CookMode = () => {
             sessionKey={session.target_genre}
             onTogglePlayback={togglePlayback}
             onSeek={seekTo}
-            onStop={stopPlayback}
             onUpdateBpm={(bpm) => updateSessionSettings({ bpm })}
             onUpdateKey={(key) => updateSessionSettings({ key })}
           />
@@ -403,7 +377,6 @@ const CookMode = () => {
               isPlaying={isPlaying}
               currentTime={currentTime}
               bpm={session.target_bpm || 120}
-              sessionBpm={session.target_bpm} // Pass actual session BPM
               onAddTrack={addTrack}
               onRemoveTrack={removeTrack}
               onUpdateTrack={updateTrack}
@@ -416,7 +389,7 @@ const CookMode = () => {
         </div>
 
         {/* Right Sidebar */}
-        <div className="w-80 border-l border-border/50 bg-card/20 backdrop-blur-sm flex flex-col relative z-50">
+        <div className="w-80 border-l border-border/50 bg-card/20 backdrop-blur-sm flex flex-col">
           {/* Participants */}
           <div className="p-4 border-b border-border/50">
             <SessionParticipants participants={participants} />

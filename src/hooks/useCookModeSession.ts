@@ -53,10 +53,6 @@ export function useCookModeSession(sessionId?: string) {
   const [isConnected, setIsConnected] = useState(false);
   const channelRef = useRef<any>(null);
   const { toast } = useToast();
-  const DEBUG_SESSION = true;
-  const slog = (...args: any[]) => DEBUG_SESSION && console.log('[CookSession]', ...args);
-  const lastTickLogRef = useRef<number>(0);
-  const prevElapsedRef = useRef<number>(0);
 
   // Real-time subscription for session updates
   useEffect(() => {
@@ -254,70 +250,31 @@ export function useCookModeSession(sessionId?: string) {
     }
   }, [toast]);
 
-  // Simplified timing system that works with native audio looping
+  // Time tracking
   const startTimeRef = useRef<number>(0);
   const pausedTimeRef = useRef<number>(0);
 
   useEffect(() => {
-    let rafId: number | null = null;
-
+    let interval: NodeJS.Timeout;
+    
     if (isPlaying) {
-      slog('Playback started', { at: Number.isFinite(currentTime) ? currentTime.toFixed(3) : currentTime });
-      startTimeRef.current = Date.now() - currentTime * 1000;
-
-      const tick = () => {
-        const rawElapsed = (Date.now() - startTimeRef.current) / 1000;
-        // Determine loop length using measured track durations or a 4-bar fallback
-        const bpm = session?.target_bpm || 120;
-        const secondsPerBeat = 60 / bpm;
-        const defaultLoop = 16 * secondsPerBeat; // 4 bars at 4/4
-        const safeMaxDur = Math.max(
-          ...tracks.map(t => (Number.isFinite(t.duration as number) && (t.duration || 0) > 0 ? (t.duration as number) : 0)),
-          0
-        );
-        const loopLen = safeMaxDur > 0 ? safeMaxDur : defaultLoop;
-        
-        // Smooth looping with reliable wrap
-        const elapsed = loopLen > 0 ? (rawElapsed % loopLen) : rawElapsed;
+      startTimeRef.current = Date.now() - pausedTimeRef.current * 1000;
+      
+      interval = setInterval(() => {
+        const elapsed = (Date.now() - startTimeRef.current) / 1000;
         setCurrentTime(elapsed);
-
-        // Throttled debug
-        const now = Date.now();
-        if (now - (lastTickLogRef.current || 0) > 1000) {
-          if (loopLen > 0 && rawElapsed !== elapsed) {
-            slog('Session timer wrapped', { rawElapsed: rawElapsed.toFixed(3), wrapped: elapsed.toFixed(3), loopDur: loopLen.toFixed(3) });
-          }
-          slog('tick', { elapsed: elapsed.toFixed(3), loopLength: loopLen ? loopLen.toFixed(3) : 'unknown' });
-          lastTickLogRef.current = now;
-        }
-
-        prevElapsedRef.current = elapsed;
-        rafId = requestAnimationFrame(tick);
-      };
-
-      rafId = requestAnimationFrame(tick);
+      }, 100);
     } else {
-      slog('Playback paused', { at: currentTime });
       pausedTimeRef.current = currentTime;
     }
 
     return () => {
-      if (rafId) cancelAnimationFrame(rafId);
+      if (interval) clearInterval(interval);
     };
-  }, [isPlaying, tracks]);
+  }, [isPlaying]);
 
   const togglePlayback = useCallback(() => {
     const newIsPlaying = !isPlaying;
-    slog('togglePlayback', { newIsPlaying, at: Number.isFinite(currentTime) ? currentTime.toFixed(3) : currentTime });
-    
-    if (newIsPlaying) {
-      // Resume from the current visual position
-      startTimeRef.current = Date.now() - currentTime * 1000;
-    } else {
-      // On pause, capture the position so we resume accurately
-      pausedTimeRef.current = currentTime;
-    }
-    
     setIsPlaying(newIsPlaying);
     
     if (channelRef.current) {
@@ -326,56 +283,30 @@ export function useCookModeSession(sessionId?: string) {
         event: 'playback-control',
         payload: {
           isPlaying: newIsPlaying,
-          currentTime
+          currentTime: currentTime
         }
       });
     }
   }, [isPlaying, currentTime]);
 
   const seekTo = useCallback((time: number) => {
-    // Quantize seek position to nearest beat for exact loop points
-    if (session?.target_bpm) {
-      const bpm = session.target_bpm;
-      const beatsPerSecond = bpm / 60;
-      const quantizedBeat = Math.round(time * beatsPerSecond);
-      const quantizedTime = quantizedBeat / beatsPerSecond;
-      
-      setCurrentTime(quantizedTime);
-      pausedTimeRef.current = quantizedTime;
-      
-      if (isPlaying) {
-        startTimeRef.current = Date.now() - quantizedTime * 1000;
-      }
-
-      if (channelRef.current) {
-        channelRef.current.send({
-          type: 'broadcast',
-          event: 'seek',
-          payload: {
-            currentTime: quantizedTime
-          }
-        });
-      }
-    } else {
-      // Fallback to regular seek if no BPM is set
-      setCurrentTime(time);
-      pausedTimeRef.current = time;
-      
-      if (isPlaying) {
-        startTimeRef.current = Date.now() - time * 1000;
-      }
-
-      if (channelRef.current) {
-        channelRef.current.send({
-          type: 'broadcast',
-          event: 'seek',
-          payload: {
-            currentTime: time
-          }
-        });
-      }
+    setCurrentTime(time);
+    pausedTimeRef.current = time;
+    
+    if (isPlaying) {
+      startTimeRef.current = Date.now() - time * 1000;
     }
-  }, [isPlaying, session]);
+
+    if (channelRef.current) {
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'seek',
+        payload: {
+          currentTime: time
+        }
+      });
+    }
+  }, [isPlaying]);
 
   const addTrack = useCallback(async (file: File, trackName: string, stemType: string) => {
     try {
@@ -492,24 +423,6 @@ export function useCookModeSession(sessionId?: string) {
     }
   }, []);
 
-  const stopPlayback = useCallback(() => {
-    setIsPlaying(false);
-    setCurrentTime(0);
-    pausedTimeRef.current = 0;
-    startTimeRef.current = Date.now();
-    
-    if (channelRef.current) {
-      channelRef.current.send({
-        type: 'broadcast',
-        event: 'playback-control',
-        payload: {
-          isPlaying: false,
-          currentTime: 0
-        }
-      });
-    }
-  }, []);
-
   const updateSessionSettings = useCallback(async (updates: { bpm?: number; key?: string }) => {
     try {
       if (!session) throw new Error('No active session');
@@ -596,7 +509,6 @@ export function useCookModeSession(sessionId?: string) {
     addTrack,
     removeTrack,
     togglePlayback,
-    stopPlayback,
     seekTo,
     updateTrack,
     updateSessionSettings,

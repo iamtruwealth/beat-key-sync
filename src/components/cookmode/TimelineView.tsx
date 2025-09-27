@@ -5,7 +5,8 @@ import { Slider } from "@/components/ui/slider";
 import { Play, Pause, RotateCcw, Volume2, VolumeX } from "lucide-react";
 import { BPMSyncIndicator } from './BPMSyncIndicator';
 import { useToast } from "@/hooks/use-toast";
-import { ToolType } from './CookModeToolbar';
+import { useWaveformGenerator } from '@/hooks/useWaveformGenerator';
+import { generateWaveformBars } from '@/lib/waveformGenerator';
 
 interface Track {
   id: string;
@@ -16,8 +17,17 @@ interface Track {
   volume?: number;
   isMuted?: boolean;
   isSolo?: boolean;
-  waveformData?: number[];
-  analyzed_duration?: number;
+  waveform_data?: number[];
+  analyzed_duration?: number; // Actual audio duration from analysis
+}
+
+interface AudioClip {
+  id: string;
+  trackId: string;
+  startTime: number;
+  endTime: number;
+  originalTrack: Track;
+  isSelected?: boolean;
 }
 
 interface TimelineViewProps {
@@ -25,11 +35,9 @@ interface TimelineViewProps {
   isPlaying: boolean;
   currentTime: number;
   bpm: number;
-  sessionBpm?: number;
   onPlayPause: () => void;
   onSeek: (time: number) => void;
   onTracksUpdate?: (tracks: Track[]) => void;
-  onToolAction?: (action: string, data: any) => void;
 }
 
 export const TimelineView: React.FC<TimelineViewProps> = ({
@@ -37,528 +45,885 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   isPlaying,
   currentTime,
   bpm,
-  sessionBpm,
   onPlayPause,
   onSeek,
-  onTracksUpdate,
-  onToolAction
+  onTracksUpdate
 }) => {
-  const DEBUG_TIMELINE = true;
-  const tlog = (...args: any[]) => DEBUG_TIMELINE && console.log('[Timeline]', ...args);
-  tlog('render', { isPlaying, currentTime, tracksCount: tracks.length });
-  const [activeTool] = useState<ToolType>('draw');
-  const [snapEnabled] = useState(true);
   const timelineRef = useRef<HTMLDivElement>(null);
-  const [selectedClips, setSelectedClips] = useState<string[]>([]);
-  const [zoom, setZoom] = useState(1);
+  const [isLooping, setIsLooping] = useState(false);
+  const [loopStart, setLoopStart] = useState(0);
+  const [loopEnd, setLoopEnd] = useState(32);
+  const [timelineWidth, setTimelineWidth] = useState(0);
   const audioElementsRef = useRef<Map<string, HTMLAudioElement>>(new Map());
+  const blobSrcTriedRef = useRef<Set<string>>(new Set());
   const [trackDurations, setTrackDurations] = useState<Map<string, number>>(new Map());
+  const [masterVolume, setMasterVolume] = useState(100);
+  const [audioClips, setAudioClips] = useState<AudioClip[]>([]);
+  const [selectedClips, setSelectedClips] = useState<Set<string>>(new Set());
+  const [copiedClip, setCopiedClip] = useState<AudioClip | null>(null);
   const { toast } = useToast();
-  const lastLogRef = useRef<Map<string, number>>(new Map());
-  const prevTimeRef = useRef<Map<string, number>>(new Map());
-  const loopSignalRef = useRef<number>(0);
-  const prevSessionTimeRef = useRef<number>(0);
-  const playingRef = useRef<boolean>(isPlaying);
-  // Calculate loop length based on actual audio duration (not fixed 4 bars)
-  const maxTrackDuration = Math.max(...tracks.map(t => trackDurations.get(t.id) || t.analyzed_duration || t.duration || 0), 0);
-  const loopLength = maxTrackDuration > 0 ? maxTrackDuration : (16 * 60 / bpm); // Use actual track length or fallback to 4 bars
-  
-  // Calculate how many bars this represents
+
+  // Calculate timing constants
   const secondsPerBeat = 60 / bpm;
   const beatsPerBar = 4;
   const secondsPerBar = secondsPerBeat * beatsPerBar;
-  const loopBars = Math.round(loopLength / secondsPerBar);
-  
-  // Timeline display calculations  
-  const timelineLength = Math.max(loopLength, 32); // At least 32 seconds visible
-  const totalBars = Math.ceil(timelineLength / secondsPerBar);
-  const pixelsPerSecond = 40 * zoom;
+  const maxDuration = Math.max(...tracks.map(t => trackDurations.get(t.id) || t.analyzed_duration || t.duration || 60), 60);
+  const totalBars = Math.ceil(maxDuration / secondsPerBar);
+  const pixelsPerSecond = 40;
   const pixelsPerBeat = pixelsPerSecond * secondsPerBeat;
   const pixelsPerBar = pixelsPerBeat * beatsPerBar;
-  
-  console.log('Loop calculation:', { 
-    maxTrackDuration, 
-    loopLength, 
-    loopBars, 
-    bpm,
-    secondsPerBar 
-  });
 
-  const snapToGrid = useCallback((time: number) => {
-    if (!snapEnabled) return time;
+  // Initialize audio clips from tracks - ensure proper positioning
+  useEffect(() => {
+    console.log('Checking clips initialization:', { 
+      audioClipsLength: audioClips.length, 
+      tracksLength: tracks.length,
+      trackDurations: Array.from(trackDurations.entries()),
+      trackNames: tracks.map(t => t.name)
+    });
     
-    const beatDuration = 60 / bpm;
-    const snapInterval = beatDuration / 4;
-    return Math.round(time / snapInterval) * snapInterval;
-  }, [snapEnabled, bpm]);
-
-  const handleClipClick = useCallback((trackId: string, event: React.MouseEvent) => {
-    event.stopPropagation();
-    
-    switch (activeTool) {
-      case 'select':
-        setSelectedClips(prev => 
-          prev.includes(trackId) 
-            ? prev.filter(id => id !== trackId)
-            : [...prev, trackId]
-        );
-        break;
-      case 'delete':
-        onToolAction?.('delete', { trackId });
-        break;
-      case 'mute':
-        onToolAction?.('mute', { trackId });
-        break;
-      case 'playback':
-        onToolAction?.('play', { trackId });
-        break;
-      case 'draw':
-      default:
-        setSelectedClips([trackId]);
-        break;
+    // Always recreate clips when tracks change to ensure all tracks get clips
+    if (tracks.length > 0) {
+      const initialClips: AudioClip[] = tracks.map(track => {
+        const duration = trackDurations.get(track.id) || track.analyzed_duration || track.duration || 60;
+        const clip = {
+          id: `${track.id}-clip-0`,
+          trackId: track.id,
+          startTime: 0, // Always start at beginning
+          endTime: duration,
+          originalTrack: track
+        };
+        console.log('Creating clip for track:', track.name, 'ID:', track.id, 'Clip:', clip);
+        return clip;
+      });
+      
+      // Only update if clips actually changed
+      const clipsChanged = initialClips.length !== audioClips.length || 
+        initialClips.some(clip => !audioClips.find(existing => existing.id === clip.id));
+      
+      if (clipsChanged) {
+        console.log('Updating audio clips - old:', audioClips, 'new:', initialClips);
+        setAudioClips(initialClips);
+      }
     }
-  }, [activeTool, onToolAction]);
+  }, [tracks, trackDurations]);
 
-  const handleClipRightClick = useCallback((trackId: string, event: React.MouseEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
-    
-    if (activeTool === 'draw') {
-      onToolAction?.('delete', { trackId });
-    }
-  }, [activeTool, onToolAction]);
-
-  const getToolCursor = () => {
-    switch (activeTool) {
-      case 'draw': return 'cursor-pointer';
-      case 'paint': return 'cursor-copy';
-      case 'delete': return 'cursor-not-allowed';
-      case 'mute': return 'cursor-pointer';
-      case 'slice': return 'cursor-crosshair';
-      case 'select': return 'cursor-pointer';
-      case 'zoom': return 'cursor-zoom-in';
-      case 'playback': return 'cursor-pointer';
-      default: return 'cursor-default';
-    }
+  // Grid snapping function
+  const snapToGrid = (time: number): number => {
+    const beatTime = secondsPerBeat;
+    return Math.round(time / beatTime) * beatTime;
   };
 
-  const handleTimelineClick = useCallback((event: React.MouseEvent) => {
-    if (!timelineRef.current) return;
+  // Copy clip function
+  const copyClip = useCallback((clipId: string) => {
+    const clip = audioClips.find(c => c.id === clipId);
+    if (clip) {
+      setCopiedClip(clip);
+      console.log('Copied clip:', clip);
+      toast({
+        title: "Clip Copied",
+        description: `${clip.originalTrack.name} copied to clipboard`,
+      });
+    } else {
+      console.error('Could not find clip to copy:', clipId);
+    }
+  }, [audioClips, toast]);
 
-    const container = timelineRef.current;
-    const rect = container.getBoundingClientRect();
-    const scrollX = container.scrollLeft;
+  // Paste clip function
+  const pasteClip = useCallback((targetTime: number, targetTrackId?: string) => {
+    if (!copiedClip) {
+      console.log('No clip to paste');
+      return;
+    }
 
-    // Track lane header uses w-48 (12rem = 192px)
-    const headerWidth = 192;
+    const snappedTime = snapToGrid(targetTime);
+    const duration = copiedClip.endTime - copiedClip.startTime;
+    const newClipId = `${copiedClip.originalTrack.id}-clip-${Date.now()}`;
+    
+    const newClip: AudioClip = {
+      id: newClipId,
+      trackId: targetTrackId || copiedClip.trackId,
+      startTime: snappedTime,
+      endTime: snappedTime + duration,
+      originalTrack: copiedClip.originalTrack
+    };
 
-    // Adjust for container position, horizontal scroll, and left header gutter
-    const rawX = event.clientX - rect.left + scrollX - headerWidth;
-    const timelinePixelWidth = loopLength * pixelsPerSecond;
+    console.log('Pasting clip:', newClip);
+    setAudioClips(prev => [...prev, newClip]);
+    toast({
+      title: "Clip Pasted",
+      description: `${copiedClip.originalTrack.name} pasted at ${Math.floor(snappedTime / secondsPerBar) + 1}.${Math.floor((snappedTime % secondsPerBar) / secondsPerBeat) + 1}`,
+    });
+  }, [copiedClip, snapToGrid, secondsPerBar, secondsPerBeat, toast]);
 
-    // Clamp within visible timeline range
-    const xClamped = Math.max(0, Math.min(rawX, timelinePixelWidth));
-    const clickTime = xClamped / pixelsPerSecond;
+  // Duplicate clip function
+  const duplicateClip = useCallback((clipId: string) => {
+    const clip = audioClips.find(c => c.id === clipId);
+    if (!clip) {
+      console.error('Could not find clip to duplicate:', clipId);
+      return;
+    }
 
-    const snappedTime = snapToGrid(clickTime);
-    onSeek(Math.max(0, Math.min(snappedTime, loopLength)));
-  }, [loopLength, pixelsPerSecond, onSeek, snapToGrid]);
+    const duration = clip.endTime - clip.startTime;
+    const newStartTime = snapToGrid(clip.endTime);
+    const newClipId = `${clip.originalTrack.id}-clip-${Date.now()}`;
+    
+    const newClip: AudioClip = {
+      id: newClipId,
+      trackId: clip.trackId,
+      startTime: newStartTime,
+      endTime: newStartTime + duration,
+      originalTrack: clip.originalTrack
+    };
 
-  // Keep playingRef in sync with isPlaying
+    console.log('Duplicating clip:', clip, 'New clip:', newClip);
+    setAudioClips(prev => [...prev, newClip]);
+    toast({
+      title: "Clip Duplicated",
+      description: `${clip.originalTrack.name} duplicated`,
+    });
+  }, [audioClips, snapToGrid, toast]);
+
+  // Delete clip function
+  const deleteClip = useCallback((clipId: string) => {
+    console.log('Deleting clip:', clipId);
+    setAudioClips(prev => {
+      const filtered = prev.filter(c => c.id !== clipId);
+      console.log('Clips after deletion:', filtered);
+      return filtered;
+    });
+    setSelectedClips(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(clipId);
+      return newSet;
+    });
+    toast({
+      title: "Clip Deleted",
+      description: "Audio clip removed",
+    });
+  }, [toast]);
+
+  // Keyboard shortcuts
   useEffect(() => {
-    playingRef.current = isPlaying;
-  }, [isPlaying]);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (selectedClips.size === 0) return;
 
-  // Initialize audio elements ONCE per track - never recreate
+      if (e.ctrlKey || e.metaKey) {
+        switch (e.key) {
+          case 'c':
+            e.preventDefault();
+            const firstSelected = Array.from(selectedClips)[0];
+            copyClip(firstSelected);
+            break;
+          case 'v':
+            e.preventDefault();
+            pasteClip(currentTime);
+            break;
+          case 'd':
+            e.preventDefault();
+            selectedClips.forEach(clipId => duplicateClip(clipId));
+            break;
+        }
+      }
+
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        selectedClips.forEach(clipId => deleteClip(clipId));
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedClips, copyClip, pasteClip, duplicateClip, deleteClip, currentTime]);
+
+  // Initialize audio elements for all tracks
   useEffect(() => {
     tracks.forEach(track => {
       if (!audioElementsRef.current.has(track.id)) {
-        tlog('Creating audio element for track:', track.id, track.name);
+        console.log('Creating audio element for track:', track.name, 'URL:', track.file_url);
         
+        if (!track.file_url) {
+          console.error('Track has no file_url:', track);
+          toast({
+            title: "Audio Error",
+            description: `Track ${track.name} has no audio file`,
+            variant: "destructive"
+          });
+          return;
+        }
+
         const audio = new Audio();
-        audio.volume = 0.8;
-        audio.crossOrigin = "anonymous";
+        audio.volume = track.volume !== undefined ? track.volume : 1;
+        audio.muted = track.isMuted || false;
+        audio.currentTime = currentTime;
+        audio.crossOrigin = "anonymous"; // For CORS
         audio.preload = 'auto';
-        audio.loop = false; // Manual loop via session timer
-
-        // Debug event listeners
-        const onPlay = () => tlog('audio:play', track.id, { ct: audio.currentTime.toFixed(3) });
-        const onPause = () => tlog('audio:pause', track.id, { ct: audio.currentTime.toFixed(3) });
-        const onEnded = () => { 
-          tlog('audio:ended', track.id, { ct: audio.currentTime.toFixed(3) });
-          if (playingRef.current) {
-            audio.currentTime = 0;
-            audio.play().catch((e) => tlog('ended-restart error', track.id, e));
-            tlog('ended-restart', track.id);
-          }
-        };
-        const onWaiting = () => tlog('audio:waiting', track.id);
-        const onStalled = () => tlog('audio:stalled', track.id);
-        const onSeeking = () => tlog('audio:seeking', track.id, { to: audio.currentTime.toFixed(3) });
-        const onSeeked = () => tlog('audio:seeked', track.id, { ct: audio.currentTime.toFixed(3) });
-        const onError = () => tlog('audio:error', track.id, audio.error);
-        const onLoadedMeta = () => tlog('audio:loadedmetadata', track.id, { duration: audio.duration });
-
-        audio.addEventListener('play', onPlay);
-        audio.addEventListener('pause', onPause);
-        audio.addEventListener('ended', onEnded);
-        audio.addEventListener('waiting', onWaiting);
-        audio.addEventListener('stalled', onStalled);
-        audio.addEventListener('seeking', onSeeking);
-        audio.addEventListener('seeked', onSeeked);
-        audio.addEventListener('error', onError);
-        audio.addEventListener('loadedmetadata', onLoadedMeta);
-
-        audio.addEventListener('timeupdate', () => {
-          const now = Date.now();
-          const last = lastLogRef.current.get(track.id) || 0;
-          const prev = prevTimeRef.current.get(track.id) || 0;
-          const ct = audio.currentTime;
-          // Near-end wrap fallback to avoid stalls if native loop misses by a few ms
-          if (Number.isFinite(audio.duration) && audio.duration > 0 && (audio.duration - ct) <= 0.2) {
-            tlog('loop:wrap-near-end', track.id, { ct: ct.toFixed(3), dur: audio.duration.toFixed(3) });
-            audio.currentTime = 0;
-            if (playingRef.current && audio.paused) {
-              audio.play().catch((e) => tlog('wrap-replay error', track.id, e));
-            }
-          }
-          // Throttle logs
-          if (now - last > 500) {
-            const deltaToSession = Math.abs(ct - currentTime);
-            tlog('audio:timeupdate', track.id, {
-              ct: ct.toFixed(3),
-              duration: Number.isFinite(audio.duration) ? audio.duration.toFixed(3) : 'n/a',
-              sessionTime: currentTime.toFixed(3),
-              drift: deltaToSession.toFixed(3)
-            });
-            lastLogRef.current.set(track.id, now);
-          }
-          
-          // Detect native loop (time jump backwards)
-          if (prev && ct + 0.05 < prev) {
-            tlog('audio:native-loop', track.id, { from: prev.toFixed(3), to: ct.toFixed(3) });
-          }
-          prevTimeRef.current.set(track.id, ct);
-        });
         
         audio.addEventListener('loadeddata', () => {
-          tlog('audio:loadeddata', track.name, 'duration:', audio.duration);
-          const finiteDur = Number.isFinite(audio.duration) && audio.duration > 0 && audio.duration < 3600
-            ? audio.duration
-            : (track.analyzed_duration || track.duration || 0);
-          if (finiteDur > 0) {
-            setTrackDurations(prev => new Map(prev.set(track.id, finiteDur)));
+          console.log('Audio loaded successfully for:', track.name);
+          // Update actual duration from audio element
+          const actualDuration = audio.duration;
+          if (actualDuration && actualDuration > 0) {
+            setTrackDurations(prev => new Map(prev.set(track.id, actualDuration)));
+          }
+          // Set base volume for master fader control
+          audio.setAttribute('data-base-volume', (track.volume !== undefined ? track.volume : 1).toString());
+        });
+        
+        audio.addEventListener('canplay', () => {
+          console.log('Audio can play:', track.name);
+          // Sync with current playback state
+          if (isPlaying) {
+            audio.currentTime = currentTime;
+            audio.play().catch(error => {
+              console.error('Error starting playback:', error);
+            });
+          }
+        });
+
+        audio.addEventListener('ended', () => {
+          console.log('Audio ended for track:', track.name);
+          // Ensure audio is properly stopped and reset
+          audio.pause();
+          audio.currentTime = 0;
+        });
+
+        audio.addEventListener('timeupdate', () => {
+          // Get actual duration from the audio element
+          const actualDuration = trackDurations.get(track.id) || track.analyzed_duration || track.duration || audio.duration;
+          
+          // Stop audio if it exceeds the expected duration to prevent noise
+          if (actualDuration && audio.currentTime >= actualDuration) {
+            console.log(`Stopping track ${track.name} at ${audio.currentTime}s (duration: ${actualDuration}s)`);
+            audio.pause();
+            audio.currentTime = actualDuration; // Set to exact end
           }
         });
         
+        audio.addEventListener('error', async (e) => {
+          console.error('Audio error for track:', track.name, e, 'Audio error object:', audio.error);
+
+          // Attempt blob fallback once per track
+          if (!blobSrcTriedRef.current.has(track.id)) {
+            blobSrcTriedRef.current.add(track.id);
+            try {
+              console.log('Attempting blob fallback for:', track.name);
+              const res = await fetch(track.file_url, { mode: 'cors' });
+              if (!res.ok) throw new Error(`HTTP ${res.status}`);
+              const blob = await res.blob();
+              const objectUrl = URL.createObjectURL(blob);
+              audio.src = objectUrl;
+              audio.load();
+              if (isPlaying) {
+                audio.currentTime = currentTime;
+                await audio.play();
+              }
+              return;
+            } catch (fallbackErr) {
+              console.error('Blob fallback failed for:', track.name, fallbackErr);
+            }
+          }
+
+          toast({
+            title: "Audio Error",
+            description: `Could not load ${track.name}: ${audio.error?.message || 'Unsupported or blocked source'}`,
+            variant: "destructive"
+          });
+        });
+        
+        // Set the source after adding event listeners
         audio.src = track.file_url;
-        audio.load();
+        audio.load(); // Explicitly load the audio
+        
         audioElementsRef.current.set(track.id, audio);
       }
     });
 
-    // Clean up removed tracks
-    const currentTrackIds = new Set(tracks.map(t => t.id));
+    // Remove audio elements for tracks that no longer exist
     audioElementsRef.current.forEach((audio, trackId) => {
-      if (!currentTrackIds.has(trackId)) {
+      if (!tracks.find(t => t.id === trackId)) {
         audio.pause();
         audio.src = '';
         audioElementsRef.current.delete(trackId);
-        tlog('Removed audio element for track', trackId);
       }
     });
-  }, [JSON.stringify(tracks.map(t => ({ id: t.id, url: t.file_url })))]); // Only recreate if track IDs or URLs change
+  }, [tracks, toast]);
 
-  // Simple playback control - sync UI to actual audio time
+  // Sync playback state with main controls - improved for clip system
+  useEffect(() => {
+    console.log('Timeline syncing playback state:', { isPlaying, audioElementsCount: audioElementsRef.current.size });
+    audioElementsRef.current.forEach((audio, trackId) => {
+      try {
+        if (!audio.src) return;
+        
+        // Find active clips for this track at current time
+        const activeClips = audioClips.filter(clip => 
+          clip.trackId === trackId && 
+          currentTime >= clip.startTime && 
+          currentTime < clip.endTime
+        );
+        
+        const shouldPlay = isPlaying && activeClips.length > 0;
+        
+        if (shouldPlay && audio.paused) {
+          console.log('Starting playback for track:', trackId);
+          
+          // Set audio time relative to clip start
+          const activeClip = activeClips[0]; // Use first active clip
+          const clipTime = currentTime - activeClip.startTime;
+          audio.currentTime = clipTime;
+          
+          const playPromise = audio.play();
+          if (playPromise !== undefined) {
+            playPromise
+              .then(() => console.log('Audio started successfully for:', trackId))
+              .catch(error => {
+                console.error('Autoplay prevented for track:', trackId, error);
+                if (error.name === 'NotAllowedError') {
+                  toast({
+                    title: "User Interaction Required",
+                    description: "Click anywhere to enable audio playback",
+                  });
+                }
+              });
+          }
+        } else if (!shouldPlay && !audio.paused) {
+          console.log('Pausing playback for track:', trackId);
+          audio.pause();
+        }
+      } catch (error) {
+        console.error('Error syncing audio playback:', error);
+      }
+    });
+  }, [isPlaying, currentTime, audioClips, toast]);
+
+  // Sync current time with clip playback
   useEffect(() => {
     audioElementsRef.current.forEach((audio, trackId) => {
-      const track = tracks.find(t => t.id === trackId);
-      if (isPlaying) {
-        if (track) audio.muted = !!track.isMuted;
-        const desired = loopLength > 0 ? (currentTime % loopLength) : currentTime;
-        if (audio.paused) {
-          tlog('Starting audio', trackId, { setTo: desired.toFixed(3) });
-          audio.currentTime = desired;
-          audio.play().catch((e) => tlog('audio.play error', trackId, e));
+      // Find active clips for this track at current time
+      const activeClips = audioClips.filter(clip => 
+        clip.trackId === trackId && 
+        currentTime >= clip.startTime && 
+        currentTime < clip.endTime
+      );
+      
+      if (activeClips.length > 0) {
+        const activeClip = activeClips[0];
+        const clipTime = currentTime - activeClip.startTime;
+        
+        // Only seek if there's a significant difference
+        if (Math.abs(audio.currentTime - clipTime) > 1.0) {
+          console.log(`Seeking track ${trackId} from ${audio.currentTime} to ${clipTime} (clip time)`);
+          audio.currentTime = clipTime;
         }
-      } else {
-        if (!audio.paused) {
-          tlog('Pausing audio', trackId, { at: audio.currentTime.toFixed(3) });
-          audio.pause();
-        }
-        // Keep the paused position so seeking while paused is reflected visually
-        const desired = loopLength > 0 ? (currentTime % loopLength) : currentTime;
-        if (Math.abs(audio.currentTime - desired) > 0.01) {
-          audio.currentTime = desired;
-        }
-        // Respect track mute state while paused
-        if (track) audio.muted = !!track.isMuted;
+      } else if (!audio.paused) {
+        // No active clip, pause audio
+        console.log(`No active clip for track ${trackId}, pausing`);
+        audio.pause();
       }
     });
-  }, [isPlaying, loopLength, currentTime, tracks]);
+  }, [currentTime, audioClips]);
 
-  // Gently pause all audio when not playing (preserve time for accurate seeking while paused)
+  // Audio playback handler for individual tracks (toggle mute/solo)
+  const handleTrackPlay = useCallback(async (track: Track) => {
+    const audio = audioElementsRef.current.get(track.id);
+    if (audio) {
+      audio.muted = !audio.muted;
+      toast({
+        title: audio.muted ? "Track Muted" : "Track Unmuted",
+        description: track.name,
+      });
+    }
+  }, [toast]);
+
+  // Update timeline width
   useEffect(() => {
-    if (!isPlaying) {
-      audioElementsRef.current.forEach((audio, trackId) => {
-        if (!audio.paused) {
-          tlog('Force pausing audio', trackId);
+    if (timelineRef.current) {
+      setTimelineWidth(timelineRef.current.offsetWidth);
+    }
+  }, []);
+
+  // Handle loop logic
+  useEffect(() => {
+    if (isLooping && currentTime >= loopEnd) {
+      onSeek(loopStart);
+    }
+  }, [currentTime, isLooping, loopStart, loopEnd, onSeek]);
+
+  // Update track volumes and mute states with master volume
+  useEffect(() => {
+    tracks.forEach(track => {
+      const audio = audioElementsRef.current.get(track.id);
+      if (audio) {
+        const trackVolume = track.volume !== undefined ? track.volume : 1;
+        const baseVolume = trackVolume * (masterVolume / 100);
+        audio.volume = baseVolume;
+        audio.muted = track.isMuted || false;
+        // Update base volume for master fader control
+        audio.setAttribute('data-base-volume', trackVolume.toString());
+        
+        // Also check if track should be stopped due to duration
+        const actualDuration = trackDurations.get(track.id) || track.analyzed_duration || track.duration || audio.duration;
+        if (actualDuration && audio.currentTime >= actualDuration && !audio.paused) {
+          console.log(`Stopping track ${track.name} - exceeded duration`);
           audio.pause();
+          audio.currentTime = actualDuration;
         }
-      });
-    }
-  }, [isPlaying]);
+      }
+    });
+  }, [tracks, trackDurations, masterVolume]);
 
-  // Sync audio only on explicit seeks (large jumps), avoid fighting native loop
-  useEffect(() => {
-    if (!isPlaying) return;
-
-    const desired = loopLength > 0 ? (currentTime % loopLength) : currentTime;
-    const sessionJump = Math.abs(currentTime - prevSessionTimeRef.current);
-    const isExplicitSeek = sessionJump > 0.5; // treat big jumps as seeks
-
-    if (isExplicitSeek) {
-      audioElementsRef.current.forEach((audio, trackId) => {
-        if (!audio.paused) {
-          const delta = Math.abs(audio.currentTime - desired);
-          if (delta > 0.05) {
-            tlog('Seek resync', trackId, { desired: desired.toFixed(3), delta: delta.toFixed(3) });
-            audio.currentTime = desired;
-          }
-        }
-      });
-    }
-
-    prevSessionTimeRef.current = currentTime;
-  }, [currentTime, isPlaying, loopLength]);
-
-  // Global cleanup on unmount to ensure no stray audio keeps playing
+  // Cleanup audio elements when component unmounts
   useEffect(() => {
     return () => {
-      audioElementsRef.current.forEach((audio, trackId) => {
-        try {
-          tlog('Unmount cleanup: stopping audio', trackId);
-          audio.pause();
-          audio.src = '';
-          audio.load();
-        } catch (e) {
-          tlog('Cleanup error', trackId, e);
-        }
+      audioElementsRef.current.forEach(audio => {
+        audio.pause();
+        audio.currentTime = 0;
+        audio.src = '';
+        // Remove all event listeners
+        audio.removeEventListener('loadeddata', () => {});
+        audio.removeEventListener('canplay', () => {});
+        audio.removeEventListener('ended', () => {});
+        audio.removeEventListener('timeupdate', () => {});
+        audio.removeEventListener('error', () => {});
       });
       audioElementsRef.current.clear();
     };
   }, []);
 
-  // Update track volume/mute without recreating audio elements
-   useEffect(() => {
-     tracks.forEach(track => {
-       const audio = audioElementsRef.current.get(track.id);
-       if (audio) {
-         audio.volume = track.volume || 0.8;
-         audio.muted = track.isMuted || false;
-       }
-     });
-   }, [tracks.map(t => `${t.id}-${t.volume}-${t.isMuted}`).join(',')]);
+  const handleTimelineClick = useCallback((event: React.MouseEvent) => {
+    if (!timelineRef.current) return;
+    
+    const rect = timelineRef.current.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const time = snapToGrid(x / pixelsPerSecond);
+    
+    // If we have a copied clip and ctrl/cmd is held, paste it
+    if (copiedClip && (event.ctrlKey || event.metaKey)) {
+      pasteClip(time);
+    } else {
+      // Otherwise seek to that position
+      onSeek(Math.max(0, Math.min(time, maxDuration)));
+    }
+    
+    // Clear selection if clicking on empty space
+    if (!event.ctrlKey && !event.metaKey) {
+      setSelectedClips(new Set());
+    }
+  }, [pixelsPerSecond, maxDuration, onSeek, snapToGrid, copiedClip, pasteClip]);
 
-   // Propagate detected durations to parent so global timer can loop correctly
-   useEffect(() => {
-     if (!onTracksUpdate) return;
-     const updated = tracks.map(t => ({
-       ...t,
-       duration: trackDurations.get(t.id) || t.duration || 0,
-     }));
-     onTracksUpdate(updated);
-   }, [onTracksUpdate, tracks, trackDurations]);
-
-  const getStemColor = (stemType: string): string => {
-    const colors: Record<string, string> = {
-      'drums': 'bg-red-500/20 border-red-500/50 text-red-400',
-      'bass': 'bg-blue-500/20 border-blue-500/50 text-blue-400',
-      'melody': 'bg-green-500/20 border-green-500/50 text-green-400',
-      'vocals': 'bg-purple-500/20 border-purple-500/50 text-purple-400',
-      'fx': 'bg-yellow-500/20 border-yellow-500/50 text-yellow-400',
-      'other': 'bg-gray-500/20 border-gray-500/50 text-gray-400'
-    };
-    return colors[stemType] || colors.other;
-  };
-
-  const formatTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
+  const formatTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    return `${minutes}:${secs.toString().padStart(2, '0')}`;
   };
 
-  return (
-    <div className={`flex flex-col h-full bg-background ${getToolCursor()}`}>
-      {/* Timeline Header */}
-      <div className="flex items-center justify-between p-4 border-b border-border/50">
-        <div className="flex items-center gap-4">
-          <h3 className="text-lg font-semibold">Timeline View</h3>
-          <Badge variant="outline" className="text-xs">
-            Tool: {activeTool}
-          </Badge>
-          {snapEnabled && (
-            <Badge variant="outline" className="text-xs">
-              Snap: ON
-            </Badge>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setZoom(prev => Math.max(0.5, prev - 0.25))}
-          >
-            -
-          </Button>
-          <span className="text-sm text-muted-foreground min-w-16 text-center">
-            {Math.round(zoom * 100)}%
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setZoom(prev => Math.min(4, prev + 0.25))}
-          >
-            +
-          </Button>
-        </div>
-      </div>
+  const formatPosition = (seconds: number) => {
+    const bar = Math.floor(seconds / secondsPerBar) + 1;
+    const beat = Math.floor((seconds % secondsPerBar) / secondsPerBeat) + 1;
+    return `${bar}.${beat}`;
+  };
 
-      {/* Timeline Content */}
-      <div 
-        ref={timelineRef}
-        className="flex-1 overflow-auto bg-background/50"
-        onClick={handleTimelineClick}
-      >
-        <div className="relative min-h-full" style={{ width: `${200 + totalBars * pixelsPerBar}px` }}>
-          {/* Time ruler */}
-          <div className="sticky top-0 z-10 bg-background/90 border-b border-border/50 h-12 flex items-center">
-            <div className="w-48 px-4 border-r border-border/50 text-sm font-medium">
-              Timeline
-            </div>
-            <div className="flex-1 relative">
-              {Array.from({ length: totalBars }, (_, i) => (
-                <div
-                  key={i}
-                  className="absolute top-0 h-full border-l border-border/20 flex items-center px-2"
-                  style={{ left: `${i * pixelsPerBar}px`, width: `${pixelsPerBar}px` }}
-                >
-                  <span className="text-xs text-muted-foreground">
-                    {i + 1}
-                  </span>
-                </div>
-              ))}
-              
-              {/* Playhead */}
-              <div
-                className="absolute top-0 h-full w-1 bg-red-500 z-20 pointer-events-none shadow-lg"
-                style={{ left: `${((loopLength > 0 ? (currentTime % loopLength) : currentTime) * pixelsPerSecond)}px` }}
-               >
-                 <div className="absolute top-0 w-3 h-3 bg-red-500 rounded-full -translate-x-1 -translate-y-1"></div>
-                 <div className="absolute -top-6 -left-8 text-xs bg-black/80 text-white px-1 rounded">
-                   {formatTime(loopLength > 0 ? (currentTime % loopLength) : currentTime)}
-                 </div>
-              </div>
-              
-              {/* Loop region indicator - based on actual track length */}
-              <div
-                className="absolute top-0 h-full bg-primary/10 border-l-2 border-r-2 border-primary/30 z-10 pointer-events-none"
-                style={{ 
-                  left: '0px',
-                  width: `${loopLength * pixelsPerSecond}px`
-                }}
-              >
-                <div className="absolute -top-6 left-2 text-xs text-primary font-medium">
-                  Loop: {loopBars} bars ({formatTime(loopLength)})
-                </div>
-                {maxTrackDuration > 0 && (
-                  <div className="absolute -top-12 left-2 text-xs text-green-400 font-medium">
-                    Track: {formatTime(maxTrackDuration)}
+  const getStemColor = (stemType: string) => {
+    const colors = {
+      melody: '#00f5ff',
+      drums: '#0080ff', 
+      bass: '#ff00ff',
+      vocal: '#00f5ff',
+      fx: '#0080ff',
+      other: '#888888'
+    };
+    return colors[stemType as keyof typeof colors] || colors.other;
+  };
+
+  const renderBarMarkers = () => {
+    const markers = [];
+    for (let bar = 0; bar < totalBars; bar++) {
+      markers.push(
+        <div
+          key={bar}
+          className="absolute top-0 bottom-0 border-l border-border/30"
+          style={{ left: bar * pixelsPerBar }}
+        >
+          <span className="absolute -top-6 left-1 text-xs text-muted-foreground">
+            {bar + 1}
+          </span>
+        </div>
+      );
+      
+      // Beat markers
+      for (let beat = 1; beat < beatsPerBar; beat++) {
+        markers.push(
+          <div
+            key={`${bar}-${beat}`}
+            className="absolute top-0 bottom-0 border-l border-border/20"
+            style={{ left: bar * pixelsPerBar + beat * pixelsPerBeat }}
+          />
+        );
+      }
+    }
+    return markers;
+  };
+
+  const WaveformTrack: React.FC<{ 
+    track: Track; 
+    index: number; 
+    pixelsPerSecond: number; 
+    trackHeight: number;
+  }> = ({ track, index, pixelsPerSecond, trackHeight }) => {
+    const trackY = index * trackHeight;
+    const trackClips = audioClips.filter(clip => clip.trackId === track.id);
+    
+    console.log(`WaveformTrack for ${track.name}:`, {
+      trackId: track.id,
+      trackClips: trackClips,
+      totalClips: audioClips.length,
+      allClipTrackIds: audioClips.map(c => c.trackId)
+    });
+
+    return (
+      <div className="relative" style={{ height: trackHeight }}>
+        {trackClips.length === 0 ? (
+          // Fallback: create temporary clip if none exist
+          <div className="text-red-500 p-2 text-xs">
+            No clips found for {track.name} (ID: {track.id})
+            <br />
+            Track clips: {trackClips.length}, Total clips: {audioClips.length}
+          </div>
+        ) : (
+          trackClips.map((clip) => {
+          const { waveformData, isLoading } = useWaveformGenerator({ 
+            audioUrl: clip.originalTrack.file_url,
+            targetWidth: 500 
+          });
+
+          const clipWidth = (clip.endTime - clip.startTime) * pixelsPerSecond;
+          const clipLeft = clip.startTime * pixelsPerSecond;
+          const isSelected = selectedClips.has(clip.id);
+
+          console.log(`Rendering clip for ${clip.originalTrack.name}:`, {
+            clipId: clip.id,
+            startTime: clip.startTime,
+            endTime: clip.endTime,
+            clipWidth,
+            clipLeft,
+            pixelsPerSecond,
+            trackY,
+            trackHeight,
+            isVisible: clipWidth > 0 && clipLeft >= 0
+          });
+
+          // Generate waveform bars for visualization
+          const waveformBars = waveformData ? generateWaveformBars(waveformData.peaks, Math.floor(clipWidth / 4)) : [];
+
+          return (
+            <div
+              key={clip.id}
+              className={`absolute bg-gradient-to-r border rounded overflow-hidden cursor-pointer group transition-all ${
+                isSelected 
+                  ? 'from-neon-cyan/40 to-electric-blue/60 border-neon-cyan shadow-neon-cyan shadow-[0_0_10px]' 
+                  : 'from-primary/20 to-primary/40 border-primary/30 hover:border-primary/50'
+              }`}
+              style={{
+                top: trackY + 8,
+                left: clipLeft,
+                width: clipWidth,
+                height: trackHeight - 16,
+                zIndex: 10, // Ensure it's above other elements
+                minWidth: '20px', // Ensure it's always visible
+                background: isSelected ? '#00f5ff40' : '#ff004040' // Debug colors
+              }}
+              title={`${clip.originalTrack.name} - Click to select, Double-click to duplicate`}
+              onClick={(e) => {
+                e.stopPropagation();
+                console.log('Clip clicked:', clip.originalTrack.name, 'Clip ID:', clip.id);
+                setSelectedClips(prev => {
+                  const newSet = new Set(prev);
+                  if (e.ctrlKey || e.metaKey) {
+                    if (newSet.has(clip.id)) {
+                      newSet.delete(clip.id);
+                      console.log('Removed from selection:', clip.id);
+                    } else {
+                      newSet.add(clip.id);
+                      console.log('Added to selection:', clip.id);
+                    }
+                  } else {
+                    newSet.clear();
+                    newSet.add(clip.id);
+                    console.log('Single selection:', clip.id);
+                  }
+                  console.log('New selection:', Array.from(newSet));
+                  return newSet;
+                });
+              }}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                console.log('Right-click on clip:', clip.originalTrack.name, 'Clip ID:', clip.id);
+                setSelectedClips(new Set([clip.id]));
+                // Simple context menu using confirm dialogs for now
+                const action = prompt('Action: (c)opy, (d)uplicate, (delete)');
+                console.log('Context menu action:', action);
+                switch(action?.toLowerCase()) {
+                  case 'c':
+                  case 'copy':
+                    copyClip(clip.id);
+                    break;
+                  case 'd':
+                  case 'duplicate':
+                    duplicateClip(clip.id);
+                    break;
+                  case 'delete':
+                    deleteClip(clip.id);
+                    break;
+                }
+              }}
+              onDoubleClick={() => {
+                console.log('Double-click on clip:', clip.originalTrack.name, 'Clip ID:', clip.id);
+                duplicateClip(clip.id);
+              }}
+            >
+              {/* Waveform visualization */}
+              <div className="h-full p-1 flex items-center">
+                {isLoading ? (
+                  <div className="flex-1 h-8 bg-gradient-to-r from-neon-cyan/20 to-electric-blue/20 rounded flex items-center justify-center">
+                    <span className="text-xs text-foreground/60">Loading...</span>
+                  </div>
+                ) : waveformBars.length > 0 ? (
+                  <div className="flex-1 h-8 flex items-end justify-center gap-px">
+                    {waveformBars.map((bar, i) => (
+                      <div
+                        key={i}
+                        className="bg-gradient-to-t from-neon-cyan/60 to-electric-blue/60 rounded-sm min-w-[1px]"
+                        style={{
+                          height: `${Math.max(bar * 100, 2)}%`,
+                          width: Math.max(clipWidth / waveformBars.length - 1, 1)
+                        }}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex-1 h-8 bg-gradient-to-r from-neon-cyan/20 to-electric-blue/20 rounded flex items-center justify-center">
+                    <span className="text-xs text-foreground/60">
+                      {(clip.endTime - clip.startTime).toFixed(1)}s
+                    </span>
                   </div>
                 )}
               </div>
-            </div>
-          </div>
 
-          {/* Track lanes */}
-          <div className="space-y-1 p-1">
-            {tracks.map((track) => (
-              <div key={track.id} className="flex h-16 bg-card/30 rounded border border-border/50">
-                {/* Track header */}
-                <div className="w-48 p-3 border-r border-border/50 flex items-center gap-2">
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium truncate">{track.name}</div>
-                    <div className="flex items-center gap-1 mt-1">
-                      <Badge variant="secondary" className={`text-xs ${getStemColor(track.stem_type)}`}>
-                        {track.stem_type}
-                      </Badge>
-                      <BPMSyncIndicator 
-                        detectedBPM={sessionBpm || 140} 
-                        sessionBPM={bpm} 
-                      />
-                    </div>
+              {/* Selection indicator */}
+              {isSelected && (
+                <div className="absolute inset-0 border-2 border-neon-cyan rounded pointer-events-none">
+                  <div className="absolute -top-6 left-0 bg-neon-cyan text-black text-xs px-1 rounded">
+                    {clip.originalTrack.name}
                   </div>
-                  
-                  <div className="flex items-center gap-1">
+                </div>
+              )}
+
+              {/* Clip actions (visible on hover) */}
+              <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-5 w-5 p-0 text-xs"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    duplicateClip(clip.id);
+                  }}
+                  title="Duplicate (Ctrl+D)"
+                >
+                  ⧉
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-5 w-5 p-0 text-xs"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteClip(clip.id);
+                  }}
+                  title="Delete (Del)"
+                >
+                  ×
+                </Button>
+              </div>
+
+              {/* Mute/Solo overlay */}
+              {(track.isMuted || (tracks.some(t => t.isSolo) && !track.isSolo)) && (
+                <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
+                  <span className="text-xs text-muted-foreground">
+                    {track.isMuted ? 'MUTED' : 'SOLO OFF'}
+                  </span>
+                </div>
+              )}
+
+              {/* BPM sync indicator */}
+              <div className="absolute top-1 left-1">
+                <BPMSyncIndicator 
+                  detectedBPM={waveformData ? undefined : 120} // Use actual BPM when available
+                  sessionBPM={bpm}
+                />
+              </div>
+            </div>
+          );
+        })
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="h-full flex flex-col bg-background/50">
+      {/* Instructions Panel */}
+      <div className="px-4 py-2 bg-card/10 border-b border-border/30 text-xs text-muted-foreground">
+        <span className="font-medium">Timeline Controls:</span> Click to select clips • Double-click to duplicate • Right-click for menu • 
+        <span className="font-medium">Shortcuts:</span> Ctrl+C copy • Ctrl+V paste • Ctrl+D duplicate • Del delete • Ctrl+Click timeline to paste
+      </div>
+
+      {/* Main Timeline Area */}
+      <div className="flex-1 relative overflow-auto">
+        <div className="flex">
+          {/* Track names sidebar */}
+          <div className="w-48 flex-shrink-0 bg-card/10 border-r border-border/30">
+            <div className="h-8"></div> {/* Spacer for ruler */}
+            
+            {/* Master Track */}
+            <div className="h-20 border-b-2 border-neon-cyan/30 p-2 flex flex-col justify-center bg-gradient-to-r from-neon-cyan/10 to-electric-blue/10">
+              <div className="text-xs font-bold text-neon-cyan mb-2 flex items-center gap-2">
+                <Volume2 className="w-3 h-3" />
+                MASTER
+              </div>
+              <div className="flex items-center gap-2">
+                <Volume2 className="w-3 h-3 text-neon-cyan" />
+                <Slider
+                  value={[masterVolume]}
+                  onValueChange={(value) => setMasterVolume(value[0])}
+                  max={100}
+                  min={0}
+                  step={1}
+                  className="flex-1 h-2"
+                />
+                <span className="text-xs text-neon-cyan font-mono w-8">
+                  {masterVolume}
+                </span>
+              </div>
+            </div>
+
+            {tracks.map((track, index) => {
+              console.log(`Sidebar track ${index}: ${track.name} (ID: ${track.id})`);
+              return (
+                <div
+                  key={track.id}
+                  className="h-16 border-b border-border/20 p-2 flex flex-col justify-center group cursor-pointer hover:bg-card/20 transition-colors"
+                  onClick={() => handleTrackPlay(track)}
+                  title={track.name} // Show full name on hover
+                >
+                  <div className="text-xs font-medium text-foreground truncate max-w-full mb-1">
+                    {track.name}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Badge 
+                      variant="outline" 
+                      className="text-xs"
+                      style={{ color: getStemColor(track.stem_type) }}
+                    >
+                      {track.stem_type}
+                    </Badge>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className={`w-6 h-6 p-0 ${track.isMuted ? 'text-muted-foreground' : 'text-foreground'}`}
-                      onClick={() => onToolAction?.('mute', { trackId: track.id })}
+                      className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleTrackPlay(track);
+                      }}
                     >
-                      {track.isMuted ? <VolumeX className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />}
+                      <Play className="w-3 h-3" />
                     </Button>
                   </div>
                 </div>
+              );
+            })}
+          </div>
 
-                {/* Track timeline */}
-                <div className="flex-1 relative">
-                  <div 
-                    className={`
-                      relative h-12 bg-card border border-border/50 rounded-md overflow-hidden
-                      transition-all duration-200 hover:border-primary/50 mx-2 my-2
-                      ${selectedClips.includes(track.id) ? 'ring-2 ring-primary/50' : ''}
-                      ${track.isMuted ? 'opacity-50' : ''}
-                    `}
-                    style={{
-                      width: `${((trackDurations.get(track.id) || track.duration || 30) / timelineLength) * (totalBars * pixelsPerBar)}px`,
-                    }}
-                    onClick={(e) => handleClipClick(track.id, e)}
-                    onContextMenu={(e) => handleClipRightClick(track.id, e)}
-                  >
-                    {/* Tool-specific visual feedback */}
-                    {activeTool === 'slice' && (
-                      <div className="absolute inset-0 pointer-events-none border border-yellow-400/50 bg-yellow-400/10" />
-                    )}
-                    {activeTool === 'delete' && (
-                      <div className="absolute inset-0 pointer-events-none border border-red-400/50 bg-red-400/10" />
-                    )}
-                    {activeTool === 'mute' && track.isMuted && (
-                      <div className="absolute inset-0 pointer-events-none border border-orange-400/50 bg-orange-400/10" />
-                    )}
-                    
-                    {/* Clip Content */}
-                    <div className="absolute inset-0 p-2 flex items-center">
-                      <div className="flex items-center gap-2 text-xs text-foreground/80">
-                        <Badge variant="secondary" className={`text-xs ${getStemColor(track.stem_type)}`}>
-                          {track.stem_type}
-                        </Badge>
-                        <span className="truncate font-medium">{track.name}</span>
-                        {track.isMuted && <VolumeX className="w-3 h-3" />}
-                      </div>
-                    </div>
+          {/* Timeline area */}
+          <div className="flex-1 relative">
+            {/* Ruler */}
+            <div 
+              className="h-8 bg-card/20 border-b border-border/30 relative"
+              style={{ width: totalBars * pixelsPerBar }}
+            >
+              {renderBarMarkers()}
+            </div>
 
-                    {/* Resize handles for draw tool */}
-                    {activeTool === 'draw' && selectedClips.includes(track.id) && (
-                      <>
-                        <div className="absolute left-0 top-0 w-1 h-full bg-primary cursor-w-resize" />
-                        <div className="absolute right-0 top-0 w-1 h-full bg-primary cursor-e-resize" />
-                      </>
-                    )}
+            {/* Tracks area */}
+            <div
+              ref={timelineRef}
+              className="relative cursor-pointer"
+              style={{ 
+                height: (tracks.length * 68) + 84, // Extra height for master track
+                minHeight: 200,
+                width: totalBars * pixelsPerBar
+              }}
+              onClick={handleTimelineClick}
+            >
+              {/* Loop region */}
+              {isLooping && (
+                <div
+                  className="absolute top-0 bottom-0 bg-neon-cyan/10 border-x-2 border-neon-cyan/50"
+                  style={{
+                    left: loopStart * pixelsPerSecond,
+                    width: (loopEnd - loopStart) * pixelsPerSecond
+                  }}
+                >
+                  <div className="absolute -top-8 left-0 text-xs text-neon-cyan">
+                    {formatPosition(loopStart)}
+                  </div>
+                  <div className="absolute -top-8 right-0 text-xs text-neon-cyan">
+                    {formatPosition(loopEnd)}
+                  </div>
+                </div>
+              )}
+
+              {/* Playhead */}
+              <div
+                className="absolute top-0 bottom-0 w-0.5 bg-neon-cyan shadow-neon-cyan shadow-[0_0_10px] z-10"
+                style={{ left: currentTime * pixelsPerSecond }}
+              >
+                <div className="absolute -top-2 -left-2 w-4 h-4 bg-neon-cyan rounded-full shadow-neon-cyan shadow-[0_0_10px]" />
+              </div>
+
+              {/* Master track visual */}
+              <div
+                className="absolute bg-gradient-to-r from-neon-cyan/20 to-electric-blue/20 border-2 border-neon-cyan/40 rounded overflow-hidden"
+                style={{
+                  top: 8,
+                  left: 0,
+                  width: maxDuration * pixelsPerSecond,
+                  height: 64
+                }}
+              >
+                <div className="h-full p-2 flex items-center justify-center">
+                  <div className="text-sm font-bold text-neon-cyan flex items-center gap-2">
+                    <Volume2 className="w-4 h-4" />
+                    MASTER OUTPUT
                   </div>
                 </div>
               </div>
-            ))}
+
+              {/* Track waveforms */}
+              {tracks.map((track, index) => {
+                console.log(`Rendering track ${index}: ${track.name} (ID: ${track.id})`);
+                return (
+                  <WaveformTrack 
+                    key={track.id}
+                    track={track} 
+                    index={index + 1} // Offset by 1 for master track
+                    pixelsPerSecond={pixelsPerSecond}
+                    trackHeight={68}
+                  />
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>

@@ -324,12 +324,12 @@ const App = () => (
               </RoleProtectedRoute>
             } />
             <Route path="/cook-mode" element={
-              <RoleProtectedRoute allowedRoles={['artist', 'producer']}>
+              <RoleProtectedRoute allowedRoles={['producer']}>
                 <CookMode />
               </RoleProtectedRoute>
             } />
             <Route path="/cook-mode/:sessionId" element={
-              <RoleProtectedRoute allowedRoles={['artist', 'producer']}>
+              <RoleProtectedRoute allowedRoles={['producer']}>
                 <CookMode />
               </RoleProtectedRoute>
             } />
