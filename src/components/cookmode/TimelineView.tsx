@@ -613,8 +613,22 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
             isVisible: clipWidth > 0 && clipLeft >= 0
           });
 
-          // Generate waveform bars for visualization
-          const waveformBars = waveformData ? generateWaveformBars(waveformData.peaks, Math.floor(clipWidth / 4)) : [];
+          // Generate waveform bars for visualization - slice to show only clip portion
+          let waveformBars: number[] = [];
+          if (waveformData?.peaks) {
+            // Calculate which portion of the waveform to show based on clip timing
+            const totalDuration = trackDurations.get(track.id) || clip.originalTrack.analyzed_duration || clip.originalTrack.duration || 60;
+            const clipDuration = clip.endTime - clip.startTime;
+            const startRatio = clip.startTime / totalDuration;
+            const endRatio = clip.endTime / totalDuration;
+            
+            // Slice the waveform data to match the clip's time range
+            const startIndex = Math.floor(startRatio * waveformData.peaks.length);
+            const endIndex = Math.ceil(endRatio * waveformData.peaks.length);
+            const clippedPeaks = waveformData.peaks.slice(startIndex, endIndex);
+            
+            waveformBars = generateWaveformBars(clippedPeaks, Math.floor(clipWidth / 4));
+          }
 
           return (
             <div
