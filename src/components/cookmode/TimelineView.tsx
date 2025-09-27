@@ -759,7 +759,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
               {/* BPM sync indicator */}
               <div className="absolute top-1 left-1">
                 <BPMSyncIndicator 
-                  detectedBPM={waveformData ? undefined : 120} // Use actual BPM when available
+                  detectedBPM={waveformData ? 120 : undefined} // Use placeholder BPM when waveform available
                   sessionBPM={bpm}
                 />
               </div>
