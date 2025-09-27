@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { AudioAnalysisResult, parseFilenameForMetadata, analyzeAudioFile } from '@/lib/audioAnalysis';
+import { AudioAnalysisResult, parseFilenameForMetadata } from '@/lib/audioAnalysis';
 import { useToast } from '@/hooks/use-toast';
 
 export type { AudioAnalysisResult };
@@ -17,7 +17,7 @@ interface CachedResult {
 
 interface WorkerMessage {
   id: string;
-  type: 'ANALYZE_FILE' | 'ANALYSIS_COMPLETE' | 'ANALYSIS_ERROR';
+  type: 'ANALYZE_PCM' | 'ANALYSIS_COMPLETE' | 'ANALYSIS_ERROR';
   data?: any;
   result?: AudioAnalysisResult;
   error?: string;
@@ -38,7 +38,7 @@ export function useOptimizedAudioAnalysis() {
 
   // Initialize Web Worker
   useEffect(() => {
-    workerRef.current = new Worker('/essentia-worker.js');
+    workerRef.current = new Worker('/pcm-analysis-worker.js');
     
     workerRef.current.onmessage = (e: MessageEvent<WorkerMessage>) => {
       const { id, type, result, error } = e.data;
@@ -70,7 +70,7 @@ export function useOptimizedAudioAnalysis() {
   }, []);
 
   const getCacheKey = (file: File): string => {
-    return `audio_analysis_v2_${file.name}_${file.size}_${file.lastModified}`;
+    return `audio_analysis_v3_${file.name}_${file.size}_${file.lastModified}`;
   };
 
   const getCachedResult = (file: File): AudioAnalysisResult | null => {
@@ -115,7 +115,9 @@ export function useOptimizedAudioAnalysis() {
       return cachedResult;
     }
 
-    // Proceed with main-thread analysis using analyzeAudioFile
+    if (!workerRef.current) {
+      throw new Error('Worker not initialized');
+    }
 
     setAnalysisState({
       isAnalyzing: true,
@@ -127,11 +129,36 @@ export function useOptimizedAudioAnalysis() {
       // Always proceed with full audio analysis - don't skip based on filename confidence
       setAnalysisState(prev => ({ ...prev, progress: 25 }));
       
+      // Decode audio on main thread (async) and offload heavy analysis to worker
+      const arrayBuffer = await file.arrayBuffer();
+      const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
+      const audioCtx = new AudioCtx();
+      const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+
+      const channelData = audioBuffer.getChannelData(0);
+      const requestId = Math.random().toString(36).substr(2, 9);
+
+      // Create promise for worker response
+      const workerPromise = new Promise<AudioAnalysisResult>((resolve, reject) => {
+        pendingRequests.current.set(requestId, { resolve, reject });
+      });
+
+      // Send PCM data to worker (transfer the underlying buffer for performance)
+      workerRef.current.postMessage({
+        id: requestId,
+        type: 'ANALYZE_PCM',
+        data: {
+          pcmBuffer: channelData.buffer,
+          sampleRate: audioBuffer.sampleRate,
+          duration: audioBuffer.duration,
+          filename: file.name
+        }
+      }, [channelData.buffer]);
+
       setAnalysisState(prev => ({ ...prev, progress: 50 }));
-      
-      // Perform analysis on the main thread using our robust library implementation
-      const result = await analyzeAudioFile(file);
-      
+
+      const result = await workerPromise;
+
       setAnalysisState(prev => ({ ...prev, progress: 100 }));
       setCachedResult(file, result);
 
