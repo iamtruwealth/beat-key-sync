@@ -235,8 +235,11 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         
         audio.addEventListener('loadeddata', () => {
           tlog('audio:loadeddata', track.name, 'duration:', audio.duration);
-          if (audio.duration > 0) {
-            setTrackDurations(prev => new Map(prev.set(track.id, audio.duration)));
+          const finiteDur = Number.isFinite(audio.duration) && audio.duration > 0 && audio.duration < 3600
+            ? audio.duration
+            : (track.analyzed_duration || track.duration || 0);
+          if (finiteDur > 0) {
+            setTrackDurations(prev => new Map(prev.set(track.id, finiteDur)));
           }
         });
         

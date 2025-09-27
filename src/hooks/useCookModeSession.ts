@@ -267,23 +267,27 @@ export function useCookModeSession(sessionId?: string) {
 
       const tick = () => {
         const rawElapsed = (Date.now() - startTimeRef.current) / 1000;
-        const maxDur = Math.max(...tracks.map(t => t.duration || 0), 0);
+        // Determine loop length using measured track durations or a 4-bar fallback
+        const bpm = session?.target_bpm || 120;
+        const secondsPerBeat = 60 / bpm;
+        const defaultLoop = 16 * secondsPerBeat; // 4 bars at 4/4
+        const safeMaxDur = Math.max(
+          ...tracks.map(t => (Number.isFinite(t.duration as number) && (t.duration || 0) > 0 ? (t.duration as number) : 0)),
+          0
+        );
+        const loopLen = safeMaxDur > 0 ? safeMaxDur : defaultLoop;
         
-        // Smooth looping: instead of hard reset, let the timer naturally wrap
-        let elapsed = rawElapsed;
-        if (maxDur > 0) {
-          elapsed = rawElapsed % maxDur; // Always keep within loop bounds
-        }
-        
+        // Smooth looping with reliable wrap
+        const elapsed = loopLen > 0 ? (rawElapsed % loopLen) : rawElapsed;
         setCurrentTime(elapsed);
 
         // Throttled debug
         const now = Date.now();
         if (now - (lastTickLogRef.current || 0) > 1000) {
-          if (maxDur > 0 && rawElapsed !== elapsed) {
-            slog('Session timer wrapped', { rawElapsed: rawElapsed.toFixed(3), wrapped: elapsed.toFixed(3), loopDur: maxDur.toFixed(3) });
+          if (loopLen > 0 && rawElapsed !== elapsed) {
+            slog('Session timer wrapped', { rawElapsed: rawElapsed.toFixed(3), wrapped: elapsed.toFixed(3), loopDur: loopLen.toFixed(3) });
           }
-          slog('tick', { elapsed: elapsed.toFixed(3), loopLength: maxDur ? maxDur.toFixed(3) : 'unknown' });
+          slog('tick', { elapsed: elapsed.toFixed(3), loopLength: loopLen ? loopLen.toFixed(3) : 'unknown' });
           lastTickLogRef.current = now;
         }
 
