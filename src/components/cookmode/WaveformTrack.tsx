@@ -177,11 +177,12 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
 
   return (
     <div
-      className={`relative border-2 rounded cursor-pointer overflow-hidden ${getTrackBorderColor(trackIndex)} ${className}`}
+      className={`relative border-2 rounded cursor-pointer overflow-hidden ${className}`}
       style={{
         width: clipWidth,
         height: trackHeight - 8,
-        minWidth: 100 // Minimum width for visibility
+        minWidth: 100, // Minimum width for visibility
+        borderColor: getTrackBorderColor(trackIndex)
       }}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
@@ -197,7 +198,6 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
             ref={containerRef}
             id={containerId}
             className="w-full h-full"
-            style={{ opacity }}
           />
           
           {/* Loading overlay */}
@@ -303,8 +303,8 @@ const getTrackBorderColor = (trackIndex: number): string => {
   const baseColor = getTrackBaseColor(trackIndex);
   const { r, g, b } = hexToRgb(baseColor);
   
-  // Create a custom border color class - we'll use inline style since we can't dynamically create CSS classes
-  return `border-[rgba(${r},${g},${b},0.6)]`;
+  // Return a proper CSS color value for inline style
+  return `rgba(${r}, ${g}, ${b}, 0.6)`;
 };
 
 const formatTime = (seconds: number): string => {
