@@ -55,6 +55,8 @@ export default function AuthPage() {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session) {
+        // Ensure UI doesn't stay stuck
+        setLoading(false);
         const redirectTo = (() => { try { return sessionStorage.getItem('redirectTo'); } catch { return null; } })();
         if (redirectTo) {
           try { sessionStorage.removeItem('redirectTo'); } catch {}
@@ -363,15 +365,12 @@ export default function AuthPage() {
           description: error.message,
           variant: "destructive"
         });
-        setLoading(false);
         return;
       }
 
       console.log('Sign in successful, session:', data.session);
-      
-      // Don't set loading to false here - let the auth state change handle the redirect
-      // The onAuthStateChange callback will handle navigation
-      
+      // Navigation handled by onAuthStateChange
+
     } catch (error: any) {
       console.error('Unexpected sign in error:', error);
       toast({
@@ -379,6 +378,8 @@ export default function AuthPage() {
         description: error.message || "An unexpected error occurred",
         variant: "destructive"
       });
+    } finally {
+      // Always release the loading state to avoid getting stuck
       setLoading(false);
     }
   };
