@@ -652,6 +652,17 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
 
     return (
       <div className="relative" style={{ height: trackHeight }}>
+        {/* Track background with proper bounds */}
+        <div 
+          className="absolute inset-0 border-b border-border/10" 
+          style={{ 
+            top: trackY,
+            height: trackHeight,
+            left: 0,
+            right: 0 
+          }} 
+        />
+        
         {trackClips.length === 0 ? (
           // Fallback: create temporary clip if none exist
           <div className="text-red-500 p-2 text-xs">
@@ -705,9 +716,10 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                 top: trackY + 8,
                 left: clipLeft,
                 width: clipWidth,
-                height: trackHeight - 16,
+                height: Math.min(trackHeight - 16, 52), // Constrain height to prevent overflow
                 zIndex: 10,
                 minWidth: '20px',
+                maxHeight: '52px', // Explicit max height constraint
               }}
               title={`${clip.originalTrack.name} - Click to select, Double-click to duplicate`}
               onClick={(e) => {
@@ -885,7 +897,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
               return (
                 <div
                   key={track.id}
-                  className="h-16 border-b border-border/20 p-2 flex flex-col justify-center group cursor-pointer hover:bg-card/20 transition-colors"
+                  className="h-[68px] border-b border-border/20 p-2 flex flex-col justify-center group cursor-pointer hover:bg-card/20 transition-colors"
                   onClick={() => handleTrackPlay(track)}
                   title={track.name} // Show full name on hover
                 >
