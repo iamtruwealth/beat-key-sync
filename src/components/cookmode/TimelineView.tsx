@@ -686,7 +686,9 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     pixelsPerSecond: number; 
     trackHeight: number;
   }> = ({ track, index, pixelsPerSecond, trackHeight }) => {
-    const trackY = index * trackHeight;
+    // Account for master track space (84px) + this track's position
+    const masterTrackHeight = 84;
+    const trackY = masterTrackHeight + (index - 1) * trackHeight; // index-1 because we're already offset by +1
     const trackClips = audioClips.filter(clip => clip.trackId === track.id);
     
     console.log(`WaveformTrack for ${track.name}:`, {
@@ -1019,7 +1021,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
               ref={timelineRef}
               className="relative cursor-pointer"
               style={{ 
-                height: (tracks.length * 68) + 84, // Extra height for master track
+                height: 84 + (tracks.length * 68), // Master track (84px) + user tracks (68px each)
                 minHeight: 200,
                 width: totalBars * pixelsPerBar
               }}
