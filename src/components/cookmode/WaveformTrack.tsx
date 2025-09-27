@@ -111,21 +111,25 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
         setIsLoaded(false);
       });
 
-      // Prevent WaveSurfer from playing audio and force colors
+      // Prevent WaveSurfer from playing audio and apply gradient colors
       waveSurfer.on('ready', () => {
         waveSurfer.pause();
-        
-        // Direct canvas manipulation for colors
         const canvas = containerRef.current?.querySelector('canvas');
-        if (canvas) {
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            // Apply color filter directly to canvas
-            canvas.style.filter = `hue-rotate(${getHueRotationForStem(track.stem_type)}deg) saturate(300%) brightness(120%)`;
-          }
+        const ctx = canvas?.getContext('2d');
+        if (ctx && canvas) {
+          const grad = ctx.createLinearGradient(0, 0, canvas.width, 0);
+          grad.addColorStop(0, waveColor);
+          grad.addColorStop(1, progressColor);
+          // Apply gradient colors to both wave and progress
+          waveSurfer.setOptions({
+            waveColor: grad,
+            progressColor: grad,
+          });
+        } else {
+          // Fallback to solid colors
+          waveSurfer.setOptions({ waveColor, progressColor });
         }
-        
-        console.log(`WaveSurfer ready for ${track.name}, applied colors:`, { waveColor, progressColor });
+        console.log(`WaveSurfer ready for ${track.name}, colors applied`);
       });
 
       return () => {
