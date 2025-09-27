@@ -150,47 +150,37 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     }
   }, [timelineLength, onSeek, snapToGrid]);
 
-  // Initialize audio elements for all tracks
+  // Initialize audio elements for all tracks - ONLY run when track IDs change
   useEffect(() => {
-    console.log('Audio initialization effect running for tracks:', tracks.map(t => t.id));
+    const currentTrackIds = new Set(tracks.map(t => t.id));
+    const existingTrackIds = new Set(audioElementsRef.current.keys());
     
+    // Only process new tracks
     tracks.forEach(track => {
       if (!audioElementsRef.current.has(track.id)) {
         console.log('Creating NEW audio element for track:', track.name);
         
         if (!track.file_url) {
           console.error('Track has no file_url:', track);
-          toast({
-            title: "Audio Error",
-            description: `Track ${track.name} has no audio file`,
-            variant: "destructive"
-          });
           return;
         }
 
         const audio = new Audio();
-        audio.volume = track.volume !== undefined ? track.volume : 0.8;
-        audio.muted = track.isMuted || false;
+        audio.volume = 0.8;
+        audio.muted = false;
         audio.crossOrigin = "anonymous";
         audio.preload = 'metadata';
         audio.loop = false;
         
-        // Only add event listeners once when creating the audio element
         audio.addEventListener('loadeddata', () => {
-          console.log('Audio loaded for:', track.name);
-          const actualDuration = audio.duration;
-          if (actualDuration && actualDuration > 0) {
-            setTrackDurations(prev => new Map(prev.set(track.id, actualDuration)));
+          console.log('Audio loaded for:', track.name, 'duration:', audio.duration);
+          if (audio.duration && audio.duration > 0) {
+            setTrackDurations(prev => new Map(prev.set(track.id, audio.duration)));
           }
         });
 
         audio.addEventListener('error', (e) => {
           console.error('Audio error for track:', track.name, e);
-          toast({
-            title: "Audio Error",
-            description: `Could not load ${track.name}`,
-            variant: "destructive"
-          });
         });
         
         audio.src = track.file_url;
@@ -200,16 +190,19 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       }
     });
 
-    // Remove audio elements for tracks that no longer exist
-    audioElementsRef.current.forEach((audio, trackId) => {
-      if (!tracks.find(t => t.id === trackId)) {
+    // Remove audio elements for deleted tracks
+    existingTrackIds.forEach(trackId => {
+      if (!currentTrackIds.has(trackId)) {
         console.log('Removing audio element for:', trackId);
-        audio.pause();
-        audio.src = '';
-        audioElementsRef.current.delete(trackId);
+        const audio = audioElementsRef.current.get(trackId);
+        if (audio) {
+          audio.pause();
+          audio.src = '';
+          audioElementsRef.current.delete(trackId);
+        }
       }
     });
-  }, [tracks.length]); // Only depend on track count, not the full objects
+  }, [tracks.map(t => t.id).sort().join(',')]); // Only track IDs, sorted for consistency
 
   // Separate effect for updating audio properties (volume, mute)
   useEffect(() => {

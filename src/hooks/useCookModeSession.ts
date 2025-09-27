@@ -300,14 +300,16 @@ export function useCookModeSession(sessionId?: string) {
 
   const togglePlayback = useCallback(() => {
     const newIsPlaying = !isPlaying;
-    setIsPlaying(newIsPlaying);
     
-    // If starting playback and we're beyond a reasonable time, reset to 0
-    if (newIsPlaying && currentTime > 32) { // 32 seconds = 8 bars at 120 BPM
+    // ALWAYS reset to 0 when starting playback to fix the timing issue
+    if (newIsPlaying) {
+      console.log('Starting playback - resetting time to 0');
       setCurrentTime(0);
       pausedTimeRef.current = 0;
       startTimeRef.current = Date.now();
     }
+    
+    setIsPlaying(newIsPlaying);
     
     if (channelRef.current) {
       channelRef.current.send({
@@ -315,7 +317,7 @@ export function useCookModeSession(sessionId?: string) {
         event: 'playback-control',
         payload: {
           isPlaying: newIsPlaying,
-          currentTime: newIsPlaying && currentTime > 32 ? 0 : currentTime
+          currentTime: newIsPlaying ? 0 : currentTime
         }
       });
     }
