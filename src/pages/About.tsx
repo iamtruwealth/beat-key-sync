@@ -49,12 +49,12 @@ export default function About() {
             </div>
             
             <div className="hidden md:flex items-center space-x-8">
-              <a href="/#discover" className="text-muted-foreground hover:text-foreground transition-colors">
+              <button onClick={() => navigate("/#discover")} className="text-muted-foreground hover:text-foreground transition-colors">
                 Discover Beats
-              </a>
-              <a href="/pricing" className="text-muted-foreground hover:text-foreground transition-colors">
+              </button>
+              <button onClick={() => navigate("/pricing")} className="text-muted-foreground hover:text-foreground transition-colors">
                 Pricing
-              </a>
+              </button>
               {user && (
                 <Button variant="ghost" onClick={navigateToUserDashboard} className="text-brand-blue hover:text-brand-blue-glow font-semibold">
                   Dashboard

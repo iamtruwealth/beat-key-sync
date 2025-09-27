@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Instagram, Twitter, Youtube, Mail, Music, Users, Star } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { GlassMorphismSection } from "./GlassMorphismSection";
 
 export function FuturisticFooter() {
@@ -166,8 +166,8 @@ function FooterLink({
   }
   
   return (
-    <a href={href} className={baseClasses}>
+    <Link to={href} className={baseClasses}>
       {children}
-    </a>
+    </Link>
   );
 }
