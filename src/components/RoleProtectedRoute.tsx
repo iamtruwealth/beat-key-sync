@@ -15,9 +15,53 @@ export function RoleProtectedRoute({ children, allowedRoles }: RoleProtectedRout
   const navigate = useNavigate();
 
   useEffect(() => {
+    let mounted = true;
+
     // Check current session and role
     const checkUserRole = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!mounted) return;
+        
+        if (!session) {
+          navigate("/auth");
+          return;
+        }
+
+        setUser(session.user);
+
+        // Get user profile to determine role
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .single();
+
+        if (!mounted) return;
+
+        const role = profile?.role || 'artist';
+        setUserRole(role);
+
+        // Check if user has permission for this route
+        if (!allowedRoles.includes(role)) {
+          // Redirect to appropriate dashboard based on role
+          navigate(role === 'artist' ? '/artist-dashboard' : '/producer-dashboard');
+          return;
+        }
+
+        setLoading(false);
+      } catch (error) {
+        console.error('Error checking user role:', error);
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    // Set up auth listener first
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return;
       
       if (!session) {
         navigate("/auth");
@@ -26,55 +70,39 @@ export function RoleProtectedRoute({ children, allowedRoles }: RoleProtectedRout
 
       setUser(session.user);
 
-      // Get user profile to determine role
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', session.user.id)
-        .single();
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .single();
 
-      const role = profile?.role || 'artist';
-      setUserRole(role);
+        if (!mounted) return;
 
-      // Check if user has permission for this route
-      if (!allowedRoles.includes(role)) {
-        // Redirect to appropriate dashboard based on role
-        navigate(role === 'artist' ? '/artist-dashboard' : '/producer-dashboard');
-        return;
+        const role = profile?.role || 'artist';
+        setUserRole(role);
+
+        if (!allowedRoles.includes(role)) {
+          navigate(role === 'artist' ? '/artist-dashboard' : '/producer-dashboard');
+          return;
+        }
+
+        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching user role:', error);
+        if (mounted) {
+          setLoading(false);
+        }
       }
-
-      setLoading(false);
-    };
-
-    checkUserRole();
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!session) {
-        navigate("/auth");
-        return;
-      }
-
-      setUser(session.user);
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', session.user.id)
-        .single();
-
-      const role = profile?.role || 'artist';
-      setUserRole(role);
-
-      if (!allowedRoles.includes(role)) {
-        navigate(role === 'artist' ? '/artist-dashboard' : '/producer-dashboard');
-        return;
-      }
-
-      setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    // Then check current session
+    checkUserRole();
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, [navigate, allowedRoles]);
 
   if (loading) {
