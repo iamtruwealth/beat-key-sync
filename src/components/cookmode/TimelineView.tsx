@@ -423,7 +423,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       markers.push(
         <div key={`bar-${bar}`} className="absolute h-full z-30 pointer-events-none">
           <div className="w-px h-full bg-white/20 relative" style={{ left: x }}>
-            <span className="absolute -top-6 left-1 text-xs text-gray-300 z-30 bg-gray-900/80 px-1 rounded">
+            <span className="absolute top-1 left-1 text-xs text-white z-30 bg-gray-900/80 px-1 rounded">
               {bar + 1}
             </span>
           </div>
@@ -632,16 +632,16 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           {/* Timeline Area */}
           <div className="flex-1 relative overflow-x-auto" ref={timelineRef}>
             {/* Ruler */}
-            <div className="h-8 bg-black/40 border-b border-white/10 relative">
+            <div className="h-12 bg-black/40 border-b border-white/10 relative">
               {renderBarMarkers()}
-              <div className="absolute top-1 left-2 text-xs text-gray-400">
+              <div className="absolute top-6 left-2 text-xs text-gray-400">
                 Position: {formatPosition(currentTime)} | Bar: {formatTime(currentTime)}
               </div>
             </div>
 
             {/* Playhead */}
             <div
-              className="absolute top-8 bottom-0 w-0.5 bg-primary z-20 pointer-events-none"
+              className="absolute top-12 bottom-0 w-0.5 bg-primary z-20 pointer-events-none"
               style={{ left: (currentTime % sessionDuration) * pixelsPerSecond }}
             >
               <div className="absolute -top-2 -left-1 w-3 h-3 bg-primary rotate-45" />
