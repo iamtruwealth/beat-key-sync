@@ -178,11 +178,11 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
     }
   }, []);
 
-  // Sync engine position when parent seeks (e.g., Stop button)
+  // Sync engine position when parent seeks (e.g., Stop button resets to 0)
   useEffect(() => {
     if (!isInitialized.current) return;
-    if (!isPlaying) {
-      sessionLoopEngine.seek(currentTime);
+    if (!isPlaying && currentTime === 0) {
+      sessionLoopEngine.seek(0);
     }
   }, [currentTime, isPlaying]);
 
