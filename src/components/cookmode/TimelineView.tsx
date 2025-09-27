@@ -10,6 +10,7 @@ import { generateWaveformBars } from '@/lib/waveformGenerator';
 import { AudioBridge } from './AudioBridge';
 import { WaveformTrack } from './WaveformTrack';
 import { DraggableClip } from './DraggableClip';
+import { undoManager, ActionType, createMoveAction } from '@/lib/UndoManager';
 
 interface Track {
   id: string;
@@ -250,18 +251,61 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
 
   // Move clip function
   const moveClip = useCallback((clipId: string, newStartTime: number) => {
+    // Find the clip to get its original position
+    const targetClip = audioClips.find(clip => clip.id === clipId);
+    if (!targetClip) {
+      console.warn('Clip not found for move operation:', clipId);
+      return;
+    }
+
+    const originalStartTime = targetClip.startTime;
+    const originalEndTime = targetClip.endTime;
+    const duration = originalEndTime - originalStartTime;
+    const newEndTime = newStartTime + duration;
+
+    // Only proceed if the position actually changed
+    if (Math.abs(newStartTime - originalStartTime) < 0.01) {
+      return;
+    }
+
+    console.log(`🎵 Moving clip ${clipId} from ${originalStartTime}s to ${newStartTime}s`);
+
+    // Update the clip position
     setAudioClips(prev => prev.map(clip => {
       if (clip.id === clipId) {
-        const duration = clip.endTime - clip.startTime;
         return {
           ...clip,
           startTime: newStartTime,
-          endTime: newStartTime + duration
+          endTime: newEndTime
         };
       }
       return clip;
     }));
-  }, []);
+
+    // Register the move action with UndoManager
+    const undoMoveAction = createMoveAction(
+      targetClip.trackId,
+      clipId,
+      { startTime: originalStartTime, endTime: originalEndTime },
+      { startTime: newStartTime, endTime: newEndTime },
+      () => {
+        console.log(`🔄 Undoing move of clip ${clipId} back to ${originalStartTime}s`);
+        setAudioClips(prev => prev.map(clip => {
+          if (clip.id === clipId) {
+            return {
+              ...clip,
+              startTime: originalStartTime,
+              endTime: originalEndTime
+            };
+          }
+          return clip;
+        }));
+      },
+      `Move clip from ${originalStartTime.toFixed(2)}s to ${newStartTime.toFixed(2)}s`
+    );
+
+    undoManager.push(undoMoveAction);
+  }, [audioClips]);
 
   // Delete track function
   const deleteTrack = useCallback((trackId: string) => {

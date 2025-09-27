@@ -199,7 +199,10 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
               variant="ghost"
               size="sm"
               className="p-2"
-              onClick={() => undoManager.undo()}
+              onClick={() => {
+                console.log('🔄 Undo button clicked');
+                undoManager.undo();
+              }}
               disabled={!undoManager.canUndo()}
               title={`Undo last action (${undoManager.getStackSize()} actions available)`}
             >
