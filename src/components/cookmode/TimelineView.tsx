@@ -373,12 +373,15 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         
         audio.addEventListener('canplay', () => {
           console.log('Audio can play:', track.name);
-          // Sync with current playback state
+          // Sync with current playback state; snap to zero if near start
           if (isPlaying) {
-            audio.currentTime = currentTime;
+            const startAt = currentTime < 0.05 ? 0 : currentTime;
+            audio.currentTime = startAt;
             audio.play().catch(error => {
               console.error('Error starting playback:', error);
             });
+          } else if (currentTime < 0.05) {
+            audio.currentTime = 0;
           }
         });
 
@@ -416,7 +419,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
               audio.src = objectUrl;
               audio.load();
               if (isPlaying) {
-                audio.currentTime = currentTime;
+                audio.currentTime = currentTime < 0.05 ? 0 : currentTime;
                 await audio.play();
               }
               return;
@@ -477,7 +480,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
             const clipTime = Math.max(0, currentTime - activeClip.startTime);
             
             // Reset to beginning when starting playback from timeline start
-            if (currentTime === 0) {
+            if (currentTime < 0.05) {
               audio.currentTime = 0;
             } else if (Math.abs(audio.currentTime - clipTime) > 0.5) {
               audio.currentTime = clipTime;
