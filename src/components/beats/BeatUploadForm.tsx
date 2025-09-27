@@ -218,7 +218,7 @@ export function BeatUploadForm({ onSuccess }: BeatUploadFormProps) {
               {isAnalyzing ? (
                 <>
                   <Loader2 className="h-8 w-8 mx-auto mb-2 text-primary animate-spin" />
-                  <p className="text-sm text-primary">Analyzing audio with Essentia.js...</p>
+                  <p className="text-sm text-primary">Analyzing with advanced algorithms...</p>
                 </>
               ) : (
                 <>

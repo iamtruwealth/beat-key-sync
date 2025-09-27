@@ -17,7 +17,7 @@ interface CachedResult {
 
 interface WorkerMessage {
   id: string;
-  type: 'ANALYZE_PCM' | 'ANALYSIS_COMPLETE' | 'ANALYSIS_ERROR';
+  type: 'ANALYZE_ADVANCED' | 'ANALYSIS_COMPLETE' | 'ANALYSIS_ERROR';
   data?: any;
   result?: AudioAnalysisResult;
   error?: string;
@@ -38,7 +38,7 @@ export function useOptimizedAudioAnalysis() {
 
   // Initialize Web Worker
   useEffect(() => {
-    workerRef.current = new Worker('/pcm-analysis-worker.js');
+    workerRef.current = new Worker('/advanced-audio-worker.js');
     
     workerRef.current.onmessage = (e: MessageEvent<WorkerMessage>) => {
       const { id, type, result, error } = e.data;
@@ -70,7 +70,7 @@ export function useOptimizedAudioAnalysis() {
   }, []);
 
   const getCacheKey = (file: File): string => {
-    return `audio_analysis_v3_${file.name}_${file.size}_${file.lastModified}`;
+    return `audio_analysis_v4_${file.name}_${file.size}_${file.lastModified}`;
   };
 
   const getCachedResult = (file: File): AudioAnalysisResult | null => {
@@ -146,7 +146,7 @@ export function useOptimizedAudioAnalysis() {
       // Send PCM data to worker (transfer the underlying buffer for performance)
       workerRef.current.postMessage({
         id: requestId,
-        type: 'ANALYZE_PCM',
+        type: 'ANALYZE_ADVANCED',
         data: {
           pcmBuffer: channelData.buffer,
           sampleRate: audioBuffer.sampleRate,
