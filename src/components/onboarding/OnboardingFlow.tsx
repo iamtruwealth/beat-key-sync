@@ -1,11 +1,13 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { ChevronRight, SkipForward, CheckCircle } from "lucide-react";
+import { ChevronRight, SkipForward, CheckCircle, Play, Zap, Upload, DollarSign } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { GlassMorphismSection } from "@/components/futuristic/GlassMorphismSection";
+import { ScrollAnimationWrapper } from "@/components/futuristic/ScrollAnimationWrapper";
 
 interface OnboardingStep {
   id: string;
@@ -186,28 +188,43 @@ export function OnboardingFlow({ userRole, userId, onComplete }: OnboardingFlowP
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg">Loading onboarding...</div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-card to-background">
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 mx-auto bg-gradient-to-r from-neon-cyan to-electric-blue rounded-full animate-glow-pulse"></div>
+          <div className="text-lg text-electric-blue animate-pulse">Initializing your journey...</div>
+        </div>
       </div>
     );
   }
 
   if (!guide || steps.length === 0) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 to-secondary/5">
-        <Card className="w-full max-w-md mx-4">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Onboarding Not Available</CardTitle>
-            <CardDescription>
-              No onboarding guide is currently configured. You can proceed to your dashboard.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={() => navigate('/producer-dashboard')} className="w-full">
-              Go to Producer Dashboard
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-card to-background relative overflow-hidden">
+        {/* Animated background */}
+        <div className="absolute inset-0">
+          <div className="absolute w-96 h-96 bg-neon-cyan/10 rounded-full blur-3xl -top-48 -left-48 animate-float"></div>
+          <div className="absolute w-64 h-64 bg-electric-blue/10 rounded-full blur-2xl -bottom-32 -right-32 animate-float" style={{ animationDelay: '1s' }}></div>
+        </div>
+        
+        <GlassMorphismSection variant="neon" className="w-full max-w-md mx-4">
+          <div className="text-center space-y-6">
+            <div className="w-20 h-20 mx-auto bg-gradient-to-r from-neon-cyan to-electric-blue rounded-full flex items-center justify-center">
+              <Zap className="w-10 h-10 text-background" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold gradient-text mb-2">Ready to Create</h1>
+              <p className="text-muted-foreground">
+                No onboarding guide is currently configured. You can proceed to your dashboard.
+              </p>
+            </div>
+            <Button 
+              onClick={() => navigate('/producer-dashboard')} 
+              className="w-full bg-gradient-to-r from-neon-cyan to-electric-blue hover:from-neon-cyan-glow hover:to-electric-blue-glow text-background font-semibold ripple"
+            >
+              Enter Producer Dashboard
             </Button>
-          </CardContent>
-        </Card>
+          </div>
+        </GlassMorphismSection>
       </div>
     );
   }
@@ -217,109 +234,208 @@ export function OnboardingFlow({ userRole, userId, onComplete }: OnboardingFlowP
 
   if (isCompleted || currentStep > steps.length) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 to-secondary/5">
-        <Card className="w-full max-w-md mx-4">
-          <CardHeader className="text-center">
-            <div className="mx-auto mb-4 w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
-              <CheckCircle className="w-8 h-8 text-green-600" />
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-card to-background relative overflow-hidden">
+        {/* Success animation background */}
+        <div className="absolute inset-0">
+          <div className="absolute w-96 h-96 bg-neon-green/20 rounded-full blur-3xl top-1/4 left-1/4 animate-float"></div>
+          <div className="absolute w-64 h-64 bg-neon-cyan/15 rounded-full blur-2xl bottom-1/4 right-1/4 animate-float" style={{ animationDelay: '1.5s' }}></div>
+          <div className="absolute w-32 h-32 bg-electric-blue/10 rounded-full blur-xl top-3/4 left-1/2 animate-float" style={{ animationDelay: '0.5s' }}></div>
+        </div>
+        
+        <ScrollAnimationWrapper animation="scale-in">
+          <GlassMorphismSection variant="gradient" className="w-full max-w-md mx-4">
+            <div className="text-center space-y-8">
+              <div className="relative">
+                <div className="mx-auto w-20 h-20 bg-gradient-to-r from-neon-green to-neon-cyan rounded-full flex items-center justify-center animate-glow-pulse">
+                  <CheckCircle className="w-10 h-10 text-background" />
+                </div>
+                <div className="absolute -inset-4 bg-gradient-to-r from-neon-green to-neon-cyan rounded-full opacity-20 animate-ping"></div>
+              </div>
+              
+              <div className="space-y-4">
+                <h1 className="text-3xl font-bold gradient-text typing-effect">Mission Complete!</h1>
+                <p className="text-muted-foreground leading-relaxed">
+                  You've mastered the fundamentals. Time to unleash your creativity and start earning from your beats!
+                </p>
+              </div>
+              
+              <Button 
+                onClick={finishOnboarding} 
+                className="w-full bg-gradient-to-r from-neon-green to-neon-cyan hover:from-neon-green/80 hover:to-neon-cyan/80 text-background font-semibold py-6 text-lg ripple neon-glow-hover"
+              >
+                <Play className="w-5 h-5 mr-2" />
+                Launch Producer Studio
+              </Button>
             </div>
-            <CardTitle className="text-2xl">Congratulations!</CardTitle>
-            <CardDescription>
-              You've completed the onboarding process. You're all set to start creating and selling beats!
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={finishOnboarding} className="w-full">
-              Go to Producer Dashboard
-            </Button>
-          </CardContent>
-        </Card>
+          </GlassMorphismSection>
+        </ScrollAnimationWrapper>
       </div>
     );
   }
 
+  const getStepIcon = (stepNumber: number) => {
+    const icons = [Upload, Play, DollarSign, Zap];
+    const IconComponent = icons[stepNumber - 1] || Zap;
+    return IconComponent;
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 to-secondary/5 py-8">
-      <div className="container max-w-2xl mx-auto px-4">
-        {/* Progress Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-2xl font-bold">{guide.title}</h1>
-            <Button variant="ghost" onClick={skipOnboarding}>
-              <SkipForward className="w-4 h-4 mr-2" />
-              Skip
-            </Button>
-          </div>
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm text-muted-foreground">
-              <span>Progress</span>
-              <span>{currentStep} of {steps.length}</span>
-            </div>
-            <Progress value={progressPercentage} className="h-2" />
-          </div>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-background via-card to-background relative overflow-hidden">
+      {/* Animated background */}
+      <div className="absolute inset-0 opacity-30">
+        <div className="absolute w-96 h-96 bg-neon-cyan/10 rounded-full blur-3xl -top-48 -left-48 animate-float"></div>
+        <div className="absolute w-64 h-64 bg-electric-blue/10 rounded-full blur-2xl top-1/2 -right-32 animate-float" style={{ animationDelay: '1s' }}></div>
+        <div className="absolute w-48 h-48 bg-neon-magenta/5 rounded-full blur-xl bottom-0 left-1/4 animate-float" style={{ animationDelay: '2s' }}></div>
+      </div>
 
-        {/* Current Step */}
-        <Card>
-          <CardHeader>
-            <CardTitle>{currentStepData.title}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <p className="text-muted-foreground leading-relaxed">
-              {currentStepData.content}
-            </p>
+      <div className="container max-w-4xl mx-auto px-4 py-8 relative z-10">
+        {/* Futuristic Header */}
+        <ScrollAnimationWrapper animation="slide-up" className="mb-12">
+          <div className="text-center space-y-6">
+            <div className="inline-flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-neon-cyan/20 to-electric-blue/20 rounded-full border border-neon-cyan/30">
+              <Zap className="w-5 h-5 text-neon-cyan" />
+              <span className="text-neon-cyan font-medium">Producer Onboarding</span>
+            </div>
             
-            <div className="flex justify-between">
-              <Button 
-                variant="outline" 
-                onClick={skipOnboarding}
-              >
-                Skip Onboarding
-              </Button>
-              <Button onClick={nextStep}>
-                {currentStep === steps.length ? 'Finish' : 'Next Step'}
-                <ChevronRight className="w-4 h-4 ml-2" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Steps Overview */}
-        <div className="mt-8 grid gap-4">
-          {steps.map((step, index) => (
-            <div
-              key={step.id}
-              className={`p-4 rounded-lg border transition-colors ${
-                index + 1 === currentStep
-                  ? 'border-primary bg-primary/5'
-                  : completedSteps.includes(index + 1)
-                  ? 'border-green-200 bg-green-50'
-                  : 'border-border bg-card'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                    completedSteps.includes(index + 1)
-                      ? 'bg-green-100 text-green-600'
-                      : index + 1 === currentStep
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted text-muted-foreground'
-                  }`}
-                >
-                  {completedSteps.includes(index + 1) ? (
-                    <CheckCircle className="w-4 h-4" />
-                  ) : (
-                    index + 1
-                  )}
-                </div>
-                <div>
-                  <h3 className="font-medium">{step.title}</h3>
-                  <p className="text-sm text-muted-foreground">{step.content}</p>
-                </div>
+            <h1 className="text-4xl md:text-5xl font-bold gradient-text mb-4">
+              {guide.title}
+            </h1>
+            
+            <div className="max-w-xl mx-auto">
+              <div className="flex justify-between text-sm text-muted-foreground mb-3">
+                <span>Mission Progress</span>
+                <span className="text-electric-blue font-medium">{currentStep} of {steps.length}</span>
+              </div>
+              <div className="relative">
+                <Progress value={progressPercentage} className="h-3 bg-card/50" />
+                <div className="absolute inset-0 bg-gradient-to-r from-neon-cyan to-electric-blue rounded-full opacity-80" 
+                     style={{ width: `${progressPercentage}%` }}></div>
               </div>
             </div>
-          ))}
+          </div>
+        </ScrollAnimationWrapper>
+
+        <div className="grid lg:grid-cols-3 gap-8">
+          {/* Main Content */}
+          <div className="lg:col-span-2 space-y-8">
+            <ScrollAnimationWrapper animation="scale-in" delay={200}>
+              <GlassMorphismSection variant="gradient" className="space-y-8">
+                {/* Current Step Header */}
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-gradient-to-r from-neon-cyan to-electric-blue rounded-xl flex items-center justify-center">
+                    {React.createElement(getStepIcon(currentStep), { className: "w-6 h-6 text-background" })}
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-electric-blue">{currentStepData.title}</h2>
+                    <p className="text-sm text-muted-foreground">Step {currentStep} of {steps.length}</p>
+                  </div>
+                </div>
+
+                {/* Content */}
+                <div className="prose prose-invert max-w-none">
+                  <p className="text-lg leading-relaxed text-foreground/90">
+                    {currentStepData.content}
+                  </p>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex flex-col sm:flex-row gap-4 pt-6">
+                  <Button 
+                    variant="outline" 
+                    onClick={skipOnboarding}
+                    className="border-border/50 hover:border-neon-cyan/50 hover:bg-neon-cyan/10"
+                  >
+                    <SkipForward className="w-4 h-4 mr-2" />
+                    Skip Tutorial
+                  </Button>
+                  
+                  <Button 
+                    onClick={nextStep}
+                    className="bg-gradient-to-r from-neon-cyan to-electric-blue hover:from-neon-cyan-glow hover:to-electric-blue-glow text-background font-semibold ripple flex-1"
+                  >
+                    {currentStep === steps.length ? (
+                      <>
+                        <CheckCircle className="w-4 h-4 mr-2" />
+                        Complete Mission
+                      </>
+                    ) : (
+                      <>
+                        Continue Journey
+                        <ChevronRight className="w-4 h-4 ml-2" />
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </GlassMorphismSection>
+            </ScrollAnimationWrapper>
+          </div>
+
+          {/* Steps Sidebar */}
+          <div className="space-y-4">
+            <ScrollAnimationWrapper animation="slide-left" delay={400}>
+              <h3 className="text-lg font-semibold text-electric-blue mb-4">Mission Roadmap</h3>
+            </ScrollAnimationWrapper>
+            
+            {steps.map((step, index) => {
+              const isActive = index + 1 === currentStep;
+              const isCompleted = completedSteps.includes(index + 1);
+              const StepIcon = getStepIcon(index + 1);
+              
+              return (
+                <ScrollAnimationWrapper 
+                  key={step.id} 
+                  animation="slide-left" 
+                  delay={500 + (index * 100)}
+                >
+                  <div
+                    className={`relative p-4 rounded-xl border transition-all duration-300 ${
+                      isActive
+                        ? 'border-neon-cyan/50 bg-gradient-to-r from-neon-cyan/5 to-electric-blue/5 neon-glow'
+                        : isCompleted
+                        ? 'border-neon-green/30 bg-neon-green/5'
+                        : 'border-border/30 bg-card/30 hover:border-border/50'
+                    }`}
+                  >
+                    {/* Connection Line */}
+                    {index < steps.length - 1 && (
+                      <div className={`absolute left-6 top-12 w-0.5 h-8 transition-colors ${
+                        isCompleted ? 'bg-neon-green' : 'bg-border/30'
+                      }`}></div>
+                    )}
+                    
+                    <div className="flex items-start gap-3">
+                      <div
+                        className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-all ${
+                          isCompleted
+                            ? 'bg-gradient-to-r from-neon-green to-neon-cyan text-background'
+                            : isActive
+                            ? 'bg-gradient-to-r from-neon-cyan to-electric-blue text-background animate-glow-pulse'
+                            : 'bg-muted text-muted-foreground'
+                        }`}
+                      >
+                        {isCompleted ? (
+                          <CheckCircle className="w-4 h-4" />
+                        ) : (
+                          <StepIcon className="w-4 h-4" />
+                        )}
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <h4 className={`font-medium transition-colors ${
+                          isActive ? 'text-electric-blue' : isCompleted ? 'text-neon-green' : 'text-foreground'
+                        }`}>
+                          {step.title}
+                        </h4>
+                        <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
+                          {step.content}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </ScrollAnimationWrapper>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>
