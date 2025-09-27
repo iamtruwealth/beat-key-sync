@@ -266,18 +266,22 @@ export function useCookModeSession(sessionId?: string) {
       startTimeRef.current = Date.now() - pausedTimeRef.current * 1000;
 
       const tick = () => {
-        const elapsed = (Date.now() - startTimeRef.current) / 1000;
+        const rawElapsed = (Date.now() - startTimeRef.current) / 1000;
+        const maxDur = Math.max(...tracks.map(t => t.duration || 0), 0);
+        
+        // Make session timer loop-aware: wrap elapsed time within track duration
+        let elapsed = rawElapsed;
+        if (maxDur > 0 && rawElapsed > maxDur) {
+          elapsed = rawElapsed % maxDur; // Loop back to 0 when exceeding track duration
+          slog('Session timer looped', { rawElapsed: rawElapsed.toFixed(3), looped: elapsed.toFixed(3), maxDur: maxDur.toFixed(3) });
+        }
+        
         setCurrentTime(elapsed);
 
         // Throttled debug
         const now = Date.now();
         if (now - (lastTickLogRef.current || 0) > 1000) {
-          const maxDur = Math.max(...tracks.map(t => t.duration || 0), 0);
-          if (maxDur > 0 && elapsed > maxDur + 0.05) {
-            slog('Session timer exceeded max track duration (loopLength?)', { elapsed: elapsed.toFixed(3), maxDur: maxDur.toFixed(3), overBy: (elapsed - maxDur).toFixed(3) });
-          } else {
-            slog('tick', { elapsed: elapsed.toFixed(3), approxLoop: maxDur ? maxDur.toFixed(3) : 'unknown' });
-          }
+          slog('tick', { elapsed: elapsed.toFixed(3), rawElapsed: rawElapsed.toFixed(3), loopLength: maxDur ? maxDur.toFixed(3) : 'unknown' });
           lastTickLogRef.current = now;
         }
 
