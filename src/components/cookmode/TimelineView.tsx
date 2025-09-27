@@ -9,6 +9,7 @@ import { useWaveformGenerator } from '@/hooks/useWaveformGenerator';
 import { generateWaveformBars } from '@/lib/waveformGenerator';
 import { AudioBridge } from './AudioBridge';
 import { WaveformTrack } from './WaveformTrack';
+import { DraggableClip } from './DraggableClip';
 
 interface Track {
   id: string;
@@ -83,8 +84,8 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     4 * secondsPerBar // Minimum 4 bars
   );
    
-  // Calculate session length based on clips and tracks
-  const sessionDuration = lastClipEndTime || 4 * secondsPerBar; // Fallback to 4 bars
+  // Calculate session length based on clips and tracks - ensure minimum 8 bars for fuller sessions
+  const sessionDuration = Math.max(lastClipEndTime, 8 * secondsPerBar); // Minimum 8 bars
   const totalBars = Math.ceil(sessionDuration / secondsPerBar);
   
   const pixelsPerSecond = 40;
@@ -132,7 +133,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           if (knownDuration && knownDuration > 0) {
             resolvedBars = Math.max(1, Math.round(knownDuration / secondsPerBar));
           } else {
-            resolvedBars = 4; // sensible default for typical loops
+            resolvedBars = 8; // Default to 8 bars for fuller sessions
           }
         }
         const clipDuration = resolvedBars * secondsPerBar;
@@ -243,6 +244,21 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       description: `${clip.originalTrack.name} duplicated`,
     });
   }, [audioClips, snapToGrid, toast]);
+
+  // Move clip function
+  const moveClip = useCallback((clipId: string, newStartTime: number) => {
+    setAudioClips(prev => prev.map(clip => {
+      if (clip.id === clipId) {
+        const duration = clip.endTime - clip.startTime;
+        return {
+          ...clip,
+          startTime: newStartTime,
+          endTime: newStartTime + duration
+        };
+      }
+      return clip;
+    }));
+  }, []);
 
   // Delete track function
   const deleteTrack = useCallback((trackId: string) => {
@@ -463,43 +479,34 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           if (!isVisible) return null;
 
           return (
-            <div
+            <DraggableClip
               key={clip.id}
-              className="absolute"
-              style={{
-                left: clipLeft,
-                width: clipWidth,
-                height: trackHeight - 8,
-                top: 4
-              }}
-            >
-              <WaveformTrack
-                clip={clip}
-                containerId={`wave-${clip.id}`}
-                currentTime={currentTime}
-                isPlaying={isPlaying}
-                pixelsPerSecond={pixelsPerSecond}
-                trackHeight={trackHeight - 8}
-                onClipClick={(clipId, event) => {
-                  const newSelection = new Set(selectedClips);
-                  if (event.ctrlKey || event.metaKey) {
-                    if (newSelection.has(clipId)) {
-                      newSelection.delete(clipId);
-                    } else {
-                      newSelection.add(clipId);
-                    }
+              clip={clip}
+              currentTime={currentTime}
+              isPlaying={isPlaying}
+              pixelsPerSecond={pixelsPerSecond}
+              trackHeight={trackHeight}
+              secondsPerBeat={secondsPerBeat}
+              onClipMove={moveClip}
+              onClipClick={(clipId, event) => {
+                const newSelection = new Set(selectedClips);
+                if (event.ctrlKey || event.metaKey) {
+                  if (newSelection.has(clipId)) {
+                    newSelection.delete(clipId);
                   } else {
-                    newSelection.clear();
                     newSelection.add(clipId);
                   }
-                  setSelectedClips(newSelection);
-                }}
-                onClipDoubleClick={(clipId) => {
-                  copyClip(clipId);
-                }}
-                className={selectedClips.has(clip.id) ? 'ring-2 ring-primary' : ''}
-              />
-            </div>
+                } else {
+                  newSelection.clear();
+                  newSelection.add(clipId);
+                }
+                setSelectedClips(newSelection);
+              }}
+              onClipDoubleClick={(clipId) => {
+                duplicateClip(clipId);
+              }}
+              className={selectedClips.has(clip.id) ? 'ring-2 ring-primary' : ''}
+            />
           );
         })}
       </div>
