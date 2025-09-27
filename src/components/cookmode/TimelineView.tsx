@@ -526,7 +526,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         <div className="bg-black/40 border-b border-white/10 p-4">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-medium text-white">Timeline Controls</h3>
-            <BPMSyncIndicator />
+            <BPMSyncIndicator sessionBPM={bpm} />
           </div>
           <div className="flex items-center gap-4 text-xs text-gray-400">
             <span>Click: Seek</span>
