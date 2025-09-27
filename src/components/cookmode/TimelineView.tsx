@@ -69,7 +69,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         }
 
         const audio = new Audio();
-        audio.volume = (track.volume || 100) / 100;
+        audio.volume = track.volume !== undefined ? track.volume : 1;
         audio.muted = track.isMuted || false;
         audio.currentTime = currentTime;
         audio.crossOrigin = "anonymous"; // For CORS
@@ -125,6 +125,10 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     console.log('Timeline syncing playback state:', { isPlaying, audioElementsCount: audioElements.size });
     audioElements.forEach((audio, trackId) => {
       try {
+        if (!audio.src) {
+          // Skip elements with empty source (cleanup state)
+          return;
+        }
         if (isPlaying && audio.paused) {
           console.log('Starting playback for track:', trackId);
           audio.currentTime = currentTime;
@@ -197,7 +201,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     tracks.forEach(track => {
       const audio = audioElements.get(track.id);
       if (audio) {
-        audio.volume = (track.volume || 100) / 100;
+        audio.volume = track.volume !== undefined ? track.volume : 1;
         audio.muted = track.isMuted || false;
       }
     });
