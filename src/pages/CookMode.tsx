@@ -55,6 +55,7 @@ const CookMode = () => {
 
   useEffect(() => {
     if (sessionId && !session) {
+      console.log('Joining session:', sessionId);
       joinSession(sessionId);
     }
   }, [sessionId, session, joinSession]);
@@ -209,8 +210,8 @@ const CookMode = () => {
     );
   }
 
-  // Loading state
-  if (!session || !isConnected) {
+  // Loading state - only show when we have a sessionId but no session data
+  if (sessionId && (!session || !isConnected)) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
