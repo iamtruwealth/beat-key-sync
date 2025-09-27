@@ -87,6 +87,8 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           if (actualDuration && actualDuration > 0) {
             setTrackDurations(prev => new Map(prev.set(track.id, actualDuration)));
           }
+          // Set base volume for master fader control
+          audio.setAttribute('data-base-volume', (track.volume !== undefined ? track.volume : 1).toString());
         });
         
         audio.addEventListener('canplay', () => {
@@ -272,8 +274,11 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     tracks.forEach(track => {
       const audio = audioElementsRef.current.get(track.id);
       if (audio) {
-        audio.volume = track.volume !== undefined ? track.volume : 1;
+        const newVolume = track.volume !== undefined ? track.volume : 1;
+        audio.volume = newVolume;
         audio.muted = track.isMuted || false;
+        // Update base volume for master fader control
+        audio.setAttribute('data-base-volume', newVolume.toString());
         
         // Also check if track should be stopped due to duration
         const actualDuration = trackDurations.get(track.id) || track.analyzed_duration || track.duration || audio.duration;
