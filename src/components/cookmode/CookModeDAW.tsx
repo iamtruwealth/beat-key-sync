@@ -210,21 +210,6 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
 
   return (
     <div className="h-full flex flex-col bg-background/50">
-      {/* Header */}
-      <div className="p-4 border-b border-border/50 bg-card/20 backdrop-blur-sm">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-foreground">Cook Mode DAW</h3>
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-xs">
-              {bpm} BPM
-            </Badge>
-            <Badge variant="outline" className="text-xs">
-              {tracks.length} tracks
-            </Badge>
-          </div>
-        </div>
-      </div>
-
       {/* Content Area */}
       <div 
         className={`flex-1 overflow-hidden relative ${isDragOver ? 'bg-neon-cyan/5' : ''}`}
