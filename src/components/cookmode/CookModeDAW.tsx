@@ -109,6 +109,12 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
     return true;
   };
 
+  const handleDragEnter = (e: React.DragEvent) => {
+    console.log('Drag enter event triggered');
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
   const handleDragOver = (e: React.DragEvent) => {
     console.log('Drag over event triggered');
     e.preventDefault();
@@ -227,6 +233,7 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
       {/* Content Area */}
       <div 
         className={`flex-1 overflow-hidden relative ${isDragOver ? 'bg-neon-cyan/5' : ''}`}
+        onDragEnter={handleDragEnter}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
