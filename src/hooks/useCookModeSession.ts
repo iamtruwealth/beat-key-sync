@@ -262,8 +262,8 @@ export function useCookModeSession(sessionId?: string) {
     let rafId: number | null = null;
 
     if (isPlaying) {
-      slog('Playback started', { pausedAt: pausedTimeRef.current });
-      startTimeRef.current = Date.now() - pausedTimeRef.current * 1000;
+      slog('Playback started', { at: Number.isFinite(currentTime) ? currentTime.toFixed(3) : currentTime });
+      startTimeRef.current = Date.now() - currentTime * 1000;
 
       const tick = () => {
         const rawElapsed = (Date.now() - startTimeRef.current) / 1000;
