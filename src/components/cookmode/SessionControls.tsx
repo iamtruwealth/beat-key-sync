@@ -20,6 +20,7 @@ import {
 import { undoManager } from '@/lib/UndoManager';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
+import { useToast } from '@/hooks/use-toast';
 
 interface SessionControlsProps {
   isPlaying: boolean;
@@ -54,6 +55,7 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
   const [sessionDuration, setSessionDuration] = useState(0);
   const [isEditingBpm, setIsEditingBpm] = useState(false);
   const [tempBpm, setTempBpm] = useState(bpm.toString());
+  const { toast } = useToast();
 
   // Calculate session duration
   useEffect(() => {
@@ -195,13 +197,51 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
               <span className="text-xs">Click</span>
             </Button>
 
+            {/* Test Action Button - for testing undo functionality */}
             <Button
               variant="ghost"
               size="sm"
-              className="p-2"
+              className="p-2 text-xs border border-dashed border-muted-foreground/30"
+              onClick={() => {
+                console.log('🧪 Creating test undo action');
+                let testValue = 0;
+                undoManager.push({
+                  type: 'TEST_ACTION',
+                  payload: { testValue },
+                  undo: () => {
+                    console.log('🔄 Test undo executed');
+                    toast({
+                      title: "Undo Test",
+                      description: "Test undo action executed successfully!",
+                    });
+                  },
+                  description: 'Test action for undo functionality'
+                });
+                toast({
+                  title: "Test Action Added",
+                  description: "Use the undo button to test undo functionality",
+                });
+              }}
+              title="Add test action to test undo functionality"
+            >
+              Test
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              className={`p-2 transition-all duration-200 ${
+                undoManager.canUndo() 
+                  ? 'hover:bg-accent hover:text-accent-foreground text-foreground' 
+                  : 'text-muted-foreground/50 cursor-not-allowed'
+              }`}
               onClick={() => {
                 console.log('🔄 Undo button clicked');
-                undoManager.undo();
+                if (undoManager.canUndo()) {
+                  undoManager.undo();
+                } else {
+                  console.log('⚠️ No actions to undo');
+                }
               }}
               disabled={!undoManager.canUndo()}
               title={`Undo last action (${undoManager.getStackSize()} actions available)`}
