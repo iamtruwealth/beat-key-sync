@@ -14,8 +14,10 @@ import {
   Activity,
   Settings,
   RotateCcw,
-  Timer
+  Timer,
+  Undo
 } from 'lucide-react';
+import { undoManager } from '@/lib/UndoManager';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 
@@ -191,6 +193,17 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
             >
               <Timer className="w-4 h-4" />
               <span className="text-xs">Click</span>
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              className="p-2"
+              onClick={() => undoManager.undo()}
+              disabled={!undoManager.canUndo()}
+              title={`Undo last action (${undoManager.getStackSize()} actions available)`}
+            >
+              <Undo className="w-4 h-4" />
             </Button>
           </div>
 
