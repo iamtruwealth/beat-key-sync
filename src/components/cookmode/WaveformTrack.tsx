@@ -24,8 +24,7 @@ interface AudioClip {
 }
 
 interface WaveformTrackProps {
-  clip?: AudioClip; // Single clip (backward compatibility)
-  clips?: AudioClip[]; // Multiple clips for stacking
+  clip: AudioClip;
   containerId: string;
   currentTime: number;
   isPlaying: boolean;
@@ -40,7 +39,6 @@ interface WaveformTrackProps {
 
 export const WaveformTrack: React.FC<WaveformTrackProps> = ({
   clip,
-  clips,
   containerId,
   currentTime,
   isPlaying,
@@ -51,92 +49,6 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
   onClipDoubleClick,
   onDuplicateClip,
   className = ""
-}) => {
-  // Support both single clip and multiple clips
-  const clipsToRender = clips || (clip ? [clip] : []);
-  
-  if (clipsToRender.length === 0) {
-    return <div className="text-muted-foreground text-sm">No clips</div>;
-  }
-
-  // For multiple clips, render them stacked
-  if (clipsToRender.length > 1) {
-    const clipHeight = Math.floor(trackHeight / clipsToRender.length) - 4; // Account for spacing
-    
-    return (
-      <div className={`relative ${className}`} style={{ height: trackHeight }}>
-        {clipsToRender.map((clipItem, index) => (
-          <SingleClipWaveform
-            key={`${clipItem.id}-${index}`}
-            clip={clipItem}
-            clipIndex={index}
-            containerId={`${containerId}-${index}`}
-            currentTime={currentTime}
-            isPlaying={isPlaying}
-            pixelsPerSecond={pixelsPerSecond}
-            trackHeight={clipHeight}
-            onClipClick={onClipClick}
-            onClipDoubleClick={onClipDoubleClick}
-            onDuplicateClip={onDuplicateClip}
-            className={className}
-            style={{
-              position: 'absolute',
-              top: index * (clipHeight + 4),
-              zIndex: clipItem.originalTrack.isSolo ? 10 : 1
-            }}
-          />
-        ))}
-      </div>
-    );
-  }
-
-  // Single clip fallback - use existing logic
-  return (
-    <SingleClipWaveform
-      clip={clipsToRender[0]}
-      clipIndex={0}
-      containerId={containerId}
-      currentTime={currentTime}
-      isPlaying={isPlaying}
-      pixelsPerSecond={pixelsPerSecond}
-      trackHeight={trackHeight}
-      onClipClick={onClipClick}
-      onClipDoubleClick={onClipDoubleClick}
-      onDuplicateClip={onDuplicateClip}
-      className={className}
-    />
-  );
-};
-
-// Single clip component extracted for reusability
-interface SingleClipWaveformProps {
-  clip: AudioClip;
-  clipIndex: number;
-  containerId: string;
-  currentTime: number;
-  isPlaying: boolean;
-  pixelsPerSecond: number;
-  trackHeight: number;
-  onClipClick?: (clipId: string, event: React.MouseEvent) => void;
-  onClipDoubleClick?: (clipId: string) => void;
-  onDuplicateClip?: (clipId: string) => void;
-  className?: string;
-  style?: React.CSSProperties;
-}
-
-const SingleClipWaveform: React.FC<SingleClipWaveformProps> = ({
-  clip,
-  clipIndex,
-  containerId,
-  currentTime,
-  isPlaying,
-  pixelsPerSecond,
-  trackHeight,
-  onClipClick,
-  onClipDoubleClick,
-  onDuplicateClip,
-  className = "",
-  style = {}
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const waveSurferRef = useRef<WaveSurfer | null>(null);
@@ -158,8 +70,8 @@ const SingleClipWaveform: React.FC<SingleClipWaveformProps> = ({
     try {
       const waveSurfer = WaveSurfer.create({
         container: containerRef.current,
-        waveColor: getClipWaveColor(clipIndex, isMuted),
-        progressColor: getClipProgressColor(clipIndex, isMuted),
+        waveColor: getTrackWaveColor(trackIndex, isMuted),
+        progressColor: getTrackProgressColor(trackIndex, isMuted),
         cursorColor: 'rgba(255, 255, 255, 0.8)',
         barWidth: 2,
         barGap: 1,
@@ -202,7 +114,7 @@ const SingleClipWaveform: React.FC<SingleClipWaveformProps> = ({
       console.error('Error creating WaveSurfer:', err);
       setError('Failed to create waveform');
     }
-  }, [track.file_url, track.name, pixelsPerSecond, trackHeight, clipIndex]);
+  }, [track.file_url, track.name, pixelsPerSecond, trackHeight, trackIndex]);
 
   // Update playhead position based on Tone.Transport time
   useEffect(() => {
@@ -239,14 +151,14 @@ const SingleClipWaveform: React.FC<SingleClipWaveformProps> = ({
     if (waveSurferRef.current && isLoaded) {
       try {
         waveSurferRef.current.setOptions({
-          waveColor: getClipWaveColor(clipIndex, isMuted),
-          progressColor: getClipProgressColor(clipIndex, isMuted)
+          waveColor: getTrackWaveColor(trackIndex, isMuted),
+          progressColor: getTrackProgressColor(trackIndex, isMuted)
         });
       } catch (err) {
         console.error('Error updating waveform colors:', err);
       }
     }
-  }, [isMuted, opacity, clipIndex, isLoaded]);
+  }, [isMuted, opacity, trackIndex, isLoaded]);
 
   // Handle click events
   const handleClick = (event: React.MouseEvent) => {
@@ -270,8 +182,7 @@ const SingleClipWaveform: React.FC<SingleClipWaveformProps> = ({
         width: clipWidth,
         height: trackHeight - 8,
         minWidth: 100, // Minimum width for visibility
-        borderColor: getClipBorderColor(clipIndex),
-        ...style
+        borderColor: getTrackBorderColor(trackIndex)
       }}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
@@ -329,7 +240,7 @@ const SingleClipWaveform: React.FC<SingleClipWaveformProps> = ({
   );
 };
 
-// Futuristic color palette for index-based clip coloring
+// Futuristic color palette for index-based track coloring
 const FUTURISTIC_PALETTE = [
   '#00FFFF', // cyan
   '#1E90FF', // blue  
@@ -341,9 +252,9 @@ const FUTURISTIC_PALETTE = [
   '#FF6347'  // tomato
 ];
 
-// Helper functions for index-based clip colors with gradients
-const getClipBaseColor = (clipIndex: number): string => {
-  return FUTURISTIC_PALETTE[clipIndex % FUTURISTIC_PALETTE.length];
+// Helper functions for index-based track colors with gradients
+const getTrackBaseColor = (trackIndex: number): string => {
+  return FUTURISTIC_PALETTE[trackIndex % FUTURISTIC_PALETTE.length];
 };
 
 const hexToRgb = (hex: string): { r: number; g: number; b: number } => {
@@ -355,42 +266,41 @@ const hexToRgb = (hex: string): { r: number; g: number; b: number } => {
   } : { r: 0, g: 255, b: 255 }; // fallback to cyan
 };
 
-const getClipWaveColor = (clipIndex: number, isMuted: boolean = false): string => {
-  const baseColor = getClipBaseColor(clipIndex);
+
+const getTrackWaveColor = (trackIndex: number, isMuted: boolean = false): string => {
+  const baseColor = getTrackBaseColor(trackIndex);
   const { r, g, b } = hexToRgb(baseColor);
   
   if (isMuted) {
     return `rgba(${r}, ${g}, ${b}, 0.3)`;
   }
   
-  // Create a subtle horizontal gradient for the waveform
-  const adjustedR = Math.max(0, Math.min(255, r - 20));
-  const adjustedG = Math.max(0, Math.min(255, g - 20));
-  const adjustedB = Math.max(0, Math.min(255, b - 20));
+  // Create a subtle variation for the waveform
+  const adjustedR = Math.max(0, Math.min(255, r - 10));
+  const adjustedG = Math.max(0, Math.min(255, g - 10));
+  const adjustedB = Math.max(0, Math.min(255, b - 10));
   
-  // Create gradient from base color to slightly darker version
-  return `linear-gradient(90deg, rgba(${r}, ${g}, ${b}, 0.8), rgba(${adjustedR}, ${adjustedG}, ${adjustedB}, 0.9))`;
+  return `rgb(${adjustedR}, ${adjustedG}, ${adjustedB})`;
 };
 
-const getClipProgressColor = (clipIndex: number, isMuted: boolean = false): string => {
-  const baseColor = getClipBaseColor(clipIndex);
+const getTrackProgressColor = (trackIndex: number, isMuted: boolean = false): string => {
+  const baseColor = getTrackBaseColor(trackIndex);
   const { r, g, b } = hexToRgb(baseColor);
   
   if (isMuted) {
     return `rgba(${r}, ${g}, ${b}, 0.4)`;
   }
   
-  // Progress color should be brighter/more vibrant with gradient
-  const enhancedR = Math.min(255, r + 40);
-  const enhancedG = Math.min(255, g + 40);
-  const enhancedB = Math.min(255, b + 40);
+  // Progress color should be brighter/more vibrant
+  const enhancedR = Math.min(255, r + 30);
+  const enhancedG = Math.min(255, g + 30);
+  const enhancedB = Math.min(255, b + 30);
   
-  // Create brighter gradient for progress
-  return `linear-gradient(90deg, rgba(${enhancedR}, ${enhancedG}, ${enhancedB}, 0.9), rgba(${r}, ${g}, ${b}, 1))`;
+  return `rgb(${enhancedR}, ${enhancedG}, ${enhancedB})`;
 };
 
-const getClipBorderColor = (clipIndex: number): string => {
-  const baseColor = getClipBaseColor(clipIndex);
+const getTrackBorderColor = (trackIndex: number): string => {
+  const baseColor = getTrackBaseColor(trackIndex);
   const { r, g, b } = hexToRgb(baseColor);
   
   // Return a proper CSS color value for inline style
