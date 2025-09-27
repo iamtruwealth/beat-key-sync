@@ -579,7 +579,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
             {tracks.map((track, index) => {
               console.log('Sidebar track', index, ':', track.name, '(ID:', track.id, ')');
               return (
-                <div key={track.id} className="p-3 border-b border-white/10 bg-black/20">
+                <div key={track.id} className="h-[68px] flex flex-col justify-center p-3 border-b border-white/10 bg-black/20">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-medium text-white truncate" title={track.name}>
                       {track.name}
