@@ -208,6 +208,7 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
       }
     }
   };
+  
   const getStemColor = (stemType: string) => {
     const colors = {
       melody: 'text-neon-cyan',
@@ -219,6 +220,8 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
     } as const;
     return colors[stemType as keyof typeof colors] || colors.other;
   };
+
+  const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${minutes}:${secs.toString().padStart(2, '0')}`;
