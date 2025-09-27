@@ -170,7 +170,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         const audio = new Audio();
         audio.volume = 0.8;
         audio.crossOrigin = "anonymous";
-        audio.preload = 'metadata';
+        audio.preload = 'auto';
         audio.loop = true; // Back to native looping
 
         // Debug event listeners
@@ -207,10 +207,12 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           const prev = prevTimeRef.current.get(track.id) || 0;
           const ct = audio.currentTime;
           // Near-end wrap fallback to avoid stalls if native loop misses by a few ms
-          if (Number.isFinite(audio.duration) && audio.duration > 0 && (audio.duration - ct) <= 0.005) {
+          if (Number.isFinite(audio.duration) && audio.duration > 0 && (audio.duration - ct) <= 0.2) {
             tlog('loop:wrap-near-end', track.id, { ct: ct.toFixed(3), dur: audio.duration.toFixed(3) });
             audio.currentTime = 0;
-            return;
+            if (playingRef.current && audio.paused) {
+              audio.play().catch((e) => tlog('wrap-replay error', track.id, e));
+            }
           }
           // Throttle logs
           if (now - last > 500) {
