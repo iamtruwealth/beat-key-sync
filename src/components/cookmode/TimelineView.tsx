@@ -21,6 +21,15 @@ interface Track {
   analyzed_duration?: number; // Actual audio duration from analysis
 }
 
+interface AudioClip {
+  id: string;
+  trackId: string;
+  startTime: number;
+  endTime: number;
+  originalTrack: Track;
+  isSelected?: boolean;
+}
+
 interface TimelineViewProps {
   tracks: Track[];
   isPlaying: boolean;
@@ -28,6 +37,7 @@ interface TimelineViewProps {
   bpm: number;
   onPlayPause: () => void;
   onSeek: (time: number) => void;
+  onTracksUpdate?: (tracks: Track[]) => void;
 }
 
 export const TimelineView: React.FC<TimelineViewProps> = ({
@@ -36,7 +46,8 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   currentTime,
   bpm,
   onPlayPause,
-  onSeek
+  onSeek,
+  onTracksUpdate
 }) => {
   const timelineRef = useRef<HTMLDivElement>(null);
   const [isLooping, setIsLooping] = useState(false);
@@ -47,6 +58,9 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const blobSrcTriedRef = useRef<Set<string>>(new Set());
   const [trackDurations, setTrackDurations] = useState<Map<string, number>>(new Map());
   const [masterVolume, setMasterVolume] = useState(100);
+  const [audioClips, setAudioClips] = useState<AudioClip[]>([]);
+  const [selectedClips, setSelectedClips] = useState<Set<string>>(new Set());
+  const [copiedClip, setCopiedClip] = useState<AudioClip | null>(null);
   const { toast } = useToast();
 
   // Calculate timing constants
@@ -58,6 +72,126 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const pixelsPerSecond = 40;
   const pixelsPerBeat = pixelsPerSecond * secondsPerBeat;
   const pixelsPerBar = pixelsPerBeat * beatsPerBar;
+
+  // Initialize audio clips from tracks
+  useEffect(() => {
+    const initialClips: AudioClip[] = tracks.map(track => ({
+      id: `${track.id}-clip-0`,
+      trackId: track.id,
+      startTime: 0,
+      endTime: trackDurations.get(track.id) || track.analyzed_duration || track.duration || 60,
+      originalTrack: track
+    }));
+    setAudioClips(initialClips);
+  }, [tracks, trackDurations]);
+
+  // Grid snapping function
+  const snapToGrid = (time: number): number => {
+    const beatTime = secondsPerBeat;
+    return Math.round(time / beatTime) * beatTime;
+  };
+
+  // Copy clip function
+  const copyClip = useCallback((clipId: string) => {
+    const clip = audioClips.find(c => c.id === clipId);
+    if (clip) {
+      setCopiedClip(clip);
+      toast({
+        title: "Clip Copied",
+        description: `${clip.originalTrack.name} copied to clipboard`,
+      });
+    }
+  }, [audioClips, toast]);
+
+  // Paste clip function
+  const pasteClip = useCallback((targetTime: number, targetTrackId?: string) => {
+    if (!copiedClip) return;
+
+    const snappedTime = snapToGrid(targetTime);
+    const duration = copiedClip.endTime - copiedClip.startTime;
+    const newClipId = `${copiedClip.originalTrack.id}-clip-${Date.now()}`;
+    
+    const newClip: AudioClip = {
+      id: newClipId,
+      trackId: targetTrackId || copiedClip.trackId,
+      startTime: snappedTime,
+      endTime: snappedTime + duration,
+      originalTrack: copiedClip.originalTrack
+    };
+
+    setAudioClips(prev => [...prev, newClip]);
+    toast({
+      title: "Clip Pasted",
+      description: `${copiedClip.originalTrack.name} pasted at ${Math.floor(snappedTime / secondsPerBar) + 1}.${Math.floor((snappedTime % secondsPerBar) / secondsPerBeat) + 1}`,
+    });
+  }, [copiedClip, snapToGrid, secondsPerBar, secondsPerBeat, toast]);
+
+  // Duplicate clip function
+  const duplicateClip = useCallback((clipId: string) => {
+    const clip = audioClips.find(c => c.id === clipId);
+    if (!clip) return;
+
+    const duration = clip.endTime - clip.startTime;
+    const newStartTime = snapToGrid(clip.endTime);
+    const newClipId = `${clip.originalTrack.id}-clip-${Date.now()}`;
+    
+    const newClip: AudioClip = {
+      id: newClipId,
+      trackId: clip.trackId,
+      startTime: newStartTime,
+      endTime: newStartTime + duration,
+      originalTrack: clip.originalTrack
+    };
+
+    setAudioClips(prev => [...prev, newClip]);
+    toast({
+      title: "Clip Duplicated",
+      description: `${clip.originalTrack.name} duplicated`,
+    });
+  }, [audioClips, snapToGrid, toast]);
+
+  // Delete clip function
+  const deleteClip = useCallback((clipId: string) => {
+    setAudioClips(prev => prev.filter(c => c.id !== clipId));
+    setSelectedClips(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(clipId);
+      return newSet;
+    });
+  }, []);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (selectedClips.size === 0) return;
+
+      if (e.ctrlKey || e.metaKey) {
+        switch (e.key) {
+          case 'c':
+            e.preventDefault();
+            const firstSelected = Array.from(selectedClips)[0];
+            copyClip(firstSelected);
+            break;
+          case 'v':
+            e.preventDefault();
+            pasteClip(currentTime);
+            break;
+          case 'd':
+            e.preventDefault();
+            selectedClips.forEach(clipId => duplicateClip(clipId));
+            break;
+        }
+      }
+
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        selectedClips.forEach(clipId => deleteClip(clipId));
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedClips, copyClip, pasteClip, duplicateClip, deleteClip, currentTime]);
 
   // Initialize audio elements for all tracks
   useEffect(() => {
@@ -317,9 +451,21 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     
     const rect = timelineRef.current.getBoundingClientRect();
     const x = event.clientX - rect.left;
-    const time = (x / pixelsPerSecond);
-    onSeek(Math.max(0, Math.min(time, maxDuration)));
-  }, [pixelsPerSecond, maxDuration, onSeek]);
+    const time = snapToGrid(x / pixelsPerSecond);
+    
+    // If we have a copied clip and ctrl/cmd is held, paste it
+    if (copiedClip && (event.ctrlKey || event.metaKey)) {
+      pasteClip(time);
+    } else {
+      // Otherwise seek to that position
+      onSeek(Math.max(0, Math.min(time, maxDuration)));
+    }
+    
+    // Clear selection if clicking on empty space
+    if (!event.ctrlKey && !event.metaKey) {
+      setSelectedClips(new Set());
+    }
+  }, [pixelsPerSecond, maxDuration, onSeek, snapToGrid, copiedClip, pasteClip]);
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -380,78 +526,172 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     pixelsPerSecond: number; 
     trackHeight: number;
   }> = ({ track, index, pixelsPerSecond, trackHeight }) => {
-    const { waveformData, isLoading } = useWaveformGenerator({ 
-      audioUrl: track.file_url,
-      targetWidth: 500 
-    });
-
     const trackY = index * trackHeight;
-    const actualDuration = trackDurations.get(track.id) || track.analyzed_duration || track.duration || 60;
-    const trackWidth = actualDuration * pixelsPerSecond;
-
-    // Generate waveform bars for visualization
-    const waveformBars = waveformData ? generateWaveformBars(waveformData.peaks, Math.floor(trackWidth / 4)) : [];
+    const trackClips = audioClips.filter(clip => clip.trackId === track.id);
 
     return (
-      <div
-        className="absolute bg-gradient-to-r from-primary/20 to-primary/40 border border-primary/30 rounded overflow-hidden"
-        style={{
-          top: trackY + 8,
-          left: 0,
-          width: trackWidth,
-          height: trackHeight - 16
-        }}
-      >
-        {/* Waveform visualization */}
-        <div className="h-full p-1 flex items-center">
-          {isLoading ? (
-            <div className="flex-1 h-8 bg-gradient-to-r from-neon-cyan/20 to-electric-blue/20 rounded flex items-center justify-center">
-              <span className="text-xs text-foreground/60">Loading...</span>
-            </div>
-          ) : waveformBars.length > 0 ? (
-            <div className="flex-1 h-8 flex items-end justify-center gap-px">
-              {waveformBars.map((bar, i) => (
-                <div
-                  key={i}
-                  className="bg-gradient-to-t from-neon-cyan/60 to-electric-blue/60 rounded-sm min-w-[1px]"
-                  style={{
-                    height: `${Math.max(bar * 100, 2)}%`,
-                    width: Math.max(trackWidth / waveformBars.length - 1, 1)
+      <div className="relative" style={{ height: trackHeight }}>
+        {trackClips.map((clip) => {
+          const { waveformData, isLoading } = useWaveformGenerator({ 
+            audioUrl: clip.originalTrack.file_url,
+            targetWidth: 500 
+          });
+
+          const clipWidth = (clip.endTime - clip.startTime) * pixelsPerSecond;
+          const clipLeft = clip.startTime * pixelsPerSecond;
+          const isSelected = selectedClips.has(clip.id);
+
+          // Generate waveform bars for visualization
+          const waveformBars = waveformData ? generateWaveformBars(waveformData.peaks, Math.floor(clipWidth / 4)) : [];
+
+          return (
+            <div
+              key={clip.id}
+              className={`absolute bg-gradient-to-r border rounded overflow-hidden cursor-pointer group transition-all ${
+                isSelected 
+                  ? 'from-neon-cyan/40 to-electric-blue/60 border-neon-cyan shadow-neon-cyan shadow-[0_0_10px]' 
+                  : 'from-primary/20 to-primary/40 border-primary/30 hover:border-primary/50'
+              }`}
+              style={{
+                top: trackY + 8,
+                left: clipLeft,
+                width: clipWidth,
+                height: trackHeight - 16
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedClips(prev => {
+                  const newSet = new Set(prev);
+                  if (e.ctrlKey || e.metaKey) {
+                    if (newSet.has(clip.id)) {
+                      newSet.delete(clip.id);
+                    } else {
+                      newSet.add(clip.id);
+                    }
+                  } else {
+                    newSet.clear();
+                    newSet.add(clip.id);
+                  }
+                  return newSet;
+                });
+              }}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setSelectedClips(new Set([clip.id]));
+                // Simple context menu using confirm dialogs for now
+                const action = prompt('Action: (c)opy, (d)uplicate, (delete)');
+                switch(action?.toLowerCase()) {
+                  case 'c':
+                  case 'copy':
+                    copyClip(clip.id);
+                    break;
+                  case 'd':
+                  case 'duplicate':
+                    duplicateClip(clip.id);
+                    break;
+                  case 'delete':
+                    deleteClip(clip.id);
+                    break;
+                }
+              }}
+              onDoubleClick={() => duplicateClip(clip.id)}
+            >
+              {/* Waveform visualization */}
+              <div className="h-full p-1 flex items-center">
+                {isLoading ? (
+                  <div className="flex-1 h-8 bg-gradient-to-r from-neon-cyan/20 to-electric-blue/20 rounded flex items-center justify-center">
+                    <span className="text-xs text-foreground/60">Loading...</span>
+                  </div>
+                ) : waveformBars.length > 0 ? (
+                  <div className="flex-1 h-8 flex items-end justify-center gap-px">
+                    {waveformBars.map((bar, i) => (
+                      <div
+                        key={i}
+                        className="bg-gradient-to-t from-neon-cyan/60 to-electric-blue/60 rounded-sm min-w-[1px]"
+                        style={{
+                          height: `${Math.max(bar * 100, 2)}%`,
+                          width: Math.max(clipWidth / waveformBars.length - 1, 1)
+                        }}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex-1 h-8 bg-gradient-to-r from-neon-cyan/20 to-electric-blue/20 rounded flex items-center justify-center">
+                    <span className="text-xs text-foreground/60">
+                      {(clip.endTime - clip.startTime).toFixed(1)}s
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Selection indicator */}
+              {isSelected && (
+                <div className="absolute inset-0 border-2 border-neon-cyan rounded pointer-events-none">
+                  <div className="absolute -top-6 left-0 bg-neon-cyan text-black text-xs px-1 rounded">
+                    {clip.originalTrack.name}
+                  </div>
+                </div>
+              )}
+
+              {/* Clip actions (visible on hover) */}
+              <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-5 w-5 p-0 text-xs"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    duplicateClip(clip.id);
                   }}
+                  title="Duplicate (Ctrl+D)"
+                >
+                  ⧉
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-5 w-5 p-0 text-xs"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteClip(clip.id);
+                  }}
+                  title="Delete (Del)"
+                >
+                  ×
+                </Button>
+              </div>
+
+              {/* Mute/Solo overlay */}
+              {(track.isMuted || (tracks.some(t => t.isSolo) && !track.isSolo)) && (
+                <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
+                  <span className="text-xs text-muted-foreground">
+                    {track.isMuted ? 'MUTED' : 'SOLO OFF'}
+                  </span>
+                </div>
+              )}
+
+              {/* BPM sync indicator */}
+              <div className="absolute top-1 left-1">
+                <BPMSyncIndicator 
+                  detectedBPM={waveformData ? undefined : 120} // Use actual BPM when available
+                  sessionBPM={bpm}
                 />
-              ))}
+              </div>
             </div>
-          ) : (
-            <div className="flex-1 h-8 bg-gradient-to-r from-neon-cyan/20 to-electric-blue/20 rounded flex items-center justify-center">
-              <span className="text-xs text-foreground/60">
-                {actualDuration.toFixed(1)}s
-              </span>
-            </div>
-          )}
-        </div>
-
-        {/* Mute/Solo overlay */}
-        {(track.isMuted || (tracks.some(t => t.isSolo) && !track.isSolo)) && (
-          <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
-            <span className="text-xs text-muted-foreground">
-              {track.isMuted ? 'MUTED' : 'SOLO OFF'}
-            </span>
-          </div>
-        )}
-
-        {/* BPM sync indicator */}
-        <div className="absolute top-1 right-1">
-          <BPMSyncIndicator 
-            detectedBPM={waveformData ? undefined : 120} // Use actual BPM when available
-            sessionBPM={bpm}
-          />
-        </div>
+          );
+        })}
       </div>
     );
   };
 
   return (
     <div className="h-full flex flex-col bg-background/50">
+      {/* Instructions Panel */}
+      <div className="px-4 py-2 bg-card/10 border-b border-border/30 text-xs text-muted-foreground">
+        <span className="font-medium">Timeline Controls:</span> Click to select clips • Double-click to duplicate • Right-click for menu • 
+        <span className="font-medium">Shortcuts:</span> Ctrl+C copy • Ctrl+V paste • Ctrl+D duplicate • Del delete • Ctrl+Click timeline to paste
+      </div>
+
       {/* Main Timeline Area */}
       <div className="flex-1 relative overflow-auto">
         <div className="flex">
