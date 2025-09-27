@@ -13,7 +13,8 @@ import {
   Clock,
   Activity,
   Settings,
-  RotateCcw
+  RotateCcw,
+  Timer
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
@@ -24,9 +25,11 @@ interface SessionControlsProps {
   bpm: number;
   sessionKey?: string;
   isLooping?: boolean;
+  metronomeEnabled?: boolean;
   onTogglePlayback: () => void;
   onSeek: (time: number) => void;
   onToggleLoop?: () => void;
+  onToggleMetronome?: () => void;
   onUpdateBpm?: (bpm: number) => void;
   onUpdateKey?: (key: string) => void;
 }
@@ -37,9 +40,11 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
   bpm,
   sessionKey,
   isLooping = false,
+  metronomeEnabled = false,
   onTogglePlayback,
   onSeek,
   onToggleLoop,
+  onToggleMetronome,
   onUpdateBpm,
   onUpdateKey
 }) => {
@@ -174,6 +179,17 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
               disabled={!onToggleLoop}
             >
               <RotateCcw className="w-4 h-4" />
+            </Button>
+
+            <Button
+              variant={metronomeEnabled ? "default" : "ghost"}
+              size="sm"
+              className={`p-2 ${metronomeEnabled ? 'bg-electric-blue text-black' : ''}`}
+              onClick={onToggleMetronome}
+              disabled={!onToggleMetronome}
+              title="Toggle Metronome"
+            >
+              <Timer className="w-4 h-4" />
             </Button>
           </div>
 

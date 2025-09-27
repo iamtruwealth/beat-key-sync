@@ -36,6 +36,7 @@ interface TimelineViewProps {
   isPlaying: boolean;
   currentTime: number;
   bpm: number;
+  metronomeEnabled?: boolean;
   onPlayPause: () => void;
   onSeek: (time: number) => void;
   onTracksUpdate?: (tracks: Track[]) => void;
@@ -46,6 +47,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   isPlaying,
   currentTime,
   bpm,
+  metronomeEnabled = false,
   onPlayPause,
   onSeek,
   onTracksUpdate
@@ -60,6 +62,10 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const [selectedClips, setSelectedClips] = useState<Set<string>>(new Set());
   const [copiedClip, setCopiedClip] = useState<AudioClip | null>(null);
   const { toast } = useToast();
+
+  // Metronome state
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const [lastBeatTime, setLastBeatTime] = useState(-1);
 
   // Calculate timing constants with precise BPM
   const secondsPerBeat = 60 / bpm; // Precise: 60 seconds / beats per minute
@@ -88,6 +94,61 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const pixelsPerSecond = 40;
   const pixelsPerBeat = pixelsPerSecond * secondsPerBeat;
   const pixelsPerBar = pixelsPerBeat * beatsPerBar;
+
+  // Initialize audio context for metronome
+  useEffect(() => {
+    if (metronomeEnabled) {
+      if (!audioContextRef.current) {
+        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+    }
+    return () => {
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        audioContextRef.current.close();
+        audioContextRef.current = null;
+      }
+    };
+  }, [metronomeEnabled]);
+
+  // Metronome click function
+  const playMetronomeClick = useCallback((isDownbeat: boolean = false) => {
+    if (!audioContextRef.current || !metronomeEnabled) return;
+
+    const audioContext = audioContextRef.current;
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    // Different frequencies for downbeat vs regular beat
+    oscillator.frequency.setValueAtTime(isDownbeat ? 800 : 400, audioContext.currentTime);
+    oscillator.type = 'sine';
+
+    // Quick click envelope
+    gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+    gainNode.gain.linearRampToValueAtTime(0.1, audioContext.currentTime + 0.01);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.1);
+
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.1);
+  }, [metronomeEnabled]);
+
+  // Metronome timing effect
+  useEffect(() => {
+    if (!isPlaying || !metronomeEnabled) {
+      setLastBeatTime(-1);
+      return;
+    }
+
+    const currentBeat = Math.floor(currentTime / secondsPerBeat);
+    
+    if (currentBeat !== lastBeatTime && currentBeat >= 0) {
+      const isDownbeat = currentBeat % beatsPerBar === 0;
+      playMetronomeClick(isDownbeat);
+      setLastBeatTime(currentBeat);
+    }
+  }, [currentTime, isPlaying, metronomeEnabled, secondsPerBeat, beatsPerBar, lastBeatTime, playMetronomeClick]);
 
   // Initialize audio clips from tracks - ensure proper positioning
   useEffect(() => {

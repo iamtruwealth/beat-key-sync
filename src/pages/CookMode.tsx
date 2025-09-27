@@ -36,6 +36,7 @@ const CookMode = () => {
   const navigate = useNavigate();
   const [isHost, setIsHost] = useState(false);
   const [activeView, setActiveView] = useState<'timeline' | 'mixer'>('timeline');
+  const [metronomeEnabled, setMetronomeEnabled] = useState(false);
   const [sessionConfig, setSessionConfig] = useState({
     bpm: 120,
     key: 'C',
@@ -362,8 +363,10 @@ const CookMode = () => {
             currentTime={currentTime}
             bpm={session.target_bpm || 120}
             sessionKey={session.target_genre}
+            metronomeEnabled={metronomeEnabled}
             onTogglePlayback={togglePlayback}
             onSeek={seekTo}
+            onToggleMetronome={() => setMetronomeEnabled(!metronomeEnabled)}
             onUpdateBpm={(bpm) => updateSessionSettings({ bpm })}
             onUpdateKey={(key) => updateSessionSettings({ key })}
           />
@@ -377,6 +380,7 @@ const CookMode = () => {
               isPlaying={isPlaying}
               currentTime={currentTime}
               bpm={session.target_bpm || 120}
+              metronomeEnabled={metronomeEnabled}
               onAddTrack={addTrack}
               onRemoveTrack={removeTrack}
               onUpdateTrack={updateTrack}
