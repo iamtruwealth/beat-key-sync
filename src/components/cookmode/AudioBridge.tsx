@@ -18,6 +18,7 @@ interface AudioBridgeProps {
   tracks: Track[];
   bpm: number;
   isPlaying: boolean;
+  currentTime: number;
   onTick: (seconds: number) => void;
   onPlayPause: () => void;
   onSeek: (seconds: number) => void;
@@ -27,6 +28,7 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
   tracks,
   bpm,
   isPlaying,
+  currentTime,
   onTick,
   onPlayPause,
   onSeek
@@ -176,11 +178,13 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
     }
   }, []);
 
-  // Handle seeking when requested externally
+  // Sync engine position when parent seeks (e.g., Stop button)
   useEffect(() => {
-    // The onSeek prop is used to notify parent of position changes
-    // Actual seeking is handled by our handleSeek function
-  }, [handleSeek, onSeek]);
+    if (!isInitialized.current) return;
+    if (!isPlaying) {
+      sessionLoopEngine.seek(currentTime);
+    }
+  }, [currentTime, isPlaying]);
 
   // AudioBridge is a logic-only component, no UI
   return null;

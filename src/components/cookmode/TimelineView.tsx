@@ -514,6 +514,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         tracks={tracks}
         bpm={bpm}
         isPlaying={isPlaying}
+        currentTime={currentTime}
         onTick={handleTick}
         onPlayPause={onPlayPause}
         onSeek={onSeek}
