@@ -110,37 +110,46 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
   };
 
   const handleDragOver = (e: React.DragEvent) => {
+    console.log('Drag over event triggered');
     e.preventDefault();
     e.stopPropagation();
     setIsDragOver(true);
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
+    console.log('Drag leave event triggered');
     e.preventDefault();
     e.stopPropagation();
     setIsDragOver(false);
   };
 
   const handleDrop = async (e: React.DragEvent) => {
+    console.log('Drop event triggered');
     e.preventDefault();
     e.stopPropagation();
     setIsDragOver(false);
 
     const files = Array.from(e.dataTransfer.files);
+    console.log('Files dropped:', files);
     const audioFiles = files.filter(file => file.type.startsWith('audio/'));
+    console.log('Audio files:', audioFiles);
 
     if (audioFiles.length === 0) {
+      console.log('No audio files found');
       toast.error('Please drop audio files only');
       return;
     }
 
     for (const file of audioFiles) {
+      console.log('Processing file:', file.name, 'type:', file.type);
       if (validateAudioFile(file)) {
         const trackName = file.name.replace(/\.[^/.]+$/, "");
+        console.log('Adding track:', trackName);
         try {
           await onAddTrack(file, trackName, 'other');
           toast.success(`Added "${trackName}" to session`);
         } catch (error) {
+          console.error('Error adding track:', error);
           toast.error(`Failed to add "${trackName}"`);
         }
       }
