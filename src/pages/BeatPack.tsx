@@ -317,12 +317,11 @@ export default function BeatPackPage() {
     seekTo(newTime);
   };
   const copyPackLink = () => {
-    if (!beatPack?.id) return;
-    const url = `https://lascsucrozzhbvlsddxg.functions.supabase.co/og-pack?id=${beatPack.id}`;
+    const url = `${window.location.origin}/pack/${beatPack?.id}`;
     navigator.clipboard.writeText(url);
     toast({
       title: "Link copied",
-      description: "Social preview link copied to clipboard"
+      description: "Beat pack link copied to clipboard"
     });
   };
 

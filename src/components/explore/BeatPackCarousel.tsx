@@ -200,7 +200,7 @@ export default function BeatPackCarousel() {
   };
 
   const handleSharePack = async (pack: BeatPack) => {
-    const ogUrl = `https://lascsucrozzhbvlsddxg.functions.supabase.co/og-pack?id=${pack.id}`;
+    const shareUrl = `${window.location.origin}/pack/${pack.id}`;
     const shareText = `Check out "${pack.name}" by ${pack.user?.producer_name} on BeatPackz`;
 
     if (navigator.share) {
@@ -208,11 +208,11 @@ export default function BeatPackCarousel() {
         await navigator.share({
           title: `Beat pack ${pack.name} from ${pack.user?.producer_name}`,
           text: shareText,
-          url: ogUrl,
+          url: shareUrl,
         });
       } catch (error) {
-        // User cancelled sharing or unsupported fields, fall back to clipboard
-        await navigator.clipboard.writeText(ogUrl);
+        // User cancelled sharing, fall back to clipboard
+        await navigator.clipboard.writeText(shareUrl);
         toast({
           title: "Copied to clipboard",
           description: "Beat pack link has been copied to your clipboard.",
@@ -220,7 +220,7 @@ export default function BeatPackCarousel() {
       }
     } else {
       // Fallback to clipboard
-      await navigator.clipboard.writeText(ogUrl);
+      await navigator.clipboard.writeText(shareUrl);
       toast({
         title: "Copied to clipboard",
         description: "Beat pack link has been copied to your clipboard.",
