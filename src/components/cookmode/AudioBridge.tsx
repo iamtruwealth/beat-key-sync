@@ -63,7 +63,7 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
         const estimatedBars = Math.max(1, Math.round(knownDuration / secondsPerBar));
         durationInBeats = estimatedBars * 4;
       } else {
-        durationInBeats = 16; // Default 4 bars
+        durationInBeats = 16; // Default 4 bars when duration unknown
       }
 
       return {

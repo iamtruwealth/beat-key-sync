@@ -133,7 +133,8 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           if (knownDuration && knownDuration > 0) {
             resolvedBars = Math.max(1, Math.round(knownDuration / secondsPerBar));
           } else {
-            resolvedBars = 8; // Default to 8 bars for fuller sessions
+            // If no duration is known yet, default to 4 bars (not 8) and wait for analysis
+            resolvedBars = 4; // More conservative default - 4 bars
           }
         }
         const clipDuration = resolvedBars * secondsPerBar;
