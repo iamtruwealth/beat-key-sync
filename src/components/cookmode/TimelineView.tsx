@@ -620,26 +620,33 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
               }}
               onClick={(e) => {
                 e.stopPropagation();
+                console.log('Clip clicked:', clip.originalTrack.name, 'Clip ID:', clip.id);
                 setSelectedClips(prev => {
                   const newSet = new Set(prev);
                   if (e.ctrlKey || e.metaKey) {
                     if (newSet.has(clip.id)) {
                       newSet.delete(clip.id);
+                      console.log('Removed from selection:', clip.id);
                     } else {
                       newSet.add(clip.id);
+                      console.log('Added to selection:', clip.id);
                     }
                   } else {
                     newSet.clear();
                     newSet.add(clip.id);
+                    console.log('Single selection:', clip.id);
                   }
+                  console.log('New selection:', Array.from(newSet));
                   return newSet;
                 });
               }}
               onContextMenu={(e) => {
                 e.preventDefault();
+                console.log('Right-click on clip:', clip.originalTrack.name, 'Clip ID:', clip.id);
                 setSelectedClips(new Set([clip.id]));
                 // Simple context menu using confirm dialogs for now
                 const action = prompt('Action: (c)opy, (d)uplicate, (delete)');
+                console.log('Context menu action:', action);
                 switch(action?.toLowerCase()) {
                   case 'c':
                   case 'copy':
@@ -654,7 +661,10 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                     break;
                 }
               }}
-              onDoubleClick={() => duplicateClip(clip.id)}
+              onDoubleClick={() => {
+                console.log('Double-click on clip:', clip.originalTrack.name, 'Clip ID:', clip.id);
+                duplicateClip(clip.id);
+              }}
             >
               {/* Waveform visualization */}
               <div className="h-full p-1 flex items-center">
