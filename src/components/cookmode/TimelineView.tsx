@@ -29,8 +29,6 @@ interface TimelineViewProps {
   onPlayPause: () => void;
   onSeek: (time: number) => void;
   onTracksUpdate?: (tracks: Track[]) => void;
-  activeTool?: ToolType;
-  snapEnabled?: boolean;
   onToolAction?: (action: string, data: any) => void;
 }
 
@@ -43,10 +41,10 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   onPlayPause,
   onSeek,
   onTracksUpdate,
-  activeTool = 'draw',
-  snapEnabled = true,
   onToolAction
 }) => {
+  const [activeTool] = useState<ToolType>('draw');
+  const [snapEnabled] = useState(true);
   const timelineRef = useRef<HTMLDivElement>(null);
   const [selectedClips, setSelectedClips] = useState<string[]>([]);
   const [timelineLength, setTimelineLength] = useState(60);

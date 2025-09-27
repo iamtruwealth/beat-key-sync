@@ -23,7 +23,7 @@ import {
 import { toast } from 'sonner';
 import { TimelineView } from './TimelineView';
 import { FuturisticMixerBoard } from './FuturisticMixerBoard';
-import { CookModeToolbar, ToolType } from './CookModeToolbar';
+
 
 interface Track {
   id: string;
@@ -71,8 +71,6 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
   const [isAddingTrack, setIsAddingTrack] = useState(false);
   const [activeView, setActiveView] = useState<'timeline' | 'mixer'>('timeline');
   const [isDragOver, setIsDragOver] = useState(false);
-  const [activeTool, setActiveTool] = useState<ToolType>('draw');
-  const [snapEnabled, setSnapEnabled] = useState(true);
   const [newTrackData, setNewTrackData] = useState({
     name: '',
     stemType: 'melody',
@@ -196,26 +194,6 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
     }
   };
 
-  const handleToolChange = (tool: ToolType) => {
-    setActiveTool(tool);
-    toast.success(`Switched to ${tool} tool`);
-  };
-
-  const handleSnapToggle = () => {
-    setSnapEnabled(prev => {
-      const newValue = !prev;
-      toast.info(`Snap ${newValue ? 'enabled' : 'disabled'}`);
-      return newValue;
-    });
-  };
-
-  const handleUndo = () => {
-    toast.info('Undo action');
-  };
-
-  const handleRedo = () => {
-    toast.info('Redo action');
-  };
 
   const getStemColor = (stemType: string) => {
     const colors = {
@@ -237,18 +215,6 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
 
   return (
     <div className="h-full flex flex-col bg-background/50">
-      {/* Editing Toolbar */}
-      <CookModeToolbar
-        activeTool={activeTool}
-        onToolChange={handleToolChange}
-        snapEnabled={snapEnabled}
-        onSnapToggle={handleSnapToggle}
-        onUndo={handleUndo}
-        onRedo={handleRedo}
-        canUndo={false}
-        canRedo={false}
-      />
-
       {/* Content Area */}
       <div 
         className={`flex-1 overflow-hidden relative ${isDragOver ? 'bg-neon-cyan/5' : ''}`}
@@ -375,8 +341,6 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
                 sessionBpm={sessionBpm}
                 onPlayPause={onPlayPause}
                 onSeek={onSeek}
-                activeTool={activeTool}
-                snapEnabled={snapEnabled}
                 onToolAction={(action, data) => {
                   console.log('Tool action:', action, data);
                 }}

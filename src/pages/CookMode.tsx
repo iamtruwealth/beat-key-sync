@@ -14,6 +14,7 @@ import { CookModeDAW } from '@/components/cookmode/CookModeDAW';
 import { CookModeChat } from '@/components/cookmode/CookModeChat';
 import { SessionParticipants } from '@/components/cookmode/SessionParticipants';
 import { SessionControls } from '@/components/cookmode/SessionControls';
+import { CookModeToolbar, ToolType } from '@/components/cookmode/CookModeToolbar';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Play, 
@@ -36,6 +37,8 @@ const CookMode = () => {
   const navigate = useNavigate();
   const [isHost, setIsHost] = useState(false);
   const [activeView, setActiveView] = useState<'timeline' | 'mixer'>('timeline');
+  const [activeTool, setActiveTool] = useState<ToolType>('draw');
+  const [snapEnabled, setSnapEnabled] = useState(true);
   const [sessionConfig, setSessionConfig] = useState({
     bpm: 120,
     key: 'C',
@@ -305,6 +308,27 @@ const CookMode = () => {
         {/* Empty space for balance */}
         <div className="w-24" />
       </div>
+
+      {/* Editing Toolbar */}
+      <CookModeToolbar
+        activeTool={activeTool}
+        onToolChange={(tool) => {
+          setActiveTool(tool);
+          toast.success(`Switched to ${tool} tool`);
+        }}
+        snapEnabled={snapEnabled}
+        onSnapToggle={() => {
+          setSnapEnabled(prev => {
+            const newValue = !prev;
+            toast.info(`Snap ${newValue ? 'enabled' : 'disabled'}`);
+            return newValue;
+          });
+        }}
+        onUndo={() => toast.info('Undo action')}
+        onRedo={() => toast.info('Redo action')}
+        canUndo={false}
+        canRedo={false}
+      />
 
       {/* Header */}
       <div className="border-b border-border/50 bg-card/30 backdrop-blur-sm">
