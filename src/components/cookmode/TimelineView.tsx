@@ -150,111 +150,77 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     }
   }, [timelineLength, onSeek, snapToGrid]);
 
-  // Initialize audio elements for all tracks - ONLY run when track IDs change
+  // Initialize audio elements ONCE per track - never recreate
   useEffect(() => {
-    const currentTrackIds = new Set(tracks.map(t => t.id));
-    const existingTrackIds = new Set(audioElementsRef.current.keys());
-    
-    // Only process new tracks
     tracks.forEach(track => {
       if (!audioElementsRef.current.has(track.id)) {
-        console.log('Creating NEW audio element for track:', track.name);
+        console.log('Creating audio element for track:', track.name);
         
-        if (!track.file_url) {
-          console.error('Track has no file_url:', track);
-          return;
-        }
-
         const audio = new Audio();
         audio.volume = 0.8;
-        audio.muted = false;
         audio.crossOrigin = "anonymous";
         audio.preload = 'metadata';
-        audio.loop = false;
+        audio.loop = true; // Enable native looping
         
         audio.addEventListener('loadeddata', () => {
-          console.log('Audio loaded for:', track.name, 'duration:', audio.duration);
-          if (audio.duration && audio.duration > 0) {
+          console.log('Audio loaded:', track.name, 'duration:', audio.duration);
+          if (audio.duration > 0) {
             setTrackDurations(prev => new Map(prev.set(track.id, audio.duration)));
           }
-        });
-
-        audio.addEventListener('error', (e) => {
-          console.error('Audio error for track:', track.name, e);
         });
         
         audio.src = track.file_url;
         audio.load();
-        
         audioElementsRef.current.set(track.id, audio);
       }
     });
 
-    // Remove audio elements for deleted tracks
-    existingTrackIds.forEach(trackId => {
+    // Clean up removed tracks
+    const currentTrackIds = new Set(tracks.map(t => t.id));
+    audioElementsRef.current.forEach((audio, trackId) => {
       if (!currentTrackIds.has(trackId)) {
-        console.log('Removing audio element for:', trackId);
-        const audio = audioElementsRef.current.get(trackId);
-        if (audio) {
-          audio.pause();
-          audio.src = '';
-          audioElementsRef.current.delete(trackId);
-        }
+        audio.pause();
+        audio.src = '';
+        audioElementsRef.current.delete(trackId);
       }
     });
-  }, [tracks.map(t => t.id).sort().join(',')]); // Only track IDs, sorted for consistency
+  }, [JSON.stringify(tracks.map(t => ({ id: t.id, url: t.file_url })))]); // Only recreate if track IDs or URLs change
 
-  // Separate effect for updating audio properties (volume, mute)
+  // Simple playback control - sync UI to actual audio time
+  useEffect(() => {
+    audioElementsRef.current.forEach((audio, trackId) => {
+      if (isPlaying && audio.paused) {
+        console.log('Starting audio:', trackId);
+        audio.currentTime = currentTime;
+        audio.play().catch(console.error);
+      } else if (!isPlaying && !audio.paused) {
+        console.log('Pausing audio:', trackId);
+        audio.pause();
+      }
+    });
+  }, [isPlaying]);
+
+  // Sync currentTime from the session system to actual audio time
+  useEffect(() => {
+    if (isPlaying) {
+      audioElementsRef.current.forEach((audio) => {
+        if (!audio.paused && Math.abs(audio.currentTime - currentTime) > 0.5) {
+          audio.currentTime = currentTime;
+        }
+      });
+    }
+  }, [currentTime, isPlaying]);
+
+  // Update track volume/mute without recreating audio elements
   useEffect(() => {
     tracks.forEach(track => {
       const audio = audioElementsRef.current.get(track.id);
       if (audio) {
-        audio.volume = track.volume !== undefined ? track.volume : 0.8;
+        audio.volume = track.volume || 0.8;
         audio.muted = track.isMuted || false;
       }
     });
   }, [tracks.map(t => `${t.id}-${t.volume}-${t.isMuted}`).join(',')]);
-
-  // Sync playback state with precise looping
-  useEffect(() => {
-    console.log('Playback sync effect triggered:', { isPlaying, currentTime, tracksCount: tracks.length, loopLength });
-    
-    audioElementsRef.current.forEach((audio, trackId) => {
-      try {
-        if (!audio.src) return;
-        
-        if (isPlaying && audio.paused) {
-          console.log('Starting playback for track:', trackId, 'at time:', currentTime);
-          
-          // For looping: if we're at the start of a loop cycle, make sure audio starts from 0
-          if (currentTime < 0.1) {
-            audio.currentTime = 0;
-          } else {
-            // Otherwise sync to current position
-            audio.currentTime = currentTime;
-          }
-          
-          audio.play().catch(error => {
-            console.error('Error playing audio:', error);
-          });
-        } else if (!isPlaying && !audio.paused) {
-          console.log('Pausing playback for track:', trackId);
-          audio.pause();
-        }
-        
-        // Handle audio ending before loop point - restart it
-        if (isPlaying && !audio.paused && audio.ended) {
-          console.log('Audio ended, restarting for seamless loop');
-          audio.currentTime = 0;
-          audio.play().catch(error => {
-            console.error('Error restarting audio for loop:', error);
-          });
-        }
-      } catch (error) {
-        console.error('Error syncing playback for track:', trackId, error);
-      }
-    });
-  }, [isPlaying, currentTime, loopLength]);
 
   const getStemColor = (stemType: string): string => {
     const colors: Record<string, string> = {

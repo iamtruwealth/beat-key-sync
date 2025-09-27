@@ -250,7 +250,7 @@ export function useCookModeSession(sessionId?: string) {
     }
   }, [toast]);
 
-  // BPM-synchronized time tracking with dynamic looping based on track length
+  // Simplified timing system that works with native audio looping
   const startTimeRef = useRef<number>(0);
   const pausedTimeRef = useRef<number>(0);
 
@@ -258,52 +258,29 @@ export function useCookModeSession(sessionId?: string) {
     let rafId: number | null = null;
     
     if (isPlaying) {
-      // Start from the paused position
       startTimeRef.current = Date.now() - pausedTimeRef.current * 1000;
-
-      const bpm = session?.target_bpm || 120;
-      const beatsPerSecond = bpm / 60;
-      const subdivision = 16; // Use 16th notes for precise timing
-      const stepSeconds = 1 / (beatsPerSecond * subdivision);
-      
-      // Calculate loop length based on actual track durations
-      // This will be determined by the longest track in the session
-      const maxTrackDuration = Math.max(...tracks.map(t => t.duration || 0), 16 * 60 / bpm);
-      const loopLength = maxTrackDuration; // Use actual track length
 
       const tick = () => {
         const elapsed = (Date.now() - startTimeRef.current) / 1000;
-        const quantized = Math.round(elapsed / stepSeconds) * stepSeconds;
-        
-        // Handle looping - reset to 0 when reaching loop end
-        const loopedTime = quantized % loopLength;
-        
-        // Only update if time actually changed to prevent excessive updates
-        if (Math.abs(loopedTime - currentTime) > stepSeconds / 2) {
-          console.log('Timing update:', { elapsed, quantized, loopedTime, loopLength, maxTrackDuration });
-          setCurrentTime(loopedTime);
-        }
-        
+        setCurrentTime(elapsed);
         rafId = requestAnimationFrame(tick);
       };
 
       rafId = requestAnimationFrame(tick);
     } else {
-      // Persist paused time when stopping
       pausedTimeRef.current = currentTime;
     }
 
     return () => {
       if (rafId) cancelAnimationFrame(rafId);
     };
-  }, [isPlaying, session?.target_bpm, tracks.length]); // Add tracks.length to dependency
+  }, [isPlaying]);
 
   const togglePlayback = useCallback(() => {
     const newIsPlaying = !isPlaying;
     
-    // ALWAYS reset to 0 when starting playback to fix the timing issue
+    // Always reset to 0 when starting to ensure clean looping
     if (newIsPlaying) {
-      console.log('Starting playback - resetting time to 0');
       setCurrentTime(0);
       pausedTimeRef.current = 0;
       startTimeRef.current = Date.now();
@@ -317,11 +294,11 @@ export function useCookModeSession(sessionId?: string) {
         event: 'playback-control',
         payload: {
           isPlaying: newIsPlaying,
-          currentTime: newIsPlaying ? 0 : currentTime
+          currentTime: 0
         }
       });
     }
-  }, [isPlaying, currentTime]);
+  }, [isPlaying]);
 
   const seekTo = useCallback((time: number) => {
     // Quantize seek position to nearest beat for exact loop points
