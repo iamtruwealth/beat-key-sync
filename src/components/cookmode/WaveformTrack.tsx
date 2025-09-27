@@ -64,27 +64,21 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
     if (!containerRef.current || waveSurferRef.current) return;
 
     try {
-      const waveColor = getStemWaveColor(track.stem_type);
-      const progressColor = getStemProgressColor(track.stem_type);
-      
-      console.log(`Creating WaveSurfer for ${track.name} with colors:`, { waveColor, progressColor });
-      
       const waveSurfer = WaveSurfer.create({
         container: containerRef.current,
-        waveColor: waveColor,
-        progressColor: progressColor,
-        cursorColor: '#00ffff',
-        barWidth: 3,
+        waveColor: getStemWaveColor(track.stem_type),
+        progressColor: getStemProgressColor(track.stem_type),
+        cursorColor: 'rgba(255, 255, 255, 0.8)',
+        barWidth: 2,
         barGap: 1,
-        barRadius: 2,
         height: trackHeight - 16,
         normalize: true,
-        interact: false,
+        interact: false, // Disable WaveSurfer controls since Tone.js handles playback
         hideScrollbar: true,
         minPxPerSec: pixelsPerSecond,
         fillParent: false,
         mediaControls: false,
-        autoplay: false,
+        autoplay: false, // Critical: Never autoplay
         backend: 'WebAudio'
       });
 
@@ -94,42 +88,16 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
       waveSurfer.load(track.file_url).then(() => {
         setIsLoaded(true);
         setError(null);
-        console.log(`WaveSurfer loaded for track: ${track.name}, final colors:`, {
-          waveColor: waveSurfer.options.waveColor,
-          progressColor: waveSurfer.options.progressColor
-        });
-        
-        // Force color update after loading
-        waveSurfer.setOptions({
-          waveColor: waveColor,
-          progressColor: progressColor
-        });
-        
+        console.log(`WaveSurfer loaded for track: ${track.name}`);
       }).catch((err) => {
         console.error(`Failed to load waveform for track ${track.name}:`, err);
         setError('Failed to load waveform');
         setIsLoaded(false);
       });
 
-      // Prevent WaveSurfer from playing audio and apply gradient colors
+      // Prevent WaveSurfer from playing audio
       waveSurfer.on('ready', () => {
-        waveSurfer.pause();
-        const canvas = containerRef.current?.querySelector('canvas');
-        const ctx = canvas?.getContext('2d');
-        if (ctx && canvas) {
-          const grad = ctx.createLinearGradient(0, 0, canvas.width, 0);
-          grad.addColorStop(0, waveColor);
-          grad.addColorStop(1, progressColor);
-          // Apply gradient colors to both wave and progress
-          waveSurfer.setOptions({
-            waveColor: grad,
-            progressColor: grad,
-          });
-        } else {
-          // Fallback to solid colors
-          waveSurfer.setOptions({ waveColor, progressColor });
-        }
-        console.log(`WaveSurfer ready for ${track.name}, colors applied`);
+        waveSurfer.pause(); // Ensure it never plays
       });
 
       return () => {
@@ -179,8 +147,8 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
     if (waveSurferRef.current && isLoaded) {
       try {
         waveSurferRef.current.setOptions({
-          waveColor: isMuted ? getStemWaveColor(track.stem_type) + '60' : getStemWaveColor(track.stem_type),
-          progressColor: isMuted ? getStemProgressColor(track.stem_type) + '60' : getStemProgressColor(track.stem_type)
+          waveColor: isMuted ? getStemWaveColorMuted(track.stem_type) : getStemWaveColor(track.stem_type),
+          progressColor: isMuted ? getStemProgressColorMuted(track.stem_type) : getStemProgressColor(track.stem_type)
         });
       } catch (err) {
         console.error('Error updating waveform colors:', err);
@@ -205,114 +173,49 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
 
   return (
     <div
-      className={`relative rounded-lg cursor-pointer overflow-hidden backdrop-blur-sm ${getStemBorderColor(track.stem_type)} ${className}`}
+      className={`relative border-2 rounded cursor-pointer overflow-hidden ${getStemBorderColor(track.stem_type)} ${className}`}
       style={{
         width: clipWidth,
         height: trackHeight - 8,
-        minWidth: 100,
-        background: getStemBackgroundGradient(track.stem_type),
-        border: `2px solid ${getStemBorderColorHex(track.stem_type)}`,
-        boxShadow: `0 0 20px ${getStemGlowColor(track.stem_type)}`
+        minWidth: 100 // Minimum width for visibility
       }}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
     >
       {error ? (
-        <div className="flex items-center justify-center h-full bg-red-500/20 border-red-400 rounded-lg">
-          <span className="text-xs text-red-300">Failed to load</span>
+        <div className="flex items-center justify-center h-full bg-red-500/10 border-red-500">
+          <span className="text-xs text-red-400">Failed to load</span>
         </div>
       ) : (
         <>
-          {/* Animated background effect */}
-          <div 
-            className="absolute inset-0 opacity-30"
-            style={{
-              background: `linear-gradient(45deg, ${getStemWaveColor(track.stem_type)}20, transparent, ${getStemProgressColor(track.stem_type)}20)`,
-              animation: 'pulse 2s ease-in-out infinite'
-            }}
-          />
-          
-          {/* WaveSurfer container with enhanced styling */}
+          {/* WaveSurfer container */}
           <div
             ref={containerRef}
             id={containerId}
-            className="relative w-full h-full z-10"
-            style={{ 
-              opacity,
-              filter: isMuted ? 'grayscale(100%)' : 'none'
-            }}
+            className="w-full h-full"
+            style={{ opacity }}
           />
           
-          {/* Add custom CSS for WaveSurfer colors */}
-          <style>{`
-            #${containerId} wave {
-              fill: ${getStemWaveColor(track.stem_type)} !important;
-            }
-            #${containerId} .wavesurfer-cursor {
-              border-color: #00ffff !important;
-            }
-            #${containerId} canvas {
-              filter: hue-rotate(0deg) saturate(2) brightness(1.2) !important;
-            }
-          `}</style>
-          
-          {/* Loading overlay with neon effect */}
+          {/* Loading overlay */}
           {!isLoaded && !error && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-              <div 
-                className="w-6 h-6 border-2 rounded-full animate-spin"
-                style={{
-                  borderColor: getStemWaveColor(track.stem_type),
-                  borderTopColor: 'transparent',
-                  boxShadow: `0 0 10px ${getStemWaveColor(track.stem_type)}`
-                }}
-              />
+            <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
             </div>
           )}
           
-          {/* Track name overlay with glow */}
-          <div className="absolute top-1 left-2 right-2 z-20">
-            <span 
-              className="text-xs font-bold text-white truncate block drop-shadow-lg"
-              style={{ 
-                textShadow: `0 0 8px ${getStemWaveColor(track.stem_type)}` 
-              }}
-            >
+          {/* Track name overlay */}
+          <div className="absolute top-1 left-2 right-2">
+            <span className="text-xs font-medium text-white truncate block">
               {track.name}
             </span>
           </div>
           
-          {/* Time markers with neon styling */}
-          <div 
-            className="absolute bottom-1 left-2 text-xs font-mono font-bold"
-            style={{ 
-              color: getStemWaveColor(track.stem_type),
-              textShadow: `0 0 4px ${getStemWaveColor(track.stem_type)}`
-            }}
-          >
+          {/* Time markers */}
+          <div className="absolute bottom-1 left-2 text-xs text-white/70">
             {formatTime(clip.startTime)}
           </div>
-          <div 
-            className="absolute bottom-1 right-2 text-xs font-mono font-bold"
-            style={{ 
-              color: getStemWaveColor(track.stem_type),
-              textShadow: `0 0 4px ${getStemWaveColor(track.stem_type)}`
-            }}
-          >
+          <div className="absolute bottom-1 right-2 text-xs text-white/70">
             {formatTime(clip.endTime)}
-          </div>
-          
-          {/* Stem type indicator */}
-          <div 
-            className="absolute top-1 right-2 px-2 py-0.5 rounded text-xs font-bold uppercase"
-            style={{
-              background: `${getStemWaveColor(track.stem_type)}40`,
-              color: getStemWaveColor(track.stem_type),
-              border: `1px solid ${getStemWaveColor(track.stem_type)}80`,
-              textShadow: `0 0 4px ${getStemWaveColor(track.stem_type)}`
-            }}
-          >
-            {track.stem_type}
           </div>
         </>
       )}
@@ -320,90 +223,49 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
   );
 };
 
-// Enhanced helper functions for vibrant neon colors
+// Helper functions for stem colors
 const getStemWaveColor = (stemType: string): string => {
   const colors = {
-    drums: '#ff0080',      // Neon magenta
-    bass: '#00ffff',       // Neon cyan  
-    melody: '#00ff80',     // Neon green
-    vocals: '#8000ff',     // Neon purple
-    fx: '#ff8000',         // Neon orange
-    other: '#ffffff'       // Bright white
+    drums: '#ef4444',     // red
+    bass: '#3b82f6',      // blue  
+    melody: '#10b981',    // green
+    vocals: '#8b5cf6',    // purple
+    other: '#6b7280'      // gray
   };
   return colors[stemType as keyof typeof colors] || colors.other;
 };
 
 const getStemProgressColor = (stemType: string): string => {
   const colors = {
-    drums: '#ff00ff',      // Bright magenta
-    bass: '#0080ff',       // Electric blue
-    melody: '#80ff00',     // Electric green
-    vocals: '#ff00ff',     // Electric magenta
-    fx: '#ffff00',         // Electric yellow
-    other: '#cccccc'       // Light gray
+    drums: '#dc2626',     // darker red
+    bass: '#2563eb',      // darker blue
+    melody: '#059669',    // darker green
+    vocals: '#7c3aed',    // darker purple
+    other: '#4b5563'      // darker gray
   };
   return colors[stemType as keyof typeof colors] || colors.other;
 };
 
-const getStemBackgroundGradient = (stemType: string): string => {
-  const gradients = {
-    drums: 'linear-gradient(135deg, rgba(255,0,128,0.2) 0%, rgba(255,0,255,0.1) 50%, rgba(0,0,0,0.8) 100%)',
-    bass: 'linear-gradient(135deg, rgba(0,255,255,0.2) 0%, rgba(0,128,255,0.1) 50%, rgba(0,0,0,0.8) 100%)',
-    melody: 'linear-gradient(135deg, rgba(0,255,128,0.2) 0%, rgba(128,255,0,0.1) 50%, rgba(0,0,0,0.8) 100%)',
-    vocals: 'linear-gradient(135deg, rgba(128,0,255,0.2) 0%, rgba(255,0,255,0.1) 50%, rgba(0,0,0,0.8) 100%)',
-    fx: 'linear-gradient(135deg, rgba(255,128,0,0.2) 0%, rgba(255,255,0,0.1) 50%, rgba(0,0,0,0.8) 100%)',
-    other: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(128,128,128,0.1) 50%, rgba(0,0,0,0.8) 100%)'
-  };
-  return gradients[stemType as keyof typeof gradients] || gradients.other;
+const getStemWaveColorMuted = (stemType: string): string => {
+  const baseColor = getStemWaveColor(stemType);
+  // Make it more transparent when muted
+  return baseColor + '40'; // Add alpha
 };
 
-const getStemGlowColor = (stemType: string): string => {
-  const colors = {
-    drums: 'rgba(255,0,128,0.4)',
-    bass: 'rgba(0,255,255,0.4)',
-    melody: 'rgba(0,255,128,0.4)',
-    vocals: 'rgba(128,0,255,0.4)',
-    fx: 'rgba(255,128,0,0.4)',
-    other: 'rgba(255,255,255,0.2)'
-  };
-  return colors[stemType as keyof typeof colors] || colors.other;
-};
-
-const getStemBorderColorHex = (stemType: string): string => {
-  const colors = {
-    drums: '#ff0080',
-    bass: '#00ffff',
-    melody: '#00ff80',
-    vocals: '#8000ff',
-    fx: '#ff8000',
-    other: '#ffffff'
-  };
-  return colors[stemType as keyof typeof colors] || colors.other;
+const getStemProgressColorMuted = (stemType: string): string => {
+  const baseColor = getStemProgressColor(stemType);
+  return baseColor + '40'; // Add alpha
 };
 
 const getStemBorderColor = (stemType: string): string => {
   const colors = {
-    drums: 'border-pink-500',
-    bass: 'border-cyan-400',
-    melody: 'border-green-400', 
+    drums: 'border-red-500',
+    bass: 'border-blue-500',
+    melody: 'border-green-500', 
     vocals: 'border-purple-500',
-    fx: 'border-orange-400',
-    other: 'border-gray-400'
+    other: 'border-gray-500'
   };
   return colors[stemType as keyof typeof colors] || colors.other;
-};
-
-// Get hue rotation for CSS filter
-const getHueRotationForStem = (stemType: string): number => {
-  const rotations = {
-    drums: 300,    // Pink/Magenta
-    bass: 180,     // Cyan
-    melody: 120,   // Green
-    vocals: 270,   // Purple
-    fx: 30,        // Orange
-    other: 0       // White/Gray
-  };
-  return rotations[stemType as keyof typeof rotations] || rotations.other;
 };
 
 const formatTime = (seconds: number): string => {

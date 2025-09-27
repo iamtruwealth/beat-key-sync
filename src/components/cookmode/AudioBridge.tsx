@@ -38,7 +38,7 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
   const isInitialized = useRef<boolean>(false);
   const lastTickRef = useRef<number>(0);
 
-  // Convert tracks to clips - keep synchronous for now to fix audio
+  // Convert tracks to clips
   const createClipsFromTracks = useCallback((tracks: Track[], currentBPM: number): Clip[] => {
     const secondsPerBeat = 60 / currentBPM;
     const secondsPerBar = secondsPerBeat * 4;
@@ -54,14 +54,13 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
         const estimatedBars = Math.max(1, Math.round(knownDuration / secondsPerBar));
         durationInBeats = estimatedBars * 4;
       } else {
-        // Use a longer default to ensure we don't cut off tracks
-        durationInBeats = 32; // Default 8 bars instead of 4
+        durationInBeats = 16; // Default 4 bars
       }
 
       return {
         id: track.id,
         url: track.file_url,
-        offsetInBeats: 0,
+        offsetInBeats: 0, // All tracks start at the beginning for now
         durationInBeats,
         gain: track.volume || 1,
         muted: track.isMuted || false
