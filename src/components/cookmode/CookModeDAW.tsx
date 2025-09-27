@@ -43,6 +43,7 @@ interface CookModeDAWProps {
   isPlaying: boolean;
   currentTime: number;
   bpm: number;
+  sessionBpm?: number; // Add session BPM
   onAddTrack: (file: File, trackName: string, stemType: string) => Promise<void>;
   onRemoveTrack: (trackId: string) => Promise<void>;
   onUpdateTrack: (trackId: string, updates: Partial<Track>) => void;
@@ -57,6 +58,7 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
   isPlaying,
   currentTime,
   bpm,
+  sessionBpm, // Add sessionBpm parameter
   onAddTrack,
   onRemoveTrack,
   onUpdateTrack,
@@ -333,6 +335,7 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
                 isPlaying={isPlaying}
                 currentTime={currentTime}
                 bpm={bpm}
+                sessionBpm={sessionBpm} // Pass session BPM
                 onPlayPause={onPlayPause}
                 onSeek={onSeek}
               />

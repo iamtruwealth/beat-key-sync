@@ -377,6 +377,7 @@ const CookMode = () => {
               isPlaying={isPlaying}
               currentTime={currentTime}
               bpm={session.target_bpm || 120}
+              sessionBpm={session.target_bpm} // Pass actual session BPM
               onAddTrack={addTrack}
               onRemoveTrack={removeTrack}
               onUpdateTrack={updateTrack}

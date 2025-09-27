@@ -35,6 +35,7 @@ interface TimelineViewProps {
   isPlaying: boolean;
   currentTime: number;
   bpm: number;
+  sessionBpm?: number; // Add session BPM prop
   onPlayPause: () => void;
   onSeek: (time: number) => void;
   onTracksUpdate?: (tracks: Track[]) => void;
@@ -45,6 +46,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   isPlaying,
   currentTime,
   bpm,
+  sessionBpm, // Add sessionBpm parameter
   onPlayPause,
   onSeek,
   onTracksUpdate
@@ -1097,12 +1099,30 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                 className="absolute top-0 bottom-0 w-0.5 bg-neon-cyan shadow-neon-cyan shadow-[0_0_10px] z-10"
                 style={{ 
                   left: (() => {
+                    // Debug BPM timing
+                    console.log('BPM Debug:', { bpm, currentTime, sessionBpm });
+                    
+                    // Use session BPM, fallback to prop BPM
+                    const effectiveBpm = sessionBpm || bpm;
+                    console.log('Effective BPM:', effectiveBpm);
+                    
                     // Calculate BPM-synchronized position
-                    const beatsPerSecond = bpm / 60;
+                    const beatsPerSecond = effectiveBpm / 60;
                     const currentBeat = currentTime * beatsPerSecond;
                     const quantizedBeat = Math.round(currentBeat * 32) / 32; // 32nd note precision
                     const quantizedTime = quantizedBeat / beatsPerSecond;
-                    return quantizedTime * pixelsPerSecond;
+                    const position = quantizedTime * pixelsPerSecond;
+                    
+                    console.log('Playhead calc:', { 
+                      beatsPerSecond, 
+                      currentBeat, 
+                      quantizedBeat, 
+                      quantizedTime, 
+                      position,
+                      pixelsPerSecond 
+                    });
+                    
+                    return position;
                   })()
                 }}
               >
@@ -1110,7 +1130,8 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                 {/* Beat indicator */}
                 <div className="absolute -top-8 -left-8 text-xs text-neon-cyan font-mono">
                   {(() => {
-                    const beatsPerSecond = bpm / 60;
+                    const effectiveBpm = sessionBpm || bpm;
+                    const beatsPerSecond = effectiveBpm / 60;
                     const currentBeat = currentTime * beatsPerSecond;
                     const bar = Math.floor(currentBeat / 4) + 1;
                     const beat = Math.floor(currentBeat % 4) + 1;
