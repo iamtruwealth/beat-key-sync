@@ -7,11 +7,18 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { DollarSign, TrendingUp, Download, Calendar } from 'lucide-react';
 
-type BeatSale = Tables<'beat_sales'> & {
+type BeatSale = {
+  sale_id: string;
+  beat_id: string;
+  amount_received: number;
+  platform_fee: number;
+  created_at: string;
+  buyer_initial: string;
   beats?: {
+    id: string;
     title: string;
     description: string | null;
-  };
+  } | null;
 };
 
 export function BeatSalesTracker() {
@@ -30,18 +37,29 @@ export function BeatSalesTracker() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data: salesData, error } = await supabase
-        .from('beat_sales')
-        .select(`
-          *,
-          beats!inner(title, description)
-        `)
-        .eq('producer_id', user.id)
-        .order('created_at', { ascending: false });
+      // Use the secure function that masks buyer emails
+      const { data: salesData, error } = await supabase.rpc('get_producer_sales_summary', {
+        producer_uuid: user.id
+      });
 
       if (error) throw error;
 
-      setSales(salesData || []);
+      // Fetch beat details separately since we can't join in the secure function
+      const beatIds = salesData?.map(sale => sale.beat_id) || [];
+      const { data: beatsData, error: beatsError } = await supabase
+        .from('beats')
+        .select('id, title, description')
+        .in('id', beatIds);
+
+      if (beatsError) throw beatsError;
+
+      // Combine sales data with beat details
+      const salesWithBeats = salesData?.map(sale => ({
+        ...sale,
+        beats: beatsData?.find(beat => beat.id === sale.beat_id) || null
+      })) || [];
+
+      setSales(salesWithBeats);
       
       // Calculate total earnings
       const total = salesData?.reduce((sum, sale) => sum + sale.amount_received, 0) || 0;
@@ -169,13 +187,13 @@ export function BeatSalesTracker() {
             <div className="space-y-4">
               {sales.map((sale) => (
                 <div 
-                  key={sale.id} 
+                  key={sale.sale_id} 
                   className="flex items-center justify-between p-4 border rounded-lg bg-card"
                 >
                   <div className="flex-1">
                     <h4 className="font-medium">{sale.beats?.title || 'Unknown Beat'}</h4>
                     <p className="text-sm text-muted-foreground">
-                      Sold to: {sale.buyer_email}
+                      Sold to: {sale.buyer_initial}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {formatDate(sale.created_at)}

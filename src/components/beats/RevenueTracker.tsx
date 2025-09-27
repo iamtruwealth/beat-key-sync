@@ -44,27 +44,34 @@ export function RevenueTracker() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Fetch recent sales
-      const { data: salesData, error: salesError } = await supabase
-        .from('beat_sales')
-        .select(`
-          id,
-          amount_received,
-          platform_fee,
-          buyer_email,
-          created_at,
-          beats(title)
-        `)
-        .eq('producer_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(10);
+      // Fetch recent sales using secure function
+      const { data: salesData, error: salesError } = await supabase.rpc('get_producer_sales_summary', {
+        producer_uuid: user.id
+      });
 
       if (salesError) throw salesError;
 
-      setSales((salesData || []).map(sale => ({
-        ...sale,
-        beats: Array.isArray(sale.beats) && sale.beats.length > 0 ? sale.beats[0] : null
-      })));
+      // Fetch beat details separately since we can't join in the secure function
+      const beatIds = salesData?.map(sale => sale.beat_id) || [];
+      const { data: beatsData, error: beatsError } = await supabase
+        .from('beats')
+        .select('id, title')
+        .in('id', beatIds)
+        .limit(10);
+
+      if (beatsError) throw beatsError;
+
+      // Combine sales data with beat details
+      const salesWithBeats = salesData?.slice(0, 10).map(sale => ({
+        id: sale.sale_id,
+        amount_received: sale.amount_received,
+        platform_fee: sale.platform_fee,
+        buyer_email: sale.buyer_initial, // This is now masked
+        created_at: sale.created_at,
+        beats: beatsData?.find(beat => beat.id === sale.beat_id) || null
+      })) || [];
+
+      setSales(salesWithBeats);
 
       // Fetch profile stats
       const { data: profile, error: profileError } = await supabase
@@ -75,20 +82,14 @@ export function RevenueTracker() {
 
       if (profileError) throw profileError;
 
-      // Calculate this month's earnings
+      // Calculate this month's earnings from the secure sales data
       const thisMonth = new Date();
       thisMonth.setDate(1);
       thisMonth.setHours(0, 0, 0, 0);
 
-      const { data: monthlyData, error: monthlyError } = await supabase
-        .from('beat_sales')
-        .select('amount_received, platform_fee')
-        .eq('producer_id', user.id)
-        .gte('created_at', thisMonth.toISOString());
-
-      if (monthlyError) throw monthlyError;
-
-      const thisMonthEarnings = monthlyData?.reduce((sum, sale) => 
+      const thisMonthEarnings = salesData?.filter(sale => 
+        new Date(sale.created_at) >= thisMonth
+      ).reduce((sum, sale) => 
         sum + (sale.amount_received - sale.platform_fee), 0) || 0;
 
       setStats({
