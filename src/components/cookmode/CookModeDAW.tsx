@@ -401,6 +401,13 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
                 sessionBpm={sessionBpm}
                 onPlayPause={onPlayPause}
                 onSeek={onSeek}
+                onTracksUpdate={(updated) => {
+                  updated.forEach(u => {
+                    if (typeof u.duration === 'number' && u.duration > 0) {
+                      onUpdateTrack(u.id, { duration: u.duration });
+                    }
+                  });
+                }}
                 onToolAction={(action, data) => {
                   console.log('Tool action:', action, data);
                 }}

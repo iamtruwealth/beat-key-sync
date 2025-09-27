@@ -171,7 +171,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         audio.volume = 0.8;
         audio.crossOrigin = "anonymous";
         audio.preload = 'auto';
-        audio.loop = true; // Back to native looping
+        audio.loop = false; // Manual loop via session timer
 
         // Debug event listeners
         const onPlay = () => tlog('audio:play', track.id, { ct: audio.currentTime.toFixed(3) });
@@ -336,15 +336,25 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   }, []);
 
   // Update track volume/mute without recreating audio elements
-  useEffect(() => {
-    tracks.forEach(track => {
-      const audio = audioElementsRef.current.get(track.id);
-      if (audio) {
-        audio.volume = track.volume || 0.8;
-        audio.muted = track.isMuted || false;
-      }
-    });
-  }, [tracks.map(t => `${t.id}-${t.volume}-${t.isMuted}`).join(',')]);
+   useEffect(() => {
+     tracks.forEach(track => {
+       const audio = audioElementsRef.current.get(track.id);
+       if (audio) {
+         audio.volume = track.volume || 0.8;
+         audio.muted = track.isMuted || false;
+       }
+     });
+   }, [tracks.map(t => `${t.id}-${t.volume}-${t.isMuted}`).join(',')]);
+
+   // Propagate detected durations to parent so global timer can loop correctly
+   useEffect(() => {
+     if (!onTracksUpdate) return;
+     const updated = tracks.map(t => ({
+       ...t,
+       duration: trackDurations.get(t.id) || t.duration || 0,
+     }));
+     onTracksUpdate(updated);
+   }, [onTracksUpdate, tracks, trackDurations]);
 
   const getStemColor = (stemType: string): string => {
     const colors: Record<string, string> = {
