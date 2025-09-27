@@ -600,64 +600,32 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     if (audioToStart.length > 0) {
       console.log('Starting simultaneous playback for tracks:', audioToStart.map(a => a.trackId));
       
-      // Use AudioContext for sample-accurate timing if metronome is enabled
-      if (audioContextRef.current && metronomeEnabled) {
-        const ac = audioContextRef.current;
-        const scheduleTime = ac.currentTime + 0.01; // Schedule 10ms ahead for stability
-        
-        // Set currentTime first, then schedule precise start
-        audioToStart.forEach(({ audio, clipTime }) => {
-          audio.currentTime = clipTime;
-        });
-        
-        // Use a single scheduled start for all audio elements
-        setTimeout(() => {
-          const playPromises = audioToStart.map(({ audio, trackId, clipTime }) => {
-            return audio.play()
-              .then(() => {
-                console.log('Audio started (sample-accurate) for:', trackId, 'at time:', clipTime);
-              })
-              .catch(error => {
-                console.error('Autoplay prevented for track:', trackId, error);
-                if (error.name === 'NotAllowedError') {
-                  toast({
-                    title: "User Interaction Required", 
-                    description: "Click anywhere to enable audio playback",
-                  });
-                }
+      // Set all currentTime values first (faster than individual play() calls)
+      audioToStart.forEach(({ audio, clipTime }) => {
+        audio.currentTime = clipTime;
+      });
+      
+      // Start all audio elements simultaneously using Promise.all for perfect sync
+      const playPromises = audioToStart.map(({ audio, trackId, clipTime }) => {
+        return audio.play()
+          .then(() => {
+            console.log('Audio started successfully for:', trackId, 'at time:', clipTime);
+          })
+          .catch(error => {
+            console.error('Autoplay prevented for track:', trackId, error);
+            if (error.name === 'NotAllowedError') {
+              toast({
+                title: "User Interaction Required", 
+                description: "Click anywhere to enable audio playback",
               });
+            }
           });
-          
-          Promise.allSettled(playPromises).then(() => {
-            console.log('All audio tracks started with sample-accurate timing');
-          });
-        }, 10); // Match the 10ms schedule ahead
-      } else {
-        // Fallback to regular sync when metronome is disabled
-        audioToStart.forEach(({ audio, clipTime }) => {
-          audio.currentTime = clipTime;
-        });
-        
-        const playPromises = audioToStart.map(({ audio, trackId, clipTime }) => {
-          return audio.play()
-            .then(() => {
-              console.log('Audio started successfully for:', trackId, 'at time:', clipTime);
-            })
-            .catch(error => {
-              console.error('Autoplay prevented for track:', trackId, error);
-              if (error.name === 'NotAllowedError') {
-                toast({
-                  title: "User Interaction Required", 
-                  description: "Click anywhere to enable audio playback",
-                });
-              }
-            });
-        });
-        
-        Promise.all(playPromises).then(() => {
-          console.log('All audio tracks started simultaneously');
-        });
-      }
+      });
+      
+      // Wait for all to start (but don't block the effect)
+      Promise.all(playPromises).then(() => {
+        console.log('All audio tracks started simultaneously');
+      });
     }
   }, [isPlaying, currentTime, audioClips, bpm, secondsPerBeat, toast]);
 
