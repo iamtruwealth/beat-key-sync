@@ -71,12 +71,12 @@ class ToneAudioEngine {
       player.volume.value = Tone.gainToDb(volume);
       player.mute = isMuted;
 
-      // Sync to Transport and schedule start/stop within clip boundaries
+      // Sync to Transport and schedule start with explicit clip duration
       player.sync();
       const startTime = this.beatsToBBS(offsetInBeats);
-      const stopTime = this.beatsToBBS(offsetInBeats + durationInBeats);
-      player.start(startTime);
-      player.stop(stopTime);
+      const clipDuration = this.beatsToBBS(durationInBeats);
+      // Start at startTime, play exactly clipDuration each loop pass
+      player.start(startTime, 0, clipDuration);
 
       const track: AudioTrack = {
         id: trackId,
