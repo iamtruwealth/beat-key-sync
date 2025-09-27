@@ -651,12 +651,12 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     });
 
     return (
-      <div className="relative" style={{ height: trackHeight }}>
+      <div className="relative overflow-hidden" style={{ height: trackHeight }}>
         {/* Track background with proper bounds */}
         <div 
           className="absolute inset-0 border-b border-border/10" 
           style={{ 
-            top: trackY,
+            top: 0,
             height: trackHeight,
             left: 0,
             right: 0 
@@ -713,13 +713,12 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                   : 'from-primary/20 to-primary/40 border-primary/30 hover:border-primary/50'
               }`}
               style={{
-                top: trackY + 8,
+                top: 8, // position within this track lane only
                 left: clipLeft,
                 width: clipWidth,
-                height: Math.min(trackHeight - 16, 52), // Constrain height to prevent overflow
+                height: trackHeight - 16,
                 zIndex: 10,
                 minWidth: '20px',
-                maxHeight: '52px', // Explicit max height constraint
               }}
               title={`${clip.originalTrack.name} - Click to select, Double-click to duplicate`}
               onClick={(e) => {
