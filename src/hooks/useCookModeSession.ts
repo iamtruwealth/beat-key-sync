@@ -468,23 +468,82 @@ export function useCookModeSession(sessionId?: string) {
     }
   }, [session, toast]);
 
-  const saveSession = useCallback(async () => {
+  const saveSession = useCallback(async (publishImmediately = false) => {
     try {
       if (!session) throw new Error('No active session');
 
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      // Update session status based on action
+      const newStatus = publishImmediately ? 'completed' : 'saved';
+      
       const { error } = await supabase
         .from('collaboration_projects')
         .update({ 
-          status: 'completed',
+          status: newStatus,
           updated_at: new Date().toISOString()
         })
         .eq('id', session.id);
 
       if (error) throw error;
 
+      // Create a collaboration session record for tracking
+      const { error: sessionError } = await supabase
+        .from('collaboration_sessions')
+        .upsert({
+          collaboration_id: session.id,
+          started_by: user.id,
+          session_type: 'cook_mode',
+          participants: participants.map(p => p.user_id),
+          ...(publishImmediately && { ended_at: new Date().toISOString() })
+        }, {
+          onConflict: 'collaboration_id,started_by'
+        });
+
+      if (sessionError) {
+        console.warn('Session tracking error:', sessionError);
+        // Don't block the main save operation
+      }
+
+      // Notify other participants about the session save
+      if (channelRef.current) {
+        channelRef.current.send({
+          type: 'broadcast',
+          event: 'session-saved',
+          payload: { 
+            sessionId: session.id,
+            published: publishImmediately,
+            savedBy: user.id
+          }
+        });
+      }
+
+      // Call edge function to send notifications to collaborators
+      try {
+        const { error: notifyError } = await supabase.functions.invoke('notify-session-save', {
+          body: {
+            sessionId: session.id,
+            published: publishImmediately,
+            savedBy: user.id
+          }
+        });
+
+        if (notifyError) {
+          console.warn('Notification error:', notifyError);
+          // Don't block the save operation
+        }
+      } catch (notifyErr) {
+        console.warn('Failed to send notifications:', notifyErr);
+      }
+
+      // Update local session state
+      setSession(prev => prev ? { ...prev, status: newStatus } : null);
+
+      const action = publishImmediately ? 'published' : 'saved';
       toast({
-        title: "Session Saved",
-        description: "Your Cook Mode session has been saved successfully",
+        title: `Session ${action.charAt(0).toUpperCase() + action.slice(1)}`,
+        description: `Your Cook Mode session has been ${action} successfully`,
       });
     } catch (error) {
       console.error('Error saving session:', error);
@@ -495,7 +554,7 @@ export function useCookModeSession(sessionId?: string) {
       });
       throw error;
     }
-  }, [session, toast]);
+  }, [session, participants, toast]);
 
   return {
     session,

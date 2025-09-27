@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,17 +18,26 @@ import { SessionControls } from '@/components/cookmode/SessionControls';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Play, 
+  Pause, 
   Square, 
+  SkipBack, 
+  SkipForward,
+  Volume2,
+  Clock,
+  Activity,
+  Settings,
+  RotateCcw,
+  Timer,
+  Undo,
   Users, 
   Music, 
   Zap, 
-  Settings,
   Share2,
   Save,
   Download,
-  Clock,
   Layers,
-  LayoutDashboard
+  LayoutDashboard,
+  ChevronDown
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -114,14 +124,18 @@ const CookMode = () => {
     }
   };
 
-  const handleSaveAndPublish = async () => {
+  const handleSaveSession = async (publishImmediately = false) => {
     if (!session) return;
     
     try {
-      await saveSession();
-      toast.success('Session saved! Converting to Beat Pack...');
-      // Navigate to split sheet creation
-      navigate(`/collaborate/projects/${session.id}/finalize`);
+      await saveSession(publishImmediately);
+      if (publishImmediately) {
+        toast.success('Session saved and published! Converting to Beat Pack...');
+        // Navigate to split sheet creation
+        navigate(`/collaborate/projects/${session.id}/finalize`);
+      } else {
+        toast.success('Session saved successfully! You can continue working or publish later.');
+      }
     } catch (error) {
       console.error('Error saving session:', error);
       toast.error('Failed to save session');
@@ -340,15 +354,38 @@ const CookMode = () => {
               Share Link
             </Button>
             
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleSaveAndPublish}
-              className="border-border/50 hover:border-electric-blue/50"
-            >
-              <Save className="w-4 h-4 mr-2" />
-              Save & Publish
-            </Button>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-border/50 hover:border-electric-blue/50 flex items-center gap-2"
+                >
+                  <Save className="w-4 h-4" />
+                  Save Session
+                  <ChevronDown className="w-3 h-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem 
+                  onClick={() => handleSaveSession(false)}
+                  className="flex items-center gap-2"
+                >
+                  <Save className="w-4 h-4" />
+                  Save Only
+                  <span className="text-xs text-muted-foreground ml-auto">Keep working</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => handleSaveSession(true)}
+                  className="flex items-center gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                  Save & Publish
+                  <span className="text-xs text-muted-foreground ml-auto">Finalize project</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>

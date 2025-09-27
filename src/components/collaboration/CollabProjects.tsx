@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -36,6 +37,7 @@ interface CollabProject {
 }
 
 export const CollabProjects: React.FC = () => {
+  const navigate = useNavigate();
   const [projects, setProjects] = useState<CollabProject[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -54,23 +56,49 @@ export const CollabProjects: React.FC = () => {
 
   const loadProjects = async () => {
     try {
-      const { data: projectsData, error } = await supabase
+      setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Get both owned projects and projects where user is a member
+      const { data: ownedProjects, error: ownedError } = await supabase
         .from('collaboration_projects')
         .select(`
           *,
-          members:collaboration_members(
-            id,
-            user_id,
-            role,
-            royalty_percentage,
-            status,
-            profiles(producer_name, producer_logo_url)
-          )
+          collaboration_members!inner(*)
         `)
-        .order('created_at', { ascending: false });
+        .eq('created_by', user.id)
+        .order('updated_at', { ascending: false });
 
-      if (error) throw error;
-      setProjects(projectsData || []);
+      if (ownedError) {
+        console.error('Error loading owned projects:', ownedError);
+      }
+
+      const { data: memberProjects, error: memberError } = await supabase
+        .from('collaboration_projects')
+        .select(`
+          *,
+          collaboration_members!inner(*)
+        `)
+        .eq('collaboration_members.user_id', user.id)
+        .neq('created_by', user.id)
+        .order('updated_at', { ascending: false });
+
+      if (memberError) {
+        console.error('Error loading member projects:', memberError);
+      }
+
+      // Combine and deduplicate projects
+      const allProjects = [
+        ...(ownedProjects || []),
+        ...(memberProjects || [])
+      ];
+
+      const uniqueProjects = allProjects.filter((project, index, self) => 
+        index === self.findIndex(p => p.id === project.id)
+      );
+
+      setProjects(uniqueProjects);
     } catch (error) {
       console.error('Error loading projects:', error);
       toast({
@@ -141,11 +169,24 @@ export const CollabProjects: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'draft': return 'bg-yellow-500/20 text-yellow-400';
-      case 'active': return 'bg-green-500/20 text-green-400';
-      case 'completed': return 'bg-blue-500/20 text-blue-400';
-      default: return 'bg-gray-500/20 text-gray-400';
+      case 'draft': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+      case 'active': return 'bg-green-500/20 text-green-400 border-green-500/30';
+      case 'saved': return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+      case 'completed': return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
+      default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
     }
+  };
+
+  const getStatusLabel = (status: string, workspaceType: string) => {
+    if (workspaceType === 'live_session') {
+      switch (status) {
+        case 'active': return 'Live Session';
+        case 'saved': return 'Saved Session';
+        case 'completed': return 'Published';
+        default: return status;
+      }
+    }
+    return status;
   };
 
   if (loading) {
@@ -257,10 +298,16 @@ export const CollabProjects: React.FC = () => {
                       <p className="text-sm text-muted-foreground">as {project.joint_artist_name}</p>
                     )}
                   </div>
-                  <Badge className={getStatusColor(project.status)}>
-                    {project.status}
+                  <Badge className={`border ${getStatusColor(project.status)}`}>
+                    {getStatusLabel(project.status, project.workspace_type)}
                   </Badge>
                 </div>
+                
+                {project.workspace_type === 'live_session' && (
+                  <div className="text-xs text-muted-foreground mb-2">
+                    Cook Mode Session
+                  </div>
+                )}
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-sm text-muted-foreground line-clamp-2">
@@ -311,22 +358,29 @@ export const CollabProjects: React.FC = () => {
 
                 {/* Action Buttons */}
                 <div className="flex gap-2 pt-2">
+                  {project.workspace_type === 'live_session' && (
+                    <Button
+                      size="sm"
+                      variant={project.status === 'active' ? 'default' : 'outline'}
+                      className={project.status === 'active' 
+                        ? 'bg-gradient-to-r from-neon-cyan to-electric-blue text-black hover:opacity-90' 
+                        : 'border-neon-cyan/50 text-neon-cyan hover:bg-neon-cyan/10'}
+                      onClick={() => navigate(`/cook-mode/${project.id}`)}
+                    >
+                      <Music className="w-3 h-3 mr-1" />
+                      {project.status === 'active' ? 'Join Session' : 
+                       project.status === 'saved' ? 'Resume Session' : 'View Session'}
+                    </Button>
+                  )}
                   <Button
                     size="sm"
-                    className="flex-1 bg-neon-cyan/10 hover:bg-neon-cyan/20 text-neon-cyan border border-neon-cyan/30"
+                    variant="outline"
+                    className="border-border/50 hover:bg-border/10"
+                    onClick={() => navigate(`/collaborate/projects/${project.id}`)}
                   >
                     <Settings className="w-3 h-3 mr-1" />
                     Manage
                   </Button>
-                  {project.status === 'active' && (
-                    <Button
-                      size="sm"
-                      className="bg-electric-blue/10 hover:bg-electric-blue/20 text-electric-blue border border-electric-blue/30"
-                    >
-                      <Zap className="w-3 h-3 mr-1" />
-                      Cook
-                    </Button>
-                  )}
                 </div>
               </CardContent>
             </Card>
