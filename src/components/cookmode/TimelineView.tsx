@@ -68,12 +68,18 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   
   // Calculate session length based on the LAST ending clip (not longest)
   const lastClipEndTime = Math.max(
-    ...audioClips.map(clip => clip.endTime),
+    ...(audioClips.length > 0 ? audioClips.map(c => c.endTime) : []),
     ...tracks.map(track => {
-      const clipBars = track.bars || 8;
+      // Prefer actual audio duration to infer bars when not explicitly provided
+      const knownDuration = trackDurations.get(track.id) || track.analyzed_duration || track.duration;
+      if (knownDuration && knownDuration > 0) {
+        const estimatedBars = Math.max(1, Math.round(knownDuration / secondsPerBar));
+        return estimatedBars * secondsPerBar;
+      }
+      const clipBars = track.bars || 4; // sensible default for loops
       return clipBars * secondsPerBar; // Default clip if no clips exist yet
     }),
-    8 * secondsPerBar // Minimum 8 bars
+    4 * secondsPerBar // Minimum 4 bars
   );
   
   const sessionDuration = lastClipEndTime; // Session ends when the last clip ends
@@ -95,18 +101,26 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     // Always recreate clips when tracks change to ensure all tracks get clips
     if (tracks.length > 0) {
       const initialClips: AudioClip[] = tracks.map(track => {
-        // Calculate clip duration based on bars if available, otherwise use track duration
-        const clipBars = track.bars || 8; // Default to 8 bars if not specified
-        const clipDuration = clipBars * secondsPerBar;
+        // Prefer computed bars from actual duration if bars not provided
+        const knownDuration = trackDurations.get(track.id) || track.analyzed_duration || track.duration;
+        let resolvedBars: number = track.bars ?? 0;
+        if (!resolvedBars) {
+          if (knownDuration && knownDuration > 0) {
+            resolvedBars = Math.max(1, Math.round(knownDuration / secondsPerBar));
+          } else {
+            resolvedBars = 4; // sensible default for typical loops
+          }
+        }
+        const clipDuration = resolvedBars * secondsPerBar;
         
-        const clip = {
+        const clip: AudioClip = {
           id: `${track.id}-clip-0`,
           trackId: track.id,
           startTime: 0,
           endTime: clipDuration, // Use bars-based duration for clip length
           originalTrack: track
         };
-        console.log('Creating clip for track:', track.name, 'Bars:', clipBars, 'Duration:', clipDuration, 'Clip:', clip);
+        console.log('Creating clip for track:', track.name, 'Bars:', resolvedBars, 'Duration:', clipDuration, 'Known duration:', knownDuration, 'Clip:', clip);
         return clip;
       });
       
@@ -670,8 +684,8 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
 
           // Generate waveform bars for visualization - show waveform within clip's bar duration
           let waveformBars: number[] = [];
-          const clipBars = clip.originalTrack.bars || 8;
-          const clipDuration = clipBars * secondsPerBar;
+          const clipDuration = clip.endTime - clip.startTime;
+          const clipBars = Math.max(1, Math.round(clipDuration / secondsPerBar));
           
           if (waveformData?.peaks) {
             // The waveform should fill the entire clip (which is based on bars)
