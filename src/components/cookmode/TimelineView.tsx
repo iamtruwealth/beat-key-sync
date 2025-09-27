@@ -61,6 +61,10 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const [audioClips, setAudioClips] = useState<AudioClip[]>([]);
   const [selectedClips, setSelectedClips] = useState<Set<string>>(new Set());
   const [copiedClip, setCopiedClip] = useState<AudioClip | null>(null);
+  const [draggedClip, setDraggedClip] = useState<AudioClip | null>(null);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [isResizing, setIsResizing] = useState<{ clipId: string; side: 'left' | 'right' } | null>(null);
+  const [splitPosition, setSplitPosition] = useState<number | null>(null);
   const { toast } = useToast();
 
   // Calculate timing constants
@@ -203,6 +207,85 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     });
   }, [toast]);
 
+  // Split clip function
+  const splitClip = useCallback((clipId: string, splitTime: number) => {
+    const clip = audioClips.find(c => c.id === clipId);
+    if (!clip || splitTime <= clip.startTime || splitTime >= clip.endTime) return;
+
+    const leftClip: AudioClip = {
+      ...clip,
+      id: `${clip.originalTrack.id}-clip-${Date.now()}-left`,
+      endTime: splitTime
+    };
+
+    const rightClip: AudioClip = {
+      ...clip,
+      id: `${clip.originalTrack.id}-clip-${Date.now()}-right`,
+      startTime: splitTime
+    };
+
+    setAudioClips(prev => prev.filter(c => c.id !== clipId).concat([leftClip, rightClip]));
+    toast({
+      title: "Clip Split",
+      description: `${clip.originalTrack.name} split into two segments`,
+    });
+  }, [audioClips, toast]);
+
+  // Move clip function
+  const moveClip = useCallback((clipId: string, newStartTime: number, newTrackId?: string) => {
+    const clip = audioClips.find(c => c.id === clipId);
+    if (!clip) return;
+
+    const duration = clip.endTime - clip.startTime;
+    const snappedTime = snapToGrid(newStartTime);
+
+    const updatedClip: AudioClip = {
+      ...clip,
+      trackId: newTrackId || clip.trackId,
+      startTime: snappedTime,
+      endTime: snappedTime + duration
+    };
+
+    setAudioClips(prev => prev.map(c => c.id === clipId ? updatedClip : c));
+  }, [audioClips, snapToGrid]);
+
+  // Resize clip function
+  const resizeClip = useCallback((clipId: string, newStartTime?: number, newEndTime?: number) => {
+    const clip = audioClips.find(c => c.id === clipId);
+    if (!clip) return;
+
+    const updatedClip: AudioClip = {
+      ...clip,
+      startTime: newStartTime !== undefined ? snapToGrid(newStartTime) : clip.startTime,
+      endTime: newEndTime !== undefined ? snapToGrid(newEndTime) : clip.endTime
+    };
+
+    // Ensure minimum clip duration
+    if (updatedClip.endTime - updatedClip.startTime < 0.1) return;
+
+    setAudioClips(prev => prev.map(c => c.id === clipId ? updatedClip : c));
+  }, [audioClips, snapToGrid]);
+
+  // Delete track function
+  const deleteTrack = useCallback((trackId: string) => {
+    setAudioClips(prev => prev.filter(c => c.trackId !== trackId));
+    setSelectedClips(prev => {
+      const newSet = new Set(prev);
+      audioClips.filter(c => c.trackId === trackId).forEach(c => newSet.delete(c.id));
+      return newSet;
+    });
+    
+    if (onTracksUpdate) {
+      const updatedTracks = tracks.filter(t => t.id !== trackId);
+      onTracksUpdate(updatedTracks);
+    }
+    
+    toast({
+      title: "Track Deleted",
+      description: "Track and all its clips removed",
+    });
+  }, [audioClips, tracks, onTracksUpdate, toast]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -223,18 +306,34 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
             e.preventDefault();
             selectedClips.forEach(clipId => duplicateClip(clipId));
             break;
+          case 'a':
+            e.preventDefault();
+            // Select all clips
+            setSelectedClips(new Set(audioClips.map(c => c.id)));
+            break;
         }
       }
 
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        e.preventDefault();
-        selectedClips.forEach(clipId => deleteClip(clipId));
+      switch (e.key) {
+        case 'Delete':
+        case 'Backspace':
+          e.preventDefault();
+          selectedClips.forEach(clipId => deleteClip(clipId));
+          break;
+        case 's':
+          if (e.shiftKey && selectedClips.size === 1) {
+            e.preventDefault();
+            const clipId = Array.from(selectedClips)[0];
+            const splitTime = currentTime;
+            splitClip(clipId, splitTime);
+          }
+          break;
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedClips, copyClip, pasteClip, duplicateClip, deleteClip, currentTime]);
+  }, [selectedClips, copyClip, pasteClip, duplicateClip, deleteClip, splitClip, currentTime, audioClips]);
 
   // Initialize audio elements for all tracks
   useEffect(() => {
@@ -501,6 +600,10 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     // If we have a copied clip and ctrl/cmd is held, paste it
     if (copiedClip && (event.ctrlKey || event.metaKey)) {
       pasteClip(time);
+    } else if (event.shiftKey && selectedClips.size === 1) {
+      // Split clip at current position
+      const clipId = Array.from(selectedClips)[0];
+      splitClip(clipId, time);
     } else {
       // Otherwise seek to that position
       onSeek(Math.max(0, Math.min(time, maxDuration)));
@@ -510,7 +613,38 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     if (!event.ctrlKey && !event.metaKey) {
       setSelectedClips(new Set());
     }
-  }, [pixelsPerSecond, maxDuration, onSeek, snapToGrid, copiedClip, pasteClip]);
+  }, [pixelsPerSecond, maxDuration, onSeek, snapToGrid, copiedClip, pasteClip, selectedClips, splitClip]);
+
+  // Mouse event handlers for resizing
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (isResizing && timelineRef.current) {
+        const rect = timelineRef.current.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const time = snapToGrid(x / pixelsPerSecond);
+
+        if (isResizing.side === 'left') {
+          resizeClip(isResizing.clipId, time, undefined);
+        } else {
+          resizeClip(isResizing.clipId, undefined, time);
+        }
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(null);
+    };
+
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing, pixelsPerSecond, snapToGrid, resizeClip]);
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -629,11 +763,25 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                 left: clipLeft,
                 width: clipWidth,
                 height: trackHeight - 16,
-                zIndex: 10, // Ensure it's above other elements
-                minWidth: '20px', // Ensure it's always visible
-                background: isSelected ? '#00f5ff40' : '#ff004040' // Debug colors
+                zIndex: 10,
+                minWidth: '20px',
+                background: isSelected ? '#00f5ff40' : '#ff004040'
               }}
               title={`${clip.originalTrack.name} - Click to select, Double-click to duplicate`}
+              draggable
+              onDragStart={(e) => {
+                setDraggedClip(clip);
+                const rect = e.currentTarget.getBoundingClientRect();
+                setDragOffset({
+                  x: e.clientX - rect.left,
+                  y: e.clientY - rect.top
+                });
+                e.dataTransfer.effectAllowed = 'move';
+              }}
+              onDragEnd={() => {
+                setDraggedClip(null);
+                setDragOffset({ x: 0, y: 0 });
+              }}
               onClick={(e) => {
                 e.stopPropagation();
                 console.log('Clip clicked:', clip.originalTrack.name, 'Clip ID:', clip.id);
@@ -660,8 +808,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                 e.preventDefault();
                 console.log('Right-click on clip:', clip.originalTrack.name, 'Clip ID:', clip.id);
                 setSelectedClips(new Set([clip.id]));
-                // Simple context menu using confirm dialogs for now
-                const action = prompt('Action: (c)opy, (d)uplicate, (delete)');
+                const action = prompt('Action: (c)opy, (d)uplicate, (s)plit, (delete), (t)rack delete');
                 console.log('Context menu action:', action);
                 switch(action?.toLowerCase()) {
                   case 'c':
@@ -672,8 +819,19 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                   case 'duplicate':
                     duplicateClip(clip.id);
                     break;
+                  case 's':
+                  case 'split':
+                    const splitTime = prompt('Split time (seconds):');
+                    if (splitTime) {
+                      splitClip(clip.id, parseFloat(splitTime));
+                    }
+                    break;
                   case 'delete':
                     deleteClip(clip.id);
+                    break;
+                  case 't':
+                  case 'track delete':
+                    deleteTrack(clip.trackId);
                     break;
                 }
               }}
@@ -682,6 +840,23 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                 duplicateClip(clip.id);
               }}
             >
+              {/* Left resize handle */}
+              <div
+                className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize bg-neon-cyan/50 opacity-0 group-hover:opacity-100 transition-opacity"
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  setIsResizing({ clipId: clip.id, side: 'left' });
+                }}
+              />
+              
+              {/* Right resize handle */}
+              <div
+                className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize bg-neon-cyan/50 opacity-0 group-hover:opacity-100 transition-opacity"
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  setIsResizing({ clipId: clip.id, side: 'right' });
+                }}
+              />
               {/* Waveform visualization */}
               <div className="h-full p-1 flex items-center">
                 {isLoading ? (
@@ -775,8 +950,14 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     <div className="h-full flex flex-col bg-background/50">
       {/* Instructions Panel */}
       <div className="px-4 py-2 bg-card/10 border-b border-border/30 text-xs text-muted-foreground">
-        <span className="font-medium">Timeline Controls:</span> Click to select clips • Double-click to duplicate • Right-click for menu • 
-        <span className="font-medium">Shortcuts:</span> Ctrl+C copy • Ctrl+V paste • Ctrl+D duplicate • Del delete • Ctrl+Click timeline to paste
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <span className="font-medium">Basic Controls:</span> Click to select • Double-click to duplicate • Drag to move • Right-click for menu
+          </div>
+          <div>
+            <span className="font-medium">Shortcuts:</span> Ctrl+C copy • Ctrl+V paste • Ctrl+D duplicate • Ctrl+A select all • Del delete • Shift+S split
+          </div>
+        </div>
       </div>
 
       {/* Main Timeline Area */}
@@ -865,6 +1046,24 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                 width: totalBars * pixelsPerBar
               }}
               onClick={handleTimelineClick}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (draggedClip && timelineRef.current) {
+                  const rect = timelineRef.current.getBoundingClientRect();
+                  const x = e.clientX - rect.left - dragOffset.x;
+                  const y = e.clientY - rect.top - dragOffset.y;
+                  
+                  const newTime = snapToGrid(x / pixelsPerSecond);
+                  const trackIndex = Math.floor(y / 68) - 1; // Account for master track
+                  const targetTrackId = trackIndex >= 0 && trackIndex < tracks.length ? tracks[trackIndex].id : draggedClip.trackId;
+                  
+                  moveClip(draggedClip.id, newTime, targetTrackId);
+                }
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+              }}
             >
               {/* Loop region */}
               {isLooping && (
