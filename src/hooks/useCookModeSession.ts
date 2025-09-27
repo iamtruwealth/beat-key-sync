@@ -269,11 +269,10 @@ export function useCookModeSession(sessionId?: string) {
         const rawElapsed = (Date.now() - startTimeRef.current) / 1000;
         const maxDur = Math.max(...tracks.map(t => t.duration || 0), 0);
         
-        // Make session timer loop-aware: wrap elapsed time within track duration
+        // Smooth looping: instead of hard reset, let the timer naturally wrap
         let elapsed = rawElapsed;
-        if (maxDur > 0 && rawElapsed > maxDur) {
-          elapsed = rawElapsed % maxDur; // Loop back to 0 when exceeding track duration
-          slog('Session timer looped', { rawElapsed: rawElapsed.toFixed(3), looped: elapsed.toFixed(3), maxDur: maxDur.toFixed(3) });
+        if (maxDur > 0) {
+          elapsed = rawElapsed % maxDur; // Always keep within loop bounds
         }
         
         setCurrentTime(elapsed);
@@ -281,7 +280,10 @@ export function useCookModeSession(sessionId?: string) {
         // Throttled debug
         const now = Date.now();
         if (now - (lastTickLogRef.current || 0) > 1000) {
-          slog('tick', { elapsed: elapsed.toFixed(3), rawElapsed: rawElapsed.toFixed(3), loopLength: maxDur ? maxDur.toFixed(3) : 'unknown' });
+          if (maxDur > 0 && rawElapsed !== elapsed) {
+            slog('Session timer wrapped', { rawElapsed: rawElapsed.toFixed(3), wrapped: elapsed.toFixed(3), loopDur: maxDur.toFixed(3) });
+          }
+          slog('tick', { elapsed: elapsed.toFixed(3), loopLength: maxDur ? maxDur.toFixed(3) : 'unknown' });
           lastTickLogRef.current = now;
         }
 
@@ -298,7 +300,7 @@ export function useCookModeSession(sessionId?: string) {
     return () => {
       if (rafId) cancelAnimationFrame(rafId);
     };
-  }, [isPlaying]);
+  }, [isPlaying, tracks]);
 
   const togglePlayback = useCallback(() => {
     const newIsPlaying = !isPlaying;

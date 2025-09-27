@@ -192,6 +192,14 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           const last = lastLogRef.current.get(track.id) || 0;
           const prev = prevTimeRef.current.get(track.id) || 0;
           const ct = audio.currentTime;
+          
+          // Pre-emptive loop: seek to 0 slightly before the end to avoid delay
+          if (audio.duration > 0 && ct > audio.duration - 0.1 && ct < audio.duration) {
+            tlog('pre-emptive loop', track.id, { ct: ct.toFixed(3), dur: audio.duration.toFixed(3) });
+            audio.currentTime = 0;
+            return;
+          }
+          
           // Throttle logs
           if (now - last > 500) {
             const deltaToSession = Math.abs(ct - currentTime);
@@ -203,17 +211,10 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
             });
             lastLogRef.current.set(track.id, now);
           }
+          
           // Detect native loop (time jump backwards)
           if (prev && ct + 0.05 < prev) {
             tlog('audio:native-loop', track.id, { from: prev.toFixed(3), to: ct.toFixed(3) });
-            if (isPlaying) {
-              const now2 = Date.now();
-              if (now2 - (loopSignalRef.current || 0) > 500) {
-                loopSignalRef.current = now2;
-                tlog('sync: resetting session time to 0 after native loop', { trackId: track.id });
-                onSeek(0);
-              }
-            }
           }
           prevTimeRef.current.set(track.id, ct);
         });
@@ -272,19 +273,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     }
   }, [currentTime, isPlaying, loopLength]);
 
-  // Debug: session time vs loop length
-  useEffect(() => {
-    if (!isPlaying || !loopLength) return;
-    if (currentTime > loopLength + 0.05) {
-      const now = Date.now();
-      if (now - (loopSignalRef.current || 0) > 300) {
-        loopSignalRef.current = now;
-        const clamped = currentTime % loopLength;
-        tlog('Session time exceeded loopLength -> clamping via onSeek', { currentTime, loopLength, clamped });
-        onSeek(clamped);
-      }
-    }
-  }, [currentTime, isPlaying, loopLength, onSeek]);
+  // Remove manual loop clamping - let session timer handle it smoothly
 
   // Update track volume/mute without recreating audio elements
   useEffect(() => {
