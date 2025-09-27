@@ -152,7 +152,6 @@ export default function BrowseProducers() {
       <MetaTags 
         title="Browse Producers & Beat Packs | BeatPackz - Connect with Top Producers"
         description="Discover talented music producers and their latest beat packs. Connect, collaborate, and find the perfect sound for your next project."
-        image="/assets/beat-packz-social-image.png"
       />
 
       <StickyHeader />

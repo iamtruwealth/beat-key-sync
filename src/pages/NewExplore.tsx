@@ -19,7 +19,6 @@ export default function NewExplore() {
       <MetaTags 
         title="Explore Beats | BeatPackz - Discover Top Producers & Beat Packs"
         description="Discover the hottest beats, top producers, and trending beat packs. Stream, download, and purchase high-quality beats from talented producers worldwide."
-        image="/assets/beat-packz-social-image.png"
       />
       
       <FuturisticNavigation />

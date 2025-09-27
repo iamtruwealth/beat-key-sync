@@ -36,7 +36,6 @@ export default function About() {
       <MetaTags 
         title="About BeatPackz | The Ultimate Platform for Music Producers"
         description="Learn how BeatPackz revolutionizes music production. Upload beats, get AI analysis, set prices, track sales, and network with producers. Turn your music into a professional storefront."
-        image="/assets/beat-packz-social-image.png"
         url="https://beatpackz.com/about"
       />
       {/* Navigation */}

@@ -374,7 +374,7 @@ export default function BeatPackPage() {
 
   // Get fallback artwork - use pack artwork or producer logo
   const getArtworkUrl = () => {
-    return beatPack?.artwork_url || beatPack?.producer_logo_url || '/assets/beat-packz-social-image.png';
+    return beatPack?.artwork_url || beatPack?.producer_logo_url;
   };
 
   const currentUrl = typeof window !== 'undefined' ? window.location.href : '';

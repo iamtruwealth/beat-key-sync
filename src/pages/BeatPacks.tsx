@@ -372,7 +372,6 @@ export default function BeatPacksPage() {
       <MetaTags 
         title="My Beat Packs | BeatPackz Producer Dashboard"
         description="Manage your beat pack collection, track downloads and engagement. Create and organize professional beat packs for artists and producers."
-        image="/assets/beat-packz-social-image.png"
       />
       {/* Header */}
       <div className="flex items-center justify-between">

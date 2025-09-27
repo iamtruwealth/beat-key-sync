@@ -348,7 +348,6 @@ export default function AuthPage() {
       <MetaTags 
         title="Sign Up or Login | BeatPackz - Join the Music Producer Community"
         description="Create your BeatPackz account today. Artists sign up free, producers get premium features. Join thousands of music creators sharing and selling beats worldwide."
-        image="/assets/beat-packz-social-image.png"
         url="https://beatpackz.com/auth"
       />
       <div className="w-full max-w-md">
