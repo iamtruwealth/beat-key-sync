@@ -468,6 +468,294 @@ export type Database = {
         }
         Relationships: []
       }
+      collaboration_analytics: {
+        Row: {
+          collaboration_id: string
+          id: string
+          member_id: string
+          metric_type: string
+          metric_value: number
+          referral_source: string | null
+          tracked_at: string
+        }
+        Insert: {
+          collaboration_id: string
+          id?: string
+          member_id: string
+          metric_type: string
+          metric_value?: number
+          referral_source?: string | null
+          tracked_at?: string
+        }
+        Update: {
+          collaboration_id?: string
+          id?: string
+          member_id?: string
+          metric_type?: string
+          metric_value?: number
+          referral_source?: string | null
+          tracked_at?: string
+        }
+        Relationships: []
+      }
+      collaboration_applications: {
+        Row: {
+          applicant_id: string
+          created_at: string
+          id: string
+          message: string | null
+          request_id: string
+          sample_url: string | null
+          status: string
+        }
+        Insert: {
+          applicant_id: string
+          created_at?: string
+          id?: string
+          message?: string | null
+          request_id: string
+          sample_url?: string | null
+          status?: string
+        }
+        Update: {
+          applicant_id?: string
+          created_at?: string
+          id?: string
+          message?: string | null
+          request_id?: string
+          sample_url?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
+      collaboration_members: {
+        Row: {
+          collaboration_id: string
+          id: string
+          invited_at: string
+          joined_at: string | null
+          role: string
+          royalty_percentage: number
+          status: string
+          user_id: string
+        }
+        Insert: {
+          collaboration_id: string
+          id?: string
+          invited_at?: string
+          joined_at?: string | null
+          role?: string
+          royalty_percentage?: number
+          status?: string
+          user_id: string
+        }
+        Update: {
+          collaboration_id?: string
+          id?: string
+          invited_at?: string
+          joined_at?: string | null
+          role?: string
+          royalty_percentage?: number
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      collaboration_messages: {
+        Row: {
+          audio_url: string | null
+          collaboration_id: string
+          content: string
+          created_at: string
+          id: string
+          message_type: string
+          sender_id: string
+        }
+        Insert: {
+          audio_url?: string | null
+          collaboration_id: string
+          content: string
+          created_at?: string
+          id?: string
+          message_type?: string
+          sender_id: string
+        }
+        Update: {
+          audio_url?: string | null
+          collaboration_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          message_type?: string
+          sender_id?: string
+        }
+        Relationships: []
+      }
+      collaboration_projects: {
+        Row: {
+          cover_art_url: string | null
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          invite_code: string | null
+          joint_artist_name: string | null
+          name: string
+          status: string
+          target_bpm: number | null
+          target_genre: string | null
+          updated_at: string
+          workspace_type: string
+        }
+        Insert: {
+          cover_art_url?: string | null
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          invite_code?: string | null
+          joint_artist_name?: string | null
+          name: string
+          status?: string
+          target_bpm?: number | null
+          target_genre?: string | null
+          updated_at?: string
+          workspace_type?: string
+        }
+        Update: {
+          cover_art_url?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          invite_code?: string | null
+          joint_artist_name?: string | null
+          name?: string
+          status?: string
+          target_bpm?: number | null
+          target_genre?: string | null
+          updated_at?: string
+          workspace_type?: string
+        }
+        Relationships: []
+      }
+      collaboration_requests: {
+        Row: {
+          created_at: string
+          description: string
+          expires_at: string | null
+          genre_tags: string[] | null
+          id: string
+          looking_for: string
+          requester_id: string
+          sample_beat_url: string | null
+          status: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          expires_at?: string | null
+          genre_tags?: string[] | null
+          id?: string
+          looking_for: string
+          requester_id: string
+          sample_beat_url?: string | null
+          status?: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          expires_at?: string | null
+          genre_tags?: string[] | null
+          id?: string
+          looking_for?: string
+          requester_id?: string
+          sample_beat_url?: string | null
+          status?: string
+          title?: string
+        }
+        Relationships: []
+      }
+      collaboration_sessions: {
+        Row: {
+          collaboration_id: string
+          ended_at: string | null
+          export_url: string | null
+          id: string
+          participants: string[] | null
+          recording_url: string | null
+          session_type: string
+          started_at: string
+          started_by: string
+        }
+        Insert: {
+          collaboration_id: string
+          ended_at?: string | null
+          export_url?: string | null
+          id?: string
+          participants?: string[] | null
+          recording_url?: string | null
+          session_type?: string
+          started_at?: string
+          started_by: string
+        }
+        Update: {
+          collaboration_id?: string
+          ended_at?: string | null
+          export_url?: string | null
+          id?: string
+          participants?: string[] | null
+          recording_url?: string | null
+          session_type?: string
+          started_at?: string
+          started_by?: string
+        }
+        Relationships: []
+      }
+      collaboration_stems: {
+        Row: {
+          collaboration_id: string
+          created_at: string
+          duration: number | null
+          file_size: number | null
+          file_url: string
+          format: string | null
+          id: string
+          name: string
+          stem_type: string
+          uploaded_by: string
+          version_number: number
+        }
+        Insert: {
+          collaboration_id: string
+          created_at?: string
+          duration?: number | null
+          file_size?: number | null
+          file_url: string
+          format?: string | null
+          id?: string
+          name: string
+          stem_type: string
+          uploaded_by: string
+          version_number?: number
+        }
+        Update: {
+          collaboration_id?: string
+          created_at?: string
+          duration?: number | null
+          file_size?: number | null
+          file_url?: string
+          format?: string | null
+          id?: string
+          name?: string
+          stem_type?: string
+          uploaded_by?: string
+          version_number?: number
+        }
+        Relationships: []
+      }
       featured_beat_packs: {
         Row: {
           added_by: string
@@ -961,6 +1249,42 @@ export type Database = {
           status?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      royalty_shares: {
+        Row: {
+          asking_price_cents: number
+          buyer_id: string | null
+          collaboration_id: string
+          created_at: string
+          id: string
+          percentage_for_sale: number
+          seller_id: string
+          sold_at: string | null
+          status: string
+        }
+        Insert: {
+          asking_price_cents: number
+          buyer_id?: string | null
+          collaboration_id: string
+          created_at?: string
+          id?: string
+          percentage_for_sale: number
+          seller_id: string
+          sold_at?: string | null
+          status?: string
+        }
+        Update: {
+          asking_price_cents?: number
+          buyer_id?: string | null
+          collaboration_id?: string
+          created_at?: string
+          id?: string
+          percentage_for_sale?: number
+          seller_id?: string
+          sold_at?: string | null
+          status?: string
         }
         Relationships: []
       }
