@@ -30,6 +30,7 @@ interface WaveformTrackProps {
   isPlaying: boolean;
   pixelsPerSecond: number;
   trackHeight: number;
+  trackIndex: number; // New prop for index-based coloring
   onClipClick?: (clipId: string, event: React.MouseEvent) => void;
   onClipDoubleClick?: (clipId: string) => void;
   onDuplicateClip?: (clipId: string) => void;
@@ -43,6 +44,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
   isPlaying,
   pixelsPerSecond,
   trackHeight,
+  trackIndex,
   onClipClick,
   onClipDoubleClick,
   onDuplicateClip,
@@ -68,8 +70,8 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
     try {
       const waveSurfer = WaveSurfer.create({
         container: containerRef.current,
-        waveColor: getStemWaveColor(track.stem_type),
-        progressColor: getStemProgressColor(track.stem_type),
+        waveColor: getTrackWaveColor(trackIndex, isMuted),
+        progressColor: getTrackProgressColor(trackIndex, isMuted),
         cursorColor: 'rgba(255, 255, 255, 0.8)',
         barWidth: 2,
         barGap: 1,
@@ -112,7 +114,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
       console.error('Error creating WaveSurfer:', err);
       setError('Failed to create waveform');
     }
-  }, [track.file_url, track.name, pixelsPerSecond, trackHeight, track.stem_type]);
+  }, [track.file_url, track.name, pixelsPerSecond, trackHeight, trackIndex]);
 
   // Update playhead position based on Tone.Transport time
   useEffect(() => {
@@ -149,14 +151,14 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
     if (waveSurferRef.current && isLoaded) {
       try {
         waveSurferRef.current.setOptions({
-          waveColor: isMuted ? getStemWaveColorMuted(track.stem_type) : getStemWaveColor(track.stem_type),
-          progressColor: isMuted ? getStemProgressColorMuted(track.stem_type) : getStemProgressColor(track.stem_type)
+          waveColor: getTrackWaveColor(trackIndex, isMuted),
+          progressColor: getTrackProgressColor(trackIndex, isMuted)
         });
       } catch (err) {
         console.error('Error updating waveform colors:', err);
       }
     }
-  }, [isMuted, opacity, track.stem_type, isLoaded]);
+  }, [isMuted, opacity, trackIndex, isLoaded]);
 
   // Handle click events
   const handleClick = (event: React.MouseEvent) => {
@@ -175,7 +177,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
 
   return (
     <div
-      className={`relative border-2 rounded cursor-pointer overflow-hidden ${getStemBorderColor(track.stem_type)} ${className}`}
+      className={`relative border-2 rounded cursor-pointer overflow-hidden ${getTrackBorderColor(trackIndex)} ${className}`}
       style={{
         width: clipWidth,
         height: trackHeight - 8,
@@ -238,49 +240,71 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
   );
 };
 
-// Helper functions for stem colors
-const getStemWaveColor = (stemType: string): string => {
-  const colors = {
-    drums: '#ef4444',     // red
-    bass: '#3b82f6',      // blue  
-    melody: '#10b981',    // green
-    vocals: '#8b5cf6',    // purple
-    other: '#6b7280'      // gray
-  };
-  return colors[stemType as keyof typeof colors] || colors.other;
+// Futuristic color palette for index-based track coloring
+const FUTURISTIC_PALETTE = [
+  '#00FFFF', // cyan
+  '#1E90FF', // blue  
+  '#FF1493', // magenta
+  '#FF4500', // red-orange
+  '#32CD32', // lime green
+  '#FFD700', // gold
+  '#40E0D0', // turquoise
+  '#FF6347'  // tomato
+];
+
+// Helper functions for index-based track colors with gradients
+const getTrackBaseColor = (trackIndex: number): string => {
+  return FUTURISTIC_PALETTE[trackIndex % FUTURISTIC_PALETTE.length];
 };
 
-const getStemProgressColor = (stemType: string): string => {
-  const colors = {
-    drums: '#dc2626',     // darker red
-    bass: '#2563eb',      // darker blue
-    melody: '#059669',    // darker green
-    vocals: '#7c3aed',    // darker purple
-    other: '#4b5563'      // darker gray
-  };
-  return colors[stemType as keyof typeof colors] || colors.other;
+const hexToRgb = (hex: string): { r: number; g: number; b: number } => {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? {
+    r: parseInt(result[1], 16),
+    g: parseInt(result[2], 16),
+    b: parseInt(result[3], 16)
+  } : { r: 0, g: 255, b: 255 }; // fallback to cyan
 };
 
-const getStemWaveColorMuted = (stemType: string): string => {
-  const baseColor = getStemWaveColor(stemType);
-  // Make it more transparent when muted
-  return baseColor + '40'; // Add alpha
+
+const getTrackWaveColor = (trackIndex: number, isMuted: boolean = false): string => {
+  const baseColor = getTrackBaseColor(trackIndex);
+  const { r, g, b } = hexToRgb(baseColor);
+  
+  if (isMuted) {
+    return `rgba(${r}, ${g}, ${b}, 0.3)`;
+  }
+  
+  // Create a subtle variation for the waveform
+  const adjustedR = Math.max(0, Math.min(255, r - 10));
+  const adjustedG = Math.max(0, Math.min(255, g - 10));
+  const adjustedB = Math.max(0, Math.min(255, b - 10));
+  
+  return `rgb(${adjustedR}, ${adjustedG}, ${adjustedB})`;
 };
 
-const getStemProgressColorMuted = (stemType: string): string => {
-  const baseColor = getStemProgressColor(stemType);
-  return baseColor + '40'; // Add alpha
+const getTrackProgressColor = (trackIndex: number, isMuted: boolean = false): string => {
+  const baseColor = getTrackBaseColor(trackIndex);
+  const { r, g, b } = hexToRgb(baseColor);
+  
+  if (isMuted) {
+    return `rgba(${r}, ${g}, ${b}, 0.4)`;
+  }
+  
+  // Progress color should be brighter/more vibrant
+  const enhancedR = Math.min(255, r + 30);
+  const enhancedG = Math.min(255, g + 30);
+  const enhancedB = Math.min(255, b + 30);
+  
+  return `rgb(${enhancedR}, ${enhancedG}, ${enhancedB})`;
 };
 
-const getStemBorderColor = (stemType: string): string => {
-  const colors = {
-    drums: 'border-red-500',
-    bass: 'border-blue-500',
-    melody: 'border-green-500', 
-    vocals: 'border-purple-500',
-    other: 'border-gray-500'
-  };
-  return colors[stemType as keyof typeof colors] || colors.other;
+const getTrackBorderColor = (trackIndex: number): string => {
+  const baseColor = getTrackBaseColor(trackIndex);
+  const { r, g, b } = hexToRgb(baseColor);
+  
+  // Create a custom border color class - we'll use inline style since we can't dynamically create CSS classes
+  return `border-[rgba(${r},${g},${b},0.6)]`;
 };
 
 const formatTime = (seconds: number): string => {

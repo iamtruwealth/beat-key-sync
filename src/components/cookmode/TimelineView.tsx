@@ -450,7 +450,8 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     clips: AudioClip[];
     trackY: number;
     trackHeight: number;
-  }> = ({ track, clips, trackY, trackHeight }) => {
+    trackIndex: number;
+  }> = ({ track, clips, trackY, trackHeight, trackIndex }) => {
     const trackClips = clips.filter(clip => clip.trackId === track.id);
 
     console.log('WaveformTrack for', track.name, ':', {
@@ -489,6 +490,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
               isPlaying={isPlaying}
               pixelsPerSecond={pixelsPerSecond}
               trackHeight={trackHeight}
+              trackIndex={trackIndex}
               secondsPerBeat={secondsPerBeat}
               onClipMove={moveClip}
               onClipClick={(clipId, event) => {
@@ -677,6 +679,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                       clips={audioClips}
                       trackY={trackY}
                       trackHeight={trackHeight}
+                      trackIndex={index}
                     />
                   </div>
                 );
