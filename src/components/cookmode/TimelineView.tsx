@@ -617,12 +617,16 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           let waveformBars: number[] = [];
           const totalDuration = trackDurations.get(track.id) || clip.originalTrack.analyzed_duration || clip.originalTrack.duration || 0;
           
-          if (waveformData?.peaks && totalDuration > 0) {
-            // Only show waveform up to the actual audio duration
-            const actualAudioInClip = Math.min(clip.endTime - clip.startTime, totalDuration - clip.startTime);
-            const visualWidth = actualAudioInClip * pixelsPerSecond;
-            
-            // Slice waveform data to match the actual audio portion
+          // Visual width defaults to the full clip, but we clamp to actual audio if known
+          let visualWidth = clipWidth;
+          let actualAudioInClip = clip.endTime - clip.startTime;
+          if (totalDuration > 0) {
+            actualAudioInClip = Math.max(0, Math.min(clip.endTime, totalDuration) - clip.startTime);
+            visualWidth = Math.max(0, Math.min(clipWidth, actualAudioInClip * pixelsPerSecond));
+          }
+          
+          if (waveformData?.peaks && totalDuration > 0 && actualAudioInClip > 0) {
+            // Slice waveform data to match the actual audio portion inside the clip window
             const startRatio = clip.startTime / totalDuration;
             const endRatio = Math.min((clip.startTime + actualAudioInClip) / totalDuration, 1);
             const startIndex = Math.floor(startRatio * waveformData.peaks.length);
@@ -699,28 +703,27 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
               }}
             >
               {/* Waveform visualization */}
-              <div className="h-full p-1 flex items-center">
+              <div className="h-full p-1 flex items-center overflow-hidden">
                 {isLoading ? (
-                  <div className="flex-1 h-8 bg-gradient-to-r from-neon-cyan/20 to-electric-blue/20 rounded flex items-center justify-center">
+                  <div className="h-8 bg-gradient-to-r from-neon-cyan/20 to-electric-blue/20 rounded flex items-center justify-center" style={{ width: `${Math.max(visualWidth, 0)}px` }}>
                     <span className="text-xs text-foreground/60">Loading...</span>
                   </div>
                 ) : waveformBars.length > 0 ? (
-                  <div className="flex-1 h-8 flex items-end justify-center gap-px">
-                    {waveformBars.map((bar, i) => (
-                      <div
-                        key={i}
-                        className="bg-gradient-to-t from-neon-cyan/60 to-electric-blue/60 rounded-sm min-w-[1px]"
-                        style={{
-                          height: `${Math.max(bar * 100, 2)}%`,
-                          width: Math.max(clipWidth / waveformBars.length - 1, 1)
-                        }}
-                      />
-                    ))}
+                  <div className="h-8" style={{ width: `${Math.max(visualWidth, 0)}px`, overflow: 'hidden' }}>
+                    <div className="h-full grid items-end" style={{ gridTemplateColumns: `repeat(${waveformBars.length}, 1fr)`, gap: '1px' }}>
+                      {waveformBars.map((bar, i) => (
+                        <div
+                          key={i}
+                          className="bg-gradient-to-t from-neon-cyan/60 to-electric-blue/60 rounded-sm"
+                          style={{ height: `${Math.max(bar * 100, 2)}%` }}
+                        />
+                      ))}
+                    </div>
                   </div>
                 ) : (
-                  <div className="flex-1 h-8 bg-gradient-to-r from-neon-cyan/20 to-electric-blue/20 rounded flex items-center justify-center">
+                  <div className="h-8 bg-gradient-to-r from-neon-cyan/20 to-electric-blue/20 rounded flex items-center justify-center" style={{ width: `${Math.max(visualWidth, 0)}px` }}>
                     <span className="text-xs text-foreground/60">
-                      {(clip.endTime - clip.startTime).toFixed(1)}s
+                      {(Math.max(0, Math.min(clip.endTime, (clip.startTime + totalDuration)) - clip.startTime)).toFixed(1)}s
                     </span>
                   </div>
                 )}
