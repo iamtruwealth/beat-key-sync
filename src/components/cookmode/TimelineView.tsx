@@ -727,7 +727,10 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     });
 
     return (
-      <div className="relative" style={{ height: trackHeight }}>
+      <div 
+        className="relative border-b border-border/20 overflow-hidden" 
+        style={{ height: trackHeight }}
+      >
         {trackClips.length === 0 ? (
           // Fallback: create temporary clip if none exist
           <div className="text-red-500 p-2 text-xs">
@@ -770,10 +773,10 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                   : 'from-primary/20 to-primary/40 border-primary/30 hover:border-primary/50'
               }`}
               style={{
-                top: trackY + 8,
+                top: 8, // Position relative to track container, not absolute
                 left: clipLeft,
                 width: clipWidth,
-                height: trackHeight - 16,
+                height: trackHeight - 16, // Leave margin top/bottom
                 zIndex: 10,
                 minWidth: '20px',
                 background: isSelected ? '#00f5ff40' : '#ff004040'
@@ -1158,17 +1161,34 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                 </div>
               </div>
 
-              {/* Track waveforms */}
+              {/* Track containers with proper boundaries */}
               {tracks.map((track, index) => {
-                console.log(`Rendering track ${index}: ${track.name} (ID: ${track.id})`);
+                const trackTop = (index + 1) * 68; // Offset by 1 for master track
+                console.log(`Rendering track ${index}: ${track.name} (ID: ${track.id}) at Y: ${trackTop}`);
                 return (
-                  <WaveformTrack 
+                  <div
                     key={track.id}
-                    track={track} 
-                    index={index + 1} // Offset by 1 for master track
-                    pixelsPerSecond={pixelsPerSecond}
-                    trackHeight={68}
-                  />
+                    className="absolute border-b border-border/20 overflow-hidden"
+                    style={{
+                      top: trackTop,
+                      left: 0,
+                      width: totalBars * pixelsPerBar,
+                      height: 68
+                    }}
+                  >
+                    {/* Track label */}
+                    <div className="absolute left-2 top-1 text-xs text-muted-foreground z-20 bg-background/80 px-1 rounded">
+                      {track.name}
+                    </div>
+                    
+                    {/* Track clips container */}
+                    <WaveformTrack 
+                      track={track} 
+                      index={0} // Use 0 since positioning is handled by parent container
+                      pixelsPerSecond={pixelsPerSecond}
+                      trackHeight={68}
+                    />
+                  </div>
                 );
               })}
             </div>
