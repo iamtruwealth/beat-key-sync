@@ -22,6 +22,13 @@ class ToneAudioEngine {
     Tone.Transport.loopStart = "0:0:0";
   }
 
+  private beatsToBBS(beats: number): string {
+    const bars = Math.floor(beats / 4);
+    const remBeats = Math.floor(beats % 4);
+    const sixteenths = Math.round((beats - Math.floor(beats)) * 4);
+    return `${bars}:${remBeats}:${sixteenths}`;
+  }
+
   async initialize() {
     if (this.isInitialized) return;
     
@@ -47,24 +54,29 @@ class ToneAudioEngine {
     await this.initialize();
     
     try {
+      // Create player without URL so we can await explicit load
       const player = new Tone.Player({
-        url: audioUrl,
         loop: true,
-        onload: () => {
-          console.log(`Track ${trackId} loaded successfully`);
-        },
+        autostart: false,
         onerror: (error) => {
           console.error(`Error loading track ${trackId}:`, error);
         }
       }).toDestination();
 
+      // Ensure the buffer is loaded before scheduling any playback
+      await player.load(audioUrl);
+      console.log(`Track ${trackId} loaded successfully`);
+
       // Apply volume and mute settings
       player.volume.value = Tone.gainToDb(volume);
       player.mute = isMuted;
 
-      // Sync to Transport and start at the specified offset
+      // Sync to Transport and schedule start/stop within clip boundaries
       player.sync();
-      player.start(`${offsetInBeats}:0:0`);
+      const startTime = this.beatsToBBS(offsetInBeats);
+      const stopTime = this.beatsToBBS(offsetInBeats + durationInBeats);
+      player.start(startTime);
+      player.stop(stopTime);
 
       const track: AudioTrack = {
         id: trackId,
@@ -155,7 +167,7 @@ class ToneAudioEngine {
   private updateLoopRegion(): void {
     Tone.Transport.loop = true;
     Tone.Transport.loopStart = "0:0:0";
-    Tone.Transport.loopEnd = `${this.loopEndInBeats}:0:0`;
+    Tone.Transport.loopEnd = this.beatsToBBS(this.loopEndInBeats);
     console.log(`Loop region updated: 0 to ${this.loopEndInBeats} beats`);
   }
 

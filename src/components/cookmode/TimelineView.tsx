@@ -108,6 +108,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     4 * secondsPerBar // Minimum 4 bars
   );
    
+
   // Calculate session length based on Tone.js loop duration
   const sessionDurationFromEngine = engineInitialized 
     ? (toneAudioEngine.loopDurationInBeats * 60) / bpm 
