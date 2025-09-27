@@ -653,7 +653,19 @@ self.onmessage = async function(e) {
   if (type !== 'ANALYZE_ADVANCED') return;
   
   try {
+    // Send initial progress
+    self.postMessage({ id, type: 'PROGRESS', progress: 40 });
+    
+    // Filename analysis
+    const analyzer = new AdvancedAudioAnalyzer();
+    const filenameResult = analyzer.parseFilename(data.filename || '');
+    self.postMessage({ id, type: 'PROGRESS', progress: 50 });
+    
+    // Audio analysis
+    self.postMessage({ id, type: 'PROGRESS', progress: 60 });
     const result = await analyzer.analyzeAudio(data);
+    self.postMessage({ id, type: 'PROGRESS', progress: 90 });
+    
     self.postMessage({ id, type: 'ANALYSIS_COMPLETE', result });
   } catch (error) {
     self.postMessage({ 

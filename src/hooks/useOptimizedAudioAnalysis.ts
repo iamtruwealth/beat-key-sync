@@ -17,10 +17,11 @@ interface CachedResult {
 
 interface WorkerMessage {
   id: string;
-  type: 'ANALYZE_ADVANCED' | 'ANALYSIS_COMPLETE' | 'ANALYSIS_ERROR';
+  type: 'ANALYZE_ADVANCED' | 'ANALYSIS_COMPLETE' | 'ANALYSIS_ERROR' | 'PROGRESS';
   data?: any;
   result?: AudioAnalysisResult;
   error?: string;
+  progress?: number;
 }
 
 // Cache analysis results for 24 hours
@@ -41,16 +42,21 @@ export function useOptimizedAudioAnalysis() {
     workerRef.current = new Worker('/advanced-audio-worker.js');
     
     workerRef.current.onmessage = (e: MessageEvent<WorkerMessage>) => {
-      const { id, type, result, error } = e.data;
+      const { id, type, result, error, progress } = e.data;
       const request = pendingRequests.current.get(id);
+      
+      if (type === 'PROGRESS' && progress !== undefined) {
+        setAnalysisState(prev => ({ ...prev, progress }));
+        return;
+      }
       
       if (!request) return;
       
-      pendingRequests.current.delete(id);
-      
       if (type === 'ANALYSIS_COMPLETE' && result) {
+        pendingRequests.current.delete(id);
         request.resolve(result);
       } else if (type === 'ANALYSIS_ERROR' && error) {
+        pendingRequests.current.delete(id);
         request.reject(new Error(error));
       }
     };
@@ -127,7 +133,7 @@ export function useOptimizedAudioAnalysis() {
 
     try {
       // Always proceed with full audio analysis - don't skip based on filename confidence
-      setAnalysisState(prev => ({ ...prev, progress: 25 }));
+      setAnalysisState(prev => ({ ...prev, progress: 10 }));
       
       // Decode audio on main thread (async) and offload heavy analysis to worker
       const arrayBuffer = await file.arrayBuffer();
@@ -155,7 +161,7 @@ export function useOptimizedAudioAnalysis() {
         }
       }, [channelData.buffer]);
 
-      setAnalysisState(prev => ({ ...prev, progress: 50 }));
+      setAnalysisState(prev => ({ ...prev, progress: 30 }));
 
       const result = await workerPromise;
 
