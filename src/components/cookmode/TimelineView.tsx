@@ -66,7 +66,10 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   // Metronome state
   const audioContextRef = useRef<AudioContext | null>(null);
   const metronomeIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const lastMetronomeBeatRef = useRef(-1);
+  const baseStartAudioCtxTimeRef = useRef(0);
+  const baseStartTimelineTimeRef = useRef(0);
+  const nextBeatIndexRef = useRef(0);
+  const prevTimeRef = useRef(0);
 
   // Calculate timing constants with precise BPM
   const secondsPerBeat = 60 / bpm; // Precise: 60 seconds / beats per minute
@@ -101,44 +104,41 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     if (metronomeEnabled) {
       if (!audioContextRef.current) {
         audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      } else if (audioContextRef.current.state === 'suspended') {
+        audioContextRef.current.resume();
       }
     }
     return () => {
-      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-        audioContextRef.current.close();
-        audioContextRef.current = null;
-      }
+      // Do not close context on toggle; reuse to keep clock stable
     };
   }, [metronomeEnabled]);
 
-  // Metronome click function
-  const playMetronomeClick = useCallback((isDownbeat: boolean = false) => {
+  // Metronome click function (scheduled)
+  const playMetronomeClick = useCallback((when: number, isDownbeat: boolean = false) => {
     if (!audioContextRef.current || !metronomeEnabled) return;
 
     const audioContext = audioContextRef.current;
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
 
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
 
-    // Different frequencies for downbeat vs regular beat
-    oscillator.frequency.setValueAtTime(isDownbeat ? 800 : 400, audioContext.currentTime);
-    oscillator.type = 'sine';
+    osc.frequency.setValueAtTime(isDownbeat ? 1100 : 800, when);
+    osc.type = 'square';
 
-    // Quick click envelope
-    gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-    gainNode.gain.linearRampToValueAtTime(0.1, audioContext.currentTime + 0.01);
-    gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.1);
+    const peak = 0.08;
+    gain.gain.setValueAtTime(0, when);
+    gain.gain.linearRampToValueAtTime(peak, when + 0.005);
+    gain.gain.exponentialRampToValueAtTime(0.0008, when + 0.08);
 
-    oscillator.start(audioContext.currentTime);
-    oscillator.stop(audioContext.currentTime + 0.1);
+    osc.start(when);
+    osc.stop(when + 0.1);
   }, [metronomeEnabled]);
 
-  // Metronome timing effect - optimized to avoid re-renders
+  // Metronome scheduler using AudioContext clock (tight sync)
   useEffect(() => {
-    if (!isPlaying || !metronomeEnabled) {
-      lastMetronomeBeatRef.current = -1;
+    if (!metronomeEnabled || !isPlaying) {
       if (metronomeIntervalRef.current) {
         clearInterval(metronomeIntervalRef.current);
         metronomeIntervalRef.current = null;
@@ -146,21 +146,38 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       return;
     }
 
-    // Use interval instead of watching currentTime changes
+    if (!audioContextRef.current) {
+      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+    } else if (audioContextRef.current.state === 'suspended') {
+      audioContextRef.current.resume();
+    }
+
+    const ac = audioContextRef.current;
+
+    // Align scheduler to current playhead
+    baseStartAudioCtxTimeRef.current = ac.currentTime;
+    baseStartTimelineTimeRef.current = currentTime;
+    nextBeatIndexRef.current = Math.floor(currentTime / secondsPerBeat);
+
+    const lookaheadMs = 25; // how often we check
+    const scheduleAheadTime = 0.15; // schedule this far ahead (sec)
+
     metronomeIntervalRef.current = setInterval(() => {
-      // Get fresh current time from audio elements
-      const audioElements = Array.from(audioElementsRef.current.values());
-      if (audioElements.length === 0) return;
-      
-      const avgCurrentTime = audioElements.reduce((sum, audio) => sum + audio.currentTime, 0) / audioElements.length;
-      const currentBeat = Math.floor(avgCurrentTime / secondsPerBeat);
-      
-      if (currentBeat !== lastMetronomeBeatRef.current && currentBeat >= 0) {
-        const isDownbeat = currentBeat % beatsPerBar === 0;
-        playMetronomeClick(isDownbeat);
-        lastMetronomeBeatRef.current = currentBeat;
+      const now = ac.currentTime;
+      // schedule all beats up to now + scheduleAheadTime
+      while (true) {
+        const beatIndex = nextBeatIndexRef.current;
+        const beatTimeTimeline = beatIndex * secondsPerBeat; // seconds from timeline 0
+        const when = baseStartAudioCtxTimeRef.current + (beatTimeTimeline - baseStartTimelineTimeRef.current);
+        if (when <= now + scheduleAheadTime) {
+          const isDownbeat = (beatIndex % beatsPerBar) === 0;
+          playMetronomeClick(when, isDownbeat);
+          nextBeatIndexRef.current = beatIndex + 1;
+        } else {
+          break;
+        }
       }
-    }, 50); // Check every 50ms for accuracy
+    }, lookaheadMs);
 
     return () => {
       if (metronomeIntervalRef.current) {
@@ -168,7 +185,23 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         metronomeIntervalRef.current = null;
       }
     };
-  }, [isPlaying, metronomeEnabled, secondsPerBeat, beatsPerBar, playMetronomeClick]);
+  }, [isPlaying, metronomeEnabled, secondsPerBeat, beatsPerBar, currentTime, playMetronomeClick]);
+
+  // Realign scheduler on large seeks/jumps
+  useEffect(() => {
+    if (!isPlaying || !metronomeEnabled || !audioContextRef.current) {
+      prevTimeRef.current = currentTime;
+      return;
+    }
+    const delta = Math.abs(currentTime - prevTimeRef.current);
+    if (delta > secondsPerBeat * 0.75) {
+      const ac = audioContextRef.current;
+      baseStartAudioCtxTimeRef.current = ac.currentTime;
+      baseStartTimelineTimeRef.current = currentTime;
+      nextBeatIndexRef.current = Math.floor(currentTime / secondsPerBeat);
+    }
+    prevTimeRef.current = currentTime;
+  }, [currentTime, isPlaying, metronomeEnabled, secondsPerBeat]);
 
   // Initialize audio clips from tracks - ensure proper positioning
   useEffect(() => {
