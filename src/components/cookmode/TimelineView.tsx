@@ -613,21 +613,32 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
             isVisible: clipWidth > 0 && clipLeft >= 0
           });
 
-          // Generate waveform bars for visualization - slice to show only clip portion
+          // Generate waveform bars for visualization - show only the clip's 8-bar segment
           let waveformBars: number[] = [];
           if (waveformData?.peaks) {
-            // Calculate which portion of the waveform to show based on clip timing
-            const totalDuration = trackDurations.get(track.id) || clip.originalTrack.analyzed_duration || clip.originalTrack.duration || 60;
+            // For 8 bars, calculate the exact segment we need
             const clipDuration = clip.endTime - clip.startTime;
-            const startRatio = clip.startTime / totalDuration;
-            const endRatio = clip.endTime / totalDuration;
+            const barsInClip = Math.round(clipDuration / secondsPerBar); // Should be 8 bars
+            const beatsInClip = barsInClip * beatsPerBar; // Should be 32 beats
             
-            // Slice the waveform data to match the clip's time range
-            const startIndex = Math.floor(startRatio * waveformData.peaks.length);
-            const endIndex = Math.ceil(endRatio * waveformData.peaks.length);
-            const clippedPeaks = waveformData.peaks.slice(startIndex, endIndex);
+            // Calculate how many waveform bars to show (one per beat or fraction)
+            const targetBars = Math.floor(clipWidth / 8); // Adjust density based on clip width
             
-            waveformBars = generateWaveformBars(clippedPeaks, Math.floor(clipWidth / 4));
+            // Use only the portion of waveform data that corresponds to this clip
+            const totalDuration = trackDurations.get(track.id) || clip.originalTrack.analyzed_duration || clip.originalTrack.duration || 60;
+            
+            if (totalDuration > 0) {
+              const startRatio = clip.startTime / totalDuration;
+              const endRatio = clip.endTime / totalDuration;
+              
+              // Slice the waveform data to match exactly the clip's time range
+              const startIndex = Math.floor(startRatio * waveformData.peaks.length);
+              const endIndex = Math.ceil(endRatio * waveformData.peaks.length);
+              const clippedPeaks = waveformData.peaks.slice(startIndex, endIndex);
+              
+              // Generate bars from the clipped segment only
+              waveformBars = generateWaveformBars(clippedPeaks, Math.max(targetBars, 16));
+            }
           }
 
           return (
