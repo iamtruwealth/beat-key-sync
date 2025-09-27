@@ -53,6 +53,10 @@ export function useCookModeSession(sessionId?: string) {
   const [isConnected, setIsConnected] = useState(false);
   const channelRef = useRef<any>(null);
   const { toast } = useToast();
+  const DEBUG_SESSION = true;
+  const slog = (...args: any[]) => DEBUG_SESSION && console.log('[CookSession]', ...args);
+  const lastTickLogRef = useRef<number>(0);
+  const prevElapsedRef = useRef<number>(0);
 
   // Real-time subscription for session updates
   useEffect(() => {
@@ -256,18 +260,34 @@ export function useCookModeSession(sessionId?: string) {
 
   useEffect(() => {
     let rafId: number | null = null;
-    
+
     if (isPlaying) {
+      slog('Playback started', { pausedAt: pausedTimeRef.current });
       startTimeRef.current = Date.now() - pausedTimeRef.current * 1000;
 
       const tick = () => {
         const elapsed = (Date.now() - startTimeRef.current) / 1000;
         setCurrentTime(elapsed);
+
+        // Throttled debug
+        const now = Date.now();
+        if (now - (lastTickLogRef.current || 0) > 1000) {
+          const maxDur = Math.max(...tracks.map(t => t.duration || 0), 0);
+          if (maxDur > 0 && elapsed > maxDur + 0.05) {
+            slog('Session timer exceeded max track duration (loopLength?)', { elapsed: elapsed.toFixed(3), maxDur: maxDur.toFixed(3), overBy: (elapsed - maxDur).toFixed(3) });
+          } else {
+            slog('tick', { elapsed: elapsed.toFixed(3), approxLoop: maxDur ? maxDur.toFixed(3) : 'unknown' });
+          }
+          lastTickLogRef.current = now;
+        }
+
+        prevElapsedRef.current = elapsed;
         rafId = requestAnimationFrame(tick);
       };
 
       rafId = requestAnimationFrame(tick);
     } else {
+      slog('Playback paused', { at: currentTime });
       pausedTimeRef.current = currentTime;
     }
 
@@ -278,6 +298,7 @@ export function useCookModeSession(sessionId?: string) {
 
   const togglePlayback = useCallback(() => {
     const newIsPlaying = !isPlaying;
+    slog('togglePlayback', { newIsPlaying });
     
     // Always reset to 0 when starting to ensure clean looping
     if (newIsPlaying) {

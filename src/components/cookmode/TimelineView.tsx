@@ -43,7 +43,9 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   onTracksUpdate,
   onToolAction
 }) => {
-  console.log('TimelineView render:', { isPlaying, currentTime, tracksCount: tracks.length });
+  const DEBUG_TIMELINE = true;
+  const tlog = (...args: any[]) => DEBUG_TIMELINE && console.log('[Timeline]', ...args);
+  tlog('render', { isPlaying, currentTime, tracksCount: tracks.length });
   const [activeTool] = useState<ToolType>('draw');
   const [snapEnabled] = useState(true);
   const timelineRef = useRef<HTMLDivElement>(null);
@@ -52,7 +54,8 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const audioElementsRef = useRef<Map<string, HTMLAudioElement>>(new Map());
   const [trackDurations, setTrackDurations] = useState<Map<string, number>>(new Map());
   const { toast } = useToast();
-
+  const lastLogRef = useRef<Map<string, number>>(new Map());
+  const prevTimeRef = useRef<Map<string, number>>(new Map());
   // Calculate loop length based on actual audio duration (not fixed 4 bars)
   const maxTrackDuration = Math.max(...tracks.map(t => trackDurations.get(t.id) || t.analyzed_duration || t.duration || 0), 0);
   const loopLength = maxTrackDuration > 0 ? maxTrackDuration : (16 * 60 / bpm); // Use actual track length or fallback to 4 bars
@@ -154,16 +157,60 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   useEffect(() => {
     tracks.forEach(track => {
       if (!audioElementsRef.current.has(track.id)) {
-        console.log('Creating audio element for track:', track.name);
+        tlog('Creating audio element for track:', track.id, track.name);
         
         const audio = new Audio();
         audio.volume = 0.8;
         audio.crossOrigin = "anonymous";
         audio.preload = 'metadata';
-        audio.loop = true; // Enable native looping
+        audio.loop = true; // Native looping
+
+        // Debug event listeners
+        const onPlay = () => tlog('audio:play', track.id, { ct: audio.currentTime.toFixed(3) });
+        const onPause = () => tlog('audio:pause', track.id, { ct: audio.currentTime.toFixed(3) });
+        const onEnded = () => tlog('audio:ended', track.id, { ct: audio.currentTime.toFixed(3) });
+        const onWaiting = () => tlog('audio:waiting', track.id);
+        const onStalled = () => tlog('audio:stalled', track.id);
+        const onSeeking = () => tlog('audio:seeking', track.id, { to: audio.currentTime.toFixed(3) });
+        const onSeeked = () => tlog('audio:seeked', track.id, { ct: audio.currentTime.toFixed(3) });
+        const onError = () => tlog('audio:error', track.id, audio.error);
+        const onLoadedMeta = () => tlog('audio:loadedmetadata', track.id, { duration: audio.duration });
+
+        audio.addEventListener('play', onPlay);
+        audio.addEventListener('pause', onPause);
+        audio.addEventListener('ended', onEnded);
+        audio.addEventListener('waiting', onWaiting);
+        audio.addEventListener('stalled', onStalled);
+        audio.addEventListener('seeking', onSeeking);
+        audio.addEventListener('seeked', onSeeked);
+        audio.addEventListener('error', onError);
+        audio.addEventListener('loadedmetadata', onLoadedMeta);
+
+        audio.addEventListener('timeupdate', () => {
+          const now = Date.now();
+          const last = lastLogRef.current.get(track.id) || 0;
+          const prev = prevTimeRef.current.get(track.id) || 0;
+          const ct = audio.currentTime;
+          // Throttle logs
+          if (now - last > 500) {
+            const deltaToSession = Math.abs(ct - currentTime);
+            tlog('audio:timeupdate', track.id, {
+              ct: ct.toFixed(3),
+              duration: Number.isFinite(audio.duration) ? audio.duration.toFixed(3) : 'n/a',
+              sessionTime: currentTime.toFixed(3),
+              drift: deltaToSession.toFixed(3)
+            });
+            lastLogRef.current.set(track.id, now);
+          }
+          // Detect native loop (time jump backwards)
+          if (prev && ct + 0.05 < prev) {
+            tlog('audio:native-loop', track.id, { from: prev.toFixed(3), to: ct.toFixed(3) });
+          }
+          prevTimeRef.current.set(track.id, ct);
+        });
         
         audio.addEventListener('loadeddata', () => {
-          console.log('Audio loaded:', track.name, 'duration:', audio.duration);
+          tlog('audio:loadeddata', track.name, 'duration:', audio.duration);
           if (audio.duration > 0) {
             setTrackDurations(prev => new Map(prev.set(track.id, audio.duration)));
           }
@@ -182,6 +229,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         audio.pause();
         audio.src = '';
         audioElementsRef.current.delete(trackId);
+        tlog('Removed audio element for track', trackId);
       }
     });
   }, [JSON.stringify(tracks.map(t => ({ id: t.id, url: t.file_url })))]); // Only recreate if track IDs or URLs change
@@ -190,11 +238,11 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   useEffect(() => {
     audioElementsRef.current.forEach((audio, trackId) => {
       if (isPlaying && audio.paused) {
-        console.log('Starting audio:', trackId);
+        tlog('Starting audio', trackId, { setTo: currentTime.toFixed(3) });
         audio.currentTime = currentTime;
-        audio.play().catch(console.error);
+        audio.play().catch((e) => tlog('audio.play error', trackId, e));
       } else if (!isPlaying && !audio.paused) {
-        console.log('Pausing audio:', trackId);
+        tlog('Pausing audio', trackId, { at: audio.currentTime.toFixed(3) });
         audio.pause();
       }
     });
@@ -203,13 +251,23 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   // Sync currentTime from the session system to actual audio time
   useEffect(() => {
     if (isPlaying) {
-      audioElementsRef.current.forEach((audio) => {
-        if (!audio.paused && Math.abs(audio.currentTime - currentTime) > 0.5) {
+      audioElementsRef.current.forEach((audio, trackId) => {
+        const delta = Math.abs(audio.currentTime - currentTime);
+        if (!audio.paused && delta > 0.5) {
+          tlog('Desync detected', trackId, { audioTime: audio.currentTime.toFixed(3), sessionTime: currentTime.toFixed(3), delta: delta.toFixed(3) });
           audio.currentTime = currentTime;
         }
       });
     }
   }, [currentTime, isPlaying]);
+
+  // Debug: session time vs loop length
+  useEffect(() => {
+    if (!isPlaying || !loopLength) return;
+    if (currentTime > loopLength + 0.05) {
+      tlog('Session time exceeded loopLength', { currentTime, loopLength, overBy: (currentTime - loopLength).toFixed(3) });
+    }
+  }, [currentTime, isPlaying, loopLength]);
 
   // Update track volume/mute without recreating audio elements
   useEffect(() => {
