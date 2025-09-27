@@ -39,6 +39,7 @@ import NewExplore from "./pages/NewExplore";
 import ProducerProfile from "./pages/ProducerProfile";
 import UserProfile from "./pages/UserProfile";
 import Onboarding from "./pages/Onboarding";
+import Collaborate from "./pages/Collaborate";
 
 import { FuturisticWaveformPlayer } from "./components/player/FuturisticWaveformPlayer";
 
@@ -311,6 +312,16 @@ const App = () => (
               </RoleProtectedRoute>
             } />
             <Route path="/onboarding" element={<Onboarding />} />
+            <Route path="/collaborate" element={
+              <RoleProtectedRoute allowedRoles={['producer']}>
+                <div className="flex min-h-screen w-full">
+                  <RoleBasedSidebar />
+                  <main className="flex-1 overflow-auto">
+                    <Collaborate />
+                  </main>
+                </div>
+              </RoleProtectedRoute>
+            } />
             
             {/* Catch-all routes */}
             <Route path="/analytics" element={
