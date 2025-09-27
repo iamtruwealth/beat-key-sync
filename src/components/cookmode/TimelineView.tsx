@@ -278,21 +278,24 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           tlog('Pausing audio', trackId, { at: audio.currentTime.toFixed(3) });
           audio.pause();
         }
-        audio.currentTime = 0;
-        // Keep source but ensure it's truly stopped
-        audio.muted = true;
+        // Keep the paused position so seeking while paused is reflected visually
+        const desired = loopLength > 0 ? (currentTime % loopLength) : currentTime;
+        if (Math.abs(audio.currentTime - desired) > 0.01) {
+          audio.currentTime = desired;
+        }
+        // Respect track mute state while paused
+        if (track) audio.muted = !!track.isMuted;
       }
     });
   }, [isPlaying, loopLength, currentTime, tracks]);
 
-  // Force stop all audio when not playing
+  // Gently pause all audio when not playing (preserve time for accurate seeking while paused)
   useEffect(() => {
     if (!isPlaying) {
       audioElementsRef.current.forEach((audio, trackId) => {
         if (!audio.paused) {
-          tlog('Force stopping audio', trackId);
+          tlog('Force pausing audio', trackId);
           audio.pause();
-          audio.currentTime = 0;
         }
       });
     }
