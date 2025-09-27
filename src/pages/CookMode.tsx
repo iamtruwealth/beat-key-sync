@@ -314,6 +314,8 @@ const CookMode = () => {
               onAddTrack={addTrack}
               onRemoveTrack={removeTrack}
               onUpdateTrack={updateTrack}
+              onPlayPause={togglePlayback}
+              onSeek={(time) => {/* implement seek functionality */}}
             />
           </div>
         </div>
