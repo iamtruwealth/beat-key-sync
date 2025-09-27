@@ -239,17 +239,23 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   // Simple playback control - sync UI to actual audio time
   useEffect(() => {
     audioElementsRef.current.forEach((audio, trackId) => {
-      if (isPlaying && audio.paused) {
+      const track = tracks.find(t => t.id === trackId);
+      if (isPlaying) {
+        if (track) audio.muted = !!track.isMuted;
         const desired = loopLength > 0 ? (currentTime % loopLength) : currentTime;
-        tlog('Starting audio', trackId, { setTo: desired.toFixed(3) });
-        audio.currentTime = desired;
-        audio.play().catch((e) => tlog('audio.play error', trackId, e));
-      } else if (!isPlaying && !audio.paused) {
+        if (audio.paused) {
+          tlog('Starting audio', trackId, { setTo: desired.toFixed(3) });
+          audio.currentTime = desired;
+          audio.play().catch((e) => tlog('audio.play error', trackId, e));
+        }
+      } else {
         tlog('Pausing audio', trackId, { at: audio.currentTime.toFixed(3) });
         audio.pause();
+        audio.currentTime = 0;
+        audio.muted = true;
       }
     });
-  }, [isPlaying, loopLength]);
+  }, [isPlaying, loopLength, currentTime, tracks]);
 
   // Force stop all audio when not playing
   useEffect(() => {
@@ -278,7 +284,22 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     }
   }, [currentTime, isPlaying, loopLength]);
 
-  // Remove manual loop clamping - let session timer handle it smoothly
+  // Global cleanup on unmount to ensure no stray audio keeps playing
+  useEffect(() => {
+    return () => {
+      audioElementsRef.current.forEach((audio, trackId) => {
+        try {
+          tlog('Unmount cleanup: stopping audio', trackId);
+          audio.pause();
+          audio.src = '';
+          audio.load();
+        } catch (e) {
+          tlog('Cleanup error', trackId, e);
+        }
+      });
+      audioElementsRef.current.clear();
+    };
+  }, []);
 
   // Update track volume/mute without recreating audio elements
   useEffect(() => {
