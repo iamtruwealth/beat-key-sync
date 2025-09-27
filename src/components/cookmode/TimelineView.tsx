@@ -452,54 +452,6 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
 
   return (
     <div className="h-full flex flex-col bg-background/50">
-      {/* Timeline Header */}
-      <div className="p-4 border-b border-border/50 bg-card/20 backdrop-blur-sm">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-foreground">Arrangement View</h3>
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-xs font-mono">
-              {formatPosition(currentTime)}
-            </Badge>
-            <Badge variant="outline" className="text-xs">
-              {formatTime(currentTime)}
-            </Badge>
-            <Badge variant="outline" className="text-xs">
-              {bpm} BPM
-            </Badge>
-          </div>
-        </div>
-
-        {/* Transport Controls */}
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onPlayPause}
-            className="border-border/50"
-          >
-            {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-          </Button>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onSeek(0)}
-            className="border-border/50"
-          >
-            <RotateCcw className="w-4 h-4" />
-          </Button>
-
-          <Button
-            variant={isLooping ? "default" : "outline"}
-            size="sm"
-            onClick={() => setIsLooping(!isLooping)}
-            className="border-border/50"
-          >
-            Loop
-          </Button>
-        </div>
-      </div>
-
       {/* Main Timeline Area */}
       <div className="flex-1 relative overflow-auto">
         <div className="flex">
