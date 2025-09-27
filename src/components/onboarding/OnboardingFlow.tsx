@@ -81,12 +81,12 @@ export function OnboardingFlow({ userRole, userId, onComplete }: OnboardingFlowP
       setSteps(stepsData || []);
 
       // Check for existing progress
-      const { data: progressData } = await supabase
+      const { data: progressData, error: progressError } = await supabase
         .from('user_onboarding_progress')
         .select('*')
         .eq('user_id', userId)
         .eq('guide_id', guideData.id)
-        .single();
+        .maybeSingle();
 
       if (progressData) {
         setCurrentStep(progressData.current_step);

@@ -111,13 +111,38 @@ export default function ProducerDashboard() {
   const { needsOnboarding, loading: onboardingLoading } = useOnboardingStatus(currentUser?.id, userRole);
 
   useEffect(() => {
-    if (currentUser && userRole && !onboardingLoading) {
-      if (needsOnboarding) {
-        navigate('/onboarding');
-        return;
+    const run = async () => {
+      if (currentUser && userRole && !onboardingLoading) {
+        if (needsOnboarding && userRole === 'producer') {
+          // Re-validate from DB to avoid false positives
+          const { data: guide } = await supabase
+            .from('onboarding_guides')
+            .select('id')
+            .eq('role', 'producer')
+            .eq('is_active', true)
+            .maybeSingle();
+
+          if (guide) {
+            const { data: progress } = await supabase
+              .from('user_onboarding_progress')
+              .select('is_completed, is_skipped')
+              .eq('user_id', currentUser.id)
+              .eq('guide_id', guide.id)
+              .maybeSingle();
+
+            if (progress?.is_completed || progress?.is_skipped) {
+              loadDashboardData();
+              return;
+            }
+          }
+
+          navigate('/onboarding');
+          return;
+        }
+        loadDashboardData();
       }
-      loadDashboardData();
-    }
+    };
+    run();
   }, [currentUser, userRole, needsOnboarding, onboardingLoading]);
 
   const loadDashboardData = async () => {

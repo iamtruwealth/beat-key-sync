@@ -27,26 +27,30 @@ export function useOnboardingStatus(userId: string | undefined, userRole: 'produ
 
     try {
       // Get producer guide
-      const { data: guide } = await supabase
+      const { data: guide, error: guideError } = await supabase
         .from('onboarding_guides')
         .select('id')
         .eq('role', 'producer')
         .eq('is_active', true)
-        .single();
+        .maybeSingle();
 
-      if (!guide) {
+      console.log('[OnboardingStatus] guide:', { guide, guideError });
+
+      if (!guide || guideError) {
         setIsOnboardingComplete(true);
         setLoading(false);
         return;
       }
 
       // Check user progress
-      const { data: progress } = await supabase
+      const { data: progress, error: progressError } = await supabase
         .from('user_onboarding_progress')
         .select('is_completed, is_skipped')
         .eq('user_id', userId)
         .eq('guide_id', guide.id)
-        .single();
+        .maybeSingle();
+
+      console.log('[OnboardingStatus] progress:', { progress, progressError });
 
       if (progress) {
         setIsOnboardingComplete(progress.is_completed);
@@ -74,7 +78,7 @@ export function useOnboardingStatus(userId: string | undefined, userRole: 'produ
         .select('id')
         .eq('role', 'producer')
         .eq('is_active', true)
-        .single();
+        .maybeSingle();
 
       if (guide) {
         await supabase
