@@ -40,6 +40,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const [loopEnd, setLoopEnd] = useState(32);
   const [timelineWidth, setTimelineWidth] = useState(0);
   const [audioElements, setAudioElements] = useState<Map<string, HTMLAudioElement>>(new Map());
+  const blobSrcTriedRef = useRef<Set<string>>(new Set());
   const { toast } = useToast();
 
   // Calculate timing constants
@@ -89,11 +90,33 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           }
         });
         
-        audio.addEventListener('error', (e) => {
+        audio.addEventListener('error', async (e) => {
           console.error('Audio error for track:', track.name, e, 'Audio error object:', audio.error);
+
+          // Attempt blob fallback once per track
+          if (!blobSrcTriedRef.current.has(track.id)) {
+            blobSrcTriedRef.current.add(track.id);
+            try {
+              console.log('Attempting blob fallback for:', track.name);
+              const res = await fetch(track.file_url, { mode: 'cors' });
+              if (!res.ok) throw new Error(`HTTP ${res.status}`);
+              const blob = await res.blob();
+              const objectUrl = URL.createObjectURL(blob);
+              audio.src = objectUrl;
+              audio.load();
+              if (isPlaying) {
+                audio.currentTime = currentTime;
+                await audio.play();
+              }
+              return;
+            } catch (fallbackErr) {
+              console.error('Blob fallback failed for:', track.name, fallbackErr);
+            }
+          }
+
           toast({
             title: "Audio Error",
-            description: `Could not load ${track.name}: ${audio.error?.message || 'Unknown error'}`,
+            description: `Could not load ${track.name}: ${audio.error?.message || 'Unsupported or blocked source'}`,
             variant: "destructive"
           });
         });
