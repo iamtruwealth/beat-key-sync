@@ -284,7 +284,7 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
       >
         {/* Drag overlay */}
         {isDragOver && (
-          <div className="absolute inset-0 z-40 bg-background/80 backdrop-blur-sm border-2 border-dashed border-neon-cyan flex items-center justify-center pointer-events-none">
+          <div className="absolute inset-0 z-20 bg-background/80 backdrop-blur-sm border-2 border-dashed border-neon-cyan flex items-center justify-center pointer-events-none">
             <div className="text-center pointer-events-none">
               <Upload className="w-16 h-16 text-neon-cyan mx-auto mb-4" />
               <h3 className="text-xl font-semibold text-neon-cyan mb-2">Drop Audio Files Here</h3>

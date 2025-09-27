@@ -26,6 +26,7 @@ interface SessionControlsProps {
   isLooping?: boolean;
   onTogglePlayback: () => void;
   onSeek: (time: number) => void;
+  onStop?: () => void;
   onToggleLoop?: () => void;
   onUpdateBpm?: (bpm: number) => void;
   onUpdateKey?: (key: string) => void;
@@ -39,6 +40,7 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
   isLooping = false,
   onTogglePlayback,
   onSeek,
+  onStop,
   onToggleLoop,
   onUpdateBpm,
   onUpdateKey
@@ -156,8 +158,8 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
               size="sm"
               className="p-2"
               onClick={() => {
-                if (typeof (window as any).stopPlayback === 'function') {
-                  (window as any).stopPlayback();
+                if (onStop) {
+                  onStop();
                 } else {
                   onSeek(0);
                   if (isPlaying) {

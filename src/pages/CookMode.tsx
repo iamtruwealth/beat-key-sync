@@ -71,13 +71,7 @@ const CookMode = () => {
     }
   }, [sessionId, session, joinSession]);
 
-  // Expose stopPlayback globally for stop button
-  useEffect(() => {
-    (window as any).stopPlayback = stopPlayback;
-    return () => {
-      delete (window as any).stopPlayback;
-    };
-  }, [stopPlayback]);
+  // Stop is handled via onStop prop, no globals
 
   // Enable audio context on first user interaction
   useEffect(() => {
@@ -395,6 +389,7 @@ const CookMode = () => {
             sessionKey={session.target_genre}
             onTogglePlayback={togglePlayback}
             onSeek={seekTo}
+            onStop={stopPlayback}
             onUpdateBpm={(bpm) => updateSessionSettings({ bpm })}
             onUpdateKey={(key) => updateSessionSettings({ key })}
           />
@@ -421,7 +416,7 @@ const CookMode = () => {
         </div>
 
         {/* Right Sidebar */}
-        <div className="w-80 border-l border-border/50 bg-card/20 backdrop-blur-sm flex flex-col">
+        <div className="w-80 border-l border-border/50 bg-card/20 backdrop-blur-sm flex flex-col relative z-30">
           {/* Participants */}
           <div className="p-4 border-b border-border/50">
             <SessionParticipants participants={participants} />
