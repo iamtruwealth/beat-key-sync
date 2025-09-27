@@ -12,6 +12,7 @@ export function RoleProtectedRoute({ children, allowedRoles }: RoleProtectedRout
   const [user, setUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<'artist' | 'producer' | null>(null);
   const [loading, setLoading] = useState(true);
+  const [initialLoad, setInitialLoad] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -25,7 +26,10 @@ export function RoleProtectedRoute({ children, allowedRoles }: RoleProtectedRout
         if (!mounted) return;
         
         if (!session) {
-          navigate("/auth");
+          // Only redirect on initial load if there's no session
+          if (initialLoad) {
+            navigate("/auth");
+          }
           return;
         }
 
@@ -43,14 +47,15 @@ export function RoleProtectedRoute({ children, allowedRoles }: RoleProtectedRout
         const role = profile?.role || 'artist';
         setUserRole(role);
 
-        // Check if user has permission for this route
-        if (!allowedRoles.includes(role)) {
-          // Redirect to appropriate dashboard based on role
+        // Only redirect on role mismatch if this is not the initial load
+        // or if we're certain about the role
+        if (!allowedRoles.includes(role) && !initialLoad) {
           navigate(role === 'artist' ? '/artist-dashboard' : '/producer-dashboard');
           return;
         }
 
         setLoading(false);
+        setInitialLoad(false);
       } catch (error) {
         console.error('Error checking user role:', error);
         if (mounted) {
@@ -96,8 +101,12 @@ export function RoleProtectedRoute({ children, allowedRoles }: RoleProtectedRout
       }
     });
 
-    // Then check current session
-    checkUserRole();
+    // Then check current session after a small delay to let auth state settle
+    setTimeout(() => {
+      if (mounted) {
+        checkUserRole();
+      }
+    }, 100);
 
     return () => {
       mounted = false;
