@@ -68,18 +68,21 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
         container: containerRef.current,
         waveColor: getStemWaveColor(track.stem_type),
         progressColor: getStemProgressColor(track.stem_type),
-        cursorColor: 'rgba(255, 255, 255, 0.8)',
-        barWidth: 2,
+        cursorColor: '#00ffff', // Neon cyan cursor
+        barWidth: 3,
         barGap: 1,
+        barRadius: 2,
         height: trackHeight - 16,
         normalize: true,
-        interact: false, // Disable WaveSurfer controls since Tone.js handles playback
+        interact: false,
         hideScrollbar: true,
         minPxPerSec: pixelsPerSecond,
         fillParent: false,
         mediaControls: false,
-        autoplay: false, // Critical: Never autoplay
-        backend: 'WebAudio'
+        autoplay: false,
+        backend: 'WebAudio',
+        // Add visual enhancements
+        plugins: []
       });
 
       waveSurferRef.current = waveSurfer;
@@ -147,8 +150,8 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
     if (waveSurferRef.current && isLoaded) {
       try {
         waveSurferRef.current.setOptions({
-          waveColor: isMuted ? getStemWaveColorMuted(track.stem_type) : getStemWaveColor(track.stem_type),
-          progressColor: isMuted ? getStemProgressColorMuted(track.stem_type) : getStemProgressColor(track.stem_type)
+          waveColor: isMuted ? getStemWaveColor(track.stem_type) + '60' : getStemWaveColor(track.stem_type),
+          progressColor: isMuted ? getStemProgressColor(track.stem_type) + '60' : getStemProgressColor(track.stem_type)
         });
       } catch (err) {
         console.error('Error updating waveform colors:', err);
@@ -173,49 +176,101 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
 
   return (
     <div
-      className={`relative border-2 rounded cursor-pointer overflow-hidden ${getStemBorderColor(track.stem_type)} ${className}`}
+      className={`relative rounded-lg cursor-pointer overflow-hidden backdrop-blur-sm ${getStemBorderColor(track.stem_type)} ${className}`}
       style={{
         width: clipWidth,
         height: trackHeight - 8,
-        minWidth: 100 // Minimum width for visibility
+        minWidth: 100,
+        background: getStemBackgroundGradient(track.stem_type),
+        border: `2px solid ${getStemBorderColorHex(track.stem_type)}`,
+        boxShadow: `0 0 20px ${getStemGlowColor(track.stem_type)}`
       }}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
     >
       {error ? (
-        <div className="flex items-center justify-center h-full bg-red-500/10 border-red-500">
-          <span className="text-xs text-red-400">Failed to load</span>
+        <div className="flex items-center justify-center h-full bg-red-500/20 border-red-400 rounded-lg">
+          <span className="text-xs text-red-300">Failed to load</span>
         </div>
       ) : (
         <>
-          {/* WaveSurfer container */}
+          {/* Animated background effect */}
+          <div 
+            className="absolute inset-0 opacity-30"
+            style={{
+              background: `linear-gradient(45deg, ${getStemWaveColor(track.stem_type)}20, transparent, ${getStemProgressColor(track.stem_type)}20)`,
+              animation: 'pulse 2s ease-in-out infinite'
+            }}
+          />
+          
+          {/* WaveSurfer container with enhanced styling */}
           <div
             ref={containerRef}
             id={containerId}
-            className="w-full h-full"
-            style={{ opacity }}
+            className="relative w-full h-full z-10"
+            style={{ 
+              opacity,
+              filter: isMuted ? 'grayscale(100%)' : 'none'
+            }}
           />
           
-          {/* Loading overlay */}
+          {/* Loading overlay with neon effect */}
           {!isLoaded && !error && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+              <div 
+                className="w-6 h-6 border-2 rounded-full animate-spin"
+                style={{
+                  borderColor: getStemWaveColor(track.stem_type),
+                  borderTopColor: 'transparent',
+                  boxShadow: `0 0 10px ${getStemWaveColor(track.stem_type)}`
+                }}
+              />
             </div>
           )}
           
-          {/* Track name overlay */}
-          <div className="absolute top-1 left-2 right-2">
-            <span className="text-xs font-medium text-white truncate block">
+          {/* Track name overlay with glow */}
+          <div className="absolute top-1 left-2 right-2 z-20">
+            <span 
+              className="text-xs font-bold text-white truncate block drop-shadow-lg"
+              style={{ 
+                textShadow: `0 0 8px ${getStemWaveColor(track.stem_type)}` 
+              }}
+            >
               {track.name}
             </span>
           </div>
           
-          {/* Time markers */}
-          <div className="absolute bottom-1 left-2 text-xs text-white/70">
+          {/* Time markers with neon styling */}
+          <div 
+            className="absolute bottom-1 left-2 text-xs font-mono font-bold"
+            style={{ 
+              color: getStemWaveColor(track.stem_type),
+              textShadow: `0 0 4px ${getStemWaveColor(track.stem_type)}`
+            }}
+          >
             {formatTime(clip.startTime)}
           </div>
-          <div className="absolute bottom-1 right-2 text-xs text-white/70">
+          <div 
+            className="absolute bottom-1 right-2 text-xs font-mono font-bold"
+            style={{ 
+              color: getStemWaveColor(track.stem_type),
+              textShadow: `0 0 4px ${getStemWaveColor(track.stem_type)}`
+            }}
+          >
             {formatTime(clip.endTime)}
+          </div>
+          
+          {/* Stem type indicator */}
+          <div 
+            className="absolute top-1 right-2 px-2 py-0.5 rounded text-xs font-bold uppercase"
+            style={{
+              background: `${getStemWaveColor(track.stem_type)}40`,
+              color: getStemWaveColor(track.stem_type),
+              border: `1px solid ${getStemWaveColor(track.stem_type)}80`,
+              textShadow: `0 0 4px ${getStemWaveColor(track.stem_type)}`
+            }}
+          >
+            {track.stem_type}
           </div>
         </>
       )}
@@ -223,47 +278,75 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
   );
 };
 
-// Helper functions for stem colors
+// Enhanced helper functions for vibrant neon colors
 const getStemWaveColor = (stemType: string): string => {
   const colors = {
-    drums: '#ef4444',     // red
-    bass: '#3b82f6',      // blue  
-    melody: '#10b981',    // green
-    vocals: '#8b5cf6',    // purple
-    other: '#6b7280'      // gray
+    drums: '#ff0080',      // Neon magenta
+    bass: '#00ffff',       // Neon cyan  
+    melody: '#00ff80',     // Neon green
+    vocals: '#8000ff',     // Neon purple
+    fx: '#ff8000',         // Neon orange
+    other: '#ffffff'       // Bright white
   };
   return colors[stemType as keyof typeof colors] || colors.other;
 };
 
 const getStemProgressColor = (stemType: string): string => {
   const colors = {
-    drums: '#dc2626',     // darker red
-    bass: '#2563eb',      // darker blue
-    melody: '#059669',    // darker green
-    vocals: '#7c3aed',    // darker purple
-    other: '#4b5563'      // darker gray
+    drums: '#ff00ff',      // Bright magenta
+    bass: '#0080ff',       // Electric blue
+    melody: '#80ff00',     // Electric green
+    vocals: '#ff00ff',     // Electric magenta
+    fx: '#ffff00',         // Electric yellow
+    other: '#cccccc'       // Light gray
   };
   return colors[stemType as keyof typeof colors] || colors.other;
 };
 
-const getStemWaveColorMuted = (stemType: string): string => {
-  const baseColor = getStemWaveColor(stemType);
-  // Make it more transparent when muted
-  return baseColor + '40'; // Add alpha
+const getStemBackgroundGradient = (stemType: string): string => {
+  const gradients = {
+    drums: 'linear-gradient(135deg, rgba(255,0,128,0.2) 0%, rgba(255,0,255,0.1) 50%, rgba(0,0,0,0.8) 100%)',
+    bass: 'linear-gradient(135deg, rgba(0,255,255,0.2) 0%, rgba(0,128,255,0.1) 50%, rgba(0,0,0,0.8) 100%)',
+    melody: 'linear-gradient(135deg, rgba(0,255,128,0.2) 0%, rgba(128,255,0,0.1) 50%, rgba(0,0,0,0.8) 100%)',
+    vocals: 'linear-gradient(135deg, rgba(128,0,255,0.2) 0%, rgba(255,0,255,0.1) 50%, rgba(0,0,0,0.8) 100%)',
+    fx: 'linear-gradient(135deg, rgba(255,128,0,0.2) 0%, rgba(255,255,0,0.1) 50%, rgba(0,0,0,0.8) 100%)',
+    other: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(128,128,128,0.1) 50%, rgba(0,0,0,0.8) 100%)'
+  };
+  return gradients[stemType as keyof typeof gradients] || gradients.other;
 };
 
-const getStemProgressColorMuted = (stemType: string): string => {
-  const baseColor = getStemProgressColor(stemType);
-  return baseColor + '40'; // Add alpha
+const getStemGlowColor = (stemType: string): string => {
+  const colors = {
+    drums: 'rgba(255,0,128,0.4)',
+    bass: 'rgba(0,255,255,0.4)',
+    melody: 'rgba(0,255,128,0.4)',
+    vocals: 'rgba(128,0,255,0.4)',
+    fx: 'rgba(255,128,0,0.4)',
+    other: 'rgba(255,255,255,0.2)'
+  };
+  return colors[stemType as keyof typeof colors] || colors.other;
+};
+
+const getStemBorderColorHex = (stemType: string): string => {
+  const colors = {
+    drums: '#ff0080',
+    bass: '#00ffff',
+    melody: '#00ff80',
+    vocals: '#8000ff',
+    fx: '#ff8000',
+    other: '#ffffff'
+  };
+  return colors[stemType as keyof typeof colors] || colors.other;
 };
 
 const getStemBorderColor = (stemType: string): string => {
   const colors = {
-    drums: 'border-red-500',
-    bass: 'border-blue-500',
-    melody: 'border-green-500', 
+    drums: 'border-pink-500',
+    bass: 'border-cyan-400',
+    melody: 'border-green-400', 
     vocals: 'border-purple-500',
-    other: 'border-gray-500'
+    fx: 'border-orange-400',
+    other: 'border-gray-400'
   };
   return colors[stemType as keyof typeof colors] || colors.other;
 };
