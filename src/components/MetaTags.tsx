@@ -41,9 +41,8 @@ export const MetaTags = ({ title, description, image, url }: MetaTagsProps) => {
     }
     if (image) {
       updateMetaTag('og:image', image);
-    } else {
-      const ogImg = document.querySelector('meta[property="og:image"]');
-      if (ogImg) ogImg.parentNode?.removeChild(ogImg);
+      updateMetaTag('og:image:width', '1200');
+      updateMetaTag('og:image:height', '630');
     }
     if (url) {
       updateMetaTag('og:url', url);
@@ -58,9 +57,6 @@ export const MetaTags = ({ title, description, image, url }: MetaTagsProps) => {
     }
     if (image) {
       updateNameMetaTag('twitter:image', image);
-    } else {
-      const twImg = document.querySelector('meta[name="twitter:image"]');
-      if (twImg) twImg.parentNode?.removeChild(twImg);
     }
 
     // Cleanup function to restore original meta tags when component unmounts
