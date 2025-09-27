@@ -137,13 +137,44 @@ export default function UploadPage() {
   
   const uploadArtwork = async (file: File, userId: string): Promise<string | null> => {
     try {
+      console.log('Starting artwork upload:', file.name, 'Size:', file.size);
+      
+      // Check file size (limit to 10MB for artwork)
+      if (file.size > 10 * 1024 * 1024) {
+        console.error('Artwork file too large:', file.size);
+        toast({
+          title: "Artwork too large",
+          description: "Please choose an image smaller than 10MB",
+          variant: "destructive"
+        });
+        return null;
+      }
+
       const fileName = `${userId}/artwork/${Date.now()}-${file.name}`;
-      const { error } = await supabase.storage.from('artwork').upload(fileName, file);
-      if (error) throw error;
+      console.log('Uploading artwork to:', fileName);
+      
+      const { data, error } = await supabase.storage.from('artwork').upload(fileName, file, {
+        cacheControl: '3600',
+        upsert: false
+      });
+      
+      if (error) {
+        console.error('Artwork upload error:', error);
+        throw error;
+      }
+      
+      console.log('Artwork upload successful:', data?.path);
       const { data: { publicUrl } } = supabase.storage.from('artwork').getPublicUrl(fileName);
+      console.log('Artwork public URL:', publicUrl);
+      
       return publicUrl;
     } catch (error) {
-      console.error('Artwork upload error:', error);
+      console.error('Artwork upload failed:', error);
+      toast({
+        title: "Artwork upload failed",
+        description: error instanceof Error ? error.message : "Failed to upload artwork",
+        variant: "destructive"
+      });
       return null;
     }
   };
@@ -169,16 +200,29 @@ export default function UploadPage() {
     
     try {
       for (const fileData of uploadedFiles) {
+        console.log('Starting upload for:', fileData.title);
         setUploadedFiles(prev => prev.map(file => file === fileData ? { ...file, status: 'uploading', progress: 0 } : file));
 
         let artworkUrl = null;
         if (fileData.artwork) {
+          console.log('Uploading artwork for:', fileData.title);
+          setUploadedFiles(prev => prev.map(file => file === fileData ? { ...file, progress: 25 } : file));
           artworkUrl = await uploadArtwork(fileData.artwork, user.id);
+          console.log('Artwork upload result:', artworkUrl ? 'Success' : 'Failed');
         }
+
+        console.log('Uploading audio file for:', fileData.title);
+        setUploadedFiles(prev => prev.map(file => file === fileData ? { ...file, progress: 50 } : file));
 
         const fileName = `${user.id}/${Date.now()}-${fileData.file.name}`;
         const { error: uploadError } = await supabase.storage.from('audio-files').upload(fileName, fileData.file);
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          console.error('Audio upload error:', uploadError);
+          throw uploadError;
+        }
+
+        console.log('Audio upload successful, creating database record');
+        setUploadedFiles(prev => prev.map(file => file === fileData ? { ...file, progress: 75 } : file));
 
         const { data: { publicUrl } } = supabase.storage.from('audio-files').getPublicUrl(fileName);
 
@@ -205,7 +249,13 @@ export default function UploadPage() {
           }
         }).select().single();
 
-        if (beatError) throw beatError;
+        if (beatError) {
+          console.error('Database insert error:', beatError);
+          throw beatError;
+        }
+
+        console.log('Database record created, triggering background analysis');
+        setUploadedFiles(prev => prev.map(file => file === fileData ? { ...file, progress: 90 } : file));
 
         // Trigger background analysis
         try {
