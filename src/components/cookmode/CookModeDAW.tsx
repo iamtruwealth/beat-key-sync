@@ -78,6 +78,26 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Add global event listeners to debug drop issues
+  React.useEffect(() => {
+    const handleGlobalDrop = (e: DragEvent) => {
+      console.log('Global drop event detected');
+      e.preventDefault();
+    };
+    
+    const handleGlobalDragOver = (e: DragEvent) => {
+      e.preventDefault();
+    };
+
+    document.addEventListener('drop', handleGlobalDrop);
+    document.addEventListener('dragover', handleGlobalDragOver);
+    
+    return () => {
+      document.removeEventListener('drop', handleGlobalDrop);
+      document.removeEventListener('dragover', handleGlobalDragOver);
+    };
+  }, []);
+
   // Controlled/uncontrolled view state
   const view = externalActiveView ?? activeView;
   const handleViewChange = (value: string) => {
@@ -113,12 +133,14 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
     console.log('Drag enter event triggered');
     e.preventDefault();
     e.stopPropagation();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
   };
 
   const handleDragOver = (e: React.DragEvent) => {
     console.log('Drag over event triggered');
     e.preventDefault();
     e.stopPropagation();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
     setIsDragOver(true);
   };
 
