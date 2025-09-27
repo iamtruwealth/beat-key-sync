@@ -61,7 +61,7 @@ export const MetaTags = ({ title, description, image, url }: MetaTagsProps) => {
 
     // Cleanup function to restore original meta tags when component unmounts
     return () => {
-      document.title = 'BeatPackz - Music Producer Platform';
+      document.title = 'BeatPackz';
     };
   }, [title, description, image, url]);
 
