@@ -68,6 +68,7 @@
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
     "tonal": "^6.4.2",
+    "tone": "^15.1.22",
     "vaul": "^0.9.9",
     "wavesurfer.js": "^7.10.1",
     "web-audio-beat-detector": "^8.2.30",

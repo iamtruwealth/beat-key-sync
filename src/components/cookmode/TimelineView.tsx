@@ -7,6 +7,7 @@ import { BPMSyncIndicator } from './BPMSyncIndicator';
 import { useToast } from "@/hooks/use-toast";
 import { useWaveformGenerator } from '@/hooks/useWaveformGenerator';
 import { generateWaveformBars } from '@/lib/waveformGenerator';
+import { toneAudioEngine } from '@/lib/toneAudioEngine';
 
 interface Track {
   id: string;
@@ -54,27 +55,43 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
 }) => {
   const timelineRef = useRef<HTMLDivElement>(null);
   const [timelineWidth, setTimelineWidth] = useState(0);
-  const audioElementsRef = useRef<Map<string, HTMLAudioElement>>(new Map());
-  const blobSrcTriedRef = useRef<Set<string>>(new Set());
   const [trackDurations, setTrackDurations] = useState<Map<string, number>>(new Map());
   const [masterVolume, setMasterVolume] = useState(100);
   const [audioClips, setAudioClips] = useState<AudioClip[]>([]);
   const [selectedClips, setSelectedClips] = useState<Set<string>>(new Set());
   const [copiedClip, setCopiedClip] = useState<AudioClip | null>(null);
+  const [engineInitialized, setEngineInitialized] = useState(false);
   const { toast } = useToast();
 
-  // Metronome state
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const metronomeIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const baseStartAudioCtxTimeRef = useRef(0);
-  const baseStartTimelineTimeRef = useRef(0);
-  const nextBeatIndexRef = useRef(0);
-  const prevTimeRef = useRef(0);
+  // Initialize Tone.js engine
+  useEffect(() => {
+    const initEngine = async () => {
+      try {
+        await toneAudioEngine.initialize();
+        setEngineInitialized(true);
+      } catch (error) {
+        console.error('Failed to initialize audio engine:', error);
+        toast({
+          title: "Audio Error",
+          description: "Failed to initialize audio engine",
+          variant: "destructive"
+        });
+      }
+    };
+    initEngine();
+  }, [toast]);
 
   // Calculate timing constants with precise BPM
   const secondsPerBeat = 60 / bpm; // Precise: 60 seconds / beats per minute
   const beatsPerBar = 4;
   const secondsPerBar = secondsPerBeat * beatsPerBar;
+
+  // Update engine BPM when it changes
+  useEffect(() => {
+    if (engineInitialized) {
+      toneAudioEngine.setBPM(bpm);
+    }
+  }, [bpm, engineInitialized]);
   
   // Calculate session length based on the LAST ending clip (not longest)
   const lastClipEndTime = Math.max(
@@ -99,109 +116,88 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const pixelsPerBeat = pixelsPerSecond * secondsPerBeat;
   const pixelsPerBar = pixelsPerBeat * beatsPerBar;
 
-  // Initialize audio context for metronome
+  // Initialize tracks with Tone.js engine
   useEffect(() => {
-    if (metronomeEnabled) {
-      if (!audioContextRef.current) {
-        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-      } else if (audioContextRef.current.state === 'suspended') {
-        audioContextRef.current.resume();
-      }
-    }
-    return () => {
-      // Do not close context on toggle; reuse to keep clock stable
-    };
-  }, [metronomeEnabled]);
+    if (!engineInitialized || tracks.length === 0) return;
 
-  // Metronome click function (scheduled)
-  const playMetronomeClick = useCallback((when: number, isDownbeat: boolean = false) => {
-    if (!audioContextRef.current || !metronomeEnabled) return;
+    const initializeTracks = async () => {
+      try {
+        // Clear existing tracks from engine
+        tracks.forEach(track => {
+          toneAudioEngine.removeTrack(track.id);
+        });
 
-    const audioContext = audioContextRef.current;
-    const osc = audioContext.createOscillator();
-    const gain = audioContext.createGain();
+        // Add tracks to engine
+        for (const track of tracks) {
+          if (track.file_url) {
+            // Calculate duration in beats
+            const knownDuration = track.analyzed_duration || track.duration;
+            const durationInBeats = knownDuration 
+              ? Math.max(4, Math.round((knownDuration / secondsPerBeat) / 4) * 4) // Round to nearest 4 beats
+              : (track.bars || 4) * 4; // Default to 4 bars = 16 beats
 
-    osc.connect(gain);
-    gain.connect(audioContext.destination);
+            await toneAudioEngine.addTrack(
+              track.id,
+              track.file_url,
+              0, // Start at beginning
+              durationInBeats,
+              track.volume || 1,
+              track.isMuted || false,
+              track.isSolo || false
+            );
 
-    osc.frequency.setValueAtTime(isDownbeat ? 1100 : 800, when);
-    osc.type = 'square';
-
-    const peak = 0.08;
-    gain.gain.setValueAtTime(0, when);
-    gain.gain.linearRampToValueAtTime(peak, when + 0.005);
-    gain.gain.exponentialRampToValueAtTime(0.0008, when + 0.08);
-
-    osc.start(when);
-    osc.stop(when + 0.1);
-  }, [metronomeEnabled]);
-
-  // Metronome scheduler using AudioContext clock (tight sync)
-  useEffect(() => {
-    if (!metronomeEnabled || !isPlaying) {
-      if (metronomeIntervalRef.current) {
-        clearInterval(metronomeIntervalRef.current);
-        metronomeIntervalRef.current = null;
-      }
-      return;
-    }
-
-    if (!audioContextRef.current) {
-      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-    } else if (audioContextRef.current.state === 'suspended') {
-      audioContextRef.current.resume();
-    }
-
-    const ac = audioContextRef.current;
-
-    // Align scheduler to current playhead
-    baseStartAudioCtxTimeRef.current = ac.currentTime;
-    baseStartTimelineTimeRef.current = currentTime;
-    nextBeatIndexRef.current = Math.floor(currentTime / secondsPerBeat);
-
-    const lookaheadMs = 25; // how often we check
-    const scheduleAheadTime = 0.15; // schedule this far ahead (sec)
-
-    metronomeIntervalRef.current = setInterval(() => {
-      const now = ac.currentTime;
-      // schedule all beats up to now + scheduleAheadTime
-      while (true) {
-        const beatIndex = nextBeatIndexRef.current;
-        const beatTimeTimeline = beatIndex * secondsPerBeat; // seconds from timeline 0
-        const when = baseStartAudioCtxTimeRef.current + (beatTimeTimeline - baseStartTimelineTimeRef.current);
-        if (when <= now + scheduleAheadTime) {
-          const isDownbeat = (beatIndex % beatsPerBar) === 0;
-          playMetronomeClick(when, isDownbeat);
-          nextBeatIndexRef.current = beatIndex + 1;
-        } else {
-          break;
+            // Store duration for UI
+            const actualDuration = durationInBeats * secondsPerBeat;
+            setTrackDurations(prev => new Map(prev.set(track.id, actualDuration)));
+          }
         }
-      }
-    }, lookaheadMs);
-
-    return () => {
-      if (metronomeIntervalRef.current) {
-        clearInterval(metronomeIntervalRef.current);
-        metronomeIntervalRef.current = null;
+      } catch (error) {
+        console.error('Failed to initialize tracks:', error);
+        toast({
+          title: "Audio Error", 
+          description: "Failed to load audio tracks",
+          variant: "destructive"
+        });
       }
     };
-  }, [isPlaying, metronomeEnabled, secondsPerBeat, beatsPerBar, currentTime, playMetronomeClick]);
 
-  // Realign scheduler on large seeks/jumps
+    initializeTracks();
+  }, [tracks, engineInitialized, secondsPerBeat, toast]);
+
+  // Handle playback state changes
   useEffect(() => {
-    if (!isPlaying || !metronomeEnabled || !audioContextRef.current) {
-      prevTimeRef.current = currentTime;
-      return;
+    if (!engineInitialized) return;
+
+    if (isPlaying && !toneAudioEngine.isPlaying) {
+      toneAudioEngine.startPlayback();
+    } else if (!isPlaying && toneAudioEngine.isPlaying) {
+      toneAudioEngine.stopPlayback(); 
     }
-    const delta = Math.abs(currentTime - prevTimeRef.current);
-    if (delta > secondsPerBeat * 0.75) {
-      const ac = audioContextRef.current;
-      baseStartAudioCtxTimeRef.current = ac.currentTime;
-      baseStartTimelineTimeRef.current = currentTime;
-      nextBeatIndexRef.current = Math.floor(currentTime / secondsPerBeat);
+  }, [isPlaying, engineInitialized]);
+
+  // Handle seeking
+  const handleSeek = useCallback((time: number) => {
+    if (engineInitialized) {
+      const positionInBeats = time / secondsPerBeat;
+      toneAudioEngine.seekTo(positionInBeats);
     }
-    prevTimeRef.current = currentTime;
-  }, [currentTime, isPlaying, metronomeEnabled, secondsPerBeat]);
+    onSeek(time);
+  }, [engineInitialized, secondsPerBeat, onSeek]);
+
+  // Update track properties in engine
+  const updateTrackProperties = useCallback((trackId: string, updates: Partial<Track>) => {
+    if (!engineInitialized) return;
+
+    if (updates.volume !== undefined) {
+      toneAudioEngine.updateTrackVolume(trackId, updates.volume);
+    }
+    if (updates.isMuted !== undefined) {
+      toneAudioEngine.muteTrack(trackId, updates.isMuted);
+    }
+    if (updates.isSolo !== undefined) {
+      toneAudioEngine.soloTrack(trackId, updates.isSolo);
+    }
+  }, [engineInitialized]);
 
   // Initialize audio clips from tracks - ensure proper positioning
   useEffect(() => {
@@ -360,12 +356,9 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       return newSet;
     });
     
-    // Clean up audio element
-    const audioElement = audioElementsRef.current.get(trackId);
-    if (audioElement) {
-      audioElement.pause();
-      audioElement.src = '';
-      audioElementsRef.current.delete(trackId);
+    // Remove track from Tone.js engine
+    if (engineInitialized) {
+      toneAudioEngine.removeTrack(trackId);
     }
     
     // Update tracks via callback
@@ -378,7 +371,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       title: "Track Deleted",
       description: `${track.name} removed from session`,
     });
-  }, [tracks, audioClips, onTracksUpdate, toast]);
+  }, [tracks, audioClips, onTracksUpdate, toast, engineInitialized]);
 
   // Delete clip function
   const deleteClip = useCallback((clipId: string) => {
@@ -432,241 +425,26 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedClips, copyClip, pasteClip, duplicateClip, deleteClip, currentTime]);
 
-  // Initialize audio elements for all tracks
-  useEffect(() => {
-    tracks.forEach(track => {
-      if (!audioElementsRef.current.has(track.id)) {
-        console.log('Creating audio element for track:', track.name, 'URL:', track.file_url);
-        
-        if (!track.file_url) {
-          console.error('Track has no file_url:', track);
-          toast({
-            title: "Audio Error",
-            description: `Track ${track.name} has no audio file`,
-            variant: "destructive"
-          });
-          return;
-        }
-
-        const audio = new Audio();
-        audio.volume = track.volume !== undefined ? track.volume : 1;
-        audio.muted = track.isMuted || false;
-        audio.currentTime = currentTime;
-        audio.crossOrigin = "anonymous"; // For CORS
-        audio.preload = 'auto';
-        
-        audio.addEventListener('loadeddata', () => {
-          console.log('Audio loaded successfully for:', track.name);
-          // Update actual duration from audio element
-          const actualDuration = audio.duration;
-          if (actualDuration && actualDuration > 0) {
-            setTrackDurations(prev => new Map(prev.set(track.id, actualDuration)));
-          }
-          // Set base volume for master fader control
-          audio.setAttribute('data-base-volume', (track.volume !== undefined ? track.volume : 1).toString());
-        });
-        
-        audio.addEventListener('canplay', () => {
-          // Only log once when first loaded, not on every canplay event
-          if (!audio.hasAttribute('data-initialized')) {
-            console.log('Audio loaded:', track.name);
-            audio.setAttribute('data-initialized', 'true');
-            
-            // Sync with current playback state only on initial load
-            if (isPlaying) {
-              audio.currentTime = currentTime;
-              audio.play().catch(error => {
-                console.error('Error starting playback:', error);
-              });
-            }
-          }
-        });
-
-        audio.addEventListener('ended', () => {
-          console.log('Audio ended for track:', track.name);
-          // Ensure audio is properly stopped and reset
-          audio.pause();
-          audio.currentTime = 0;
-        });
-
-        audio.addEventListener('timeupdate', () => {
-          // Get actual duration from the audio element
-          const actualDuration = trackDurations.get(track.id) || track.analyzed_duration || track.duration || audio.duration;
-          
-          // Stop audio if it exceeds the expected duration to prevent noise
-          if (actualDuration && audio.currentTime >= actualDuration) {
-            console.log(`Stopping track ${track.name} at ${audio.currentTime}s (duration: ${actualDuration}s)`);
-            audio.pause();
-            audio.currentTime = actualDuration; // Set to exact end
-          }
-        });
-        
-        audio.addEventListener('error', async (e) => {
-          console.error('Audio error for track:', track.name, e, 'Audio error object:', audio.error);
-
-          // Attempt blob fallback once per track
-          if (!blobSrcTriedRef.current.has(track.id)) {
-            blobSrcTriedRef.current.add(track.id);
-            try {
-              console.log('Attempting blob fallback for:', track.name);
-              const res = await fetch(track.file_url, { mode: 'cors' });
-              if (!res.ok) throw new Error(`HTTP ${res.status}`);
-              const blob = await res.blob();
-              const objectUrl = URL.createObjectURL(blob);
-              audio.src = objectUrl;
-              audio.load();
-              if (isPlaying) {
-                audio.currentTime = currentTime;
-                await audio.play();
-              }
-              return;
-            } catch (fallbackErr) {
-              console.error('Blob fallback failed for:', track.name, fallbackErr);
-            }
-          }
-
-          toast({
-            title: "Audio Error",
-            description: `Could not load ${track.name}: ${audio.error?.message || 'Unsupported or blocked source'}`,
-            variant: "destructive"
-          });
-        });
-        
-        // Set the source after adding event listeners
-        audio.src = track.file_url;
-        audio.load(); // Explicitly load the audio
-        
-        audioElementsRef.current.set(track.id, audio);
-      }
-    });
-
-    // Remove audio elements for tracks that no longer exist
-    audioElementsRef.current.forEach((audio, trackId) => {
-      if (!tracks.find(t => t.id === trackId)) {
-        audio.pause();
-        audio.src = '';
-        audioElementsRef.current.delete(trackId);
-      }
-    });
-  }, [tracks, toast]);
-
-  // Sync playback state with main controls - precise BPM timing with simultaneous start
-  useEffect(() => {
-    console.log('Timeline syncing playback state:', { isPlaying, currentTime, bpm, secondsPerBeat, audioElementsCount: audioElementsRef.current.size });
-    
-    // Collect all audio elements that need to start/stop simultaneously
-    const audioToStart: { audio: HTMLAudioElement; trackId: string; clipTime: number }[] = [];
-    const audioToStop: { audio: HTMLAudioElement; trackId: string }[] = [];
-    
-    audioElementsRef.current.forEach((audio, trackId) => {
-      try {
-        if (!audio.src) return;
-        
-        // Find active clips for this track at current time
-        const activeClips = audioClips.filter(clip => 
-          clip.trackId === trackId && 
-          currentTime >= clip.startTime && 
-          currentTime < clip.endTime
-        );
-        
-        const shouldPlay = isPlaying && activeClips.length > 0;
-        
-        if (shouldPlay && audio.paused) {
-          // Calculate precise clip time for BPM sync
-          const activeClip = activeClips[0];
-          const clipTime = Math.max(0, currentTime - activeClip.startTime);
-          audioToStart.push({ audio, trackId, clipTime });
-        } else if (!shouldPlay && !audio.paused) {
-          audioToStop.push({ audio, trackId });
-        }
-        
-        // Handle loop restart - reset all audio to beginning when currentTime is near zero
-        if (currentTime < 0.1 && audio.currentTime > 0.5) {
-          console.log('Loop restart detected - resetting audio for track:', trackId);
-          audio.currentTime = 0;
-        }
-      } catch (error) {
-        console.error('Error syncing audio playback:', error);
-      }
-    });
-    
-    // Stop audio that should be stopped
-    audioToStop.forEach(({ audio, trackId }) => {
-      console.log('Pausing playback for track:', trackId);
-      audio.pause();
-    });
-    
-    // Start all audio simultaneously for perfect BPM sync
-    if (audioToStart.length > 0) {
-      console.log('Starting simultaneous playback for tracks:', audioToStart.map(a => a.trackId));
-      
-      // Set all currentTime values first (faster than individual play() calls)
-      audioToStart.forEach(({ audio, clipTime }) => {
-        audio.currentTime = clipTime;
-      });
-      
-      // Start all audio elements simultaneously using Promise.all for perfect sync
-      const playPromises = audioToStart.map(({ audio, trackId, clipTime }) => {
-        return audio.play()
-          .then(() => {
-            console.log('Audio started successfully for:', trackId, 'at time:', clipTime);
-          })
-          .catch(error => {
-            console.error('Autoplay prevented for track:', trackId, error);
-            if (error.name === 'NotAllowedError') {
-              toast({
-                title: "User Interaction Required", 
-                description: "Click anywhere to enable audio playback",
-              });
-            }
-          });
-      });
-      
-      // Wait for all to start (but don't block the effect)
-      Promise.all(playPromises).then(() => {
-        console.log('All audio tracks started simultaneously');
-      });
-    }
-  }, [isPlaying, currentTime, audioClips, bpm, secondsPerBeat, toast]);
-
-  // Sync current time with clip playback
-  useEffect(() => {
-    audioElementsRef.current.forEach((audio, trackId) => {
-      // Find active clips for this track at current time
-      const activeClips = audioClips.filter(clip => 
-        clip.trackId === trackId && 
-        currentTime >= clip.startTime && 
-        currentTime < clip.endTime
-      );
-      
-      if (activeClips.length > 0) {
-        const activeClip = activeClips[0];
-        const clipTime = currentTime - activeClip.startTime;
-        
-        // Only seek if there's a significant difference
-        if (Math.abs(audio.currentTime - clipTime) > 1.0) {
-          console.log(`Seeking track ${trackId} from ${audio.currentTime} to ${clipTime} (clip time)`);
-          audio.currentTime = clipTime;
-        }
-      } else if (!audio.paused) {
-        // No active clip, pause audio
-        console.log(`No active clip for track ${trackId}, pausing`);
-        audio.pause();
-      }
-    });
-  }, [currentTime, audioClips]);
-
-  // Audio playback handler for individual tracks (toggle mute/solo)
+  // Audio playback handler for individual tracks (mute/unmute)
   const handleTrackPlay = useCallback(async (track: Track) => {
-    const audio = audioElementsRef.current.get(track.id);
-    if (audio) {
-      audio.muted = !audio.muted;
+    if (engineInitialized) {
+      const newMutedState = !(track.isMuted || false);
+      toneAudioEngine.muteTrack(track.id, newMutedState);
+      
+      // Update track in parent component
+      if (onTracksUpdate) {
+        const updatedTracks = tracks.map(t => 
+          t.id === track.id ? { ...t, isMuted: newMutedState } : t
+        );
+        onTracksUpdate(updatedTracks);
+      }
+      
       toast({
-        title: audio.muted ? "Track Muted" : "Track Unmuted",
+        title: newMutedState ? "Track Muted" : "Track Unmuted",
         description: track.name,
       });
     }
-  }, [toast]);
+  }, [engineInitialized, tracks, onTracksUpdate, toast]);
 
   // Update timeline width
   useEffect(() => {
@@ -675,55 +453,32 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     }
   }, []);
 
-  // Automatic loop logic - loop when reaching end of longest clip
+  // Automatic loop logic - handled by Tone.js engine
   useEffect(() => {
-    // Always loop at the end of the session (when longest clip ends)
-    if (currentTime >= sessionDuration) {
-      console.log(`Auto-looping: currentTime ${currentTime}s >= sessionDuration ${sessionDuration}s`);
-      onSeek(0); // Go back to zero and restart
-    }
-  }, [currentTime, sessionDuration, onSeek]);
+    // Session duration is handled by the engine's loop region
+  }, []);
 
-  // Update track volumes and mute states with master volume
+  // Track volume and settings sync with engine  
   useEffect(() => {
+    if (!engineInitialized) return;
+    
     tracks.forEach(track => {
-      const audio = audioElementsRef.current.get(track.id);
-      if (audio) {
-        const trackVolume = track.volume !== undefined ? track.volume : 1;
-        const baseVolume = trackVolume * (masterVolume / 100);
-        audio.volume = baseVolume;
-        audio.muted = track.isMuted || false;
-        // Update base volume for master fader control
-        audio.setAttribute('data-base-volume', trackVolume.toString());
-        
-        // Also check if track should be stopped due to duration
-        const actualDuration = trackDurations.get(track.id) || track.analyzed_duration || track.duration || audio.duration;
-        if (actualDuration && audio.currentTime >= actualDuration && !audio.paused) {
-          console.log(`Stopping track ${track.name} - exceeded duration`);
-          audio.pause();
-          audio.currentTime = actualDuration;
-        }
-      }
+      updateTrackProperties(track.id, {
+        volume: (track.volume || 1) * (masterVolume / 100),
+        isMuted: track.isMuted,
+        isSolo: track.isSolo
+      });
     });
-  }, [tracks, trackDurations, masterVolume]);
+  }, [tracks, masterVolume, engineInitialized, updateTrackProperties]);
 
-  // Cleanup audio elements when component unmounts
+  // Cleanup when component unmounts
   useEffect(() => {
     return () => {
-      audioElementsRef.current.forEach(audio => {
-        audio.pause();
-        audio.currentTime = 0;
-        audio.src = '';
-        // Remove all event listeners
-        audio.removeEventListener('loadeddata', () => {});
-        audio.removeEventListener('canplay', () => {});
-        audio.removeEventListener('ended', () => {});
-        audio.removeEventListener('timeupdate', () => {});
-        audio.removeEventListener('error', () => {});
-      });
-      audioElementsRef.current.clear();
+      if (engineInitialized) {
+        toneAudioEngine.dispose();
+      }
     };
-  }, []);
+  }, [engineInitialized]);
 
   const handleTimelineClick = useCallback((event: React.MouseEvent) => {
     if (!timelineRef.current) return;
@@ -736,15 +491,15 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     if (copiedClip && (event.ctrlKey || event.metaKey)) {
       pasteClip(time);
     } else {
-      // Otherwise seek to that position
-      onSeek(Math.max(0, Math.min(time, sessionDuration)));
+      // Otherwise seek to that position  
+      handleSeek(Math.max(0, Math.min(time, sessionDuration)));
     }
     
     // Clear selection if clicking on empty space
     if (!event.ctrlKey && !event.metaKey) {
       setSelectedClips(new Set());
     }
-  }, [pixelsPerSecond, sessionDuration, onSeek, snapToGrid, copiedClip, pasteClip]);
+  }, [pixelsPerSecond, sessionDuration, handleSeek, snapToGrid, copiedClip, pasteClip]);
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
