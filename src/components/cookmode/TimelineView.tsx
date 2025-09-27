@@ -57,6 +57,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const lastLogRef = useRef<Map<string, number>>(new Map());
   const prevTimeRef = useRef<Map<string, number>>(new Map());
   const loopSignalRef = useRef<number>(0);
+  const prevSessionTimeRef = useRef<number>(0);
   // Calculate loop length based on actual audio duration (not fixed 4 bars)
   const maxTrackDuration = Math.max(...tracks.map(t => trackDurations.get(t.id) || t.analyzed_duration || t.duration || 0), 0);
   const loopLength = maxTrackDuration > 0 ? maxTrackDuration : (16 * 60 / bpm); // Use actual track length or fallback to 4 bars
@@ -273,18 +274,27 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     }
   }, [isPlaying]);
 
-  // Sync currentTime from the session system to actual audio time
+  // Sync audio only on explicit seeks (large jumps), avoid fighting native loop
   useEffect(() => {
-    if (isPlaying) {
+    if (!isPlaying) return;
+
+    const desired = loopLength > 0 ? (currentTime % loopLength) : currentTime;
+    const sessionJump = Math.abs(currentTime - prevSessionTimeRef.current);
+    const isExplicitSeek = sessionJump > 0.5; // treat big jumps as seeks
+
+    if (isExplicitSeek) {
       audioElementsRef.current.forEach((audio, trackId) => {
-        const desired = loopLength > 0 ? (currentTime % loopLength) : currentTime;
-        const delta = Math.abs(audio.currentTime - desired);
-        if (!audio.paused && delta > 0.2) {
-          tlog('Desync detected', trackId, { audioTime: audio.currentTime.toFixed(3), desiredTime: desired.toFixed(3), delta: delta.toFixed(3) });
-          audio.currentTime = desired;
+        if (!audio.paused) {
+          const delta = Math.abs(audio.currentTime - desired);
+          if (delta > 0.05) {
+            tlog('Seek resync', trackId, { desired: desired.toFixed(3), delta: delta.toFixed(3) });
+            audio.currentTime = desired;
+          }
         }
       });
     }
+
+    prevSessionTimeRef.current = currentTime;
   }, [currentTime, isPlaying, loopLength]);
 
   // Global cleanup on unmount to ensure no stray audio keeps playing
