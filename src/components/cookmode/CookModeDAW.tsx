@@ -62,6 +62,7 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
 }) => {
   const [isAddingTrack, setIsAddingTrack] = useState(false);
   const [activeView, setActiveView] = useState<'timeline' | 'mixer'>('timeline');
+  const [isDragOver, setIsDragOver] = useState(false);
   const [newTrackData, setNewTrackData] = useState({
     name: '',
     stemType: 'melody',
@@ -78,22 +79,61 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
     { value: 'other', label: 'Other' }
   ];
 
+  const validateAudioFile = (file: File) => {
+    const validTypes = ['audio/wav', 'audio/mp3', 'audio/mpeg', 'audio/ogg', 'audio/aac', 'audio/m4a'];
+    if (!validTypes.includes(file.type)) {
+      toast.error('Please select a valid audio file (WAV, MP3, OGG, AAC, M4A)');
+      return false;
+    }
+
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error('File size must be less than 50MB');
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    const audioFiles = files.filter(file => file.type.startsWith('audio/'));
+
+    if (audioFiles.length === 0) {
+      toast.error('Please drop audio files only');
+      return;
+    }
+
+    for (const file of audioFiles) {
+      if (validateAudioFile(file)) {
+        const trackName = file.name.replace(/\.[^/.]+$/, "");
+        try {
+          await onAddTrack(file, trackName, 'other');
+          toast.success(`Added "${trackName}" to session`);
+        } catch (error) {
+          toast.error(`Failed to add "${trackName}"`);
+        }
+      }
+    }
+  };
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
-      // Validate file type
-      const validTypes = ['audio/wav', 'audio/mp3', 'audio/mpeg', 'audio/ogg'];
-      if (!validTypes.includes(file.type)) {
-        toast.error('Please select a valid audio file (WAV, MP3, OGG)');
-        return;
-      }
-
-      // Validate file size (max 50MB)
-      if (file.size > 50 * 1024 * 1024) {
-        toast.error('File size must be less than 50MB');
-        return;
-      }
-
+    if (file && validateAudioFile(file)) {
       setNewTrackData(prev => ({ 
         ...prev, 
         file,
@@ -190,7 +230,22 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
       </div>
 
       {/* Content Area */}
-      <div className="flex-1 overflow-hidden">
+      <div 
+        className={`flex-1 overflow-hidden relative ${isDragOver ? 'bg-neon-cyan/5' : ''}`}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        {/* Drag overlay */}
+        {isDragOver && (
+          <div className="absolute inset-0 z-50 bg-background/80 backdrop-blur-sm border-2 border-dashed border-neon-cyan flex items-center justify-center">
+            <div className="text-center">
+              <Upload className="w-16 h-16 text-neon-cyan mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-neon-cyan mb-2">Drop Audio Files Here</h3>
+              <p className="text-muted-foreground">WAV, MP3, OGG, AAC, M4A files supported</p>
+            </div>
+          </div>
+        )}
         <Tabs value={activeView} onValueChange={(value) => setActiveView(value as 'timeline' | 'mixer')}>
           <TabsContent value="timeline" className="h-full m-0">
             {tracks.length === 0 ? (
@@ -199,14 +254,15 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
                   <Clock className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
                   <h4 className="text-lg font-medium text-foreground mb-2">No tracks in timeline</h4>
                   <p className="text-muted-foreground mb-4">Add your first track to see the arrangement view</p>
-                  <Dialog open={isAddingTrack} onOpenChange={setIsAddingTrack}>
-                    <DialogTrigger asChild>
-                      <Button className="bg-gradient-to-r from-neon-cyan to-electric-blue text-black hover:opacity-90">
-                        <Plus className="w-4 h-4 mr-2" />
-                        Add Track
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="bg-card border-border/50">
+                  <div className="space-y-3">
+                    <Dialog open={isAddingTrack} onOpenChange={setIsAddingTrack}>
+                      <DialogTrigger asChild>
+                        <Button className="bg-gradient-to-r from-neon-cyan to-electric-blue text-black hover:opacity-90">
+                          <Plus className="w-4 h-4 mr-2" />
+                          Add Track
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="bg-card border-border/50">{/* ... dialog content ... */}
                       <DialogHeader>
                         <DialogTitle className="text-neon-cyan">Add New Track</DialogTitle>
                       </DialogHeader>
@@ -283,7 +339,11 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
                         </div>
                       </div>
                     </DialogContent>
-                  </Dialog>
+                    </Dialog>
+                    <p className="text-xs text-muted-foreground">
+                      or drag and drop audio files anywhere
+                    </p>
+                  </div>
                 </div>
               </div>
             ) : (
@@ -303,9 +363,10 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
               {tracks.length === 0 ? (
                 <div className="h-full flex items-center justify-center">
                   <div className="text-center p-8">
-                    <Layers className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                    <h4 className="text-lg font-medium text-foreground mb-2">No tracks in mixer</h4>
-                    <p className="text-muted-foreground mb-4">Add tracks to start mixing</p>
+                  <Layers className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                  <h4 className="text-lg font-medium text-foreground mb-2">No tracks in mixer</h4>
+                  <p className="text-muted-foreground mb-4">Add tracks to start mixing</p>
+                  <div className="space-y-3">
                     <Dialog open={isAddingTrack} onOpenChange={setIsAddingTrack}>
                       <DialogTrigger asChild>
                         <Button className="bg-gradient-to-r from-neon-cyan to-electric-blue text-black hover:opacity-90">
@@ -313,7 +374,7 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
                           Add Track
                         </Button>
                       </DialogTrigger>
-                      <DialogContent className="bg-card border-border/50">
+                      <DialogContent className="bg-card border-border/50">{/* ... dialog content ... */}
                         <DialogHeader>
                           <DialogTitle className="text-neon-cyan">Add New Track</DialogTitle>
                         </DialogHeader>
@@ -391,6 +452,10 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
                         </div>
                       </DialogContent>
                     </Dialog>
+                    <p className="text-xs text-muted-foreground">
+                      or drag and drop audio files anywhere
+                    </p>
+                  </div>
                   </div>
                 </div>
               ) : (
