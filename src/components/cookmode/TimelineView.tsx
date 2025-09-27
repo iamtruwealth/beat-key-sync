@@ -158,27 +158,12 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         audio.preload = 'metadata';
         audio.loop = false;
         
+        // Only add event listeners once when creating the audio element
         audio.addEventListener('loadeddata', () => {
           console.log('Audio loaded successfully for:', track.name);
           const actualDuration = audio.duration;
           if (actualDuration && actualDuration > 0) {
             setTrackDurations(prev => new Map(prev.set(track.id, actualDuration)));
-          }
-        });
-        
-        audio.addEventListener('canplay', () => {
-          console.log('Audio can play:', track.name);
-          if (isPlaying) {
-            // Don't reset to 0 for very small times - use the actual currentTime
-            audio.currentTime = currentTime;
-            audio.play().catch(error => {
-              console.error('Error starting playback:', error);
-            });
-          } else {
-            // Only reset to 0 if currentTime is actually 0
-            if (currentTime === 0) {
-              audio.currentTime = 0;
-            }
           }
         });
 
@@ -206,7 +191,18 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         audioElementsRef.current.delete(trackId);
       }
     });
-  }, [tracks, toast]);
+  }, [tracks.map(t => t.id).join(',')]); // Only depend on track IDs, not the entire track objects
+
+  // Separate effect for updating audio properties (volume, mute)
+  useEffect(() => {
+    tracks.forEach(track => {
+      const audio = audioElementsRef.current.get(track.id);
+      if (audio) {
+        audio.volume = track.volume !== undefined ? track.volume : 0.8;
+        audio.muted = track.isMuted || false;
+      }
+    });
+  }, [tracks.map(t => `${t.id}-${t.volume}-${t.isMuted}`).join(',')]);
 
   // Sync playback state
   useEffect(() => {
