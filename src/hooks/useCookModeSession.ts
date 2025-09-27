@@ -250,20 +250,29 @@ export function useCookModeSession(sessionId?: string) {
     }
   }, [toast]);
 
-  // Time tracking
+  // BPM-synchronized time tracking
   const startTimeRef = useRef<number>(0);
   const pausedTimeRef = useRef<number>(0);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
     
-    if (isPlaying) {
+    if (isPlaying && session) {
       startTimeRef.current = Date.now() - pausedTimeRef.current * 1000;
+      
+      // Calculate precise timing based on session BPM
+      const bpm = session.target_bpm || 120;
+      const beatsPerSecond = bpm / 60;
+      const millisecondsPerBeat = (60 / bpm) * 1000;
+      const updateRate = millisecondsPerBeat / 32; // 32 subdivisions per beat for precision
       
       interval = setInterval(() => {
         const elapsed = (Date.now() - startTimeRef.current) / 1000;
-        setCurrentTime(elapsed);
-      }, 100);
+        // Quantize to nearest beat subdivision for exact timing
+        const beatSubdivision = Math.round(elapsed * beatsPerSecond * 32) / 32;
+        const quantizedTime = beatSubdivision / beatsPerSecond;
+        setCurrentTime(quantizedTime);
+      }, Math.max(10, updateRate)); // Minimum 10ms for precision
     } else {
       pausedTimeRef.current = currentTime;
     }
@@ -271,7 +280,7 @@ export function useCookModeSession(sessionId?: string) {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isPlaying]);
+  }, [isPlaying, session, currentTime]);
 
   const togglePlayback = useCallback(() => {
     const newIsPlaying = !isPlaying;
@@ -290,23 +299,49 @@ export function useCookModeSession(sessionId?: string) {
   }, [isPlaying, currentTime]);
 
   const seekTo = useCallback((time: number) => {
-    setCurrentTime(time);
-    pausedTimeRef.current = time;
-    
-    if (isPlaying) {
-      startTimeRef.current = Date.now() - time * 1000;
-    }
+    // Quantize seek position to nearest beat for exact loop points
+    if (session?.target_bpm) {
+      const bpm = session.target_bpm;
+      const beatsPerSecond = bpm / 60;
+      const quantizedBeat = Math.round(time * beatsPerSecond);
+      const quantizedTime = quantizedBeat / beatsPerSecond;
+      
+      setCurrentTime(quantizedTime);
+      pausedTimeRef.current = quantizedTime;
+      
+      if (isPlaying) {
+        startTimeRef.current = Date.now() - quantizedTime * 1000;
+      }
 
-    if (channelRef.current) {
-      channelRef.current.send({
-        type: 'broadcast',
-        event: 'seek',
-        payload: {
-          currentTime: time
-        }
-      });
+      if (channelRef.current) {
+        channelRef.current.send({
+          type: 'broadcast',
+          event: 'seek',
+          payload: {
+            currentTime: quantizedTime
+          }
+        });
+      }
+    } else {
+      // Fallback to regular seek if no BPM is set
+      setCurrentTime(time);
+      pausedTimeRef.current = time;
+      
+      if (isPlaying) {
+        startTimeRef.current = Date.now() - time * 1000;
+      }
+
+      if (channelRef.current) {
+        channelRef.current.send({
+          type: 'broadcast',
+          event: 'seek',
+          payload: {
+            currentTime: time
+          }
+        });
+      }
     }
-  }, [isPlaying]);
+  }, [isPlaying, session]);
 
   const addTrack = useCallback(async (file: File, trackName: string, stemType: string) => {
     try {

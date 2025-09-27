@@ -595,25 +595,30 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     
     const rect = timelineRef.current.getBoundingClientRect();
     const x = event.clientX - rect.left;
-    const time = snapToGrid(x / pixelsPerSecond);
+    const clickedTime = x / pixelsPerSecond;
+    
+    // BPM-quantize the clicked time for exact beat positioning
+    const beatsPerSecond = bpm / 60;
+    const clickedBeat = Math.round(clickedTime * beatsPerSecond * 4) / 4; // Quarter note precision
+    const quantizedTime = clickedBeat / beatsPerSecond;
     
     // If we have a copied clip and ctrl/cmd is held, paste it
     if (copiedClip && (event.ctrlKey || event.metaKey)) {
-      pasteClip(time);
+      pasteClip(quantizedTime);
     } else if (event.shiftKey && selectedClips.size === 1) {
       // Split clip at current position
       const clipId = Array.from(selectedClips)[0];
-      splitClip(clipId, time);
+      splitClip(clipId, quantizedTime);
     } else {
       // Otherwise seek to that position
-      onSeek(Math.max(0, Math.min(time, maxDuration)));
+      onSeek(Math.max(0, Math.min(quantizedTime, maxDuration)));
     }
     
     // Clear selection if clicking on empty space
     if (!event.ctrlKey && !event.metaKey) {
       setSelectedClips(new Set());
     }
-  }, [pixelsPerSecond, maxDuration, onSeek, snapToGrid, copiedClip, pasteClip, selectedClips, splitClip]);
+  }, [pixelsPerSecond, maxDuration, onSeek, bpm, copiedClip, pasteClip, selectedClips, splitClip]);
 
   // Mouse event handlers for resizing
   useEffect(() => {
@@ -653,9 +658,13 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   };
 
   const formatPosition = (seconds: number) => {
-    const bar = Math.floor(seconds / secondsPerBar) + 1;
-    const beat = Math.floor((seconds % secondsPerBar) / secondsPerBeat) + 1;
-    return `${bar}.${beat}`;
+    // Use BPM-based calculation for exact positioning
+    const beatsPerSecond = bpm / 60;
+    const totalBeats = seconds * beatsPerSecond;
+    const bar = Math.floor(totalBeats / 4) + 1;
+    const beat = Math.floor(totalBeats % 4) + 1;
+    const subdivision = Math.floor((totalBeats % 1) * 16) + 1; // 16th note subdivision
+    return subdivision > 1 ? `${bar}.${beat}.${subdivision}` : `${bar}.${beat}`;
   };
 
   const getStemColor = (stemType: string) => {
@@ -1083,12 +1092,31 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                 </div>
               )}
 
-              {/* Playhead */}
+              {/* BPM-synchronized Playhead */}
               <div
                 className="absolute top-0 bottom-0 w-0.5 bg-neon-cyan shadow-neon-cyan shadow-[0_0_10px] z-10"
-                style={{ left: currentTime * pixelsPerSecond }}
+                style={{ 
+                  left: (() => {
+                    // Calculate BPM-synchronized position
+                    const beatsPerSecond = bpm / 60;
+                    const currentBeat = currentTime * beatsPerSecond;
+                    const quantizedBeat = Math.round(currentBeat * 32) / 32; // 32nd note precision
+                    const quantizedTime = quantizedBeat / beatsPerSecond;
+                    return quantizedTime * pixelsPerSecond;
+                  })()
+                }}
               >
                 <div className="absolute -top-2 -left-2 w-4 h-4 bg-neon-cyan rounded-full shadow-neon-cyan shadow-[0_0_10px]" />
+                {/* Beat indicator */}
+                <div className="absolute -top-8 -left-8 text-xs text-neon-cyan font-mono">
+                  {(() => {
+                    const beatsPerSecond = bpm / 60;
+                    const currentBeat = currentTime * beatsPerSecond;
+                    const bar = Math.floor(currentBeat / 4) + 1;
+                    const beat = Math.floor(currentBeat % 4) + 1;
+                    return `${bar}.${beat}`;
+                  })()}
+                </div>
               </div>
 
               {/* Master track visual */}
