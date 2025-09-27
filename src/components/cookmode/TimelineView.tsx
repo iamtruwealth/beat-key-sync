@@ -39,7 +39,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const [loopStart, setLoopStart] = useState(0);
   const [loopEnd, setLoopEnd] = useState(32);
   const [timelineWidth, setTimelineWidth] = useState(0);
-  const [audioElements, setAudioElements] = useState<Map<string, HTMLAudioElement>>(new Map());
+  const audioElementsRef = useRef<Map<string, HTMLAudioElement>>(new Map());
   const blobSrcTriedRef = useRef<Set<string>>(new Set());
   const { toast } = useToast();
 
@@ -56,7 +56,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   // Initialize audio elements for all tracks
   useEffect(() => {
     tracks.forEach(track => {
-      if (!audioElements.has(track.id)) {
+      if (!audioElementsRef.current.has(track.id)) {
         console.log('Creating audio element for track:', track.name, 'URL:', track.file_url);
         
         if (!track.file_url) {
@@ -74,6 +74,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         audio.muted = track.isMuted || false;
         audio.currentTime = currentTime;
         audio.crossOrigin = "anonymous"; // For CORS
+        audio.preload = 'auto';
         
         audio.addEventListener('loadeddata', () => {
           console.log('Audio loaded successfully for:', track.name);
@@ -125,28 +126,24 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         audio.src = track.file_url;
         audio.load(); // Explicitly load the audio
         
-        setAudioElements(prev => new Map(prev.set(track.id, audio)));
+        audioElementsRef.current.set(track.id, audio);
       }
     });
 
     // Remove audio elements for tracks that no longer exist
-    audioElements.forEach((audio, trackId) => {
+    audioElementsRef.current.forEach((audio, trackId) => {
       if (!tracks.find(t => t.id === trackId)) {
         audio.pause();
         audio.src = '';
-        setAudioElements(prev => {
-          const newMap = new Map(prev);
-          newMap.delete(trackId);
-          return newMap;
-        });
+        audioElementsRef.current.delete(trackId);
       }
     });
   }, [tracks, toast]);
 
   // Sync playback state with main controls
   useEffect(() => {
-    console.log('Timeline syncing playback state:', { isPlaying, audioElementsCount: audioElements.size });
-    audioElements.forEach((audio, trackId) => {
+    console.log('Timeline syncing playback state:', { isPlaying, audioElementsCount: audioElementsRef.current.size });
+    audioElementsRef.current.forEach((audio, trackId) => {
       try {
         if (!audio.src) {
           // Skip elements with empty source (cleanup state)
@@ -181,21 +178,21 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         console.error('Error syncing audio playback:', error);
       }
     });
-  }, [isPlaying, audioElements, currentTime, toast]);
+  }, [isPlaying, currentTime, toast]);
 
   // Sync current time - less frequent updates
   useEffect(() => {
-    audioElements.forEach((audio, trackId) => {
+    audioElementsRef.current.forEach((audio, trackId) => {
       if (Math.abs(audio.currentTime - currentTime) > 1.0) {
         console.log(`Seeking track ${trackId} from ${audio.currentTime} to ${currentTime}`);
         audio.currentTime = currentTime;
       }
     });
-  }, [currentTime, audioElements]);
+  }, [currentTime]);
 
   // Audio playback handler for individual tracks (toggle mute/solo)
   const handleTrackPlay = useCallback(async (track: Track) => {
-    const audio = audioElements.get(track.id);
+    const audio = audioElementsRef.current.get(track.id);
     if (audio) {
       audio.muted = !audio.muted;
       toast({
@@ -203,7 +200,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         description: track.name,
       });
     }
-  }, [audioElements, toast]);
+  }, [toast]);
 
   // Update timeline width
   useEffect(() => {
@@ -222,23 +219,24 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   // Update track volumes and mute states
   useEffect(() => {
     tracks.forEach(track => {
-      const audio = audioElements.get(track.id);
+      const audio = audioElementsRef.current.get(track.id);
       if (audio) {
         audio.volume = track.volume !== undefined ? track.volume : 1;
         audio.muted = track.isMuted || false;
       }
     });
-  }, [tracks, audioElements]);
+  }, [tracks]);
 
   // Cleanup audio elements when component unmounts
   useEffect(() => {
     return () => {
-      audioElements.forEach(audio => {
+      audioElementsRef.current.forEach(audio => {
         audio.pause();
         audio.src = '';
       });
+      audioElementsRef.current.clear();
     };
-  }, [audioElements]);
+  }, []);
 
   const handleTimelineClick = useCallback((event: React.MouseEvent) => {
     if (!timelineRef.current) return;
