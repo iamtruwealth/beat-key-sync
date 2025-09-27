@@ -15,7 +15,6 @@ const NotFound = () => {
       <MetaTags 
         title="Page Not Found | BeatPackz - 404 Error"
         description="The page you're looking for doesn't exist. Return to BeatPackz to discover amazing beats and connect with top music producers."
-        image="/assets/beat-packz-social-image.png"
       />
       <div className="text-center">
         <h1 className="mb-4 text-4xl font-bold">404</h1>

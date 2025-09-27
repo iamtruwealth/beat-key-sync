@@ -74,7 +74,6 @@ export default function Pricing() {
       <MetaTags 
         title="Pricing Plans | BeatPackz - Free for Artists, Affordable for Producers"
         description="Choose your BeatPackz plan. Artists sign up free forever. Producers get unlimited uploads and beat packs for just $9.99/month. Start your music career today!"
-        image="/assets/beat-packz-social-image.png"
         url="https://beatpackz.com/pricing"
       />
       {/* Navigation */}

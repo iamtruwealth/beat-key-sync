@@ -60,7 +60,6 @@ export default function Onboarding() {
       <MetaTags 
         title="Get Started | BeatPackz"
         description="Welcome to BeatPackz! Let's get you set up to start creating and sharing your beats."
-        image="/assets/beat-packz-social-image.png"
       />
       
       <OnboardingFlow 

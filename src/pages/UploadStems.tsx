@@ -212,7 +212,6 @@ export default function UploadStems() {
       <MetaTags 
         title="Upload Stems | BeatPackz - Add Stems to Your Beats"
         description="Upload audio stems and associate them with your beats. Organize your production elements and provide stems to customers who purchase your beats."
-        image="/assets/beat-packz-social-image.png"
       />
       
       <div className="max-w-4xl mx-auto space-y-6">

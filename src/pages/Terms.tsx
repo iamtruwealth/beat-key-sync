@@ -8,7 +8,6 @@ const Terms = () => {
       <MetaTags 
         title="Terms of Service | BeatPackz - Legal Terms & Conditions"
         description="Read BeatPackz terms of service and legal agreements. Understand your rights and responsibilities as a user of our music production platform."
-        image="/assets/beat-packz-social-image.png"
         url="https://beatpackz.com/terms"
       />
       {/* Navigation */}

@@ -37,7 +37,6 @@ export default function FAQ() {
       <MetaTags 
         title="FAQ | BeatPackz - Frequently Asked Questions"
         description="Get answers to common questions about BeatPackz. Learn how to upload beats, manage your account, set prices, track sales, and more."
-        image="/assets/beat-packz-social-image.png"
         url="https://beatpackz.com/faq"
       />
       {/* Navigation */}

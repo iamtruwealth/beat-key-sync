@@ -129,7 +129,6 @@ function FuturisticLandingContent() {
       <MetaTags 
         title="BeatPackz - The Future of Beat Production | Premium Beats & Producers"
         description="Discover premium beats, connect with top producers, and elevate your music with our cutting-edge platform. Join the future of beat production today."
-        image="/assets/beat-packz-social-image.png"
       />
 
       <FuturisticNavigation />

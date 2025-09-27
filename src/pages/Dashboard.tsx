@@ -29,7 +29,6 @@ export default function DashboardRedirect() {
       <MetaTags 
         title="Redirecting to Dashboard | BeatPackz"
         description="Taking you to the right dashboard based on your role."
-        image="/assets/beat-packz-social-image.png"
       />
       <p className="text-muted-foreground">Redirecting to your dashboard…</p>
     </div>
