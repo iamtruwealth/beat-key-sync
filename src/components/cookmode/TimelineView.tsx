@@ -354,11 +354,11 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         }
 
         const audio = new Audio();
-        audio.volume = track.volume !== undefined ? track.volume : 1;
+        audio.volume = track.volume !== undefined ? track.volume : 0.8; // Slightly lower default volume
         audio.muted = track.isMuted || false;
-        audio.currentTime = currentTime;
-        audio.crossOrigin = "anonymous"; // For CORS
-        audio.preload = 'auto';
+        audio.crossOrigin = "anonymous";
+        audio.preload = 'metadata'; // Only load metadata, not full audio
+        audio.loop = false; // Explicitly disable looping
         
         audio.addEventListener('loadeddata', () => {
           console.log('Audio loaded successfully for:', track.name);
@@ -393,11 +393,11 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           // Get actual duration from the audio element
           const actualDuration = trackDurations.get(track.id) || track.analyzed_duration || track.duration || audio.duration;
           
-          // Stop audio if it exceeds the expected duration to prevent noise
+          // Stop audio if it exceeds the expected duration to prevent noise/artifacts
           if (actualDuration && audio.currentTime >= actualDuration) {
-            console.log(`Stopping track ${track.name} at ${audio.currentTime}s (duration: ${actualDuration}s)`);
+            console.log(`Auto-stopping track ${track.name} at duration limit`);
             audio.pause();
-            audio.currentTime = actualDuration; // Set to exact end
+            audio.currentTime = 0; // Reset to beginning instead of end to prevent artifacts
           }
         });
         
@@ -453,77 +453,84 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   // Sync playback state with main controls - improved for clip system
   useEffect(() => {
     console.log('Timeline syncing playback state:', { isPlaying, audioElementsCount: audioElementsRef.current.size });
-    audioElementsRef.current.forEach((audio, trackId) => {
-      try {
-        if (!audio.src) return;
-        
-        // Find active clips for this track at current time
+    
+    // Debounce rapid playback changes to prevent glitches
+    const timeoutId = setTimeout(() => {
+      audioElementsRef.current.forEach((audio, trackId) => {
+        try {
+          if (!audio.src) return;
+          
+          // Find active clips for this track at current time
+          const activeClips = audioClips.filter(clip => 
+            clip.trackId === trackId && 
+            currentTime >= clip.startTime && 
+            currentTime < clip.endTime
+          );
+          
+          const shouldPlay = isPlaying && activeClips.length > 0;
+          
+          if (shouldPlay && audio.paused) {
+            console.log('Starting playback for track:', trackId);
+            
+            // Set audio time relative to clip start
+            const activeClip = activeClips[0];
+            const clipTime = Math.max(0, currentTime - activeClip.startTime);
+            
+            // Only seek if necessary to prevent glitches
+            if (Math.abs(audio.currentTime - clipTime) > 0.5) {
+              audio.currentTime = clipTime;
+            }
+            
+            const playPromise = audio.play();
+            if (playPromise !== undefined) {
+              playPromise.catch(error => {
+                // Ignore AbortError - it's normal during rapid play/pause
+                if (error.name !== 'AbortError') {
+                  console.error('Playback error for track:', trackId, error);
+                }
+              });
+            }
+          } else if (!shouldPlay && !audio.paused) {
+            console.log('Pausing playback for track:', trackId);
+            audio.pause();
+          }
+        } catch (error) {
+          console.error('Error syncing audio playback:', error);
+        }
+      });
+    }, 50); // 50ms debounce to prevent rapid state changes
+
+    return () => clearTimeout(timeoutId);
+  }, [isPlaying, currentTime, audioClips]);
+
+  // Sync current time with clip playback - less aggressive seeking
+  useEffect(() => {
+    // Only update if playing and significant time difference
+    if (!isPlaying) return;
+    
+    const updateTimeout = setTimeout(() => {
+      audioElementsRef.current.forEach((audio, trackId) => {
         const activeClips = audioClips.filter(clip => 
           clip.trackId === trackId && 
           currentTime >= clip.startTime && 
           currentTime < clip.endTime
         );
         
-        const shouldPlay = isPlaying && activeClips.length > 0;
-        
-        if (shouldPlay && audio.paused) {
-          console.log('Starting playback for track:', trackId);
+        if (activeClips.length > 0) {
+          const activeClip = activeClips[0];
+          const clipTime = Math.max(0, currentTime - activeClip.startTime);
           
-          // Set audio time relative to clip start
-          const activeClip = activeClips[0]; // Use first active clip
-          const clipTime = currentTime - activeClip.startTime;
-          audio.currentTime = clipTime;
-          
-          const playPromise = audio.play();
-          if (playPromise !== undefined) {
-            playPromise
-              .then(() => console.log('Audio started successfully for:', trackId))
-              .catch(error => {
-                console.error('Autoplay prevented for track:', trackId, error);
-                if (error.name === 'NotAllowedError') {
-                  toast({
-                    title: "User Interaction Required",
-                    description: "Click anywhere to enable audio playback",
-                  });
-                }
-              });
+          // Only seek if there's a major difference (>2 seconds) to prevent constant seeking
+          if (Math.abs(audio.currentTime - clipTime) > 2.0) {
+            console.log(`Major seek for track ${trackId} from ${audio.currentTime} to ${clipTime}`);
+            audio.currentTime = clipTime;
           }
-        } else if (!shouldPlay && !audio.paused) {
-          console.log('Pausing playback for track:', trackId);
-          audio.pause();
         }
-      } catch (error) {
-        console.error('Error syncing audio playback:', error);
-      }
-    });
-  }, [isPlaying, currentTime, audioClips, toast]);
-
-  // Sync current time with clip playback
-  useEffect(() => {
-    audioElementsRef.current.forEach((audio, trackId) => {
-      // Find active clips for this track at current time
-      const activeClips = audioClips.filter(clip => 
-        clip.trackId === trackId && 
-        currentTime >= clip.startTime && 
-        currentTime < clip.endTime
-      );
-      
-      if (activeClips.length > 0) {
-        const activeClip = activeClips[0];
-        const clipTime = currentTime - activeClip.startTime;
-        
-        // Only seek if there's a significant difference
-        if (Math.abs(audio.currentTime - clipTime) > 1.0) {
-          console.log(`Seeking track ${trackId} from ${audio.currentTime} to ${clipTime} (clip time)`);
-          audio.currentTime = clipTime;
-        }
-      } else if (!audio.paused) {
-        // No active clip, pause audio
-        console.log(`No active clip for track ${trackId}, pausing`);
-        audio.pause();
-      }
-    });
-  }, [currentTime, audioClips]);
+      });
+    }, 100); // Debounce seeking updates
+    
+    return () => clearTimeout(updateTimeout);
+  }, [currentTime, audioClips, isPlaying]);
 
   // Audio playback handler for individual tracks (toggle mute/solo)
   const handleTrackPlay = useCallback(async (track: Track) => {
