@@ -442,10 +442,19 @@ export const TrackMidiController: React.FC<TrackMidiControllerProps> = ({
     return () => {
       // Stop all active notes
       activeNotes.forEach(note => {
-        note.gainNode.gain.setValueAtTime(0, Tone.now());
-        note.player.stop();
-        note.player.dispose();
-        note.gainNode.dispose();
+        try {
+          if ((note as any).gainNode) {
+            const gn = (note as any).gainNode as Tone.Gain;
+            try { gn.gain.setValueAtTime(0, Tone.now()); } catch {}
+            try { gn.dispose(); } catch {}
+          }
+          if ((note as any).player) {
+            try { (note as any).player.stop(); } catch {}
+            try { (note as any).player.dispose(); } catch {}
+          }
+        } catch (e) {
+          console.error('Cleanup error for active note:', e);
+        }
       });
 
       // Stop recording if active
