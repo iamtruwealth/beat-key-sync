@@ -240,19 +240,22 @@ export function useCookModeSession(sessionId?: string) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      // Create the collaboration project first
-      const { data: project, error: projectError } = await supabase
+      const newId = crypto.randomUUID();
+
+      const insertPayload = {
+        id: newId,
+        name: config.name,
+        target_bpm: config.bpm,
+        target_genre: config.key,
+        created_by: user.id,
+        workspace_type: config.workspace_type,
+        status: 'active'
+      };
+
+      const { error: projectError } = await supabase
         .from('collaboration_projects')
-        .insert({
-          name: config.name,
-          target_bpm: config.bpm,
-          target_genre: config.key,
-          created_by: user.id,
-          workspace_type: config.workspace_type,
-          status: 'active'
-        })
-        .select('id, created_by')
-        .single();
+        .insert(insertPayload);
+
 
       if (projectError) {
         console.error('Project insert error:', projectError);
@@ -264,7 +267,7 @@ export function useCookModeSession(sessionId?: string) {
         const { error: memberError } = await supabase
           .from('collaboration_members')
           .insert({
-            collaboration_id: project.id,
+            collaboration_id: newId,
             user_id: user.id,
             role: 'creator',
             status: 'accepted',
@@ -279,15 +282,15 @@ export function useCookModeSession(sessionId?: string) {
       }
 
       setSession({
-        id: project.id,
+        id: newId,
         name: config.name,
         target_bpm: config.bpm,
         target_genre: config.key,
-        created_by: project.created_by,
+        created_by: user.id,
         status: 'active',
         workspace_type: config.workspace_type,
       });
-      return project.id;
+      return newId;
     } catch (error: any) {
       console.error('Error creating session:', error);
       const message = error?.message || 'Failed to create session';
