@@ -92,6 +92,8 @@ export const TrackMidiController: React.FC<TrackMidiControllerProps> = ({
   const recordingStartTimeRef = useRef<number>(0);
   const audioStartedRef = useRef<boolean>(false);
   const midiInputsRef = useRef<CustomMIDIInput[]>([]);
+  const midiHandlerRef = useRef<(event: CustomMIDIMessageEvent) => void>();
+  const playerLoadPromisesRef = useRef<Map<string, Promise<void>>>(new Map());
 
   // Initialize Web MIDI API
   useEffect(() => {
@@ -105,9 +107,10 @@ export const TrackMidiController: React.FC<TrackMidiControllerProps> = ({
         });
         setMidiDevices(inputs);
 
-        // Set up MIDI event listeners
+        // Set up MIDI event listeners using stable ref to avoid stale closures
+        midiInputsRef.current = inputs;
         inputs.forEach(input => {
-          input.onmidimessage = handleMidiMessage;
+          input.onmidimessage = (e: any) => midiHandlerRef.current?.(e as CustomMIDIMessageEvent);
         });
 
         if (inputs.length > 0) {
@@ -163,7 +166,20 @@ export const TrackMidiController: React.FC<TrackMidiControllerProps> = ({
           autostart: false,
         }).toDestination();
 
-        await Tone.loaded();
+        // Wait for THIS player's buffer to load
+        const loadPromise = new Promise<void>((resolve, reject) => {
+          try {
+            (player as any).onload = () => resolve();
+            (player as any).onerror = (e: any) => reject(e);
+          } catch {
+            // Fallback to global Tone loader
+            Tone.loaded().then(() => resolve()).catch(reject);
+          }
+        });
+
+        playerLoadPromisesRef.current.set(selectedClip.id, loadPromise);
+        await loadPromise;
+
         playersRef.current.set(selectedClip.id, player);
       } catch (error) {
         console.error('Failed to load audio for MIDI playback:', error);
@@ -213,6 +229,11 @@ export const TrackMidiController: React.FC<TrackMidiControllerProps> = ({
     }
   }, [selectedClip, isEnabled]);
 
+  // Keep latest MIDI handler to avoid stale closures
+  useEffect(() => {
+    midiHandlerRef.current = handleMidiMessage;
+  }, [handleMidiMessage]);
+
   // Handle note on event
   const handleNoteOn = useCallback(async (noteNumber: number, velocity: number) => {
     if (!selectedClip) return;
@@ -220,13 +241,30 @@ export const TrackMidiController: React.FC<TrackMidiControllerProps> = ({
 
     try {
       if (!audioStartedRef.current) {
-        await Tone.start();
-        audioStartedRef.current = true;
+        try {
+          await Tone.start();
+          audioStartedRef.current = true;
+        } catch (e) {
+          console.warn('Tone.start() failed (user gesture may be required):', e);
+        }
       }
 
-      const basePlayer = playersRef.current.get(selectedClip.id);
+      let basePlayer = playersRef.current.get(selectedClip.id);
       if (!basePlayer || !basePlayer.buffer) {
-        console.log(`❌ No base player/buffer for clip ${selectedClip.id}`);
+        const maybeLoad = playerLoadPromisesRef.current.get(selectedClip.id);
+        if (maybeLoad) {
+          console.log('⌛ Waiting for player buffer to load…');
+          try {
+            await maybeLoad;
+          } catch (e) {
+            console.error('Player load failed', e);
+            return;
+          }
+          basePlayer = playersRef.current.get(selectedClip.id);
+        }
+      }
+      if (!basePlayer || !basePlayer.buffer) {
+        console.log(`❌ No base player/buffer for clip ${selectedClip.id} after load`);
         return;
       }
 
