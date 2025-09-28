@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import WaveSurfer from 'wavesurfer.js';
-import { Copy } from 'lucide-react';
+import { Copy, Circle } from 'lucide-react';
 
 interface Track {
   id: string;
@@ -36,6 +36,11 @@ interface WaveformTrackProps {
   onClipDoubleClick?: (clipId: string) => void;
   onDuplicateClip?: (clipId: string) => void;
   className?: string;
+  // New props for selection and record arming
+  isSelected?: boolean;
+  isRecordArmed?: boolean;
+  onTrackSelect?: (trackId: string) => void;
+  onRecordArmToggle?: (trackId: string, shiftKey: boolean) => void;
 }
 
 export const WaveformTrack: React.FC<WaveformTrackProps> = ({
@@ -49,7 +54,11 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
   onClipClick,
   onClipDoubleClick,
   onDuplicateClip,
-  className = ""
+  className = "",
+  isSelected = false,
+  isRecordArmed = false,
+  onTrackSelect,
+  onRecordArmToggle
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const waveSurferRef = useRef<WaveSurfer | null>(null);
@@ -215,6 +224,10 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
   // Handle click events
   const handleClick = (event: React.MouseEvent) => {
     event.stopPropagation();
+    // Handle track selection
+    if (onTrackSelect) {
+      onTrackSelect(track.id);
+    }
     if (onClipClick) {
       onClipClick(clip.id, event);
     }
@@ -227,14 +240,29 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
     }
   };
 
+  // Handle record arm toggle
+  const handleRecordArmClick = (event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (onRecordArmToggle) {
+      onRecordArmToggle(track.id, event.shiftKey);
+    }
+  };
+
+  // Dynamic styling for selection and record arm states
+  const containerClassName = `relative border-2 rounded cursor-pointer overflow-hidden ${className} ${
+    isSelected ? 'border-neon-cyan shadow-[0_0_20px_rgba(0,255,255,0.5)]' : ''
+  }`;
+
   return (
     <div
-      className={`relative border-2 rounded cursor-pointer overflow-hidden ${className}`}
+      className={containerClassName}
       style={{
         width: clipWidth,
         height: trackHeight - 8,
         minWidth: 100, // Minimum width for visibility
-        borderColor: getTrackBorderColor(trackIndex)
+        borderColor: isSelected ? 'hsl(var(--neon-cyan))' : getTrackBorderColor(trackIndex),
+        boxShadow: isSelected ? '0 0 20px rgba(0, 255, 255, 0.5)' : undefined
       }}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
@@ -265,7 +293,24 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
           )}
           
            
-          {/* Duplicate clip button */}
+           {/* Record Arm button */}
+          <div className="absolute top-1 left-1 z-20">
+            <button
+              type="button"
+              className={`inline-flex items-center justify-center h-6 w-6 rounded-full transition-all duration-200 ${
+                isRecordArmed 
+                  ? 'bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.8)] text-white' 
+                  : 'bg-background/80 border border-border text-foreground hover:bg-red-500/20 hover:border-red-500'
+              }`}
+              aria-label={isRecordArmed ? "Disarm recording" : "Arm for recording"}
+              title={`${isRecordArmed ? "Disarm" : "Arm"} recording (Shift+click for multi-arm)`}
+              onClick={handleRecordArmClick}
+            >
+              <Circle className={`w-3 h-3 ${isRecordArmed ? 'fill-current' : ''}`} />
+            </button>
+          </div>
+
+           {/* Duplicate clip button */}
           <div className="absolute bottom-1 right-1 z-20">
             <button
               type="button"
