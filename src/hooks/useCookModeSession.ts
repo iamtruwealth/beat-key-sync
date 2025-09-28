@@ -75,7 +75,34 @@ export function useCookModeSession(sessionId?: string) {
                 });
               });
             });
-            setParticipants(participantList);
+            // Enrich with profile data
+            (async () => {
+              try {
+                const userIds = Array.from(new Set(participantList.map(p => p.user_id))).filter(Boolean);
+                if (userIds.length > 0) {
+                  const { data: profiles } = await supabase
+                    .from('profiles')
+                    .select('id, producer_name, producer_logo_url')
+                    .in('id', userIds as string[]);
+                  const profileMap = new Map((profiles || []).map(p => [p.id, p]));
+                  const enriched = participantList.map(p => ({
+                    ...p,
+                    profile: profileMap.has(p.user_id)
+                      ? {
+                          producer_name: (profileMap.get(p.user_id) as any)?.producer_name,
+                          producer_logo_url: (profileMap.get(p.user_id) as any)?.producer_logo_url,
+                        }
+                      : p.profile,
+                  }));
+                  setParticipants(enriched);
+                } else {
+                  setParticipants(participantList);
+                }
+              } catch (e) {
+                console.warn('Failed to enrich participants with profiles', e);
+                setParticipants(participantList);
+              }
+            })();
           })
           .on('presence', { event: 'join' }, ({ newPresences }) => {
             console.log('User joined:', newPresences);

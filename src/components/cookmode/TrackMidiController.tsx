@@ -93,6 +93,7 @@ export const TrackMidiController: React.FC<TrackMidiControllerProps> = ({
   const audioStartedRef = useRef<boolean>(false);
   const midiInputsRef = useRef<CustomMIDIInput[]>([]);
   const midiHandlerRef = useRef<(event: CustomMIDIMessageEvent) => void>();
+  const midiListenersRef = useRef<Map<string, (e: any) => void>>(new Map());
   const playerLoadPromisesRef = useRef<Map<string, Promise<void>>>(new Map());
 
   // Initialize Web MIDI API
@@ -107,10 +108,19 @@ export const TrackMidiController: React.FC<TrackMidiControllerProps> = ({
         });
         setMidiDevices(inputs);
 
-        // Set up MIDI event listeners using stable ref to avoid stale closures
+        // Set up MIDI event listeners using addEventListener so we don't clobber other handlers
         midiInputsRef.current = inputs;
         inputs.forEach(input => {
-          input.onmidimessage = (e: any) => midiHandlerRef.current?.(e as CustomMIDIMessageEvent);
+          try {
+            const handler = (e: any) => midiHandlerRef.current?.(e as CustomMIDIMessageEvent);
+            midiListenersRef.current.set(input.id, handler);
+            // Prefer addEventListener to allow multiple listeners per device
+            input.addEventListener?.('midimessage', handler);
+            // Ensure legacy handler is cleared to avoid double-calls
+            input.onmidimessage = null as any;
+          } catch (err) {
+            console.warn('Failed to attach MIDI listener', { input, err });
+          }
         });
 
         if (inputs.length > 0) {
@@ -217,10 +227,12 @@ export const TrackMidiController: React.FC<TrackMidiControllerProps> = ({
   const handleMidiMessage = useCallback((event: CustomMIDIMessageEvent) => {
     if (!selectedClip || !isEnabled) return;
 
-    const [status, noteNumber, velocity] = event.data;
+    const [status, noteNumber, velocity] = event.data as unknown as number[];
     const messageType = status & 0xF0;
     const isNoteOn = messageType === 0x90 && velocity > 0;
     const isNoteOff = messageType === 0x80 || (messageType === 0x90 && velocity === 0);
+
+    console.log('🎹 MIDI msg', { status, noteNumber, velocity, isNoteOn, isNoteOff, ts: event.timeStamp });
 
     if (isNoteOn) {
       handleNoteOn(noteNumber, velocity);
@@ -483,6 +495,20 @@ export const TrackMidiController: React.FC<TrackMidiControllerProps> = ({
         }
       });
 
+      // Detach MIDI listeners
+      try {
+        midiInputsRef.current.forEach((input) => {
+          const handler = midiListenersRef.current.get(input.id);
+          if (handler && input.removeEventListener) {
+            input.removeEventListener('midimessage', handler);
+          }
+          input.onmidimessage = null as any;
+        });
+      } catch (e) {
+        console.warn('Failed to detach MIDI listeners', e);
+      }
+      midiListenersRef.current.clear();
+
       // Stop recording if active
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
         mediaRecorderRef.current.stop();
@@ -491,6 +517,7 @@ export const TrackMidiController: React.FC<TrackMidiControllerProps> = ({
 
       // Dispose all players
       playersRef.current.forEach(player => player.dispose());
+      playersRef.current.clear();
     };
   }, [activeNotes]);
 

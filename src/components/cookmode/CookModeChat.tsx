@@ -108,9 +108,9 @@ export const CookModeChat: React.FC<CookModeChatProps> = ({ sessionId }) => {
             .eq('id', payload.new.id)
             .single();
           
-          if (data) {
-            setMessages(prev => [...prev, data]);
-          }
+            if (data) {
+              setMessages(prev => prev.some(m => m.id === data.id) ? prev : [...prev, data]);
+            }
         }
       )
       .subscribe();
@@ -128,16 +128,31 @@ export const CookModeChat: React.FC<CookModeChatProps> = ({ sessionId }) => {
     if (!newMessage.trim() || !currentUser) return;
 
     try {
-      const { error } = await supabase
+      const { data: inserted, error } = await supabase
         .from('collaboration_messages')
         .insert({
           collaboration_id: sessionId,
           sender_id: currentUser.id,
           content: newMessage.trim(),
           message_type: 'text'
-        });
+        })
+        .select('id, content, sender_id, message_type, created_at')
+        .single();
 
       if (error) throw error;
+
+      if (inserted) {
+        setMessages(prev => prev.some(m => m.id === inserted.id)
+          ? prev
+          : [...prev, {
+              ...inserted,
+              sender: {
+                producer_name: currentUser.profile?.producer_name,
+                producer_logo_url: currentUser.profile?.producer_logo_url,
+              }
+            } as any]
+        );
+      }
       setNewMessage('');
     } catch (error) {
       console.error('Error sending message:', error);
