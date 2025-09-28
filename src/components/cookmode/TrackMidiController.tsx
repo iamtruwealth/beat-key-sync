@@ -58,6 +58,7 @@ interface MidiNote {
 interface ActiveNote {
   noteNumber: number;
   player: Tone.Player;
+  gainNode: Tone.Gain;
   startTime: number;
 }
 
@@ -215,14 +216,17 @@ export const TrackMidiController: React.FC<TrackMidiControllerProps> = ({
 
       console.log(`🎵 Player found, creating polyphony instance...`);
 
-      // Create a new player instance for polyphony with immediate stop capability
+      // Create a gain node for immediate volume control
+      const gainNode = new Tone.Gain(0).toDestination();
+      
+      // Create a new player instance for polyphony
       const polyphonyPlayer = new Tone.Player({
         url: selectedClip.originalTrack.file_url,
         loop: false,
         autostart: false,
         fadeIn: 0,
-        fadeOut: 0.01 // Very short fade out for clean stop
-      }).toDestination();
+        fadeOut: 0
+      }).connect(gainNode);
 
       console.log(`🎵 Created polyphony player for ${selectedClip.originalTrack.file_url}`);
 
@@ -236,17 +240,21 @@ export const TrackMidiController: React.FC<TrackMidiControllerProps> = ({
       console.log(`🎵 Applying pitch shift: ${pitchShift}, gain: ${gain}`);
 
       polyphonyPlayer.playbackRate = pitchShift;
-      polyphonyPlayer.volume.value = Tone.gainToDb(gain);
-
-      // Start playback
-      console.log(`🎵 Starting audio playback...`);
+      
+      // Start playback first
       polyphonyPlayer.start();
-      console.log(`🎵 Audio playback started!`);
+      
+      // Then immediately ramp up the gain for smooth attack
+      gainNode.gain.setValueAtTime(0, Tone.now());
+      gainNode.gain.linearRampToValueAtTime(gain, Tone.now() + 0.01);
+      
+      console.log(`🎵 Audio playback started with gate ON!`);
 
-      // Track active note
+      // Track active note with gain node
       const activeNote: ActiveNote = {
         noteNumber,
         player: polyphonyPlayer,
+        gainNode: gainNode,
         startTime: Date.now()
       };
 
@@ -283,15 +291,28 @@ export const TrackMidiController: React.FC<TrackMidiControllerProps> = ({
       return;
     }
 
-    console.log(`🎵 Stopping and disposing player for note ${noteNumber}`);
+    console.log(`🎵 Gating OFF note ${noteNumber} - immediate volume cut`);
     
-    // Immediately stop the player
+    // Immediately cut the volume to create gate effect
     try {
-      activeNote.player.stop();
-      activeNote.player.dispose();
-      console.log(`✅ Player stopped and disposed for note ${noteNumber}`);
+      activeNote.gainNode.gain.setValueAtTime(activeNote.gainNode.gain.value, Tone.now());
+      activeNote.gainNode.gain.linearRampToValueAtTime(0, Tone.now() + 0.005); // 5ms release
+      
+      // Schedule cleanup after the release
+      setTimeout(() => {
+        try {
+          activeNote.player.stop();
+          activeNote.player.dispose();
+          activeNote.gainNode.dispose();
+          console.log(`✅ Player and gain node cleaned up for note ${noteNumber}`);
+        } catch (error) {
+          console.error(`❌ Error cleaning up note ${noteNumber}:`, error);
+        }
+      }, 10);
+      
+      console.log(`✅ Gate OFF applied for note ${noteNumber}`);
     } catch (error) {
-      console.error(`❌ Error stopping player for note ${noteNumber}:`, error);
+      console.error(`❌ Error applying gate OFF for note ${noteNumber}:`, error);
     }
 
     // Update recorded note duration if recording
@@ -421,8 +442,10 @@ export const TrackMidiController: React.FC<TrackMidiControllerProps> = ({
     return () => {
       // Stop all active notes
       activeNotes.forEach(note => {
+        note.gainNode.gain.setValueAtTime(0, Tone.now());
         note.player.stop();
         note.player.dispose();
+        note.gainNode.dispose();
       });
 
       // Stop recording if active
