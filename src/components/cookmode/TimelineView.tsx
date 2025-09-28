@@ -64,7 +64,8 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   activeTrackId,
   createTrack,
   loadSample
-}) => {
+ }) => {
+  const [activeMidiTrackId, setActiveMidiTrackId] = useState<string | null>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
   const [timelineWidth, setTimelineWidth] = useState(0);
   const [trackDurations, setTrackDurations] = useState<Map<string, number>>(new Map());
@@ -814,7 +815,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                     variant={activeTrackId === track.id ? "default" : "outline"}
                     size="sm"
                     className={`text-xs mt-1 px-2 py-1 h-6 transition-all duration-300 ${
-                      activeTrackId === track.id 
+                      activeMidiTrackId === track.id 
                         ? 'bg-green-500 hover:bg-green-600 text-black border-green-400 shadow-[var(--glow-green)] animate-pulse' 
                         : 'hover:border-green-400/50 hover:text-green-400'
                     }`}
@@ -831,9 +832,11 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                           
                           await loadSample(engineTrackId, file);
                           setActiveTrack?.(engineTrackId);
+                          setActiveMidiTrackId(track.id); // Track which timeline track is MIDI active
                         }
                       } catch (error) {
                         console.error('❌ Failed to activate MIDI for track:', error);
+                        setActiveMidiTrackId(null);
                       }
                     }}
                   >
