@@ -54,6 +54,9 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
   const waveSurferRef = useRef<WaveSurfer | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const loadedUrlRef = useRef<string | null>(null);
+  const initTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const track = clip.originalTrack;
   const clipDuration = clip.endTime - clip.startTime;
@@ -63,58 +66,106 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
   const isMuted = track.isMuted || false;
   const opacity = isMuted ? 0.3 : 1;
   
-  // Initialize WaveSurfer
+  // Initialize WaveSurfer with better error handling and debouncing
   useEffect(() => {
-    if (!containerRef.current || waveSurferRef.current) return;
-
-    try {
-      const waveSurfer = WaveSurfer.create({
-        container: containerRef.current,
-        waveColor: getTrackWaveColor(trackIndex, isMuted),
-        progressColor: getTrackProgressColor(trackIndex, isMuted),
-        cursorColor: 'rgba(255, 255, 255, 0.8)',
-        barWidth: 2,
-        barGap: 1,
-        height: trackHeight - 16,
-        normalize: true,
-        interact: false, // Disable WaveSurfer controls since Tone.js handles playback
-        hideScrollbar: true,
-        minPxPerSec: pixelsPerSecond,
-        fillParent: false,
-        mediaControls: false,
-        autoplay: false, // Critical: Never autoplay
-        backend: 'WebAudio'
-      });
-
-      waveSurferRef.current = waveSurfer;
-
-      // Load the audio file
-      waveSurfer.load(track.file_url).then(() => {
-        setIsLoaded(true);
-        setError(null);
-        console.log(`WaveSurfer loaded for track: ${track.name}`);
-      }).catch((err) => {
-        console.error(`Failed to load waveform for track ${track.name}:`, err);
-        setError('Failed to load waveform');
-        setIsLoaded(false);
-      });
-
-      // Prevent WaveSurfer from playing audio
-      waveSurfer.on('ready', () => {
-        waveSurfer.pause(); // Ensure it never plays
-      });
-
-      return () => {
-        if (waveSurferRef.current) {
-          waveSurferRef.current.destroy();
-          waveSurferRef.current = null;
-        }
-      };
-    } catch (err) {
-      console.error('Error creating WaveSurfer:', err);
-      setError('Failed to create waveform');
+    // Clear any pending timeout
+    if (initTimeoutRef.current) {
+      clearTimeout(initTimeoutRef.current);
     }
-  }, [track.file_url, track.name, pixelsPerSecond, trackHeight, trackIndex]);
+
+    // Skip if already loaded for this URL, currently loading, or no container
+    if (!containerRef.current || isLoading || loadedUrlRef.current === track.file_url) {
+      return;
+    }
+
+    // Clean up existing instance before creating new one
+    if (waveSurferRef.current) {
+      waveSurferRef.current.destroy();
+      waveSurferRef.current = null;
+    }
+
+    // Debounce initialization to prevent rapid re-creation
+    initTimeoutRef.current = setTimeout(() => {
+      if (!containerRef.current) return;
+
+      try {
+        console.log(`Loading WaveSurfer for track: ${track.name} (${track.file_url})`);
+        setIsLoading(true);
+        setError(null);
+
+        const waveSurfer = WaveSurfer.create({
+          container: containerRef.current,
+          waveColor: getTrackWaveColor(trackIndex, isMuted),
+          progressColor: getTrackProgressColor(trackIndex, isMuted),
+          cursorColor: 'rgba(255, 255, 255, 0.8)',
+          barWidth: 2,
+          barGap: 1,
+          height: trackHeight - 16,
+          normalize: true,
+          interact: false, // Disable WaveSurfer controls since Tone.js handles playback
+          hideScrollbar: true,
+          minPxPerSec: pixelsPerSecond,
+          fillParent: false,
+          mediaControls: false,
+          autoplay: false, // Critical: Never autoplay
+          backend: 'WebAudio'
+        });
+
+        waveSurferRef.current = waveSurfer;
+
+        // Load the audio file
+        waveSurfer.load(track.file_url).then(() => {
+          if (waveSurferRef.current === waveSurfer) { // Check if this is still the current instance
+            setIsLoaded(true);
+            setError(null);
+            setIsLoading(false);
+            loadedUrlRef.current = track.file_url;
+            console.log(`WaveSurfer loaded for track: ${track.name}`);
+          }
+        }).catch((err) => {
+          if (waveSurferRef.current === waveSurfer) { // Check if this is still the current instance
+            console.error(`Failed to load waveform for track ${track.name}:`, err);
+            setError('Failed to load waveform');
+            setIsLoaded(false);
+            setIsLoading(false);
+          }
+        });
+
+        // Prevent WaveSurfer from playing audio
+        waveSurfer.on('ready', () => {
+          if (waveSurferRef.current === waveSurfer) {
+            waveSurfer.pause(); // Ensure it never plays
+          }
+        });
+      } catch (err) {
+        console.error('Error creating WaveSurfer:', err);
+        setError('Failed to create waveform');
+        setIsLoading(false);
+      }
+    }, 100); // 100ms debounce
+
+    return () => {
+      if (initTimeoutRef.current) {
+        clearTimeout(initTimeoutRef.current);
+      }
+    };
+  }, [track.id, track.file_url, trackHeight, trackIndex, isMuted]); // Include necessary dependencies
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (initTimeoutRef.current) {
+        clearTimeout(initTimeoutRef.current);
+      }
+      if (waveSurferRef.current) {
+        waveSurferRef.current.destroy();
+        waveSurferRef.current = null;
+      }
+      setIsLoading(false);
+      setIsLoaded(false);
+      loadedUrlRef.current = null;
+    };
+  }, []);
 
   // Update playhead position based on Tone.Transport time
   useEffect(() => {
@@ -191,6 +242,11 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
         <div className="flex items-center justify-center h-full bg-red-500/10 border-red-500">
           <span className="text-xs text-red-400">Failed to load</span>
         </div>
+      ) : isLoading ? (
+        <div className="flex items-center justify-center h-full bg-blue-500/10 border-blue-500">
+          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400"></div>
+          <span className="text-xs text-blue-400 ml-2">Loading...</span>
+        </div>
       ) : (
         <>
           {/* WaveSurfer container */}
@@ -201,114 +257,85 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
           />
           
           {/* Loading overlay */}
-          {!isLoaded && !error && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+          {!isLoaded && (
+            <div className="absolute inset-0 flex items-center justify-center bg-background/50">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
             </div>
           )}
           
-          {/* Duplicate button */}
-          {onDuplicateClip && (
-            <button
-              onClick={(e) => {
-                console.log('Duplicate button clicked for clip:', clip.id);
-                e.stopPropagation();
-                e.preventDefault();
-                onDuplicateClip(clip.id);
-              }}
-              className="absolute top-1 right-1 w-6 h-6 bg-primary/80 hover:bg-primary text-white rounded text-xs font-bold opacity-80 hover:opacity-100 transition-opacity z-10 cursor-pointer"
-              title="Duplicate clip"
-            >
-              ⧉
-            </button>
-          )}
+          {/* Track name overlay */}
+          <div className="absolute top-1 left-1 text-xs text-foreground/80 bg-background/20 px-1 rounded truncate max-w-[calc(100%-8px)]">
+            {track.name}
+          </div>
           
-          {/* Time markers - only show if not hiding titles */}
-          {!className.includes('clip-hide-titles') && (
-            <>
-              <div className="absolute bottom-1 left-2 text-xs text-white/70">
-                {formatTime(clip.startTime)}
-              </div>
-              <div className="absolute bottom-1 right-2 text-xs text-white/70">
-                {formatTime(clip.endTime)}
-              </div>
-            </>
-          )}
+          {/* Track type badge */}
+          <div className="absolute top-1 right-1 text-xs bg-background/80 text-foreground px-1 rounded">
+            {track.stem_type}
+          </div>
+          
+          {/* Context menu trigger (right click area) */}
+          <div 
+            className="absolute bottom-0 right-0 w-4 h-4 opacity-0 hover:opacity-30 bg-primary cursor-context-menu"
+            onContextMenu={(e) => {
+              e.preventDefault();
+              // You can add context menu functionality here later
+              console.log('Context menu for clip:', clip.id);
+            }}
+          />
         </>
       )}
     </div>
   );
 };
 
-// Futuristic color palette for index-based track coloring
-const FUTURISTIC_PALETTE = [
-  '#00FFFF', // cyan
-  '#1E90FF', // blue  
-  '#FF1493', // magenta
-  '#FF4500', // red-orange
-  '#32CD32', // lime green
-  '#FFD700', // gold
-  '#40E0D0', // turquoise
-  '#FF6347'  // tomato
-];
-
-// Helper functions for index-based track colors with gradients
-const getTrackBaseColor = (trackIndex: number): string => {
-  return FUTURISTIC_PALETTE[trackIndex % FUTURISTIC_PALETTE.length];
-};
-
-const hexToRgb = (hex: string): { r: number; g: number; b: number } => {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  return result ? {
-    r: parseInt(result[1], 16),
-    g: parseInt(result[2], 16),
-    b: parseInt(result[3], 16)
-  } : { r: 0, g: 255, b: 255 }; // fallback to cyan
-};
-
-
-const getTrackWaveColor = (trackIndex: number, isMuted: boolean = false): string => {
-  const baseColor = getTrackBaseColor(trackIndex);
-  const { r, g, b } = hexToRgb(baseColor);
+// Color helper functions for track visualization
+function getTrackWaveColor(trackIndex: number, isMuted: boolean): string {
+  const baseColors = [
+    'rgba(34, 197, 94, 0.8)',   // green
+    'rgba(59, 130, 246, 0.8)',  // blue
+    'rgba(168, 85, 247, 0.8)',  // purple
+    'rgba(245, 101, 101, 0.8)', // red
+    'rgba(251, 191, 36, 0.8)',  // yellow
+    'rgba(14, 165, 233, 0.8)',  // sky
+    'rgba(139, 92, 246, 0.8)',  // violet
+    'rgba(236, 72, 153, 0.8)',  // pink
+  ];
   
-  if (isMuted) {
-    return `rgba(${r}, ${g}, ${b}, 0.3)`;
-  }
+  const colorIndex = trackIndex % baseColors.length;
+  const baseColor = baseColors[colorIndex];
   
-  // Create a subtle variation for the waveform
-  const adjustedR = Math.max(0, Math.min(255, r - 10));
-  const adjustedG = Math.max(0, Math.min(255, g - 10));
-  const adjustedB = Math.max(0, Math.min(255, b - 10));
-  
-  return `rgb(${adjustedR}, ${adjustedG}, ${adjustedB})`;
-};
+  return isMuted ? baseColor.replace('0.8', '0.3') : baseColor;
+}
 
-const getTrackProgressColor = (trackIndex: number, isMuted: boolean = false): string => {
-  const baseColor = getTrackBaseColor(trackIndex);
-  const { r, g, b } = hexToRgb(baseColor);
+function getTrackProgressColor(trackIndex: number, isMuted: boolean): string {
+  const baseColors = [
+    'rgba(34, 197, 94, 1)',     // green
+    'rgba(59, 130, 246, 1)',    // blue  
+    'rgba(168, 85, 247, 1)',    // purple
+    'rgba(245, 101, 101, 1)',   // red
+    'rgba(251, 191, 36, 1)',    // yellow
+    'rgba(14, 165, 233, 1)',    // sky
+    'rgba(139, 92, 246, 1)',    // violet
+    'rgba(236, 72, 153, 1)',    // pink
+  ];
   
-  if (isMuted) {
-    return `rgba(${r}, ${g}, ${b}, 0.4)`;
-  }
+  const colorIndex = trackIndex % baseColors.length;
+  const baseColor = baseColors[colorIndex];
   
-  // Progress color should be brighter/more vibrant
-  const enhancedR = Math.min(255, r + 30);
-  const enhancedG = Math.min(255, g + 30);
-  const enhancedB = Math.min(255, b + 30);
-  
-  return `rgb(${enhancedR}, ${enhancedG}, ${enhancedB})`;
-};
+  return isMuted ? baseColor.replace('1)', '0.5)') : baseColor;
+}
 
-const getTrackBorderColor = (trackIndex: number): string => {
-  const baseColor = getTrackBaseColor(trackIndex);
-  const { r, g, b } = hexToRgb(baseColor);
+function getTrackBorderColor(trackIndex: number): string {
+  const borderColors = [
+    'rgb(34, 197, 94)',   // green
+    'rgb(59, 130, 246)',  // blue
+    'rgb(168, 85, 247)',  // purple
+    'rgb(245, 101, 101)', // red
+    'rgb(251, 191, 36)',  // yellow
+    'rgb(14, 165, 233)',  // sky
+    'rgb(139, 92, 246)',  // violet
+    'rgb(236, 72, 153)',  // pink
+  ];
   
-  // Return a proper CSS color value for inline style
-  return `rgba(${r}, ${g}, ${b}, 0.6)`;
-};
-
-const formatTime = (seconds: number): string => {
-  const minutes = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${minutes}:${secs.toString().padStart(2, '0')}`;
-};
+  return borderColors[trackIndex % borderColors.length];
+}
