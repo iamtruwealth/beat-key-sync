@@ -27,6 +27,7 @@ export interface UseCookModeAudioReturn {
   createTrack: (name: string) => string;
   loadSample: (trackId: string, file: File) => Promise<void>;
   triggerSample: (trackId: string, note?: number, velocity?: number) => void;
+  setActiveTrack: (trackId: string) => void;
   startRecording: () => void;
   stopRecording: () => void;
   playbackRecording: () => void;
@@ -175,6 +176,14 @@ export function useCookModeAudio(): UseCookModeAudioReturn {
     engineRef.current.triggerSample(trackId, note, velocity);
   }, []);
 
+  const setActiveTrack = useCallback((trackId: string): void => {
+    if (!engineRef.current) {
+      console.warn('⚠️ Audio engine not initialized');
+      return;
+    }
+    engineRef.current.setActiveTrack(trackId);
+  }, []);
+
   // Start recording
   const startRecording = useCallback((): void => {
     if (!engineRef.current) {
@@ -265,6 +274,7 @@ export function useCookModeAudio(): UseCookModeAudioReturn {
     createTrack,
     loadSample,
     triggerSample,
+    setActiveTrack,
     startRecording,
     stopRecording,
     playbackRecording,

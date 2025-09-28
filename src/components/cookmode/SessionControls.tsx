@@ -63,7 +63,7 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
   onCreateEmptyTrack,
   onAddTrack
 }) => {
-  const { createTrack, isRecording, startRecording, stopRecording, tracks: audioTracks, loadSample } = useCookModeAudio();
+  const { createTrack, isRecording, startRecording, stopRecording, tracks: audioTracks, loadSample, setActiveTrack } = useCookModeAudio();
   const { toast } = useToast();
   const [masterVolume, setMasterVolume] = useState(75);
   const [sessionDuration, setSessionDuration] = useState(0);

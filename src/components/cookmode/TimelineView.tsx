@@ -879,7 +879,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                     || audioClips.find(clip => clip.trackId === selectedTrack) )
                 : undefined)
         }
-        isEnabled={!!selectedTrack}
+        isEnabled={false}
         onNoteTriggered={(noteNumber, velocity) => {
           console.log(`🎹 MIDI triggered note ${noteNumber} with velocity ${velocity}`);
         }}

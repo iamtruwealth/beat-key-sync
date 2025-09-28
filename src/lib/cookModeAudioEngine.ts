@@ -64,6 +64,7 @@ export class CookModeAudioEngine {
   private mediaRecorder: MediaRecorder | null = null;
   private recordedChunks: Blob[] = [];
   private midiInputActive = false;
+  private activeTrackId: string | null = null;
 
   // Event callbacks
   private onMidiDeviceChange?: (devices: MidiDevice[]) => void;
@@ -187,19 +188,37 @@ export class CookModeAudioEngine {
 
   // Get the currently active track ID - prefer tracks with samples loaded
   private getActiveTrackId(): string {
-    // First, try to find a track with a sample loaded
+    // If an explicit active track is set and valid, use it first
+    if (this.activeTrackId) {
+      const active = this.tracks.get(this.activeTrackId);
+      if (active && active.sample?.player && !active.muted) {
+        return this.activeTrackId;
+      }
+    }
+
+    // Otherwise, try to find any track with a sample loaded
     for (const [trackId, track] of this.tracks) {
       if (track.sample?.player && !track.muted) {
         console.log(`🎯 Using active track with sample: ${trackId} (${track.name})`);
         return trackId;
       }
     }
-    
+
     // Fallback to first track
     const tracks = Array.from(this.tracks.keys());
     const fallbackTrack = tracks[0] || 'default-track';
     console.log(`🎯 Fallback to track: ${fallbackTrack}`);
     return fallbackTrack;
+  }
+
+  // Explicitly set the active track for MIDI triggering
+  public setActiveTrack(trackId: string): void {
+    if (this.tracks.has(trackId)) {
+      this.activeTrackId = trackId;
+      console.log(`🎯 Active track set: ${trackId}`);
+    } else {
+      console.warn(`⚠️ Cannot set active track. Track not found: ${trackId}`);
+    }
   }
 
   // Create a new audio track
