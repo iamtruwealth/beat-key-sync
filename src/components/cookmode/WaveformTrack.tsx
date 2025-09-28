@@ -263,11 +263,6 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
             </div>
           )}
           
-          {/* Track name overlay */}
-          <div className="absolute top-1 left-1 text-xs text-foreground/80 bg-background/20 px-1 rounded truncate max-w-[calc(100%-8px)]">
-            {track.name}
-          </div>
-          
           {/* Track type badge */}
           <div className="absolute top-1 right-1 text-xs bg-background/80 text-foreground px-1 rounded">
             {track.stem_type}
