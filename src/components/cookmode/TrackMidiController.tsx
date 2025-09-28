@@ -215,11 +215,13 @@ export const TrackMidiController: React.FC<TrackMidiControllerProps> = ({
 
       console.log(`🎵 Player found, creating polyphony instance...`);
 
-      // Create a new player instance for polyphony
+      // Create a new player instance for polyphony with immediate stop capability
       const polyphonyPlayer = new Tone.Player({
         url: selectedClip.originalTrack.file_url,
         loop: false,
         autostart: false,
+        fadeIn: 0,
+        fadeOut: 0.01 // Very short fade out for clean stop
       }).toDestination();
 
       console.log(`🎵 Created polyphony player for ${selectedClip.originalTrack.file_url}`);
@@ -273,12 +275,24 @@ export const TrackMidiController: React.FC<TrackMidiControllerProps> = ({
 
   // Handle note off event
   const handleNoteOff = useCallback((noteNumber: number) => {
+    console.log(`🎵 TrackMidiController: Handling note OFF ${noteNumber}`);
+    
     const activeNote = activeNotes.get(noteNumber);
-    if (!activeNote) return;
+    if (!activeNote) {
+      console.log(`❌ No active note found for ${noteNumber}`);
+      return;
+    }
 
-    // Stop the player
-    activeNote.player.stop();
-    activeNote.player.dispose();
+    console.log(`🎵 Stopping and disposing player for note ${noteNumber}`);
+    
+    // Immediately stop the player
+    try {
+      activeNote.player.stop();
+      activeNote.player.dispose();
+      console.log(`✅ Player stopped and disposed for note ${noteNumber}`);
+    } catch (error) {
+      console.error(`❌ Error stopping player for note ${noteNumber}:`, error);
+    }
 
     // Update recorded note duration if recording
     if (isRecording) {
