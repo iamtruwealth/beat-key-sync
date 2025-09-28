@@ -11,6 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { MetaTags } from '@/components/MetaTags';
 import { GlassMorphismSection } from '@/components/futuristic/GlassMorphismSection';
 import { useCookModeSession } from '@/hooks/useCookModeSession';
+import { useCookModeAudio } from '@/hooks/useCookModeAudio';
 import { CookModeDAW } from '@/components/cookmode/CookModeDAW';
 import { CookModeChat } from '@/components/cookmode/CookModeChat';
 import { SessionParticipants } from '@/components/cookmode/SessionParticipants';
@@ -72,6 +73,7 @@ const CookMode = () => {
     updateSessionSettings,
     saveSession
   } = useCookModeSession(sessionId);
+  const { midiDevices } = useCookModeAudio();
 
   useEffect(() => {
     if (sessionId && !session) {
@@ -361,7 +363,18 @@ const CookMode = () => {
               <DropdownMenuContent align="end" className="w-64 bg-background/95 backdrop-blur-sm border border-border/50">
                 <div className="p-2">
                   <div className="text-sm font-medium mb-2">MIDI Controllers</div>
-                  <div className="text-xs text-muted-foreground">No MIDI controllers detected</div>
+                  {midiDevices && midiDevices.length > 0 ? (
+                    <>
+                      {midiDevices.map((device) => (
+                        <DropdownMenuItem key={device.id} className="flex items-center gap-2">
+                          <div className={`w-2 h-2 rounded-full ${device.connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                          <span className="text-sm">{device.name}</span>
+                        </DropdownMenuItem>
+                      ))}
+                    </>
+                  ) : (
+                    <div className="text-xs text-muted-foreground">No MIDI controllers detected</div>
+                  )}
                 </div>
               </DropdownMenuContent>
             </DropdownMenu>
