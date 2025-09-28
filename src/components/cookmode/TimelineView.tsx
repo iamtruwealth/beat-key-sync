@@ -47,6 +47,8 @@ interface TimelineViewProps {
   onTracksUpdate?: (tracks: Track[]) => void;
   setActiveTrack?: (trackId: string) => void;
   activeTrackId?: string;
+  createTrack?: (name: string) => string;
+  loadSample?: (trackId: string, file: File) => Promise<void>;
 }
 
 export const TimelineView: React.FC<TimelineViewProps> = ({
@@ -59,7 +61,9 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   onSeek,
   onTracksUpdate,
   setActiveTrack,
-  activeTrackId
+  activeTrackId,
+  createTrack,
+  loadSample
 }) => {
   const timelineRef = useRef<HTMLDivElement>(null);
   const [timelineWidth, setTimelineWidth] = useState(0);
@@ -809,8 +813,29 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                   <Button
                     variant={activeTrackId === track.id ? "default" : "outline"}
                     size="sm"
-                    className="text-xs mt-1 px-2 py-1 h-6"
-                    onClick={() => setActiveTrack?.(track.id)}
+                    className={`text-xs mt-1 px-2 py-1 h-6 transition-all duration-300 ${
+                      activeTrackId === track.id 
+                        ? 'bg-green-500 hover:bg-green-600 text-black border-green-400 shadow-[var(--glow-green)] animate-pulse' 
+                        : 'hover:border-green-400/50 hover:text-green-400'
+                    }`}
+                    onClick={async () => {
+                      try {
+                        // Create engine track and load the sample
+                        if (createTrack && loadSample && track.file_url) {
+                          const engineTrackId = createTrack(track.name);
+                          
+                          // Convert URL to File for loading
+                          const response = await fetch(track.file_url);
+                          const blob = await response.blob();
+                          const file = new File([blob], track.name, { type: 'audio/wav' });
+                          
+                          await loadSample(engineTrackId, file);
+                          setActiveTrack?.(engineTrackId);
+                        }
+                      } catch (error) {
+                        console.error('❌ Failed to activate MIDI for track:', error);
+                      }
+                    }}
                   >
                     <Piano className="w-3 h-3 mr-1" />
                     MIDI

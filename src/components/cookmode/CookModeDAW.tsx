@@ -53,6 +53,8 @@ interface CookModeDAWProps {
   onActiveViewChange?: (view: 'timeline' | 'mixer') => void;
   setActiveTrack?: (trackId: string) => void;
   activeTrackId?: string;
+  createTrack?: (name: string) => string;
+  loadSample?: (trackId: string, file: File) => Promise<void>;
 }
 
 export const CookModeDAW: React.FC<CookModeDAWProps> = ({
@@ -69,7 +71,9 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
   externalActiveView,
   onActiveViewChange,
   setActiveTrack,
-  activeTrackId
+  activeTrackId,
+  createTrack,
+  loadSample
 }) => {
   const [isAddingTrack, setIsAddingTrack] = useState(false);
   const [activeView, setActiveView] = useState<'timeline' | 'mixer'>('timeline');
@@ -404,6 +408,8 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
                 onTracksUpdate={handleTracksUpdateFromTimeline}
                 setActiveTrack={setActiveTrack}
                 activeTrackId={activeTrackId}
+                createTrack={createTrack}
+                loadSample={loadSample}
               />
             )}
           </TabsContent>
