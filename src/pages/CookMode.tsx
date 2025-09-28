@@ -42,7 +42,7 @@ import {
   ChevronDown,
   Piano
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui/use-toast';
 
 const CookMode = () => {
   const { sessionId } = useParams();
@@ -108,7 +108,11 @@ const CookMode = () => {
 
   const handleCreateSession = async () => {
     if (!sessionConfig.name || !sessionConfig.bpm) {
-      toast.error('Please fill in all session details');
+      toast({
+        title: "Error",
+        description: "Please fill in all session details",
+        variant: "destructive"
+      });
       return;
     }
 
@@ -122,10 +126,17 @@ const CookMode = () => {
       
       setIsHost(true);
       navigate(`/cook-mode/${newSessionId}`);
-      toast.success('Cook Mode session created! Share the link to invite collaborators.');
+      toast({
+        title: "Success",
+        description: "Cook Mode session created! Share the link to invite collaborators."
+      });
     } catch (error) {
       console.error('Error creating session:', error);
-      toast.error('Failed to create session');
+      toast({
+        title: "Error", 
+        description: "Failed to create session",
+        variant: "destructive"
+      });
     }
   };
 
@@ -135,22 +146,35 @@ const CookMode = () => {
     try {
       await saveSession(publishImmediately);
       if (publishImmediately) {
-        toast.success('Session saved and published! Converting to Beat Pack...');
+        toast({
+          title: "Success",
+          description: "Session saved and published! Converting to Beat Pack..."
+        });
         // Navigate to split sheet creation
         navigate(`/collaborate/projects/${session.id}/finalize`);
       } else {
-        toast.success('Session saved successfully! You can continue working or publish later.');
+        toast({
+          title: "Success",
+          description: "Session saved successfully! You can continue working or publish later."
+        });
       }
     } catch (error) {
       console.error('Error saving session:', error);
-      toast.error('Failed to save session');
+      toast({
+        title: "Error",
+        description: "Failed to save session",
+        variant: "destructive"
+      });
     }
   };
 
   const shareSessionLink = async () => {
     const link = `${window.location.origin}/cook-mode/${sessionId}`;
     await navigator.clipboard.writeText(link);
-    toast.success('Session link copied to clipboard!');
+    toast({
+      title: "Success",
+      description: "Session link copied to clipboard!"
+    });
   };
 
   // Session Creation Screen
