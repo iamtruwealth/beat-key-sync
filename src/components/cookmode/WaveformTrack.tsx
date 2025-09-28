@@ -263,14 +263,10 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
             </div>
           )}
           
-          {/* Track type badge */}
-          <div className="absolute top-1 right-1 text-xs bg-background/80 text-foreground px-1 rounded">
-            {track.stem_type}
-          </div>
            
           {/* Duplicate clip on Ctrl+D */}
           <div 
-            className="absolute bottom-0 right-0 w-6 h-6 opacity-0 hover:opacity-50 bg-primary/20 hover:bg-primary/40 cursor-pointer rounded-tl-md border border-primary/30"
+            className="absolute bottom-0 right-0 w-6 h-6 z-10 opacity-0 hover:opacity-50 bg-primary/20 hover:bg-primary/40 cursor-pointer rounded-tl-md border border-primary/30"
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
