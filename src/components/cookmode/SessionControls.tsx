@@ -15,12 +15,14 @@ import {
   Settings,
   RotateCcw,
   Timer,
-  Undo
+  Undo,
+  Plus
 } from 'lucide-react';
 import { undoManager } from '@/lib/UndoManager';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
+import { useCookModeAudio } from '@/hooks/useCookModeAudio';
 
 interface SessionControlsProps {
   isPlaying: boolean;
@@ -51,6 +53,7 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
   onUpdateBpm,
   onUpdateKey
 }) => {
+  const { createTrack } = useCookModeAudio();
   const [masterVolume, setMasterVolume] = useState(75);
   const [sessionDuration, setSessionDuration] = useState(0);
   const [isEditingBpm, setIsEditingBpm] = useState(false);
@@ -323,21 +326,15 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
 
         {/* Right Section - Volume Control */}
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Volume2 className="w-4 h-4 text-muted-foreground" />
-            <div className="w-24">
-              <Slider
-                value={[masterVolume]}
-                onValueChange={handleVolumeChange}
-                max={100}
-                step={1}
-                className="w-full"
-              />
-            </div>
-            <span className="text-sm text-muted-foreground w-8">
-              {masterVolume}%
-            </span>
-          </div>
+          <Button
+            onClick={() => createTrack(`Track ${Date.now()}`)}
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            New Track
+          </Button>
         </div>
       </div>
 
