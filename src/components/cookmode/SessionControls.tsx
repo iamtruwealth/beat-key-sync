@@ -32,6 +32,7 @@ interface SessionControlsProps {
   sessionKey?: string;
   isLooping?: boolean;
   metronomeEnabled?: boolean;
+  sessionId?: string;
   onTogglePlayback: () => void;
   onSeek: (time: number) => void;
   onToggleLoop?: () => void;
@@ -47,6 +48,7 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
   sessionKey,
   isLooping = false,
   metronomeEnabled = false,
+  sessionId,
   onTogglePlayback,
   onSeek,
   onToggleLoop,
@@ -55,7 +57,7 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
   onUpdateKey
 }) => {
   const { createTrack } = useCookModeAudio();
-  const { addEmptyTrack } = useCookModeSession();
+  const { addEmptyTrack, session } = useCookModeSession(sessionId);
   const [masterVolume, setMasterVolume] = useState(75);
   const [sessionDuration, setSessionDuration] = useState(0);
   const [isEditingBpm, setIsEditingBpm] = useState(false);

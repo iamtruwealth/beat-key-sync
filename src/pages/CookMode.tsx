@@ -435,6 +435,7 @@ const CookMode = () => {
             currentTime={currentTime}
             bpm={session.target_bpm || 120}
             sessionKey={session.target_genre}
+            sessionId={sessionId}
             metronomeEnabled={metronomeEnabled}
             onTogglePlayback={togglePlayback}
             onSeek={seekTo}
