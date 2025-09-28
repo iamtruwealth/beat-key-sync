@@ -240,7 +240,25 @@ export function useCookModeSession(sessionId?: string) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      const newId = crypto.randomUUID();
+      const generateId = () => {
+        try {
+          // Prefer native crypto.randomUUID when available
+          // @ts-ignore
+          if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+            // @ts-ignore
+            return crypto.randomUUID();
+          }
+        } catch {}
+        // Fallback UUID v4 generator
+        let d = Date.now();
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+          const r = (d + Math.random() * 16) % 16 | 0;
+          d = Math.floor(d / 16);
+          return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+        });
+      };
+
+      const newId = generateId();
 
       const insertPayload = {
         id: newId,
@@ -252,15 +270,18 @@ export function useCookModeSession(sessionId?: string) {
         status: 'active'
       };
 
+      console.log('[CookMode] Creating collaboration project', insertPayload);
+
       const { error: projectError } = await supabase
         .from('collaboration_projects')
         .insert(insertPayload);
-
 
       if (projectError) {
         console.error('Project insert error:', projectError);
         throw projectError;
       }
+
+      console.log('[CookMode] Collaboration project created', newId);
 
       // Try to add the creator as a member (non-blocking)
       try {

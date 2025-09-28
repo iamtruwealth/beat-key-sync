@@ -107,6 +107,7 @@ const CookMode = () => {
   }, []);
 
   const handleCreateSession = async () => {
+    console.log('[CookMode] handleCreateSession clicked', sessionConfig);
     if (!sessionConfig.name || !sessionConfig.bpm) {
       toast({
         title: "Error",
@@ -123,6 +124,7 @@ const CookMode = () => {
         key: sessionConfig.key,
         workspace_type: 'live_session'
       });
+      console.log('[CookMode] Session created with id', newSessionId);
       
       setIsHost(true);
       navigate(`/cook-mode/${newSessionId}`);
