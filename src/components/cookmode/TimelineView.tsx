@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Play, Pause, RotateCcw, Volume2, VolumeX, Circle } from "lucide-react";
+import { Play, Pause, RotateCcw, Volume2, VolumeX, Circle, Piano } from "lucide-react";
 import { BPMSyncIndicator } from './BPMSyncIndicator';
 import { useToast } from "@/hooks/use-toast";
 import { useWaveformGenerator } from '@/hooks/useWaveformGenerator';
@@ -45,6 +45,8 @@ interface TimelineViewProps {
   onPlayPause: () => void;
   onSeek: (time: number) => void;
   onTracksUpdate?: (tracks: Track[]) => void;
+  setActiveTrack?: (trackId: string) => void;
+  activeTrackId?: string;
 }
 
 export const TimelineView: React.FC<TimelineViewProps> = ({
@@ -55,7 +57,9 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   metronomeEnabled = false,
   onPlayPause,
   onSeek,
-  onTracksUpdate
+  onTracksUpdate,
+  setActiveTrack,
+  activeTrackId
 }) => {
   const timelineRef = useRef<HTMLDivElement>(null);
   const [timelineWidth, setTimelineWidth] = useState(0);
@@ -802,9 +806,15 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                     step={1}
                     className="w-full"
                   />
-                  <Badge variant="outline" className="text-xs mt-1">
-                    {track.stem_type}
-                  </Badge>
+                  <Button
+                    variant={activeTrackId === track.id ? "default" : "outline"}
+                    size="sm"
+                    className="text-xs mt-1 px-2 py-1 h-6"
+                    onClick={() => setActiveTrack?.(track.id)}
+                  >
+                    <Piano className="w-3 h-3 mr-1" />
+                    MIDI
+                  </Button>
                 </div>
               );
             })}

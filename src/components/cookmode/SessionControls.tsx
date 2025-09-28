@@ -411,10 +411,9 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
                     }
                     const engineTrackId = createTrack(trackName);
                     await loadSample(engineTrackId, file);
-                    setActiveTrack(engineTrackId);
                     toast({
                       title: "Audio Ready",
-                      description: `Loaded "${trackName}" and set as active for MIDI. Play your controller!`,
+                      description: `Added "${trackName}" - click the MIDI button on the track to activate it!`,
                     });
                   } catch (error) {
                     console.error('Failed to add/prepare audio file:', error);

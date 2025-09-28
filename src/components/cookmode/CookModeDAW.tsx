@@ -51,6 +51,8 @@ interface CookModeDAWProps {
   onSeek: (time: number) => void;
   externalActiveView?: 'timeline' | 'mixer';
   onActiveViewChange?: (view: 'timeline' | 'mixer') => void;
+  setActiveTrack?: (trackId: string) => void;
+  activeTrackId?: string;
 }
 
 export const CookModeDAW: React.FC<CookModeDAWProps> = ({
@@ -65,7 +67,9 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
   onPlayPause,
   onSeek,
   externalActiveView,
-  onActiveViewChange
+  onActiveViewChange,
+  setActiveTrack,
+  activeTrackId
 }) => {
   const [isAddingTrack, setIsAddingTrack] = useState(false);
   const [activeView, setActiveView] = useState<'timeline' | 'mixer'>('timeline');
@@ -398,6 +402,8 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
                 onPlayPause={onPlayPause}
                 onSeek={onSeek}
                 onTracksUpdate={handleTracksUpdateFromTimeline}
+                setActiveTrack={setActiveTrack}
+                activeTrackId={activeTrackId}
               />
             )}
           </TabsContent>

@@ -74,7 +74,7 @@ const CookMode = () => {
     saveSession,
     addEmptyTrack
   } = useCookModeSession(sessionId);
-  const { midiDevices } = useCookModeAudio();
+  const { midiDevices, setActiveTrack, tracks: audioTracks } = useCookModeAudio();
 
   useEffect(() => {
     if (sessionId && !session) {
@@ -490,6 +490,8 @@ const CookMode = () => {
               onSeek={seekTo}
               externalActiveView={activeView}
               onActiveViewChange={(v) => setActiveView(v)}
+              setActiveTrack={setActiveTrack}
+              activeTrackId={audioTracks.find(t => t.id)?.id}
             />
           </div>
         </div>
