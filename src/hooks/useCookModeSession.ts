@@ -85,19 +85,33 @@ export function useCookModeSession(sessionId?: string) {
                     .select('id, producer_name, producer_logo_url')
                     .in('id', userIds as string[]);
                   const profileMap = new Map((profiles || []).map(p => [p.id, p]));
-                  const enriched = participantList.map(p => ({
-                    ...p,
-                    profile: profileMap.has(p.user_id)
-                      ? {
-                          producer_name: (profileMap.get(p.user_id) as any)?.producer_name,
-                          producer_logo_url: (profileMap.get(p.user_id) as any)?.producer_logo_url,
-                        }
-                      : p.profile,
-                  }));
-                  setParticipants(enriched);
-                } else {
-                  setParticipants(participantList);
-                }
+              const enriched = participantList.map(p => ({
+                ...p,
+                profile: profileMap.has(p.user_id)
+                  ? {
+                      producer_name: (profileMap.get(p.user_id) as any)?.producer_name,
+                      producer_logo_url: (profileMap.get(p.user_id) as any)?.producer_logo_url,
+                    }
+                  : p.profile,
+              }));
+              
+              // Sort participants so creator is always first
+              const sortedParticipants = enriched.sort((a, b) => {
+                if (a.role === 'creator') return -1;
+                if (b.role === 'creator') return 1;
+                return a.joined_at.localeCompare(b.joined_at);
+              });
+              
+              setParticipants(sortedParticipants);
+            } else {
+              // Sort participants so creator is always first
+              const sortedParticipants = participantList.sort((a, b) => {
+                if (a.role === 'creator') return -1;
+                if (b.role === 'creator') return 1;
+                return a.joined_at.localeCompare(b.joined_at);
+              });
+              setParticipants(sortedParticipants);
+            }
               } catch (e) {
                 console.warn('Failed to enrich participants with profiles', e);
                 setParticipants(participantList);
@@ -143,10 +157,19 @@ export function useCookModeSession(sessionId?: string) {
         // Track user presence
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
+          // Check if this user is the session creator to assign correct role
+          const { data: sessionData } = await supabase
+            .from('collaboration_projects')
+            .select('created_by')
+            .eq('id', sessionId)
+            .single();
+          
+          const isCreator = sessionData?.created_by === user.id;
+          
           await channel.track({
             user_id: user.id,
             joined_at: new Date().toISOString(),
-            role: 'collaborator'
+            role: isCreator ? 'creator' : 'collaborator'
           });
         }
       } catch (error) {
