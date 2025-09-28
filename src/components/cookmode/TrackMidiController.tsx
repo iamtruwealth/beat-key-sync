@@ -85,10 +85,13 @@ export const TrackMidiController: React.FC<TrackMidiControllerProps> = ({
   const [recordedNotes, setRecordedNotes] = useState<MidiNote[]>([]);
   const [activeNotes, setActiveNotes] = useState<Map<number, ActiveNote>>(new Map());
   
+  const activeNotesRef = useRef<Map<number, ActiveNote>>(new Map());
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const playersRef = useRef<Map<string, Tone.Player>>(new Map());
   const recordingStartTimeRef = useRef<number>(0);
+  const audioStartedRef = useRef<boolean>(false);
+  const midiInputsRef = useRef<CustomMIDIInput[]>([]);
 
   // Initialize Web MIDI API
   useEffect(() => {
@@ -127,6 +130,19 @@ export const TrackMidiController: React.FC<TrackMidiControllerProps> = ({
       initMidi();
     }
   }, [isEnabled, toast]);
+
+  // Optimize Tone.js for low latency once on mount
+  useEffect(() => {
+    try {
+      const ctx: any = Tone.getContext?.() ?? (Tone as any).context;
+      if (ctx) {
+        if (typeof ctx.lookAhead !== 'undefined') ctx.lookAhead = 0;
+        if (typeof ctx.latencyHint !== 'undefined') ctx.latencyHint = 'interactive';
+      }
+    } catch (e) {
+      console.warn('Could not configure Tone.js latency settings', e);
+    }
+  }, []);
 
   // Load audio player for selected clip
   useEffect(() => {
@@ -199,66 +215,51 @@ export const TrackMidiController: React.FC<TrackMidiControllerProps> = ({
 
   // Handle note on event
   const handleNoteOn = useCallback(async (noteNumber: number, velocity: number) => {
-    if (!selectedClip || activeNotes.has(noteNumber)) return;
-
-    console.log(`🎵 TrackMidiController: Handling note ON ${noteNumber}, velocity ${velocity}`);
-    console.log(`🎵 Selected clip:`, selectedClip);
+    if (!selectedClip) return;
+    if (activeNotesRef.current.has(noteNumber)) return;
 
     try {
-      await Tone.start();
-      console.log(`🎵 Tone.js context started`);
+      if (!audioStartedRef.current) {
+        await Tone.start();
+        audioStartedRef.current = true;
+      }
 
-      const player = playersRef.current.get(selectedClip.id);
-      if (!player) {
-        console.log(`❌ No player found for clip ${selectedClip.id}`);
+      const basePlayer = playersRef.current.get(selectedClip.id);
+      if (!basePlayer || !basePlayer.buffer) {
+        console.log(`❌ No base player/buffer for clip ${selectedClip.id}`);
         return;
       }
 
-      console.log(`🎵 Player found, creating polyphony instance...`);
-
-      // Create a gain node for immediate volume control
+      // Create a gain node for immediate volume control (gate)
       const gainNode = new Tone.Gain(0).toDestination();
-      
-      // Create a new player instance for polyphony
-      const polyphonyPlayer = new Tone.Player({
-        url: selectedClip.originalTrack.file_url,
-        loop: false,
-        autostart: false,
-        fadeIn: 0,
-        fadeOut: 0
-      }).connect(gainNode);
 
-      console.log(`🎵 Created polyphony player for ${selectedClip.originalTrack.file_url}`);
-
-      await Tone.loaded();
-      console.log(`🎵 Tone.js loaded, ready to play`);
+      // Create a new player instance using the already loaded buffer for ultra-low latency
+      const polyphonyPlayer = new Tone.Player(basePlayer.buffer as any).connect(gainNode);
+      polyphonyPlayer.loop = false;
+      polyphonyPlayer.autostart = false;
+      polyphonyPlayer.fadeIn = 0;
+      polyphonyPlayer.fadeOut = 0;
 
       // Apply pitch shift and gain
       const pitchShift = noteToPitchShift(noteNumber);
       const gain = velocityToGain(velocity);
-
-      console.log(`🎵 Applying pitch shift: ${pitchShift}, gain: ${gain}`);
-
       polyphonyPlayer.playbackRate = pitchShift;
-      
-      // Start playback first
-      polyphonyPlayer.start();
-      
-      // Then immediately ramp up the gain for smooth attack
-      gainNode.gain.setValueAtTime(0, Tone.now());
-      gainNode.gain.linearRampToValueAtTime(gain, Tone.now() + 0.01);
-      
-      console.log(`🎵 Audio playback started with gate ON!`);
 
-      // Track active note with gain node
+      // Start playback precisely now and ramp gain up quickly
+      const now = Tone.now();
+      polyphonyPlayer.start(now);
+      gainNode.gain.setValueAtTime(0, now);
+      gainNode.gain.linearRampToValueAtTime(gain, now + 0.01);
+
+      // Track active note
       const activeNote: ActiveNote = {
         noteNumber,
         player: polyphonyPlayer,
-        gainNode: gainNode,
+        gainNode,
         startTime: Date.now()
       };
-
-      setActiveNotes(prev => new Map(prev).set(noteNumber, activeNote));
+      activeNotesRef.current.set(noteNumber, activeNote);
+      setActiveNotes(new Map(activeNotesRef.current));
 
       // Record MIDI event if recording
       if (isRecording) {
@@ -269,48 +270,38 @@ export const TrackMidiController: React.FC<TrackMidiControllerProps> = ({
           timestamp: Date.now() - recordingStartTimeRef.current,
           clipId: selectedClip.id
         };
-
         setRecordedNotes(prev => [...prev, midiNote]);
       }
 
       // Callback for visual feedback
       onNoteTriggered?.(noteNumber, velocity);
-
     } catch (error) {
       console.error('Error triggering note:', error);
     }
-  }, [selectedClip, activeNotes, isRecording, noteToPitchShift, velocityToGain, onNoteTriggered]);
+  }, [selectedClip, isRecording, noteToPitchShift, velocityToGain, onNoteTriggered]);
 
   // Handle note off event
   const handleNoteOff = useCallback((noteNumber: number) => {
-    console.log(`🎵 TrackMidiController: Handling note OFF ${noteNumber}`);
-    
-    const activeNote = activeNotes.get(noteNumber);
+    const activeNote = activeNotesRef.current.get(noteNumber);
     if (!activeNote) {
       console.log(`❌ No active note found for ${noteNumber}`);
       return;
     }
 
-    console.log(`🎵 Gating OFF note ${noteNumber} - immediate volume cut`);
-    
-    // Immediately cut the volume to create gate effect
     try {
-      activeNote.gainNode.gain.setValueAtTime(activeNote.gainNode.gain.value, Tone.now());
-      activeNote.gainNode.gain.linearRampToValueAtTime(0, Tone.now() + 0.005); // 5ms release
-      
-      // Schedule cleanup after the release
+      const now = Tone.now();
+      activeNote.gainNode.gain.setValueAtTime(activeNote.gainNode.gain.value, now);
+      activeNote.gainNode.gain.linearRampToValueAtTime(0, now + 0.005);
+
       setTimeout(() => {
         try {
           activeNote.player.stop();
           activeNote.player.dispose();
           activeNote.gainNode.dispose();
-          console.log(`✅ Player and gain node cleaned up for note ${noteNumber}`);
         } catch (error) {
           console.error(`❌ Error cleaning up note ${noteNumber}:`, error);
         }
       }, 10);
-      
-      console.log(`✅ Gate OFF applied for note ${noteNumber}`);
     } catch (error) {
       console.error(`❌ Error applying gate OFF for note ${noteNumber}:`, error);
     }
@@ -330,13 +321,10 @@ export const TrackMidiController: React.FC<TrackMidiControllerProps> = ({
       );
     }
 
-    // Remove from active notes
-    setActiveNotes(prev => {
-      const newMap = new Map(prev);
-      newMap.delete(noteNumber);
-      return newMap;
-    });
-  }, [activeNotes, isRecording, recordedNotes]);
+    // Remove from active notes (ref + state for UI)
+    activeNotesRef.current.delete(noteNumber);
+    setActiveNotes(new Map(activeNotesRef.current));
+  }, [isRecording, recordedNotes]);
 
   // Start MIDI recording
   const startRecording = useCallback(async () => {

@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import WaveSurfer from 'wavesurfer.js';
-import { Copy, Circle } from 'lucide-react';
+import { Copy, Circle, Trash2 } from 'lucide-react';
 
 interface Track {
   id: string;
@@ -35,6 +35,7 @@ interface WaveformTrackProps {
   onClipClick?: (clipId: string, event: React.MouseEvent) => void;
   onClipDoubleClick?: (clipId: string) => void;
   onDuplicateClip?: (clipId: string) => void;
+  onDeleteClip?: (clipId: string) => void;
   className?: string;
   // New props for selection and record arming
   isSelected?: boolean;
@@ -54,6 +55,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
   onClipClick,
   onClipDoubleClick,
   onDuplicateClip,
+  onDeleteClip,
   className = "",
   isSelected = false,
   isRecordArmed = false,
@@ -293,8 +295,8 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
           )}
           
            
-           {/* Duplicate clip button */}
-          <div className="absolute bottom-1 right-1 z-20">
+          {/* Clip action buttons */}
+          <div className="absolute bottom-1 right-1 z-20 flex gap-1">
             <button
               type="button"
               className="inline-flex items-center justify-center h-6 w-6 rounded-md bg-background/80 text-foreground border border-border shadow-sm hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -307,6 +309,19 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
               }}
             >
               <Copy className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              className="inline-flex items-center justify-center h-6 w-6 rounded-md bg-background/80 text-foreground border border-border shadow-sm hover:bg-destructive/20 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-label="Delete clip"
+              title="Delete clip"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (onDeleteClip) onDeleteClip(clip.id);
+              }}
+            >
+              <Trash2 className="w-3.5 h-3.5" />
             </button>
           </div>
         </>

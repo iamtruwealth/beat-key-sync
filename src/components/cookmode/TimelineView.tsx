@@ -638,6 +638,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                 duplicateClip(clipId);
               }}
               onDuplicateClip={duplicateClip}
+              onDeleteClip={deleteClip}
               className={selectedClips.has(clip.id) ? 'ring-2 ring-primary' : ''}
             />
           );
