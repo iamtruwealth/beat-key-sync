@@ -221,6 +221,28 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
             >
               <Undo className="w-4 h-4" />
             </Button>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              className={`p-2 transition-all duration-200 ${
+                undoManager.canRedo() 
+                  ? 'hover:bg-accent hover:text-accent-foreground text-foreground' 
+                  : 'text-muted-foreground/50 cursor-not-allowed'
+              }`}
+              onClick={() => {
+                console.log('🔄 Redo button clicked');
+                if (undoManager.canRedo()) {
+                  undoManager.redo();
+                } else {
+                  console.log('⚠️ No actions to redo');
+                }
+              }}
+              disabled={!undoManager.canRedo()}
+              title="Redo last undone action"
+            >
+              <RotateCcw className="w-4 h-4" />
+            </Button>
           </div>
 
           <div className="h-6 w-px bg-border/50" />

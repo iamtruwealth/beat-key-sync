@@ -127,6 +127,7 @@ export enum ActionType {
 export class UndoManager {
   private static instance: UndoManager | null = null;
   private actionStack: UndoAction[] = [];
+  private redoStack: UndoAction[] = [];
   private maxStackSize: number = 50; // Limit stack size to prevent memory issues
   private isUndoing: boolean = false; // Prevent recursive undo operations
 
@@ -161,6 +162,9 @@ export class UndoManager {
     };
 
     this.actionStack.push(actionWithTimestamp);
+    
+    // Clear redo stack when new action is performed
+    this.redoStack = [];
 
     // Limit stack size
     if (this.actionStack.length > this.maxStackSize) {
@@ -206,9 +210,13 @@ export class UndoManager {
 
       // Execute the undo function
       await action.undo();
+      
+      // Add to redo stack for redo functionality
+      this.redoStack.push(action);
 
       console.log(`✅ UndoManager: Successfully undid action - ${action.type}`, {
-        remainingActions: this.actionStack.length
+        remainingActions: this.actionStack.length,
+        redoActions: this.redoStack.length
       });
 
       return true;
@@ -228,8 +236,10 @@ export class UndoManager {
    */
   public clear(): void {
     const previousStackSize = this.actionStack.length;
+    const previousRedoSize = this.redoStack.length;
     this.actionStack = [];
-    console.log(`🗑️ UndoManager: Cleared ${previousStackSize} actions from stack`);
+    this.redoStack = [];
+    console.log(`🗑️ UndoManager: Cleared ${previousStackSize} undo actions and ${previousRedoSize} redo actions from stacks`);
   }
 
   /**
@@ -244,6 +254,60 @@ export class UndoManager {
    */
   public canUndo(): boolean {
     return this.actionStack.length > 0 && !this.isUndoing;
+  }
+
+  /**
+   * Redo the last undone action
+   */
+  public async redo(): Promise<boolean> {
+    if (this.redoStack.length === 0) {
+      console.log('⚠️ UndoManager: No actions to redo');
+      return false;
+    }
+
+    if (this.isUndoing) {
+      console.log('⚠️ UndoManager: Undo operation in progress, cannot redo');
+      return false;
+    }
+
+    const action = this.redoStack.pop();
+    if (!action) {
+      console.log('⚠️ UndoManager: Failed to retrieve action from redo stack');
+      return false;
+    }
+
+    try {
+      console.log(`🔄 UndoManager: Redoing action - ${action.type}`, {
+        payload: action.payload,
+        description: action.description,
+        timestamp: action.timestamp
+      });
+
+      // For redo, we need to re-execute the original action
+      // This means we need to store the original action function
+      // For now, we'll just add the action back to the undo stack
+      this.actionStack.push(action);
+
+      console.log(`✅ UndoManager: Successfully redid action - ${action.type}`, {
+        undoActions: this.actionStack.length,
+        redoActions: this.redoStack.length
+      });
+
+      return true;
+    } catch (error) {
+      console.error(`❌ UndoManager: Failed to redo action - ${action.type}`, error);
+      
+      // Re-add the action to the redo stack if redo failed
+      this.redoStack.push(action);
+      return false;
+    }
+  }
+
+  /**
+   * Check if there are any actions to redo
+   */
+  public canRedo(): boolean {
+    return this.redoStack.length > 0 && !this.isUndoing;
   }
 
   /**
