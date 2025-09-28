@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Play, Pause, RotateCcw, Volume2, VolumeX } from "lucide-react";
+import { Play, Pause, RotateCcw, Volume2, VolumeX, Circle } from "lucide-react";
 import { BPMSyncIndicator } from './BPMSyncIndicator';
 import { useToast } from "@/hooks/use-toast";
 import { useWaveformGenerator } from '@/hooks/useWaveformGenerator';
@@ -63,6 +63,8 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const [audioClips, setAudioClips] = useState<AudioClip[]>([]);
   const [selectedClips, setSelectedClips] = useState<Set<string>>(new Set());
   const [copiedClip, setCopiedClip] = useState<AudioClip | null>(null);
+  const [selectedTrack, setSelectedTrack] = useState<string | null>(null);
+  const [armedTracks, setArmedTracks] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
   // Calculate timing constants with precise BPM
@@ -614,6 +616,10 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
               secondsPerBeat={secondsPerBeat}
               onClipMove={moveClip}
               onClipClick={(clipId, event) => {
+                // Handle track selection
+                setSelectedTrack(track.id);
+                
+                // Handle clip selection
                 const newSelection = new Set(selectedClips);
                 if (event.ctrlKey || event.metaKey) {
                   if (newSelection.has(clipId)) {
@@ -704,13 +710,60 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
             {/* Track Controls */}
             {tracks.map((track, index) => {
               console.log('Sidebar track', index, ':', track.name, '(ID:', track.id, ')');
+              const isTrackSelected = selectedTrack === track.id;
               return (
-                <div key={track.id} className="p-3 border-b border-white/10 bg-black/20">
+                <div 
+                  key={track.id} 
+                  className={`p-3 border-b border-white/10 cursor-pointer transition-all duration-200 ${
+                    isTrackSelected 
+                      ? 'bg-neon-cyan/20 border-neon-cyan/30 shadow-[0_0_15px_rgba(0,255,255,0.3)]' 
+                      : 'bg-black/20 hover:bg-black/30'
+                  }`}
+                  onClick={() => setSelectedTrack(track.id)}
+                >
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-medium text-white truncate" title={track.name}>
                       {track.name}
                     </span>
                     <div className="flex items-center gap-1">
+                      {/* Record Arm Button */}
+                      <button
+                        type="button"
+                        className={`inline-flex items-center justify-center h-6 w-6 rounded-full transition-all duration-200 ${
+                          armedTracks.has(track.id)
+                            ? 'bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.8)] text-white' 
+                            : 'bg-background/80 border border-border text-foreground hover:bg-red-500/20 hover:border-red-500'
+                        }`}
+                        aria-label={armedTracks.has(track.id) ? "Disarm recording" : "Arm for recording"}
+                        title={`${armedTracks.has(track.id) ? "Disarm" : "Arm"} recording (Shift+click for multi-arm)`}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setArmedTracks(prev => {
+                            const newArmed = new Set(prev);
+                            if (e.shiftKey) {
+                              // Multi-arm mode: toggle this track without affecting others
+                              if (newArmed.has(track.id)) {
+                                newArmed.delete(track.id);
+                              } else {
+                                newArmed.add(track.id);
+                              }
+                            } else {
+                              // Single-arm mode: clear all and arm this track if not already armed
+                              if (newArmed.has(track.id) && newArmed.size === 1) {
+                                newArmed.clear(); // Disarm if only this track is armed
+                              } else {
+                                newArmed.clear();
+                                newArmed.add(track.id);
+                              }
+                            }
+                            return newArmed;
+                          });
+                        }}
+                      >
+                        <Circle className={`w-3 h-3 ${armedTracks.has(track.id) ? 'fill-current' : ''}`} />
+                      </button>
+                      
                       <Button
                         size="sm"
                         variant={track.isMuted ? "destructive" : "outline"}
@@ -791,8 +844,13 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                 return (
                   <div
                     key={track.id}
-                    className="relative border-b border-white/10"
+                    className={`relative border-b border-white/10 transition-all duration-200 ${
+                      selectedTrack === track.id 
+                        ? 'border-neon-cyan shadow-[0_0_15px_rgba(0,255,255,0.3)]' 
+                        : ''
+                    }`}
                     style={{ height: trackHeight }}
+                    onClick={() => setSelectedTrack(track.id)}
                   >
                     <EnhancedWaveformTrack
                       track={track}

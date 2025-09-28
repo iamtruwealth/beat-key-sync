@@ -293,23 +293,6 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
           )}
           
            
-           {/* Record Arm button */}
-          <div className="absolute top-1 left-1 z-20">
-            <button
-              type="button"
-              className={`inline-flex items-center justify-center h-6 w-6 rounded-full transition-all duration-200 ${
-                isRecordArmed 
-                  ? 'bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.8)] text-white' 
-                  : 'bg-background/80 border border-border text-foreground hover:bg-red-500/20 hover:border-red-500'
-              }`}
-              aria-label={isRecordArmed ? "Disarm recording" : "Arm for recording"}
-              title={`${isRecordArmed ? "Disarm" : "Arm"} recording (Shift+click for multi-arm)`}
-              onClick={handleRecordArmClick}
-            >
-              <Circle className={`w-3 h-3 ${isRecordArmed ? 'fill-current' : ''}`} />
-            </button>
-          </div>
-
            {/* Duplicate clip button */}
           <div className="absolute bottom-1 right-1 z-20">
             <button
