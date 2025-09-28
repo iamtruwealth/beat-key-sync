@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import WaveSurfer from 'wavesurfer.js';
+import { Copy } from 'lucide-react';
 
 interface Track {
   id: string;
@@ -264,18 +265,22 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
           )}
           
            
-          {/* Duplicate clip on Ctrl+D */}
-          <div 
-            className="absolute bottom-0 right-0 w-6 h-6 z-10 opacity-0 hover:opacity-50 bg-primary/20 hover:bg-primary/40 cursor-pointer rounded-tl-md border border-primary/30"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              if (onDuplicateClip) {
-                onDuplicateClip(clip.id);
-              }
-            }}
-            title="Duplicate clip"
-          />
+          {/* Duplicate clip button */}
+          <div className="absolute bottom-1 right-1 z-20">
+            <button
+              type="button"
+              className="inline-flex items-center justify-center h-6 w-6 rounded-md bg-background/80 text-foreground border border-border shadow-sm hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-label="Duplicate clip"
+              title="Duplicate clip"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (onDuplicateClip) onDuplicateClip(clip.id);
+              }}
+            >
+              <Copy className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </>
       )}
     </div>
