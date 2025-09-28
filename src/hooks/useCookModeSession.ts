@@ -432,6 +432,7 @@ export function useCookModeSession(sessionId?: string) {
   }, [session, toast]);
 
   const removeTrack = useCallback(async (trackId: string) => {
+    try {
       const { error } = await supabase
         .from('collaboration_stems')
         .delete()
