@@ -433,15 +433,23 @@ export function useCookModeSession(sessionId?: string) {
 
   const removeTrack = useCallback(async (trackId: string) => {
     try {
-      const { error } = await supabase
-        .from('collaboration_stems')
-        .delete()
-        .eq('id', trackId);
+      // Check if this is an empty track (starts with 'empty-track-') or a real database track
+      const isEmptyTrack = trackId.startsWith('empty-track-');
+      
+      if (!isEmptyTrack) {
+        // Only try to delete from database if it's a real track with a proper UUID
+        const { error } = await supabase
+          .from('collaboration_stems')
+          .delete()
+          .eq('id', trackId);
 
-      if (error) throw error;
+        if (error) throw error;
+      }
 
+      // Remove from local state (works for both empty tracks and database tracks)
       setTracks(prev => prev.filter(track => track.id !== trackId));
 
+      // Broadcast removal to other participants
       if (channelRef.current) {
         channelRef.current.send({
           type: 'broadcast',
@@ -449,6 +457,12 @@ export function useCookModeSession(sessionId?: string) {
           payload: { trackId }
         });
       }
+
+      toast({
+        title: "Track Removed",
+        description: "Track removed successfully",
+      });
+
     } catch (error) {
       console.error('Error removing track:', error);
       toast({
