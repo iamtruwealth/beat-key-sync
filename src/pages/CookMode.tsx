@@ -38,7 +38,8 @@ import {
   Download,
   Layers,
   LayoutDashboard,
-  ChevronDown
+  ChevronDown,
+  Piano
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -345,6 +346,26 @@ const CookMode = () => {
           </div>
 
           <div className="flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-border/50 hover:border-neon-cyan/50 flex items-center gap-2"
+                >
+                  <Piano className="w-4 h-4" />
+                  MIDI
+                  <ChevronDown className="w-3 h-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64 bg-background/95 backdrop-blur-sm border border-border/50">
+                <div className="p-2">
+                  <div className="text-sm font-medium mb-2">MIDI Controllers</div>
+                  <div className="text-xs text-muted-foreground">No MIDI controllers detected</div>
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            
             <Button
               variant="outline"
               size="sm"
@@ -437,10 +458,6 @@ const CookMode = () => {
             <SessionParticipants participants={participants} />
           </div>
 
-          {/* Audio Controls */}
-          <div className="p-4 border-b border-border/50">
-            <CookModeAudioControls />
-          </div>
 
           {/* Chat */}
           <div className="flex-1 overflow-hidden">
