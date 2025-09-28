@@ -827,7 +827,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
             </div>
 
             {/* Master Output Visualization */}
-            <div className="h-12 bg-gradient-to-r from-primary/10 to-secondary/10 border-b border-white/10 relative">
+            <div className="h-[63.5px] bg-gradient-to-r from-primary/10 to-secondary/10 border-b border-white/10 relative">
               <div className="absolute inset-0 flex items-center justify-center">
                 <span className="text-xs text-gray-400">Master Output</span>
               </div>
