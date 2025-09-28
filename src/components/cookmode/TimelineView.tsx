@@ -811,7 +811,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           {/* Timeline Area */}
           <div className="flex-1 relative overflow-x-auto" ref={timelineRef}>
             {/* Ruler */}
-            <div className="h-12 bg-black/40 border-b border-white/10 relative">
+            <div className="h-[63.5px] bg-black/40 border-b border-white/10 relative">
               {renderBarMarkers()}
               <div className="absolute top-6 left-2 text-xs text-gray-400">
                 Position: {formatPosition(currentTime)} | Bar: {formatTime(currentTime)}
