@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -32,7 +32,9 @@ import {
   Shield,
   FolderOpen,
   Clock,
-  MapPin
+  MapPin,
+  Zap,
+  Activity
 } from "lucide-react";
 
 // Dashboard stats for project management
@@ -310,15 +312,22 @@ export default function ProducerDashboard() {
           </Button>
         </div>
         
-        <div className="bg-gradient-to-br from-secondary/10 to-secondary/5 border border-secondary/20 rounded-lg p-6">
-          <h3 className="font-semibold text-foreground mb-2">Collaborate</h3>
-          <p className="text-sm text-muted-foreground mb-4">
-            Share your projects with other producers and get feedback.
+        <Link 
+          to="/cook-mode" 
+          className="block bg-gradient-to-br from-neon-cyan/20 to-electric-blue/20 border border-neon-cyan/30 rounded-lg p-6 hover:from-neon-cyan/30 hover:to-electric-blue/30 hover:border-neon-cyan/50 transition-all duration-300 group cursor-pointer transform hover:scale-[1.02] hover:shadow-[0_0_30px_rgba(0,255,255,0.3)]"
+        >
+          <h3 className="font-semibold text-neon-cyan mb-2 flex items-center gap-2 group-hover:text-white transition-colors">
+            <Zap className="w-5 h-5 animate-pulse" />
+            Cook Mode - Live Collaboration
+          </h3>
+          <p className="text-sm text-muted-foreground mb-4 group-hover:text-white/80 transition-colors">
+            Enter the future of music creation. Real-time collaborative beat making with MIDI recording and live sync.
           </p>
-          <Button variant="studio" size="sm">
-            Invite Producer
-          </Button>
-        </div>
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-neon-cyan to-electric-blue text-black font-semibold rounded-lg hover:opacity-90 transition-opacity">
+            <Activity className="w-4 h-4" />
+            Enter Cook Mode
+          </div>
+        </Link>
         
         <div className="bg-gradient-to-br from-accent/10 to-accent/5 border border-border/20 rounded-lg p-6">
           <h3 className="font-semibold text-foreground mb-2">Explore Library</h3>
