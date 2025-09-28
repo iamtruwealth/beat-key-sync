@@ -585,7 +585,6 @@ async function performAnalysis(file: File): Promise<AudioAnalysisResult> {
   console.log('Analysis complete:', audioData);
   return audioData;
 }
-}
 
 export interface AudioAnalysisResult {
   bpm: number;
@@ -599,6 +598,7 @@ export interface AudioAnalysisResult {
     bitrate?: number;
     tags?: any;
     albumArt?: Uint8Array;
+    error?: string;
     filenameAnalysis?: {
       bpm?: number;
       key?: string;
