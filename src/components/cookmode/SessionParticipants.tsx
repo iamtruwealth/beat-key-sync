@@ -3,6 +3,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Users, Crown, Headphones } from 'lucide-react';
+import { InviteProducerButton } from './InviteProducerButton';
 
 interface Participant {
   id: string;
@@ -17,9 +18,10 @@ interface Participant {
 
 interface SessionParticipantsProps {
   participants: Participant[];
+  sessionId: string;
 }
 
-export const SessionParticipants: React.FC<SessionParticipantsProps> = ({ participants }) => {
+export const SessionParticipants: React.FC<SessionParticipantsProps> = ({ participants, sessionId }) => {
   const getRoleIcon = (role: string) => {
     switch (role) {
       case 'creator':
@@ -47,11 +49,14 @@ export const SessionParticipants: React.FC<SessionParticipantsProps> = ({ partic
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <Users className="w-5 h-5 text-neon-cyan" />
-        <h3 className="text-lg font-semibold text-foreground">
-          Participants ({participants.length})
-        </h3>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Users className="w-5 h-5 text-neon-cyan" />
+          <h3 className="text-lg font-semibold text-foreground">
+            Participants ({participants.length})
+          </h3>
+        </div>
+        <InviteProducerButton sessionId={sessionId} />
       </div>
 
       <div className="space-y-2">

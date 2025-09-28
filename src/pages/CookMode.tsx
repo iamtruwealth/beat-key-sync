@@ -471,7 +471,7 @@ const CookMode = () => {
         <div className="w-80 border-l border-border/50 bg-card/20 backdrop-blur-sm flex flex-col">
           {/* Participants */}
           <div className="p-4 border-b border-border/50">
-            <SessionParticipants participants={participants} />
+            <SessionParticipants participants={participants} sessionId={sessionId!} />
           </div>
 
 
