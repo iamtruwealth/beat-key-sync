@@ -16,7 +16,9 @@ import {
   RotateCcw,
   Timer,
   Undo,
-  Plus
+  Plus,
+  Circle,
+  Mic
 } from 'lucide-react';
 import { undoManager } from '@/lib/UndoManager';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -57,12 +59,12 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
   onUpdateKey,
   onCreateEmptyTrack
 }) => {
-  const { createTrack } = useCookModeAudio();
+  const { createTrack, isRecording, startRecording, stopRecording, tracks: audioTracks } = useCookModeAudio();
+  const { toast } = useToast();
   const [masterVolume, setMasterVolume] = useState(75);
   const [sessionDuration, setSessionDuration] = useState(0);
   const [isEditingBpm, setIsEditingBpm] = useState(false);
   const [tempBpm, setTempBpm] = useState(bpm.toString());
-  const { toast } = useToast();
 
   // Calculate session duration
   useEffect(() => {
@@ -183,13 +185,50 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
             </Button>
 
             <Button
-              variant={isLooping ? "default" : "ghost"}
+              variant={isRecording ? "destructive" : "ghost"}
               size="sm"
-              className={`p-2 ${isLooping ? 'bg-neon-cyan text-black' : ''}`}
-              onClick={onToggleLoop}
-              disabled={!onToggleLoop}
+              className={`p-2 gap-1 transition-all duration-200 ${
+                isRecording 
+                  ? 'bg-red-500 text-white animate-pulse' 
+                  : 'hover:bg-accent hover:text-accent-foreground'
+              }`}
+              onClick={async () => {
+                if (isRecording) {
+                  // Stop recording
+                  await stopRecording();
+                  toast({
+                    title: "Recording Stopped",
+                    description: "MIDI and audio recording stopped",
+                  });
+                } else {
+                  // Start recording
+                  if (audioTracks.length === 0) {
+                    // Create a new track if none exist
+                    const trackName = `Recording ${Date.now()}`;
+                    createTrack(trackName);
+                    await onCreateEmptyTrack?.(trackName);
+                  }
+                  
+                  await startRecording();
+                  toast({
+                    title: "Recording Started",
+                    description: "Recording MIDI notes and audio input",
+                  });
+                }
+              }}
+              title={isRecording ? "Stop Recording (MIDI + Audio)" : "Start Recording (MIDI + Audio)"}
             >
-              <RotateCcw className="w-4 h-4" />
+              {isRecording ? (
+                <>
+                  <Square className="w-4 h-4" />
+                  <span className="text-xs">REC</span>
+                </>
+              ) : (
+                <>
+                  <Circle className="w-4 h-4" />
+                  <span className="text-xs">REC</span>
+                </>
+              )}
             </Button>
 
             <Button
