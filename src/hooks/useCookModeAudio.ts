@@ -13,6 +13,9 @@ import {
   RecordedNote 
 } from '@/lib/cookModeAudioEngine';
 
+// Share a single engine instance across the app to avoid duplicate MIDI handlers
+let sharedEngine: CookModeAudioEngine | null = null;
+
 export interface UseCookModeAudioReturn {
   // Audio Engine
   engine: CookModeAudioEngine | null;
@@ -58,7 +61,8 @@ export function useCookModeAudio(): UseCookModeAudioReturn {
       try {
         console.log('🎵 Initializing Cook Mode Audio Engine from hook...');
         
-        const engine = new CookModeAudioEngine();
+        const engine = sharedEngine ?? new CookModeAudioEngine();
+        if (!sharedEngine) sharedEngine = engine;
         engineRef.current = engine;
 
         // Set up callbacks

@@ -403,19 +403,24 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
               input.accept = 'audio/*';
               input.onchange = async (e) => {
                 const file = (e.target as HTMLInputElement).files?.[0];
-                if (file && onAddTrack) {
+                if (file) {
                   const trackName = file.name.replace(/\.[^/.]+$/, "");
                   try {
-                    await onAddTrack(file, trackName, 'other');
+                    if (onAddTrack) {
+                      await onAddTrack(file, trackName, 'other');
+                    }
+                    const engineTrackId = createTrack(trackName);
+                    await loadSample(engineTrackId, file);
+                    setActiveTrack(engineTrackId);
                     toast({
-                      title: "Audio File Added",
-                      description: `Added "${trackName}" - try playing MIDI keys to trigger it!`,
+                      title: "Audio Ready",
+                      description: `Loaded "${trackName}" and set as active for MIDI. Play your controller!`,
                     });
                   } catch (error) {
-                    console.error('Failed to add audio file:', error);
+                    console.error('Failed to add/prepare audio file:', error);
                     toast({
-                      title: "Upload Failed",
-                      description: "Failed to add audio file",
+                      title: "Add Failed",
+                      description: "Could not prepare the audio for playback",
                       variant: "destructive",
                     });
                   }
