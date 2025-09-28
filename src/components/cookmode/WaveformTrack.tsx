@@ -270,20 +270,15 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
            
           {/* Duplicate clip on Ctrl+D */}
           <div 
-            className="absolute bottom-0 right-0 w-4 h-4 opacity-0 hover:opacity-30 bg-primary cursor-context-menu"
-            onContextMenu={(e) => {
-              e.preventDefault();
-              if (onDuplicateClip) {
-                onDuplicateClip(clip.id);
-              }
-            }}
-            onDoubleClick={(e) => {
+            className="absolute bottom-0 right-0 w-6 h-6 opacity-0 hover:opacity-50 bg-primary/20 hover:bg-primary/40 cursor-pointer rounded-tl-md border border-primary/30"
+            onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
               if (onDuplicateClip) {
                 onDuplicateClip(clip.id);
               }
             }}
+            title="Duplicate clip"
           />
         </>
       )}
