@@ -15,7 +15,6 @@ import { CookModeDAW } from '@/components/cookmode/CookModeDAW';
 import { CookModeChat } from '@/components/cookmode/CookModeChat';
 import { SessionParticipants } from '@/components/cookmode/SessionParticipants';
 import { SessionControls } from '@/components/cookmode/SessionControls';
-import { CookModeAudioControls } from '@/components/cookmode/CookModeAudioControls';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Play, 
@@ -435,11 +434,6 @@ const CookMode = () => {
           {/* Participants */}
           <div className="p-4 border-b border-border/50">
             <SessionParticipants participants={participants} />
-          </div>
-
-          {/* Audio Controls */}
-          <div className="p-4 border-b border-border/50">
-            <CookModeAudioControls />
           </div>
 
           {/* Chat */}
