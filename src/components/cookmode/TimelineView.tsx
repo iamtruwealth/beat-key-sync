@@ -714,12 +714,11 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
               return (
                 <div 
                   key={track.id} 
-                  className={`border-b border-white/10 cursor-pointer transition-all duration-200 ${
+                  className={`p-3 border-b border-white/10 cursor-pointer transition-all duration-200 ${
                     isTrackSelected 
                       ? 'bg-neon-cyan/20 border-neon-cyan/30 shadow-[0_0_15px_rgba(0,255,255,0.3)]' 
                       : 'bg-black/20 hover:bg-black/30'
                   }`}
-                  style={{ height: '68px', padding: '8px 12px' }}
                   onClick={() => setSelectedTrack(track.id)}
                 >
                   <div className="flex items-center justify-between mb-2">
@@ -837,7 +836,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
             {/* Timeline with Tracks */}
             <div className="relative" onClick={handleTimelineClick}>
               {tracks.map((track, index) => {
-                const trackY = index * 68; // Match control panel height exactly
+                const trackY = index * 72;
                 const trackHeight = 68;
                 
                 console.log('Rendering track', index, ':', track.name, '(ID:', track.id, ')');
