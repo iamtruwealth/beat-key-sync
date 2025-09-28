@@ -62,8 +62,9 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
       if (track.bars) {
         durationInBeats = track.bars * 4; // bars * 4 beats per bar
       } else if (knownDuration && knownDuration > 0) {
-        const estimatedBars = Math.max(1, Math.round(knownDuration / secondsPerBar));
-        durationInBeats = estimatedBars * 4;
+        // Use precise calculation: duration in seconds / seconds per beat
+        durationInBeats = knownDuration / secondsPerBeat;
+        console.log(`Calculated duration for ${track.name}: ${knownDuration}s = ${durationInBeats} beats = ${durationInBeats/4} bars`);
       } else {
         // Default to 4 bars (16 beats) when duration is unknown
         durationInBeats = 16; // 4 bars * 4 beats per bar
