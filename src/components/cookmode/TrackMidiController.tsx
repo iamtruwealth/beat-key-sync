@@ -76,6 +76,8 @@ export const TrackMidiController: React.FC<TrackMidiControllerProps> = ({
   onRecordingStateChange,
   className = ""
 }) => {
+  console.log('🎹 TrackMidiController initialized', { selectedClip, isEnabled });
+  
   const { toast } = useToast();
   const [midiDevices, setMidiDevices] = useState<CustomMIDIInput[]>([]);
   const [isRecording, setIsRecording] = useState(false);
@@ -90,6 +92,7 @@ export const TrackMidiController: React.FC<TrackMidiControllerProps> = ({
   // Initialize Web MIDI API
   useEffect(() => {
     const initMidi = async () => {
+      console.log('🎹 Initializing MIDI...');
       try {
         const midiAccess = await navigator.requestMIDIAccess();
         const inputs: CustomMIDIInput[] = [];
@@ -419,12 +422,25 @@ export const TrackMidiController: React.FC<TrackMidiControllerProps> = ({
     };
   }, [activeNotes]);
 
-  if (!isEnabled || midiDevices.length === 0) {
+  if (!isEnabled) {
+    console.log('🎹 TrackMidiController disabled');
     return null;
   }
 
+  if (midiDevices.length === 0) {
+    console.log('🎹 No MIDI devices found');
+  }
+
   return (
-    <div className={`midi-controller ${className}`}>
+    <div className={`midi-controller fixed top-4 right-4 z-50 ${className}`}>
+      {/* Debug info */}
+      <div className="bg-black/80 text-white p-2 rounded text-xs">
+        <div>MIDI Controller</div>
+        <div>Devices: {midiDevices.length}</div>
+        <div>Selected: {selectedClip ? selectedClip.originalTrack.name : 'None'}</div>
+        <div>Active Notes: {activeNotes.size}</div>
+      </div>
+      
       {/* Visual feedback for active notes */}
       {activeNotes.size > 0 && (
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-400 to-purple-400 opacity-80 animate-pulse" />
