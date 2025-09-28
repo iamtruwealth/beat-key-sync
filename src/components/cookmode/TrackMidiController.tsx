@@ -231,20 +231,13 @@ export const TrackMidiController: React.FC<TrackMidiControllerProps> = ({
     const messageType = status & 0xF0;
     const isNoteOn = messageType === 0x90 && velocity > 0;
     const isNoteOff = messageType === 0x80 || (messageType === 0x90 && velocity === 0);
-    const isControlChange = messageType === 0xB0; // CC messages
 
-    console.log('🎹 MIDI msg', { status, noteNumber, velocity, isNoteOn, isNoteOff, isControlChange, messageType: messageType.toString(16), ts: event.timeStamp });
+    console.log('🎹 MIDI msg', { status, noteNumber, velocity, isNoteOn, isNoteOff, ts: event.timeStamp });
 
     if (isNoteOn) {
       handleNoteOn(noteNumber, velocity);
     } else if (isNoteOff) {
       handleNoteOff(noteNumber);
-    } else if (isControlChange && velocity > 0) {
-      // Treat control change as a trigger (many MIDI controllers send CC instead of notes)
-      // Map CC number to a note (offset by 60 to put it in a musical range)
-      const mappedNote = Math.min(127, noteNumber + 60);
-      console.log(`🎹 CC->Note: CC${noteNumber} (${velocity}) -> Note ${mappedNote}`);
-      handleNoteOn(mappedNote, velocity);
     }
   }, [selectedClip, isEnabled]);
 

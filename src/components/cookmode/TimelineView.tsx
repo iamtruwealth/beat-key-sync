@@ -135,26 +135,27 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       // Only create clips for NEW tracks, preserve existing clips
       if (newTracks.length > 0) {
         const newClips: AudioClip[] = newTracks.map(track => {
-          // Use ACTUAL audio duration, not artificial bar-based duration
+          // Prefer computed bars from actual duration if bars not provided
           const knownDuration = trackDurations.get(track.id) || track.analyzed_duration || track.duration;
-          let clipDuration: number;
-          
-          if (knownDuration && knownDuration > 0) {
-            // Use the actual audio duration - this is what the user wants
-            clipDuration = knownDuration;
-          } else {
-            // Only if we have no duration info at all, use a minimal fallback
-            clipDuration = secondsPerBar; // Just 1 bar as minimal fallback
+          let resolvedBars: number = track.bars ?? 0;
+          if (!resolvedBars) {
+            if (knownDuration && knownDuration > 0) {
+              resolvedBars = Math.max(1, Math.round(knownDuration / secondsPerBar));
+            } else {
+              // If no duration is known yet, default to 4 bars (not 8) and wait for analysis
+              resolvedBars = 4; // More conservative default - 4 bars
+            }
           }
+          const clipDuration = resolvedBars * secondsPerBar;
           
           const clip: AudioClip = {
             id: `${track.id}-clip-0`,
             trackId: track.id,
             startTime: 0,
-            endTime: clipDuration, // Use ACTUAL duration
+            endTime: clipDuration, // Use bars-based duration for clip length
             originalTrack: track
           };
-          console.log('Creating clip for NEW track:', track.name, 'Actual Duration:', clipDuration, 'Known duration:', knownDuration, 'Clip:', clip);
+          console.log('Creating clip for NEW track:', track.name, 'Bars:', resolvedBars, 'Duration:', clipDuration, 'Known duration:', knownDuration, 'Clip:', clip);
           return clip;
         });
         
@@ -348,66 +349,6 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
 
     undoManager.push(undoMoveAction);
   }, [audioClips]);
-
-  // Resize clip function
-  const resizeClip = useCallback((clipId: string, newEndTime: number) => {
-    const targetClip = audioClips.find(clip => clip.id === clipId);
-    if (!targetClip) {
-      console.warn('Clip not found for resize operation:', clipId);
-      return;
-    }
-
-    const originalEndTime = targetClip.endTime;
-    
-    // Only proceed if the size actually changed
-    if (Math.abs(newEndTime - originalEndTime) < 0.01) {
-      return;
-    }
-
-    console.log(`🎵 Resizing clip ${clipId} from ${originalEndTime}s to ${newEndTime}s`);
-
-    // Update the clip size
-    setAudioClips(prev => prev.map(clip => {
-      if (clip.id === clipId) {
-        return {
-          ...clip,
-          endTime: newEndTime
-        };
-      }
-      return clip;
-    }));
-
-    // Register the resize action with UndoManager
-    const undoResizeAction = {
-      type: ActionType.RESIZE_CLIP,
-      payload: { 
-        trackId: targetClip.trackId, 
-        clipId,
-        originalEndTime,
-        newEndTime
-      },
-      undo: () => {
-        console.log(`🔄 Undoing resize of clip ${clipId} back to ${originalEndTime}s`);
-        setAudioClips(prev => prev.map(clip => {
-          if (clip.id === clipId) {
-            return {
-              ...clip,
-              endTime: originalEndTime
-            };
-          }
-          return clip;
-        }));
-      },
-      description: `Resize clip from ${originalEndTime.toFixed(2)}s to ${newEndTime.toFixed(2)}s`
-    };
-
-    undoManager.push(undoResizeAction);
-    
-    toast({
-      title: "Clip Resized",
-      description: `Duration: ${(newEndTime - targetClip.startTime).toFixed(2)}s`,
-    });
-  }, [audioClips, toast]);
 
   // Delete track function
   const deleteTrack = useCallback((trackId: string) => {
@@ -675,7 +616,6 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
               trackIndex={trackIndex}
               secondsPerBeat={secondsPerBeat}
               onClipMove={moveClip}
-              onClipResize={resizeClip}
               onClipClick={(clipId, event) => {
                 // Handle track selection
                 setSelectedTrack(track.id);
