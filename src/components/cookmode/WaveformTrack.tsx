@@ -85,8 +85,8 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
       clearTimeout(initTimeoutRef.current);
     }
 
-    // Skip if already loaded for this URL, currently loading, or no container
-    if (!containerRef.current || isLoading || loadedUrlRef.current === track.file_url) {
+    // Skip if no valid file URL (empty tracks), already loaded for this URL, currently loading, or no container
+    if (!containerRef.current || !track.file_url || track.file_url.trim() === '' || isLoading || loadedUrlRef.current === track.file_url) {
       return;
     }
 
@@ -272,6 +272,14 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
       {error ? (
         <div className="flex items-center justify-center h-full bg-red-500/10 border-red-500">
           <span className="text-xs text-red-400">Failed to load</span>
+        </div>
+      ) : !track.file_url || track.file_url.trim() === '' ? (
+        // Empty track - ready for recording or MIDI input
+        <div className="flex items-center justify-center h-full bg-purple-500/10 border-purple-500/30 border-dashed">
+          <div className="text-center">
+            <Circle className="w-4 h-4 mx-auto mb-1 text-purple-400" />
+            <span className="text-xs text-purple-400">Ready to Record</span>
+          </div>
         </div>
       ) : isLoading ? (
         <div className="flex items-center justify-center h-full bg-blue-500/10 border-blue-500">
