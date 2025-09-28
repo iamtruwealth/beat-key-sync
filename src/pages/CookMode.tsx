@@ -71,7 +71,8 @@ const CookMode = () => {
     seekTo,
     updateTrack,
     updateSessionSettings,
-    saveSession
+    saveSession,
+    addEmptyTrack
   } = useCookModeSession(sessionId);
   const { midiDevices } = useCookModeAudio();
 
@@ -442,6 +443,7 @@ const CookMode = () => {
             onToggleMetronome={() => setMetronomeEnabled(!metronomeEnabled)}
             onUpdateBpm={(bpm) => updateSessionSettings({ bpm })}
             onUpdateKey={(key) => updateSessionSettings({ key })}
+            onCreateEmptyTrack={async (name) => { await addEmptyTrack(name); }}
           />
 
           <Separator className="border-border/50" />

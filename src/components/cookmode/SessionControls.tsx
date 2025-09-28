@@ -23,7 +23,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useCookModeAudio } from '@/hooks/useCookModeAudio';
-import { useCookModeSession } from '@/hooks/useCookModeSession';
 
 interface SessionControlsProps {
   isPlaying: boolean;
@@ -39,6 +38,7 @@ interface SessionControlsProps {
   onToggleMetronome?: () => void;
   onUpdateBpm?: (bpm: number) => void;
   onUpdateKey?: (key: string) => void;
+  onCreateEmptyTrack?: (name: string) => Promise<void> | void;
 }
 
 export const SessionControls: React.FC<SessionControlsProps> = ({
@@ -54,10 +54,10 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
   onToggleLoop,
   onToggleMetronome,
   onUpdateBpm,
-  onUpdateKey
+  onUpdateKey,
+  onCreateEmptyTrack
 }) => {
   const { createTrack } = useCookModeAudio();
-  const { addEmptyTrack, session } = useCookModeSession(sessionId);
   const [masterVolume, setMasterVolume] = useState(75);
   const [sessionDuration, setSessionDuration] = useState(0);
   const [isEditingBpm, setIsEditingBpm] = useState(false);
@@ -355,12 +355,12 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
           <Button
             onClick={async () => {
               const trackName = `Track ${Date.now()}`;
-              // Create track in audio engine
-              const audioTrackId = createTrack(trackName);
+              // Create track in audio engine for recording/MIDI
+              createTrack(trackName);
               
-              // Add empty track to session for timeline display
+              // Ask parent to add empty track to session timeline
               try {
-                await addEmptyTrack(trackName);
+                await onCreateEmptyTrack?.(trackName);
               } catch (error) {
                 console.error('Failed to add empty track to session:', error);
               }
