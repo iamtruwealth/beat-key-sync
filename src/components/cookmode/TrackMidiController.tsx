@@ -197,11 +197,20 @@ export const TrackMidiController: React.FC<TrackMidiControllerProps> = ({
   const handleNoteOn = useCallback(async (noteNumber: number, velocity: number) => {
     if (!selectedClip || activeNotes.has(noteNumber)) return;
 
+    console.log(`🎵 TrackMidiController: Handling note ON ${noteNumber}, velocity ${velocity}`);
+    console.log(`🎵 Selected clip:`, selectedClip);
+
     try {
       await Tone.start();
+      console.log(`🎵 Tone.js context started`);
 
       const player = playersRef.current.get(selectedClip.id);
-      if (!player) return;
+      if (!player) {
+        console.log(`❌ No player found for clip ${selectedClip.id}`);
+        return;
+      }
+
+      console.log(`🎵 Player found, creating polyphony instance...`);
 
       // Create a new player instance for polyphony
       const polyphonyPlayer = new Tone.Player({
@@ -210,17 +219,24 @@ export const TrackMidiController: React.FC<TrackMidiControllerProps> = ({
         autostart: false,
       }).toDestination();
 
+      console.log(`🎵 Created polyphony player for ${selectedClip.originalTrack.file_url}`);
+
       await Tone.loaded();
+      console.log(`🎵 Tone.js loaded, ready to play`);
 
       // Apply pitch shift and gain
       const pitchShift = noteToPitchShift(noteNumber);
       const gain = velocityToGain(velocity);
 
+      console.log(`🎵 Applying pitch shift: ${pitchShift}, gain: ${gain}`);
+
       polyphonyPlayer.playbackRate = pitchShift;
       polyphonyPlayer.volume.value = Tone.gainToDb(gain);
 
       // Start playback
+      console.log(`🎵 Starting audio playback...`);
       polyphonyPlayer.start();
+      console.log(`🎵 Audio playback started!`);
 
       // Track active note
       const activeNote: ActiveNote = {

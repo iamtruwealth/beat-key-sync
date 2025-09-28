@@ -10,6 +10,7 @@ import { generateWaveformBars } from '@/lib/waveformGenerator';
 import { AudioBridge } from './AudioBridge';
 import { WaveformTrack } from './WaveformTrack';
 import { DraggableClip } from './DraggableClip';
+import { TrackMidiController } from './TrackMidiController';
 import { undoManager, ActionType, createMoveAction } from '@/lib/UndoManager';
 
 interface Track {
@@ -866,6 +867,18 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           </div>
         </div>
       </div>
+      
+      {/* MIDI Controller for triggering selected track audio */}
+      <TrackMidiController
+        selectedClip={selectedClips.size > 0 ? audioClips.find(clip => selectedClips.has(clip.id)) : undefined}
+        isEnabled={!!selectedTrack}
+        onNoteTriggered={(noteNumber, velocity) => {
+          console.log(`🎹 MIDI triggered note ${noteNumber} with velocity ${velocity}`);
+        }}
+        onRecordingStateChange={(isRecording) => {
+          console.log(`🔴 MIDI recording: ${isRecording ? 'started' : 'stopped'}`);
+        }}
+      />
     </>
   );
 };
