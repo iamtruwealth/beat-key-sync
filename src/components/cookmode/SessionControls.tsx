@@ -23,6 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useCookModeAudio } from '@/hooks/useCookModeAudio';
+import { useCookModeSession } from '@/hooks/useCookModeSession';
 
 interface SessionControlsProps {
   isPlaying: boolean;
@@ -54,6 +55,7 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
   onUpdateKey
 }) => {
   const { createTrack } = useCookModeAudio();
+  const { addEmptyTrack } = useCookModeSession();
   const [masterVolume, setMasterVolume] = useState(75);
   const [sessionDuration, setSessionDuration] = useState(0);
   const [isEditingBpm, setIsEditingBpm] = useState(false);
@@ -349,7 +351,18 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
         {/* Right Section - Volume Control */}
         <div className="flex items-center gap-4">
           <Button
-            onClick={() => createTrack(`Track ${Date.now()}`)}
+            onClick={async () => {
+              const trackName = `Track ${Date.now()}`;
+              // Create track in audio engine
+              const audioTrackId = createTrack(trackName);
+              
+              // Add empty track to session for timeline display
+              try {
+                await addEmptyTrack(trackName);
+              } catch (error) {
+                console.error('Failed to add empty track to session:', error);
+              }
+            }}
             variant="outline"
             size="sm"
             className="flex items-center gap-2"

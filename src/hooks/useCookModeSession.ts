@@ -381,8 +381,57 @@ export function useCookModeSession(sessionId?: string) {
     }
   }, [session, toast]);
 
-  const removeTrack = useCallback(async (trackId: string) => {
+  // Add empty recordable track
+  const addEmptyTrack = useCallback(async (trackName: string) => {
     try {
+      if (!session) throw new Error('No active session');
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      // Create a new track without a file for recording
+      const newTrack: Track = {
+        id: `empty-track-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        name: trackName,
+        file_url: '', // Empty for recordable tracks
+        stem_type: 'recording',
+        uploaded_by: user.id,
+        version_number: 1,
+        duration: 0,
+        volume: 1,
+        isMuted: false,
+        isSolo: false
+      };
+
+      setTracks(prev => [...prev, newTrack]);
+
+      // Broadcast to other participants
+      if (channelRef.current) {
+        channelRef.current.send({
+          type: 'broadcast',
+          event: 'track-added',
+          payload: { track: newTrack }
+        });
+      }
+
+      toast({
+        title: "Track Created",
+        description: `Created empty track: ${trackName}`,
+      });
+
+      return newTrack.id;
+    } catch (error) {
+      console.error('Error creating empty track:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create track",
+        variant: "destructive"
+      });
+      throw error;
+    }
+  }, [session, toast]);
+
+  const removeTrack = useCallback(async (trackId: string) => {
       const { error } = await supabase
         .from('collaboration_stems')
         .delete()
@@ -571,6 +620,7 @@ export function useCookModeSession(sessionId?: string) {
     seekTo,
     updateTrack,
     updateSessionSettings,
-    saveSession
+    saveSession,
+    addEmptyTrack
   };
 }
