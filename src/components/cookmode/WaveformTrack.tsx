@@ -267,14 +267,22 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
           <div className="absolute top-1 right-1 text-xs bg-background/80 text-foreground px-1 rounded">
             {track.stem_type}
           </div>
-          
-          {/* Context menu trigger (right click area) */}
+           
+          {/* Duplicate clip on Ctrl+D */}
           <div 
             className="absolute bottom-0 right-0 w-4 h-4 opacity-0 hover:opacity-30 bg-primary cursor-context-menu"
             onContextMenu={(e) => {
               e.preventDefault();
-              // You can add context menu functionality here later
-              console.log('Context menu for clip:', clip.id);
+              if (onDuplicateClip) {
+                onDuplicateClip(clip.id);
+              }
+            }}
+            onDoubleClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (onDuplicateClip) {
+                onDuplicateClip(clip.id);
+              }
             }}
           />
         </>
