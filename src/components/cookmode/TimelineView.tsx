@@ -870,7 +870,14 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       
       {/* MIDI Controller for triggering selected track audio */}
       <TrackMidiController
-        selectedClip={selectedClips.size > 0 ? audioClips.find(clip => selectedClips.has(clip.id)) : undefined}
+        selectedClip={
+          selectedClips.size > 0
+            ? audioClips.find(clip => selectedClips.has(clip.id))
+            : (selectedTrack
+                ? (audioClips.find(clip => clip.trackId === selectedTrack && clip.startTime <= currentTime && clip.endTime >= currentTime)
+                    || audioClips.find(clip => clip.trackId === selectedTrack) )
+                : undefined)
+        }
         isEnabled={!!selectedTrack}
         onNoteTriggered={(noteNumber, velocity) => {
           console.log(`🎹 MIDI triggered note ${noteNumber} with velocity ${velocity}`);
