@@ -18,7 +18,9 @@ import {
   Undo,
   Plus,
   Circle,
-  Mic
+  Mic,
+  Upload,
+  FileAudio
 } from 'lucide-react';
 import { undoManager } from '@/lib/UndoManager';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -41,6 +43,7 @@ interface SessionControlsProps {
   onUpdateBpm?: (bpm: number) => void;
   onUpdateKey?: (key: string) => void;
   onCreateEmptyTrack?: (name: string) => Promise<void> | void;
+  onAddTrack?: (file: File, trackName: string, stemType: string) => Promise<void>;
 }
 
 export const SessionControls: React.FC<SessionControlsProps> = ({
@@ -57,9 +60,10 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
   onToggleMetronome,
   onUpdateBpm,
   onUpdateKey,
-  onCreateEmptyTrack
+  onCreateEmptyTrack,
+  onAddTrack
 }) => {
-  const { createTrack, isRecording, startRecording, stopRecording, tracks: audioTracks } = useCookModeAudio();
+  const { createTrack, isRecording, startRecording, stopRecording, tracks: audioTracks, loadSample } = useCookModeAudio();
   const { toast } = useToast();
   const [masterVolume, setMasterVolume] = useState(75);
   const [sessionDuration, setSessionDuration] = useState(0);
@@ -389,8 +393,44 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
           </div>
         </div>
 
-        {/* Right Section - Volume Control */}
-        <div className="flex items-center gap-4">
+        {/* Right Section - Track Controls */}
+        <div className="flex items-center gap-2">
+          {/* File Upload for Testing */}
+          <Button
+            onClick={() => {
+              const input = document.createElement('input');
+              input.type = 'file';
+              input.accept = 'audio/*';
+              input.onchange = async (e) => {
+                const file = (e.target as HTMLInputElement).files?.[0];
+                if (file && onAddTrack) {
+                  const trackName = file.name.replace(/\.[^/.]+$/, "");
+                  try {
+                    await onAddTrack(file, trackName, 'other');
+                    toast({
+                      title: "Audio File Added",
+                      description: `Added "${trackName}" - try playing MIDI keys to trigger it!`,
+                    });
+                  } catch (error) {
+                    console.error('Failed to add audio file:', error);
+                    toast({
+                      title: "Upload Failed",
+                      description: "Failed to add audio file",
+                      variant: "destructive",
+                    });
+                  }
+                }
+              };
+              input.click();
+            }}
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            <FileAudio className="w-4 h-4" />
+            Add Audio
+          </Button>
+
           <Button
             onClick={async () => {
               const trackName = `Track ${Date.now()}`;

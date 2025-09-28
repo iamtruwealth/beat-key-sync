@@ -470,6 +470,7 @@ const CookMode = () => {
             onUpdateBpm={(bpm) => updateSessionSettings({ bpm })}
             onUpdateKey={(key) => updateSessionSettings({ key })}
             onCreateEmptyTrack={async (name) => { await addEmptyTrack(name); }}
+            onAddTrack={addTrack}
           />
 
           <Separator className="border-border/50" />

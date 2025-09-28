@@ -185,10 +185,21 @@ export class CookModeAudioEngine {
     }
   }
 
-  // Get the currently active track ID (placeholder - implement track selection UI)
+  // Get the currently active track ID - prefer tracks with samples loaded
   private getActiveTrackId(): string {
+    // First, try to find a track with a sample loaded
+    for (const [trackId, track] of this.tracks) {
+      if (track.sample?.player && !track.muted) {
+        console.log(`🎯 Using active track with sample: ${trackId} (${track.name})`);
+        return trackId;
+      }
+    }
+    
+    // Fallback to first track
     const tracks = Array.from(this.tracks.keys());
-    return tracks[0] || 'default-track';
+    const fallbackTrack = tracks[0] || 'default-track';
+    console.log(`🎯 Fallback to track: ${fallbackTrack}`);
+    return fallbackTrack;
   }
 
   // Create a new audio track
@@ -285,8 +296,21 @@ export class CookModeAudioEngine {
 
   // Trigger a sample with note and velocity
   public triggerSample(trackId: string, note: number = 60, velocity: number = 127): void {
+    console.log(`🎹 Attempting to trigger sample on track ${trackId}`, { note, velocity });
+    
     const track = this.tracks.get(trackId);
-    if (!track || !track.sample?.player || track.muted) {
+    if (!track) {
+      console.warn(`⚠️ Track not found: ${trackId}`);
+      return;
+    }
+    
+    if (!track.sample?.player) {
+      console.warn(`⚠️ No sample loaded for track: ${trackId}`);
+      return;
+    }
+    
+    if (track.muted) {
+      console.warn(`⚠️ Track is muted: ${trackId}`);
       return;
     }
 
