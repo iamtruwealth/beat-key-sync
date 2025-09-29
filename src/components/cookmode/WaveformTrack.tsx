@@ -323,14 +323,14 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
                   {/* Left trim overlay */}
                   {trimStart > 0 && (
                     <div
-                      className="absolute top-0 left-0 h-full bg-black/40 border-r border-red-500/50"
+                      className="absolute top-0 left-0 h-full bg-black/40 border-r border-red-500/50 pointer-events-none"
                       style={{ width: `${startTrimPercent}%` }}
                     />
                   )}
                   {/* Right trim overlay */}
                   {trimEnd && trimEnd < totalDuration && (
                     <div
-                      className="absolute top-0 right-0 h-full bg-black/40 border-l border-red-500/50"
+                      className="absolute top-0 right-0 h-full bg-black/40 border-l border-red-500/50 pointer-events-none"
                       style={{ width: `${endTrimPercent}%` }}
                     />
                   )}

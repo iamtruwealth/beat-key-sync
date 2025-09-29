@@ -125,13 +125,23 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
         clipRef.current.style.left = `${newLeft}px`;
       }
     } else if (isTrimming && trackDuration > 0) {
-      const newTime = Math.max(0, Math.min(trackDuration, dragStart.startTime + deltaTime));
-      const snappedTime = snapToGrid(newTime);
+      const rawTime = Math.max(0, Math.min(trackDuration, dragStart.startTime + deltaTime));
+      const snappedTime = snapToGrid(rawTime);
       
-      // Visual feedback for trimming (you could add visual indicators here)
-      console.log(`Trimming ${isTrimming}: ${snappedTime.toFixed(2)}s`);
+      let tempTrimStart = trimStart;
+      let tempTrimEnd = trimEnd;
+      if (isTrimming === 'start') {
+        tempTrimStart = Math.min(snappedTime, trimEnd - 0.1);
+      } else {
+        tempTrimEnd = Math.max(snappedTime, trimStart + 0.1);
+      }
+      const tempWidthPx = Math.max(4, (tempTrimEnd - tempTrimStart) * pixelsPerSecond);
+      // Live visual feedback
+      if (clipRef.current) {
+        clipRef.current.style.width = `${tempWidthPx}px`;
+      }
     }
-  }, [isDragging, isTrimming, dragStart, pixelsPerSecond, snapToGrid, trackDuration]);
+  }, [isDragging, isTrimming, dragStart, pixelsPerSecond, snapToGrid, trackDuration, trimStart, trimEnd]);
 
   // Handle mouse up
   const handleMouseUp = useCallback((e: MouseEvent) => {
@@ -237,18 +247,18 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
         <>
           {/* Left trim handle */}
           <div
-            className="absolute left-0 top-0 w-2 h-full bg-primary/20 hover:bg-primary/40 cursor-ew-resize opacity-0 group-hover:opacity-100 transition-opacity"
+            className="absolute left-0 top-0 w-4 h-full bg-primary/10 hover:bg-primary/30 cursor-ew-resize opacity-0 group-hover:opacity-100 transition-opacity"
             onMouseDown={(e) => handleTrimMouseDown(e, 'start')}
-            style={{ zIndex: 1001 }}
+            style={{ zIndex: 1001, pointerEvents: 'auto' }}
           >
             <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 bg-primary rounded-r" />
           </div>
           
           {/* Right trim handle */}
           <div
-            className="absolute right-0 top-0 w-2 h-full bg-primary/20 hover:bg-primary/40 cursor-ew-resize opacity-0 group-hover:opacity-100 transition-opacity"
+            className="absolute right-0 top-0 w-4 h-full bg-primary/10 hover:bg-primary/30 cursor-ew-resize opacity-0 group-hover:opacity-100 transition-opacity"
             onMouseDown={(e) => handleTrimMouseDown(e, 'end')}
-            style={{ zIndex: 1001 }}
+            style={{ zIndex: 1001, pointerEvents: 'auto' }}
           >
             <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-4 bg-primary rounded-l" />
           </div>
