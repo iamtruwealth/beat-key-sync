@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { sessionLoopEngine } from '@/lib/sessionLoopEngine';
 
 interface Participant {
   user_id: string;
@@ -23,6 +24,8 @@ export const useWebRTCStreaming = ({ sessionId, canEdit, currentUserId }: UseWeb
   
   const signalingChannel = useRef<any>(null);
   const localVideoRef = useRef<HTMLVideoElement>(null);
+  const externalAudioTrackRef = useRef<MediaStreamTrack | null>(null);
+  const externalAudioStreamRef = useRef<MediaStream | null>(null);
 
   // ICE servers configuration
   const iceServers = [
@@ -86,6 +89,10 @@ export const useWebRTCStreaming = ({ sessionId, canEdit, currentUserId }: UseWeb
         localStream.getTracks().forEach(track => {
           peerConnection.addTrack(track, localStream);
         });
+      }
+      // Also add external mixed audio track if provided
+      if (externalAudioTrackRef.current && externalAudioStreamRef.current) {
+        peerConnection.addTrack(externalAudioTrackRef.current, externalAudioStreamRef.current);
       }
 
       // Handle incoming stream
