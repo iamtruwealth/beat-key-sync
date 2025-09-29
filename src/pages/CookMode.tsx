@@ -22,6 +22,7 @@ import { CookModeChat } from '@/components/cookmode/CookModeChat';
 import { VideoStreamingPanel } from '@/components/cookmode/VideoStreamingPanel';
 import { BackgroundWebRTCConnector } from '@/components/cookmode/BackgroundWebRTCConnector';
 import { useWebRTCStreaming } from '@/hooks/useWebRTCStreaming';
+import { useAudioOnlyStreaming } from '@/hooks/useAudioOnlyStreaming';
 import { SessionParticipants } from '@/components/cookmode/SessionParticipants';
 import { SessionControls } from '@/components/cookmode/SessionControls';
 import { CookModeAudioControls } from '@/components/cookmode/CookModeAudioControls';
@@ -53,7 +54,7 @@ import {
   MessageSquare,
   UserPlus
 } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
 const CookMode = () => {
@@ -153,7 +154,7 @@ const CookMode = () => {
     getCurrentUser();
   }, [isAuthenticated]);
 
-  // WebRTC streaming hook
+  // WebRTC video streaming hook (optional, separate from audio)
   const {
     isStreaming,
     startStreaming,
@@ -162,6 +163,18 @@ const CookMode = () => {
     sessionId: sessionId || '', 
     canEdit: permissions.canEdit, 
     currentUserId: currentUser?.id 
+  });
+
+  // Audio-only streaming hook (for session music)
+  const {
+    isStreamingAudio,
+    hasRemoteAudio,
+    startAudioStreaming,
+    stopAudioStreaming
+  } = useAudioOnlyStreaming({
+    sessionId: sessionId || '',
+    isHost: permissions.canEdit,
+    currentUserId: currentUser?.id
   });
 
   // Join session when we have sessionId and are authenticated
@@ -219,11 +232,7 @@ const CookMode = () => {
   const handleCreateSession = async () => {
     console.log('[CookMode] handleCreateSession clicked', sessionConfig);
     if (!sessionConfig.name || !sessionConfig.bpm) {
-      toast({
-        title: "Error",
-        description: "Please fill in all session details",
-        variant: "destructive"
-      });
+      toast.error("Please fill in all session details");
       return;
     }
 
@@ -238,17 +247,10 @@ const CookMode = () => {
       
       setIsHost(true);
       navigate(`/cook-mode/${newSessionId}`);
-      toast({
-        title: "Success",
-        description: "Cook Mode session created! Share the link to invite collaborators."
-      });
+      toast.success("Cook Mode session created! Share the link to invite collaborators.");
     } catch (error) {
       console.error('Error creating session:', error);
-      toast({
-        title: "Error", 
-        description: "Failed to create session",
-        variant: "destructive"
-      });
+      toast.error("Failed to create session");
     }
   };
 
@@ -258,25 +260,15 @@ const CookMode = () => {
     try {
       await saveSession(publishImmediately);
       if (publishImmediately) {
-        toast({
-          title: "Success",
-          description: "Session saved and published! Converting to Beat Pack..."
-        });
+        toast.success("Session saved and published! Converting to Beat Pack...");
         // Navigate to split sheet creation
         navigate(`/collaborate/projects/${session.id}/finalize`);
       } else {
-        toast({
-          title: "Success",
-          description: "Session saved successfully! You can continue working or publish later."
-        });
+        toast.success("Session saved successfully! You can continue working or publish later.");
       }
     } catch (error) {
       console.error('Error saving session:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save session",
-        variant: "destructive"
-      });
+      toast.error("Failed to save session");
     }
   };
 
@@ -293,17 +285,10 @@ const CookMode = () => {
 
       const link = `${window.location.origin}/cook-mode/${sessionId}`;
       await navigator.clipboard.writeText(link);
-      toast({
-        title: "Success",
-        description: "Session link copied to clipboard! Anyone with this link can now join the session."
-      });
+      toast.success("Session link copied to clipboard! Anyone with this link can now join the session.");
     } catch (error) {
       console.error('Error sharing session:', error);
-      toast({
-        title: "Error",
-        description: "Failed to share session link",
-        variant: "destructive"
-      });
+      toast.error("Failed to share session link");
     }
   };
 
@@ -621,17 +606,10 @@ const CookMode = () => {
                         actor_id: user.id
                       });
 
-                    toast({
-                      title: "Request Sent",
-                      description: "Your edit access request has been sent to the session owner"
-                    });
+                    toast.success("Your edit access request has been sent to the session owner");
                   } catch (error) {
                     console.error('Error requesting edit access:', error);
-                    toast({
-                      title: "Error",
-                      description: "Failed to request edit access",
-                      variant: "destructive"
-                    });
+                    toast.error("Failed to request edit access");
                   }
                 }}
                 className="border-border/50 hover:border-orange-400"
@@ -674,15 +652,37 @@ const CookMode = () => {
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              {/* Start/Stop Stream Button */}
+              {/* Start/Stop Audio Stream Button (session music only) */}
+              {!isStreamingAudio ? (
+                <Button
+                  onClick={startAudioStreaming}
+                  className="bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:opacity-90"
+                  size="sm"
+                >
+                  <Volume2 className="w-4 h-4 mr-2" />
+                  Start Audio Stream
+                </Button>
+              ) : (
+                <Button
+                  onClick={stopAudioStreaming}
+                  variant="outline"
+                  size="sm"
+                  className="border-green-500 text-green-500"
+                >
+                  <Volume2 className="w-4 h-4 mr-2" />
+                  Stop Audio Stream
+                </Button>
+              )}
+
+              {/* Optional: Start/Stop Video Stream Button (camera + mic) */}
               {!isStreaming ? (
                 <Button
                   onClick={startStreaming}
-                  className="bg-gradient-to-r from-neon-cyan to-electric-blue text-black hover:opacity-90"
+                  variant="outline"
                   size="sm"
                 >
                   <Video className="w-4 h-4 mr-2" />
-                  Start Stream
+                  Start Video
                 </Button>
               ) : (
                 <Button
@@ -691,7 +691,7 @@ const CookMode = () => {
                   size="sm"
                 >
                   <Video className="w-4 h-4 mr-2" />
-                  Stop Stream
+                  Stop Video
                 </Button>
               )}
             </>
