@@ -51,6 +51,7 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
   const previousTracks = useRef<Track[]>([]);
   const isInitialized = useRef<boolean>(false);
   const lastTickRef = useRef<number>(0);
+  const previousClipsSignature = useRef<string>("");
 
   // Convert tracks to clips
   const createClipsFromTracks = useCallback((tracks: Track[], currentBPM: number): Clip[] => {
@@ -205,6 +206,11 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
     }
     
     if (engineClips.length > 0) {
+      const signature = JSON.stringify(engineClips.map(c => ({ id: c.id, o: c.offsetInBeats, d: c.durationInBeats, so: (c as any).sourceOffsetSeconds ?? 0, sd: (c as any).sourceDurationSeconds ?? 0 })));
+      if (signature === previousClipsSignature.current) {
+        return;
+      }
+      previousClipsSignature.current = signature;
       sessionLoopEngine.setClips(engineClips, minBars);
     }
   }, [clips, tracks, bpm, minBars, createClipsFromTimeline, createClipsFromTracks]);

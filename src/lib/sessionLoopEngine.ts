@@ -50,8 +50,17 @@ export class SessionLoopEngine {
   async setClips(clips: Clip[], minBars: number = 4) {
     await this.initialize();
 
-    // Dispose existing players and gains
-    this.players.forEach(p => p.dispose());
+    // Prepare transport to avoid overlapping schedules
+    const wasPlaying = this.isPlaying;
+    const currentSeconds = Tone.Transport.seconds;
+    try { Tone.Transport.pause(); } catch {}
+    try { Tone.Transport.cancel(0); } catch {}
+
+    // Dispose existing players and gains (unsync and stop first)
+    this.players.forEach(p => {
+      try { p.unsync?.(); p.stop(); } catch {}
+      p.dispose();
+    });
     this.gains.forEach(g => g.dispose());
     this.players.clear();
     this.gains.clear();
@@ -150,6 +159,16 @@ export class SessionLoopEngine {
         throw error;
       }
     }
+
+    // Restore transport position and playback state
+    try {
+      const loopLenSec = Tone.Time(Tone.Transport.loopEnd).toSeconds();
+      const safePos = Math.min(currentSeconds, Math.max(0, loopLenSec - 0.0001));
+      Tone.Transport.seconds = safePos;
+      if (wasPlaying) {
+        Tone.Transport.start("+0.02");
+      }
+    } catch {}
   }
 
   async start() {
