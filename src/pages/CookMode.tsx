@@ -21,6 +21,7 @@ import { AccessLevelNotification } from '@/components/cookmode/AccessLevelNotifi
 import { CookModeChat } from '@/components/cookmode/CookModeChat';
 import { VideoStreamingPanel } from '@/components/cookmode/VideoStreamingPanel';
 import { BackgroundWebRTCConnector } from '@/components/cookmode/BackgroundWebRTCConnector';
+import { useWebRTCStreaming } from '@/hooks/useWebRTCStreaming';
 import { SessionParticipants } from '@/components/cookmode/SessionParticipants';
 import { SessionControls } from '@/components/cookmode/SessionControls';
 import { CookModeAudioControls } from '@/components/cookmode/CookModeAudioControls';
@@ -151,6 +152,17 @@ const CookMode = () => {
     };
     getCurrentUser();
   }, [isAuthenticated]);
+
+  // WebRTC streaming hook
+  const {
+    isStreaming,
+    startStreaming,
+    stopStreaming,
+  } = useWebRTCStreaming({ 
+    sessionId: sessionId || '', 
+    canEdit: permissions.canEdit, 
+    currentUserId: currentUser?.id 
+  });
 
   // Join session when we have sessionId and are authenticated
   useEffect(() => {
@@ -659,10 +671,31 @@ const CookMode = () => {
                         <div className="text-xs text-muted-foreground">No MIDI controllers detected</div>
                       )}
                     </div>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </>
-            )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Start/Stop Stream Button */}
+              {!isStreaming ? (
+                <Button
+                  onClick={startStreaming}
+                  className="bg-gradient-to-r from-neon-cyan to-electric-blue text-black hover:opacity-90"
+                  size="sm"
+                >
+                  <Video className="w-4 h-4 mr-2" />
+                  Start Stream
+                </Button>
+              ) : (
+                <Button
+                  onClick={stopStreaming}
+                  variant="destructive"
+                  size="sm"
+                >
+                  <Video className="w-4 h-4 mr-2" />
+                  Stop Stream
+                </Button>
+              )}
+            </>
+          )}
             
             <Button
               variant="outline"
