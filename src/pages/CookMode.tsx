@@ -615,12 +615,15 @@ const CookMode = () => {
 
           {/* Always visible chat section - takes remaining space */}
           <div className="flex-1 flex flex-col min-h-0">
+          {/* Chat header - hide in video mode */}
+          {!showVideo && (
             <div className="p-4 pb-2 border-b border-border/50 flex-shrink-0">
               <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
                 <MessageSquare className="w-4 h-4" />
                 Chat
               </h4>
             </div>
+          )}
             <div className="flex-1 overflow-hidden min-h-0">
               <CookModeChat sessionId={sessionId!} />
             </div>
