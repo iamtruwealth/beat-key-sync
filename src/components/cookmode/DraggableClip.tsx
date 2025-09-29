@@ -172,14 +172,8 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
       const tempWidthPx = Math.max(4, (tempTrimEnd - tempTrimStart) * pixelsPerSecond);
       // Live visual feedback: keep the non-dragged edge fixed
       if (clipRef.current) {
-        if (isTrimming === 'start') {
-          const newLeft = Math.max(0, initialTrimRef.current.rightPx - tempWidthPx);
-          clipRef.current.style.left = `${newLeft}px`;
-          clipRef.current.style.width = `${tempWidthPx}px`;
-        } else {
-          // end trim: lock left, adjust width only
-          clipRef.current.style.width = `${tempWidthPx}px`;
-        }
+        // For both start and end: don't move left; adjust width only
+        clipRef.current.style.width = `${tempWidthPx}px`;
       }
     }
   }, [isDragging, isTrimming, dragStart, pixelsPerSecond, snapToGrid, fullDuration, trimStart, trimEnd]);
