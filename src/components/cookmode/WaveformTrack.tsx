@@ -304,10 +304,34 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
           <div
             ref={containerRef}
             id={containerId}
-            className="w-full h-full"
+            className="w-full h-full relative"
           />
-          
-          
+
+          {/* Trim overlays: dim hidden (trimmed) parts so only visible segment pops */}
+          {(() => {
+            const total = clip.fullDuration || clip.originalTrack.analyzed_duration || clip.originalTrack.duration || clipDuration;
+            if (!total || total <= 0) return null;
+            const s = Math.max(0, Math.min(clip.trimStart ?? 0, total));
+            const e = Math.max(s, Math.min(clip.trimEnd ?? total, total));
+            const leftPct = (s / total) * 100;
+            const rightPct = ((total - e) / total) * 100;
+            return (
+              <>
+                {leftPct > 0 && (
+                  <div
+                    className="pointer-events-none absolute top-0 left-0 h-full bg-background/60 border-r border-border/40"
+                    style={{ width: `${leftPct}%` }}
+                  />
+                )}
+                {rightPct > 0 && (
+                  <div
+                    className="pointer-events-none absolute top-0 right-0 h-full bg-background/60 border-l border-border/40"
+                    style={{ width: `${rightPct}%` }}
+                  />
+                )}
+              </>
+            );
+          })()}
           {/* Loading overlay */}
           {!isLoaded && (
             <div className="absolute inset-0 flex items-center justify-center bg-background/50">
