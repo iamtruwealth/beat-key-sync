@@ -6,9 +6,10 @@ import { toast } from '@/components/ui/use-toast';
 
 interface AudioStreamViewerProps {
   sessionId: string;
+  autoStart?: boolean;
 }
 
-export const AudioStreamViewer: React.FC<AudioStreamViewerProps> = ({ sessionId }) => {
+export const AudioStreamViewer: React.FC<AudioStreamViewerProps> = ({ sessionId, autoStart = false }) => {
   const [isListening, setIsListening] = useState(false);
   const [volume, setVolume] = useState(1);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -102,12 +103,49 @@ export const AudioStreamViewer: React.FC<AudioStreamViewerProps> = ({ sessionId 
     }
   }, [volume]);
 
+  // Auto-start for guests
+  useEffect(() => {
+    if (autoStart && !isListening) {
+      startListening();
+    }
+  }, [autoStart]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       stopListening();
     };
   }, []);
+
+  // Guest viewer mode - auto-listening with volume control only
+  if (autoStart) {
+    return (
+      <div className="flex items-center gap-3 p-3 bg-card/50 border border-border/50 rounded-lg">
+        <audio ref={audioRef} style={{ display: 'none' }} />
+        
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+          <span className="text-sm font-medium text-foreground">Live Audio</span>
+        </div>
+
+        <div className="flex items-center gap-2 flex-1">
+          <Volume2 className="w-4 h-4 text-muted-foreground" />
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.1"
+            value={volume}
+            onChange={(e) => setVolume(parseFloat(e.target.value))}
+            className="flex-1 h-2 bg-border rounded-lg appearance-none cursor-pointer"
+          />
+          <span className="text-xs text-muted-foreground w-8">
+            {Math.round(volume * 100)}%
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center gap-3 p-3 bg-card/50 border border-border/50 rounded-lg">

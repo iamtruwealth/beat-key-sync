@@ -830,7 +830,7 @@ const CookMode = () => {
                   {/* Audio Stream Viewer for all users */}
                   <div>
                     <h4 className="text-sm font-medium text-foreground mb-2">Live Session Audio</h4>
-                    <AudioStreamViewer sessionId={sessionId!} />
+                    <AudioStreamViewer sessionId={sessionId!} autoStart={!permissions.canEdit} />
                   </div>
                   
                   {/* Audio Controls for editors only */}

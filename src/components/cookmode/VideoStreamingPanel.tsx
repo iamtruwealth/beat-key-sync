@@ -35,32 +35,34 @@ export const VideoStreamingPanel: React.FC<VideoStreamingPanelProps> = ({
       <div className="p-4 border-b border-border/50">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-foreground">Live Stream</h3>
+            <h3 className="text-lg font-semibold text-foreground">Live Video</h3>
             <p className="text-sm text-muted-foreground">
-              {participants.length} participant{participants.length !== 1 ? 's' : ''} connected
+              {participants.length} participant{participants.length !== 1 ? 's' : ''} streaming
             </p>
           </div>
-          <div className="flex gap-2">
-            {!isStreaming ? (
-              <Button
-                onClick={startStreaming}
-                className="bg-gradient-to-r from-neon-cyan to-electric-blue text-black hover:opacity-90"
-                size="sm"
-              >
-                <Video className="w-4 h-4 mr-2" />
-                Start Stream
-              </Button>
-            ) : (
-              <Button
-                onClick={stopStreaming}
-                variant="destructive"
-                size="sm"
-              >
-                <MonitorX className="w-4 h-4 mr-2" />
-                Stop Stream
-              </Button>
-            )}
-          </div>
+          {canEdit && (
+            <div className="flex gap-2">
+              {!isStreaming ? (
+                <Button
+                  onClick={startStreaming}
+                  className="bg-gradient-to-r from-neon-cyan to-electric-blue text-black hover:opacity-90"
+                  size="sm"
+                >
+                  <Video className="w-4 h-4 mr-2" />
+                  Start Stream
+                </Button>
+              ) : (
+                <Button
+                  onClick={stopStreaming}
+                  variant="destructive"
+                  size="sm"
+                >
+                  <MonitorX className="w-4 h-4 mr-2" />
+                  Stop Stream
+                </Button>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -151,27 +153,25 @@ export const VideoStreamingPanel: React.FC<VideoStreamingPanelProps> = ({
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
               <Monitor className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-              <h4 className="text-lg font-semibold text-foreground mb-2">No Active Streams</h4>
+              <h4 className="text-lg font-semibold text-foreground mb-2">
+                {canEdit ? "No Active Streams" : "No Video Streams Yet"}
+              </h4>
               <p className="text-muted-foreground mb-4">
-                Start streaming to see and hear other producers in real-time
+                {canEdit 
+                  ? "Start streaming to see and hear other producers in real-time"
+                  : "Waiting for producers to start their video streams"
+                }
               </p>
-              <Button
-                onClick={startStreaming}
-                className="bg-gradient-to-r from-neon-cyan to-electric-blue text-black hover:opacity-90"
-              >
-                <Video className="w-4 h-4 mr-2" />
-                Start Your Stream
-              </Button>
+              {canEdit && (
+                <Button
+                  onClick={startStreaming}
+                  className="bg-gradient-to-r from-neon-cyan to-electric-blue text-black hover:opacity-90"
+                >
+                  <Video className="w-4 h-4 mr-2" />
+                  Start Your Stream
+                </Button>
+              )}
             </div>
-          </div>
-        )}
-
-        {/* Permission Notice */}
-        {!canEdit && (
-          <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
-            <p className="text-sm text-yellow-600 dark:text-yellow-400">
-              <strong>View Only:</strong> You can see other producers' streams but your editing permissions are limited.
-            </p>
           </div>
         )}
       </div>
