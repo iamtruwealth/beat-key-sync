@@ -65,6 +65,7 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [isTrimming, setIsTrimming] = useState<'start' | 'end' | null>(null);
   const [dragStart, setDragStart] = useState({ x: 0, startTime: 0 });
+  const initialTrimRef = useRef<{ leftPx: number; widthPx: number; rightPx: number }>({ leftPx: 0, widthPx: 0, rightPx: 0 });
 
   // Calculate clip timings
   const fullDuration = clip.fullDuration || clip.originalTrack.analyzed_duration || clip.originalTrack.duration || 0;
@@ -103,6 +104,13 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
     e.preventDefault();
     e.stopPropagation();
     
+    // Cache initial geometry so we can lock the opposite edge visually
+    initialTrimRef.current = {
+      leftPx: clipLeft,
+      widthPx: clipWidth,
+      rightPx: clipLeft + clipWidth,
+    };
+    
     setIsTrimming(trimType);
     setDragStart({
       x: e.clientX,
@@ -110,7 +118,7 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
     });
     
     document.body.style.userSelect = 'none';
-  }, [trimStart, trimEnd]);
+  }, [trimStart, trimEnd, clipLeft, clipWidth]);
 
   // Handle mouse move during drag or trim
   const handleMouseMove = useCallback((e: MouseEvent) => {
@@ -139,9 +147,16 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
         tempTrimEnd = Math.max(snappedTime, trimStart + 0.1);
       }
       const tempWidthPx = Math.max(4, (tempTrimEnd - tempTrimStart) * pixelsPerSecond);
-      // Live visual feedback
+      // Live visual feedback: keep the non-dragged edge fixed
       if (clipRef.current) {
-        clipRef.current.style.width = `${tempWidthPx}px`;
+        if (isTrimming === 'start') {
+          const newLeft = Math.max(0, initialTrimRef.current.rightPx - tempWidthPx);
+          clipRef.current.style.left = `${newLeft}px`;
+          clipRef.current.style.width = `${tempWidthPx}px`;
+        } else {
+          // end trim: lock left, adjust width only
+          clipRef.current.style.width = `${tempWidthPx}px`;
+        }
       }
     }
   }, [isDragging, isTrimming, dragStart, pixelsPerSecond, snapToGrid, fullDuration, trimStart, trimEnd]);
