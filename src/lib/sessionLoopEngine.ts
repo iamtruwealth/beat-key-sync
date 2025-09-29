@@ -56,8 +56,13 @@ export class SessionLoopEngine {
     this.clips = clips.slice();
     this.loopEndInBeats = clips.reduce(
       (max, c) => Math.max(max, c.offsetInBeats + c.durationInBeats),
-      16 // Minimum 4 bars
+      0 // No minimum - let it be based purely on content
     );
+    
+    // If no clips exist, default to 4 bars minimum
+    if (this.loopEndInBeats === 0) {
+      this.loopEndInBeats = 16; // 4 bars minimum only when no clips exist
+    }
     
     // Set Transport loop end using bars:beats:sixteenths format
     const bars = Math.floor(this.loopEndInBeats / 4);

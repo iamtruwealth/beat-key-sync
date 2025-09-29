@@ -149,13 +149,15 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           let resolvedBars: number = track.bars ?? 0;
           if (!resolvedBars) {
             if (knownDuration && knownDuration > 0) {
-              resolvedBars = Math.max(1, Math.round(knownDuration / secondsPerBar));
+              // Calculate bars based on the actual audio duration for full track length
+              resolvedBars = Math.max(1, Math.ceil(knownDuration / secondsPerBar));
             } else {
-              // If no duration is known yet, default to 4 bars (not 8) and wait for analysis
-              resolvedBars = 4; // More conservative default - 4 bars
+              // If no duration is known yet, default to 4 bars and wait for analysis
+              resolvedBars = 4; 
             }
           }
-          const clipDuration = resolvedBars * secondsPerBar;
+          // Use the actual known duration if available, otherwise use bars calculation
+          const clipDuration = knownDuration && knownDuration > 0 ? knownDuration : (resolvedBars * secondsPerBar);
           
           const clip: AudioClip = {
             id: `${track.id}-clip-0`,
