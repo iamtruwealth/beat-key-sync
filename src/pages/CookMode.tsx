@@ -168,7 +168,7 @@ const CookMode = () => {
   // Audio-only streaming hook (for session music)
   const {
     isStreamingAudio,
-    hasRemoteAudio,
+    viewerCount,
     startAudioStreaming,
     stopAudioStreaming
   } = useAudioOnlyStreaming({
