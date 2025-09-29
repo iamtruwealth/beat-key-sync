@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import * as Tone from 'tone';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
@@ -159,7 +160,19 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
             </Button>
             
             <Button
-              onClick={onTogglePlayback}
+              onClick={async () => {
+                try {
+                  await Tone.start();
+                  const ctx = Tone.getContext();
+                  if (ctx.state === 'suspended') {
+                    await ctx.resume();
+                  }
+                  console.log('🔊 Audio unlocked via user gesture');
+                } catch (e) {
+                  console.warn('Tone.start() failed:', e);
+                }
+                onTogglePlayback();
+              }}
               className={`p-3 ${
                 isPlaying 
                   ? 'bg-gradient-to-r from-red-500 to-red-600 text-white hover:opacity-90' 
