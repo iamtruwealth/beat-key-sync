@@ -42,15 +42,24 @@ export default function Account() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchProfile();
-  }, []);
+    const checkAuthAndFetchProfile = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setLoading(false);
+        navigate("/auth");
+        return;
+      }
+      await fetchProfile();
+    };
+    
+    checkAuthAndFetchProfile();
+  }, [navigate]);
 
   const fetchProfile = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
-        navigate("/auth");
         return;
       }
 
