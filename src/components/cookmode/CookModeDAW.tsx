@@ -244,14 +244,15 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
     }
   };
 
-  // Handle track deletions coming from TimelineView
+  // Handle track updates coming from TimelineView
   const handleTracksUpdateFromTimeline = async (updatedTracks: Track[]) => {
     const currentIds = new Set(tracks.map(t => t.id));
     const updatedIds = new Set(updatedTracks.map(t => t.id));
 
-    // Tracks present before but not in updated list are deletions
+    // Check for track deletions
     const removedIds = Array.from(currentIds).filter(id => !updatedIds.has(id));
 
+    // Handle deletions
     for (const id of removedIds) {
       try {
         await onRemoveTrack(id);
@@ -259,6 +260,26 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
       } catch (err) {
         console.error('Failed to remove track from session:', err);
         toast.error('Failed to delete track');
+      }
+    }
+
+    // Handle track updates (volume, mute, solo, etc.)
+    for (const updatedTrack of updatedTracks) {
+      const currentTrack = tracks.find(t => t.id === updatedTrack.id);
+      if (currentTrack) {
+        // Check if any properties changed
+        const hasChanges = 
+          currentTrack.volume !== updatedTrack.volume ||
+          currentTrack.isMuted !== updatedTrack.isMuted ||
+          currentTrack.isSolo !== updatedTrack.isSolo;
+        
+        if (hasChanges) {
+          onUpdateTrack(updatedTrack.id, {
+            volume: updatedTrack.volume,
+            isMuted: updatedTrack.isMuted,
+            isSolo: updatedTrack.isSolo
+          });
+        }
       }
     }
   };
