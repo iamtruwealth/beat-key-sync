@@ -185,21 +185,8 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
           clipRef.current.style.width = `${tempWidthPx}px`;
         }
       }
-
-      // Realtime state update so the parent keeps right/left edge locked correctly
-      if (onTrimClip) {
-        if (isTrimming === 'start') {
-          if (Math.abs(tempTrimStart - trimStart) > 0.005) {
-            onTrimClip(clip.id, 'start', tempTrimStart, trimEnd);
-          }
-        } else {
-          if (Math.abs(tempTrimEnd - trimEnd) > 0.005) {
-            onTrimClip(clip.id, 'end', trimStart, tempTrimEnd);
-          }
-        }
-      }
     }
-  }, [isDragging, isTrimming, dragStart, pixelsPerSecond, snapToGrid, fullDuration, trimStart, trimEnd, onTrimClip, clip.id]);
+  }, [isDragging, isTrimming, dragStart, pixelsPerSecond, snapToGrid, fullDuration, trimStart, trimEnd]);
 
   // Handle mouse up
   const handleMouseUp = useCallback((e: MouseEvent) => {
