@@ -84,6 +84,12 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
   // Handle mouse down for clip movement
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0) return; // Only left click
+
+    // If the user grabbed a trim handle, do not initiate drag
+    const target = e.target as HTMLElement;
+    if (target && target.closest && target.closest('[data-trim-handle]')) {
+      return;
+    }
     
     e.preventDefault();
     e.stopPropagation();
@@ -269,20 +275,22 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
         <>
           {/* Left trim handle */}
           <div
-            className="absolute left-0 top-0 w-4 h-full bg-primary/10 hover:bg-primary/30 cursor-ew-resize opacity-0 group-hover:opacity-100 transition-opacity"
+            data-trim-handle="start"
+            className="absolute left-0 top-0 w-8 h-full bg-primary/10 hover:bg-primary/30 cursor-ew-resize opacity-0 group-hover:opacity-100 transition-opacity"
             onMouseDown={(e) => handleTrimMouseDown(e, 'start')}
             style={{ zIndex: 1001, pointerEvents: 'auto' }}
           >
-            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 bg-primary rounded-r" />
+            <div data-trim-handle="start" className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 bg-primary rounded-r" />
           </div>
           
           {/* Right trim handle */}
           <div
-            className="absolute right-0 top-0 w-4 h-full bg-primary/10 hover:bg-primary/30 cursor-ew-resize opacity-0 group-hover:opacity-100 transition-opacity"
+            data-trim-handle="end"
+            className="absolute right-0 top-0 w-8 h-full bg-primary/10 hover:bg-primary/30 cursor-ew-resize opacity-0 group-hover:opacity-100 transition-opacity"
             onMouseDown={(e) => handleTrimMouseDown(e, 'end')}
             style={{ zIndex: 1001, pointerEvents: 'auto' }}
           >
-            <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-4 bg-primary rounded-l" />
+            <div data-trim-handle="end" className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-4 bg-primary rounded-l" />
           </div>
         </>
       )}
