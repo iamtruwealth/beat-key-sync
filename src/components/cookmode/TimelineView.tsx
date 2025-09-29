@@ -735,7 +735,6 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                     return { ...c, trimStart: newS, trimEnd: newE, endTime: newEnd };
                   }
                 }));
-                if (onTrimTrack) onTrimTrack(track.id, s, e);
               }}
               className={selectedClips.has(clip.id) ? 'ring-2 ring-primary' : ''}
             />
