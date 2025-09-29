@@ -98,15 +98,16 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
       const xFromLeft = e.clientX - rect.left;
       const xFromRight = rect.right - e.clientX;
       if (xFromLeft <= EDGE_THRESHOLD) {
+        console.log('[DraggableClip] edge-trim start detected', { clipId: clip.id, xFromLeft });
         handleTrimMouseDown(e, 'start');
         return;
       }
       if (xFromRight <= EDGE_THRESHOLD) {
+        console.log('[DraggableClip] edge-trim end detected', { clipId: clip.id, xFromRight });
         handleTrimMouseDown(e, 'end');
         return;
       }
     }
-    
     // 3) Otherwise, start drag (move clip)
     e.preventDefault();
     e.stopPropagation();
@@ -116,6 +117,7 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
       x: e.clientX,
       startTime: clip.startTime
     });
+    console.log('[DraggableClip] drag mousedown', { clipId: clip.id, startTime: clip.startTime });
     
     document.body.style.userSelect = 'none';
   }, [clip.startTime]);
@@ -127,6 +129,7 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
     e.preventDefault();
     e.stopPropagation();
     
+    console.log('[DraggableClip] trim mousedown', { clipId: clip.id, trimType });
     // Cache initial geometry so we can lock the opposite edge visually
     initialTrimRef.current = {
       leftPx: clipLeft,
@@ -141,7 +144,7 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
     });
     
     document.body.style.userSelect = 'none';
-  }, [trimStart, trimEnd, clipLeft, clipWidth]);
+  }, [trimStart, trimEnd, clipLeft, clipWidth, clip.id]);
 
   // Handle mouse move during drag or trim
   const handleMouseMove = useCallback((e: MouseEvent) => {
@@ -205,6 +208,7 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
     } else if (isTrimming && onTrimClip && fullDuration > 0) {
       const newTime = Math.max(0, Math.min(fullDuration, dragStart.startTime + deltaTime));
       const snappedTime = snapToGrid(newTime);
+      console.log('[DraggableClip] trim mouseup', { clipId: clip.id, edge: isTrimming, newTime, snappedTime, trimStart, trimEnd });
       
       let newTrimStart = trimStart;
       let newTrimEnd = trimEnd;
