@@ -578,7 +578,7 @@ const CookMode = () => {
         </div>
 
         {/* Right Sidebar */}
-        <div className="w-80 border-l border-border/50 bg-card/20 backdrop-blur-sm flex flex-col">
+        <div className="w-80 border-l border-border/50 bg-card/20 backdrop-blur-sm flex flex-col h-full">
           {/* Video Toggle Header */}
           <div className="p-4 border-b border-border/50 flex items-center justify-between">
             <h3 className="font-medium text-foreground">Collaboration</h3>
@@ -594,7 +594,7 @@ const CookMode = () => {
           </div>
 
           {/* Always visible participants section */}
-          <div className="p-4 border-b border-border/50">
+          <div className="p-4 border-b border-border/50 flex-shrink-0">
             <h4 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
               <Users className="w-4 h-4" />
               Participants ({participants.length})
@@ -602,9 +602,9 @@ const CookMode = () => {
             <SessionParticipants participants={participants} sessionId={sessionId!} />
           </div>
 
-          {/* Video section - conditionally visible */}
+          {/* Video section - conditionally visible with fixed height */}
           {showVideo && (
-            <div className="border-b border-border/50">
+            <div className="border-b border-border/50 flex-shrink-0" style={{ height: '240px' }}>
               <VideoStreamingPanel 
                 sessionId={sessionId!} 
                 canEdit={permissions.canEdit}
@@ -613,15 +613,15 @@ const CookMode = () => {
             </div>
           )}
 
-          {/* Always visible chat section */}
-          <div className="flex-1 flex flex-col">
-            <div className="p-4 pb-2 border-b border-border/50">
+          {/* Always visible chat section - takes remaining space */}
+          <div className="flex-1 flex flex-col min-h-0">
+            <div className="p-4 pb-2 border-b border-border/50 flex-shrink-0">
               <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
                 <MessageSquare className="w-4 h-4" />
                 Chat
               </h4>
             </div>
-            <div className="flex-1 overflow-hidden">
+            <div className="flex-1 overflow-hidden min-h-0">
               <CookModeChat sessionId={sessionId!} />
             </div>
           </div>
