@@ -190,21 +190,20 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         const track = tracks.find(t => t.id === clip.trackId);
         if (!track) return clip;
         
-        const trimStart = track.trimStart || 0;
-        const trimEnd = track.trimEnd;
         const trackDuration = track.analyzed_duration || track.duration || 0;
+        const trimStart = Math.max(0, track.trimStart || 0);
+        const effectiveTrimEnd = Math.max(trimStart + 0.1, Math.min(trackDuration || Infinity, track.trimEnd ?? trackDuration));
+        const trimmedDuration = Math.max(0.1, (effectiveTrimEnd - trimStart));
+        const newEndTime = clip.startTime + trimmedDuration;
         
-        if (trimEnd && trimEnd < trackDuration) {
-          // Update clip endTime based on trim
-          const trimmedDuration = trimEnd - trimStart;
-          const newEndTime = clip.startTime + trimmedDuration;
-          
-          if (Math.abs(newEndTime - clip.endTime) > 0.01) {
-            changed = true;
-            return { ...clip, endTime: newEndTime };
-          }
+        // Determine if anything changed (duration or originalTrack reference)
+        const durationChanged = Math.abs(newEndTime - clip.endTime) > 0.01;
+        const trackRefChanged = clip.originalTrack !== track;
+        
+        if (durationChanged || trackRefChanged) {
+          changed = true;
+          return { ...clip, endTime: newEndTime, originalTrack: track };
         }
-        
         return clip;
       });
       return changed ? updated : prev;
