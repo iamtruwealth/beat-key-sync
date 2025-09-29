@@ -211,9 +211,14 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
       
       if (isTrimming === 'start') {
         newTrimStart = Math.min(snappedTime, trimEnd - 0.1); // Ensure start < end
-        // Only change start, keep end the same
+        // Change start and shift clip to keep right edge locked
         if (Math.abs(newTrimStart - trimStart) > 0.01) {
           onTrimClip(clip.id, isTrimming, newTrimStart, trimEnd);
+          const delta = newTrimStart - trimStart;
+          const newStartTimePos = Math.max(0, clip.startTime + delta);
+          if (Math.abs(newStartTimePos - clip.startTime) > 0.005) {
+            onClipMove(clip.id, newStartTimePos);
+          }
         }
       } else {
         newTrimEnd = Math.max(snappedTime, trimStart + 0.1); // Ensure end > start
