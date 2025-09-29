@@ -166,67 +166,48 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
       console.log(`AudioBridge: BPM changed from ${previousBPM.current} to ${bpm}`);
       sessionLoopEngine.setBpm(bpm);
       previousBPM.current = bpm;
-      
-      // Recreate clips with new BPM timing
-      if (Array.isArray(clips) && clips.length > 0) {
-        const engineClips = createClipsFromTimeline(clips, bpm);
-        sessionLoopEngine.setClips(engineClips, minBars);
-      } else if (tracks.length > 0) {
-        const engineClips = createClipsFromTracks(tracks, bpm);
-        sessionLoopEngine.setClips(engineClips, minBars);
+    }
+  }, [bpm]);
+
+  // Single effect to handle all clip updates - prevents multiple overlapping audio instances
+  useEffect(() => {
+    if (!isInitialized.current) return;
+    
+    let engineClips: Clip[] = [];
+    
+    if (Array.isArray(clips) && clips.length > 0) {
+      // Timeline mode: use clip data
+      engineClips = createClipsFromTimeline(clips, bpm);
+      console.log('AudioBridge: Timeline clips changed, updating engine clips', engineClips.map(c => ({ id: c.id, offsetInBeats: c.offsetInBeats, durationInBeats: c.durationInBeats, sourceOffsetSeconds: (c as any).sourceOffsetSeconds, sourceDurationSeconds: (c as any).sourceDurationSeconds })));
+    } else if (tracks.length > 0) {
+      // Track mode: create clips from tracks
+      const tracksChanged = 
+        tracks.length !== previousTracks.current.length ||
+        tracks.some((track, index) => {
+          const prevTrack = previousTracks.current[index];
+          return !prevTrack || 
+                 track.id !== prevTrack.id || 
+                 track.file_url !== prevTrack.file_url ||
+                 track.volume !== prevTrack.volume ||
+                 track.isMuted !== prevTrack.isMuted ||
+                 track.bars !== prevTrack.bars ||
+                 (track.analyzed_duration || 0) !== (prevTrack.analyzed_duration || 0) ||
+                 (track.duration || 0) !== (prevTrack.duration || 0);
+        });
+
+      if (tracksChanged) {
+        console.log('AudioBridge: Tracks changed, updating clips');
+        engineClips = createClipsFromTracks(tracks, bpm);
+        previousTracks.current = [...tracks];
+      } else {
+        return; // No changes, skip update
       }
     }
-  }, [bpm, tracks, clips, createClipsFromTracks, createClipsFromTimeline]);
-
-  // Handle track changes (when not using timeline clips)
-  useEffect(() => {
-    if (!isInitialized.current) return;
-    if (Array.isArray(clips) && clips.length > 0) return;
-
-    const tracksChanged = 
-      tracks.length !== previousTracks.current.length ||
-      tracks.some((track, index) => {
-        const prevTrack = previousTracks.current[index];
-        return !prevTrack || 
-               track.id !== prevTrack.id || 
-               track.file_url !== prevTrack.file_url ||
-               track.volume !== prevTrack.volume ||
-               track.isMuted !== prevTrack.isMuted ||
-               track.bars !== prevTrack.bars ||
-               (track.analyzed_duration || 0) !== (prevTrack.analyzed_duration || 0) ||
-               (track.duration || 0) !== (prevTrack.duration || 0);
-      });
-
-    if (tracksChanged) {
-      console.log('AudioBridge: Tracks changed, updating clips');
-      const engineClips = createClipsFromTracks(tracks, bpm);
-      console.log('AudioBridge: Created clips from tracks:', engineClips);
-      sessionLoopEngine.setClips(engineClips, minBars);
-      previousTracks.current = [...tracks];
-    }
-  }, [tracks, bpm, clips, createClipsFromTracks]);
-
-  // Handle timeline clip changes
-  useEffect(() => {
-    if (!isInitialized.current) return;
-    if (Array.isArray(clips) && clips.length > 0) {
-      const engineClips = createClipsFromTimeline(clips, bpm);
-      console.log('AudioBridge: Timeline clips changed, updating engine clips', engineClips.map(c => ({ id: c.id, offsetInBeats: c.offsetInBeats, durationInBeats: c.durationInBeats, sourceOffsetSeconds: (c as any).sourceOffsetSeconds, sourceDurationSeconds: (c as any).sourceDurationSeconds })));
+    
+    if (engineClips.length > 0) {
       sessionLoopEngine.setClips(engineClips, minBars);
     }
-  }, [clips, bpm, createClipsFromTimeline, minBars]);
-
-  // Apply new minimum bar count to loop length (works for both timeline and tracks-only modes)
-  useEffect(() => {
-    if (!isInitialized.current) return;
-    if (Array.isArray(clips) && clips.length > 0) {
-      const engineClips = createClipsFromTimeline(clips, bpm);
-      sessionLoopEngine.setClips(engineClips, minBars);
-    } else {
-      const engineClips = createClipsFromTracks(tracks, bpm);
-      sessionLoopEngine.setClips(engineClips, minBars);
-    }
-  }, [minBars, bpm, clips, tracks, createClipsFromTimeline, createClipsFromTracks]);
+  }, [clips, tracks, bpm, minBars, createClipsFromTimeline, createClipsFromTracks]);
 
   // Handle track property updates (volume, mute, solo)
   useEffect(() => {
