@@ -577,8 +577,8 @@ const CookMode = () => {
           </div>
         </div>
 
-        {/* Right Sidebar */}
-        <div className="w-80 border-l border-border/50 bg-card/20 backdrop-blur-sm flex flex-col">
+        {/* Right Sidebar - Extended to full height */}
+        <div className="w-80 border-l border-border/50 bg-card/20 backdrop-blur-sm flex flex-col h-full">
           {/* Sidebar Tabs */}
           <Tabs value={activeSidebarTab} onValueChange={(value) => setActiveSidebarTab(value as 'participants' | 'chat' | 'video')}>
             <div className="p-4 border-b border-border/50">
