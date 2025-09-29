@@ -784,18 +784,30 @@ const CookMode = () => {
 
           {/* Always visible chat section - takes remaining space */}
           <div className="flex-1 flex flex-col min-h-0">
-          {/* Chat header - hide in video mode */}
-          {!showVideo && (
-            <div className="p-4 pb-2 border-b border-border/50 flex-shrink-0">
-              <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
-                <MessageSquare className="w-4 h-4" />
-                Chat
-              </h4>
-            </div>
-          )}
-            <div className="flex-1 overflow-hidden min-h-0">
-              <CookModeChat sessionId={sessionId!} />
-            </div>
+            <Tabs defaultValue="chat" className="flex-1 flex flex-col">
+              <TabsList className="grid w-full grid-cols-2 mx-4 mt-4">
+                <TabsTrigger value="chat" className="flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4" />
+                  Chat
+                </TabsTrigger>
+                <TabsTrigger value="audio" className="flex items-center gap-2">
+                  <Piano className="w-4 h-4" />
+                  Audio
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="chat" className="flex-1 overflow-hidden min-h-0 m-0">
+                <div className="flex-1 overflow-hidden min-h-0 p-4 pt-2">
+                  <CookModeChat sessionId={sessionId!} />
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="audio" className="flex-1 overflow-hidden min-h-0 m-0">
+                <div className="flex-1 overflow-auto p-4 pt-2">
+                  <CookModeAudioControls />
+                </div>
+              </TabsContent>
+            </Tabs>
           </div>
         </div>
       </div>
