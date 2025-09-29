@@ -127,8 +127,8 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
         const newLeft = snappedStartTime * pixelsPerSecond;
         clipRef.current.style.left = `${newLeft}px`;
       }
-    } else if (isTrimming && trackDuration > 0) {
-      const rawTime = Math.max(0, Math.min(trackDuration, dragStart.startTime + deltaTime));
+    } else if (isTrimming && fullDuration > 0) {
+      const rawTime = Math.max(0, Math.min(fullDuration, dragStart.startTime + deltaTime));
       const snappedTime = snapToGrid(rawTime);
       
       let tempTrimStart = trimStart;
@@ -144,7 +144,7 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
         clipRef.current.style.width = `${tempWidthPx}px`;
       }
     }
-  }, [isDragging, isTrimming, dragStart, pixelsPerSecond, snapToGrid, trackDuration, trimStart, trimEnd]);
+  }, [isDragging, isTrimming, dragStart, pixelsPerSecond, snapToGrid, fullDuration, trimStart, trimEnd]);
 
   // Handle mouse up
   const handleMouseUp = useCallback((e: MouseEvent) => {
@@ -163,8 +163,8 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
       if (Math.abs(snappedStartTime - clip.startTime) > 0.01) {
         onClipMove(clip.id, snappedStartTime);
       }
-    } else if (isTrimming && onTrimClip && trackDuration > 0) {
-      const newTime = Math.max(0, Math.min(trackDuration, dragStart.startTime + deltaTime));
+    } else if (isTrimming && onTrimClip && fullDuration > 0) {
+      const newTime = Math.max(0, Math.min(fullDuration, dragStart.startTime + deltaTime));
       const snappedTime = snapToGrid(newTime);
       
       let newTrimStart = trimStart;
@@ -177,12 +177,12 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
       }
       
       if (Math.abs(newTrimStart - trimStart) > 0.01 || Math.abs(newTrimEnd - trimEnd) > 0.01) {
-        onTrimClip(track.id, newTrimStart, newTrimEnd);
+        onTrimClip(clip.id, newTrimStart, newTrimEnd);
       }
       
       setIsTrimming(null);
     }
-  }, [isDragging, isTrimming, dragStart, pixelsPerSecond, snapToGrid, clip.id, clip.startTime, onClipMove, track.id, trimStart, trimEnd, trackDuration, onTrimClip]);
+  }, [isDragging, isTrimming, dragStart, pixelsPerSecond, snapToGrid, clip.id, clip.startTime, onClipMove, clip.originalTrack.id, trimStart, trimEnd, fullDuration, onTrimClip]);
 
   // Add global mouse event listeners
   React.useEffect(() => {
