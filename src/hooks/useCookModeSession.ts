@@ -14,6 +14,8 @@ interface Track {
   isMuted: boolean;
   isSolo: boolean;
   waveformData?: number[];
+  analyzed_duration?: number;
+  bars?: number;
 }
 
 interface Participant {
@@ -389,6 +391,20 @@ export function useCookModeSession(sessionId?: string) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
+      // Quick duration probe BEFORE upload so timeline can size correctly
+      let quickDuration = 0;
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
+        const audioCtx = new AudioCtx();
+        const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+        quickDuration = audioBuffer.duration || 0;
+        audioCtx.close?.();
+        console.log(`[CookMode] Quick duration probe for ${trackName}:`, quickDuration);
+      } catch (e) {
+        console.warn('[CookMode] Quick duration probe failed:', e);
+      }
+
       const fileExt = file.name.split('.').pop();
       const fileName = `${session.id}/${Date.now()}.${fileExt}`;
       
@@ -411,7 +427,9 @@ export function useCookModeSession(sessionId?: string) {
           stem_type: stemType,
           uploaded_by: user.id,
           version_number: 1,
-          file_size: file.size
+          file_size: file.size,
+          // Persist duration server-side when possible
+          duration: quickDuration
         })
         .select()
         .single();
@@ -425,14 +443,16 @@ export function useCookModeSession(sessionId?: string) {
         stem_type: stemData.stem_type,
         uploaded_by: stemData.uploaded_by,
         version_number: stemData.version_number,
-        duration: 0,
+        duration: quickDuration || 0,
         volume: 1,
         isMuted: false,
-        isSolo: false
+        isSolo: false,
+        analyzed_duration: quickDuration || 0
       };
 
       setTracks(prev => [...prev, newTrack]);
 
+      // Broadcast to other participants so their timelines size correctly
       if (channelRef.current) {
         channelRef.current.send({
           type: 'broadcast',
@@ -442,15 +462,15 @@ export function useCookModeSession(sessionId?: string) {
       }
 
       toast({
-        title: "Track Added",
+        title: 'Track Added',
         description: `${trackName} has been added to the session`,
       });
     } catch (error) {
       console.error('Error adding track:', error);
       toast({
-        title: "Error",
-        description: "Failed to add track",
-        variant: "destructive"
+        title: 'Error',
+        description: 'Failed to add track',
+        variant: 'destructive'
       });
     }
   }, [session, toast]);
