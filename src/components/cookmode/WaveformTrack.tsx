@@ -13,6 +13,8 @@ interface Track {
   isMuted?: boolean;
   isSolo?: boolean;
   analyzed_duration?: number;
+  trimStart?: number;
+  trimEnd?: number;
 }
 
 interface AudioClip {

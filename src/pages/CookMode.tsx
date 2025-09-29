@@ -70,6 +70,7 @@ const CookMode = () => {
     togglePlayback,
     seekTo,
     updateTrack,
+    trimTrack,
     updateSessionSettings,
     saveSession,
     addEmptyTrack
@@ -486,6 +487,7 @@ const CookMode = () => {
               onAddTrack={addTrack}
               onRemoveTrack={removeTrack}
               onUpdateTrack={updateTrack}
+              onTrimTrack={trimTrack}
               onPlayPause={togglePlayback}
               onSeek={seekTo}
               externalActiveView={activeView}

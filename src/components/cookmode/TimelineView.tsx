@@ -25,6 +25,8 @@ interface Track {
   isSolo?: boolean;
   waveform_data?: number[];
   analyzed_duration?: number; // Actual audio duration from analysis
+  trimStart?: number;
+  trimEnd?: number;
 }
 
 interface AudioClip {
@@ -45,6 +47,7 @@ interface TimelineViewProps {
   onPlayPause: () => void;
   onSeek: (time: number) => void;
   onTracksUpdate?: (tracks: Track[]) => void;
+  onTrimTrack?: (trackId: string, trimStart: number, trimEnd: number) => void;
   setActiveTrack?: (trackId: string) => void;
   activeTrackId?: string;
   createTrack?: (name: string) => string;
@@ -60,6 +63,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   onPlayPause,
   onSeek,
   onTracksUpdate,
+  onTrimTrack,
   setActiveTrack,
   activeTrackId,
   createTrack,
@@ -701,6 +705,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
               }}
               onDuplicateClip={duplicateClip}
               onDeleteClip={deleteClip}
+              onTrimClip={onTrimTrack}
               className={selectedClips.has(clip.id) ? 'ring-2 ring-primary' : ''}
             />
           );
