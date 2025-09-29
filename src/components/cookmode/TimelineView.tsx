@@ -127,6 +127,34 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     }
   }, [tracks, secondsPerBar]);
 
+  // Proactively measure duration for tracks without known duration (quick, local decode)
+  const measuredRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const measure = async () => {
+      for (const t of tracks) {
+        if (!t.file_url || measuredRef.current.has(t.id)) continue;
+        const known = trackDurations.get(t.id) || t.analyzed_duration || t.duration;
+        if (known && known > 0) continue;
+        try {
+          console.log('[Timeline] Quick measuring duration for', t.name);
+          const res = await fetch(t.file_url, { mode: 'cors' });
+          const buf = await res.arrayBuffer();
+          const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
+          const ctx = new AudioCtx();
+          const audioBuf = await ctx.decodeAudioData(buf);
+          const dur = audioBuf.duration;
+          ctx.close?.();
+          measuredRef.current.add(t.id);
+          setTrackDurations(prev => new Map(prev.set(t.id, dur)));
+        } catch (e) {
+          console.warn('[Timeline] Duration probe failed for', t.name, e);
+          measuredRef.current.add(t.id);
+        }
+      }
+    };
+    measure();
+  }, [tracks, trackDurations]);
+
   // When analyzed/known durations arrive, extend initial placeholder clips to full length
   useEffect(() => {
     if (audioClips.length === 0) return;
