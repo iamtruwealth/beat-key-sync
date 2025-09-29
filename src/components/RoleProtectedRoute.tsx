@@ -135,6 +135,16 @@ export function RoleProtectedRoute({ children, allowedRoles }: RoleProtectedRout
     };
   }, [navigate, allowedRoles, location.pathname]);
 
+  // Fallback: if user is signed in but role hasn't resolved, send to generic dashboard after a short delay
+  useEffect(() => {
+    if (user && !userRole) {
+      const id = setTimeout(() => {
+        navigate('/dashboard');
+      }, 1200);
+      return () => clearTimeout(id);
+    }
+  }, [user, userRole, navigate]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -143,8 +153,20 @@ export function RoleProtectedRoute({ children, allowedRoles }: RoleProtectedRout
     );
   }
 
-  if (!user || !userRole || !allowedRoles.includes(userRole)) {
+  if (!user) {
     return null; // Will redirect
+  }
+
+  if (user && !userRole) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-lg">Finishing sign-in...</div>
+      </div>
+    );
+  }
+
+  if (!allowedRoles.includes(userRole)) {
+    return null; // Will redirect to proper dashboard
   }
 
   return <>{children}</>;
