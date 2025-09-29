@@ -13,13 +13,8 @@ export const BPMSyncIndicator: React.FC<BPMSyncIndicatorProps> = ({
   sessionBPM,
   threshold = 5
 }) => {
-  if (!detectedBPM) {
-    return (
-      <Badge variant="outline" className="text-xs bg-background/80">
-        <Clock className="w-3 h-3 mr-1" />
-        Analyzing...
-      </Badge>
-    );
+  if (detectedBPM === undefined || detectedBPM === null) {
+    return null; // Hide indicator when no BPM is available to avoid "Analyzing..." stuck state
   }
 
   const bpmDifference = Math.abs(detectedBPM - sessionBPM);
