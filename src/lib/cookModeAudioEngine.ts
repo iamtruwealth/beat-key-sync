@@ -341,10 +341,25 @@ export class CookModeAudioEngine {
       // Calculate volume based on velocity
       const volumeDb = Tone.gainToDb(velocity / 127 * track.volume);
       
-      // Trigger the sample
+      // Create a gain envelope to prevent clicking
+      const envelope = new Tone.Gain(0).toDestination();
+      
+      // Set up the player with envelope
+      track.sample.player.disconnect();
+      track.sample.player.connect(envelope);
       track.sample.player.playbackRate = playbackRate;
-      track.sample.player.volume.value = volumeDb;
+      
+      // Quick fade-in to prevent click (5ms)
+      envelope.gain.setValueAtTime(0, Tone.now());
+      envelope.gain.linearRampToValueAtTime(Tone.dbToGain(volumeDb), Tone.now() + 0.005);
+      
+      // Trigger the sample
       track.sample.player.start();
+      
+      // Clean up envelope after sample duration + fade
+      setTimeout(() => {
+        envelope.dispose();
+      }, 1000); // 1 second cleanup
 
       console.log(`🎵 Triggered sample on track ${trackId}, note ${note}, velocity ${velocity}`);
       
