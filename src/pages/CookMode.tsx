@@ -18,10 +18,11 @@ import { CookModeDAW } from '@/components/cookmode/CookModeDAW';
 import { LiveSessionIndicator } from '@/components/cookmode/LiveSessionIndicator';
 import { AccessLevelNotification } from '@/components/cookmode/AccessLevelNotification';
 import { CookModeChat } from '@/components/cookmode/CookModeChat';
+import { VideoStreamingPanel } from '@/components/cookmode/VideoStreamingPanel';
 import { SessionParticipants } from '@/components/cookmode/SessionParticipants';
 import { SessionControls } from '@/components/cookmode/SessionControls';
 import { CookModeAudioControls } from '@/components/cookmode/CookModeAudioControls';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { 
   Play, 
   Pause, 
@@ -44,15 +45,19 @@ import {
   Layers,
   LayoutDashboard,
   ChevronDown,
-  Piano
+  Piano,
+  Video,
+  MessageSquare
 } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 const CookMode = () => {
   const { sessionId } = useParams();
   const navigate = useNavigate();
   const [isHost, setIsHost] = useState(false);
   const [activeView, setActiveView] = useState<'timeline' | 'mixer'>('timeline');
+  const [activeSidebarTab, setActiveSidebarTab] = useState<'participants' | 'chat' | 'video'>('participants');
   const [metronomeEnabled, setMetronomeEnabled] = useState(false);
   const [minBars, setMinBars] = useState(8);
   const [sessionConfig, setSessionConfig] = useState({
@@ -93,6 +98,17 @@ const CookMode = () => {
     broadcastPlaybackSeek,
     isConnected: realtimeConnected 
   } = useSessionRealtime(sessionId);
+
+  // Get current user for video streaming
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUser(user);
+    };
+    getCurrentUser();
+  }, []);
 
   useEffect(() => {
     if (sessionId && !session) {
@@ -563,16 +579,54 @@ const CookMode = () => {
 
         {/* Right Sidebar */}
         <div className="w-80 border-l border-border/50 bg-card/20 backdrop-blur-sm flex flex-col">
-          {/* Participants */}
-          <div className="p-4 border-b border-border/50">
-            <SessionParticipants participants={participants} sessionId={sessionId!} />
-          </div>
+          {/* Sidebar Tabs */}
+          <Tabs value={activeSidebarTab} onValueChange={(value) => setActiveSidebarTab(value as 'participants' | 'chat' | 'video')}>
+            <div className="p-4 border-b border-border/50">
+              <TabsList className="grid w-full grid-cols-3 bg-background/50">
+                <TabsTrigger 
+                  value="participants" 
+                  className="flex items-center gap-2 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                >
+                  <Users className="w-3 h-3" />
+                  Users
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="chat" 
+                  className="flex items-center gap-2 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                >
+                  <MessageSquare className="w-3 h-3" />
+                  Chat
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="video" 
+                  className="flex items-center gap-2 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                >
+                  <Video className="w-3 h-3" />
+                  Video
+                </TabsTrigger>
+              </TabsList>
+            </div>
 
-
-          {/* Chat */}
-          <div className="flex-1 overflow-hidden">
-            <CookModeChat sessionId={sessionId!} />
-          </div>
+            <div className="flex-1 overflow-hidden">
+              <TabsContent value="participants" className="h-full m-0">
+                <div className="p-4">
+                  <SessionParticipants participants={participants} sessionId={sessionId!} />
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="chat" className="h-full m-0">
+                <CookModeChat sessionId={sessionId!} />
+              </TabsContent>
+              
+              <TabsContent value="video" className="h-full m-0">
+                <VideoStreamingPanel 
+                  sessionId={sessionId!} 
+                  canEdit={permissions.canEdit}
+                  currentUserId={currentUser?.id}
+                />
+              </TabsContent>
+            </div>
+          </Tabs>
         </div>
       </div>
     </div>
