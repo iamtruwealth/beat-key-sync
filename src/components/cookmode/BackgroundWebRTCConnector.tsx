@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { useWebRTCStreaming } from '@/hooks/useWebRTCStreaming';
+import * as Tone from 'tone';
 
 interface BackgroundWebRTCConnectorProps {
   sessionId: string;
@@ -18,55 +19,50 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
     // We don't expose controls here; hosts will use VideoStreamingPanel for camera streaming
   } = useWebRTCStreaming({ sessionId, canEdit, currentUserId });
 
-  // Keep refs of audio elements to avoid re-creating
-  const audioRefs = useRef<Record<string, HTMLAudioElement | null>>({});
+  // Keep refs of created WebAudio nodes per remote participant
+  const sourceNodesRef = useRef<Record<string, MediaStreamAudioSourceNode | null>>({});
 
   useEffect(() => {
+    const audioCtx = Tone.getContext().rawContext as AudioContext;
+
     participants.forEach((p) => {
       if (!p.stream) return;
 
-      // Create or reuse audio element
-      if (!audioRefs.current[p.user_id]) {
-        const audioEl = document.createElement('audio');
-        audioEl.autoplay = true;
-        audioEl.setAttribute('playsinline', 'true');
-        audioEl.controls = false;
-        audioEl.muted = false;
-        audioEl.style.position = 'absolute';
-        audioEl.style.width = '0px';
-        audioEl.style.height = '0px';
-        audioEl.style.opacity = '0';
-        audioEl.setAttribute('aria-hidden', 'true');
-        document.body.appendChild(audioEl);
-        audioRefs.current[p.user_id] = audioEl;
-      }
+      const existing = sourceNodesRef.current[p.user_id];
+      const needsRecreate = !existing || (existing.mediaStream !== p.stream);
 
-      const el = audioRefs.current[p.user_id]!;
-      if (el.srcObject !== p.stream) {
-        el.srcObject = p.stream as MediaStream;
-        // Attempt playback
-        el.play().catch((err) => {
-          console.warn('Auto-play may be blocked; will resume on user gesture:', err);
-        });
+      if (needsRecreate) {
+        try {
+          // Cleanup old node if any
+          if (existing) {
+            try { existing.disconnect(); } catch {}
+            sourceNodesRef.current[p.user_id] = null;
+          }
+
+          const src = audioCtx.createMediaStreamSource(p.stream as MediaStream);
+          src.connect(audioCtx.destination);
+          sourceNodesRef.current[p.user_id] = src;
+          console.log('[WebRTC] Connected remote stream to AudioContext for', p.username || p.user_id);
+        } catch (err) {
+          console.warn('Failed to connect remote stream to AudioContext:', err);
+        }
       }
     });
 
-    // Cleanup audio elements for participants that left
+    // Cleanup nodes for participants that left
     const currentIds = new Set(participants.map((p) => p.user_id));
-    Object.keys(audioRefs.current).forEach((id) => {
+    Object.keys(sourceNodesRef.current).forEach((id) => {
       if (!currentIds.has(id)) {
-        const el = audioRefs.current[id];
-        if (el) {
-          try { el.pause(); } catch { }
-          el.srcObject = null;
-          el.remove();
+        const node = sourceNodesRef.current[id];
+        if (node) {
+          try { node.disconnect(); } catch {}
         }
-        delete audioRefs.current[id];
+        delete sourceNodesRef.current[id];
       }
     });
 
     return () => {
-      // Do not remove here; cleanup happens when participants change/unmount
+      // Do not disconnect on rerender; handled above when participants change
     };
   }, [participants]);
 
