@@ -32,14 +32,21 @@ export const useCollaborationPermissions = (collaborationId: string | null) => {
           return;
         }
 
-        // Check if user is the project owner
+        // Check if user is the project owner or if session allows public access
         const { data: project } = await supabase
           .from('collaboration_projects')
-          .select('created_by')
+          .select('created_by, allow_public_access')
           .eq('id', collaborationId)
-          .single();
+          .maybeSingle();
+
+        if (!project) {
+          setPermissions({ canEdit: false, canView: false, userRole: null, isOwner: false });
+          setLoading(false);
+          return;
+        }
 
         const isOwner = project?.created_by === user.id;
+        const hasPublicAccess = project?.allow_public_access === true;
 
         // Check if user is a member with specific role
         const { data: member } = await supabase
@@ -47,11 +54,11 @@ export const useCollaborationPermissions = (collaborationId: string | null) => {
           .select('role, status')
           .eq('collaboration_id', collaborationId)
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
 
         let canEdit = false;
-        let canView = true; // Authenticated users can always view
-        let userRole: 'creator' | 'collaborator' | 'viewer' | null = 'viewer';
+        let canView = hasPublicAccess || isOwner; // Allow view if public access or owner
+        let userRole: 'creator' | 'collaborator' | 'viewer' | null = hasPublicAccess ? 'viewer' : null;
 
         if (isOwner) {
           canEdit = true;
@@ -74,13 +81,14 @@ export const useCollaborationPermissions = (collaborationId: string | null) => {
           collaborationId,
           userId: user.id,
           isOwner,
+          hasPublicAccess,
           member,
           permissions: { canEdit, canView, userRole }
         });
 
       } catch (error) {
         console.error('Error checking collaboration permissions:', error);
-        setPermissions({ canEdit: false, canView: true, userRole: 'viewer', isOwner: false });
+        setPermissions({ canEdit: false, canView: false, userRole: null, isOwner: false });
       } finally {
         setLoading(false);
       }

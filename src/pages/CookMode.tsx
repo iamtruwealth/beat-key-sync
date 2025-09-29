@@ -205,12 +205,30 @@ const CookMode = () => {
   };
 
   const shareSessionLink = async () => {
-    const link = `${window.location.origin}/cook-mode/${sessionId}`;
-    await navigator.clipboard.writeText(link);
-    toast({
-      title: "Success",
-      description: "Session link copied to clipboard!"
-    });
+    try {
+      // Enable public access for this session
+      const { error } = await supabase.rpc('enable_session_sharing', {
+        session_id: sessionId
+      });
+
+      if (error) {
+        console.error('Error enabling session sharing:', error);
+      }
+
+      const link = `${window.location.origin}/cook-mode/${sessionId}`;
+      await navigator.clipboard.writeText(link);
+      toast({
+        title: "Success",
+        description: "Session link copied to clipboard! Anyone with this link can now join the session."
+      });
+    } catch (error) {
+      console.error('Error sharing session:', error);
+      toast({
+        title: "Error",
+        description: "Failed to share session link",
+        variant: "destructive"
+      });
+    }
   };
 
   // Wrap playback controls to broadcast to other users
@@ -361,8 +379,9 @@ const CookMode = () => {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Access Denied</h1>
-          <p className="text-muted-foreground">You don't have permission to view this session.</p>
+          <h1 className="text-2xl font-bold mb-4">Session Not Available</h1>
+          <p className="text-muted-foreground mb-4">This Cook Mode session is not publicly accessible.</p>
+          <p className="text-sm text-muted-foreground">Ask the session owner to share a valid link or invite you as a collaborator.</p>
         </div>
       </div>
     );
@@ -422,7 +441,14 @@ const CookMode = () => {
                 <Zap className="w-5 h-5 text-neon-cyan animate-pulse" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-foreground">{session.name}</h1>
+                <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
+                  {session.name}
+                  {!permissions.canEdit && permissions.userRole === 'viewer' && (
+                    <Badge variant="outline" className="text-xs border-orange-400 text-orange-400">
+                      View Only
+                    </Badge>
+                  )}
+                </h1>
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
                   <span>{session.target_bpm} BPM</span>
                   <span>Key: {session.target_genre}</span>
