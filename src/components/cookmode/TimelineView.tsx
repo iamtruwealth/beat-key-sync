@@ -812,7 +812,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                     className="w-full"
                   />
                   <Button
-                    variant={activeTrackId === track.id ? "default" : "outline"}
+                    variant={activeMidiTrackId === track.id ? "default" : "outline"}
                     size="sm"
                     className={`text-xs mt-1 px-2 py-1 h-6 transition-all duration-300 ${
                       activeMidiTrackId === track.id 
