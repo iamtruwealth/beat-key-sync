@@ -159,47 +159,47 @@ const CookMode = () => {
     }
   }, [sessionId, session, joinSession, isAuthenticated]);
 
-  // Auto-enable audio context for live viewers
+  // Auto-enable audio context for live viewers (with safe fallbacks)
   useEffect(() => {
-    const enableAudio = async () => {
-      try {
-        await Tone.start();
-        const ctx = Tone.getContext();
-        if (ctx.state === 'suspended') {
-          await ctx.resume();
-        }
-        console.log('🔊 Audio auto-enabled for live viewer');
-      } catch (e) {
-        console.warn('Auto audio enable failed, will try on first interaction:', e);
-        
-        // Fallback: enable on any user interaction
-        const fallbackEnable = async () => {
-          try {
-            await Tone.start();
-            const ctx = Tone.getContext();
-            if (ctx.state === 'suspended') {
-              await ctx.resume();
-            }
-            console.log('🔊 Audio enabled via fallback interaction');
-            document.removeEventListener('click', fallbackEnable);
-            document.removeEventListener('keydown', fallbackEnable);
-            document.removeEventListener('touchstart', fallbackEnable);
-          } catch (err) {
-            console.warn('Fallback audio enable failed:', err);
-          }
-        };
-        
-        document.addEventListener('click', fallbackEnable);
-        document.addEventListener('keydown', fallbackEnable);
-        document.addEventListener('touchstart', fallbackEnable);
+    const cleanupFns: Array<() => void> = [];
+
+    const tryEnable = async () => {
+      await Tone.start();
+      const ctx = Tone.getContext();
+      if (ctx.state === 'suspended') {
+        await ctx.resume();
       }
+      console.log('🔊 Audio auto-enabled for live viewer');
     };
 
-    enableAudio();
+    const attachFallback = () => {
+      const fallbackEnable = async () => {
+        try {
+          await Tone.start();
+          const ctx = Tone.getContext();
+          if (ctx.state === 'suspended') {
+            await ctx.resume();
+          }
+          console.log('🔊 Audio enabled via fallback interaction');
+        } catch (err) {
+          console.warn('Fallback audio enable failed:', err);
+        }
+      };
+
+      ['click', 'keydown', 'touchstart'].forEach((evt) => {
+        const handler = () => fallbackEnable();
+        document.addEventListener(evt, handler, { once: true });
+        cleanupFns.push(() => document.removeEventListener(evt, handler));
+      });
+    };
+
+    tryEnable().catch((e) => {
+      console.warn('Auto audio enable failed, attaching fallbacks:', e);
+      attachFallback();
+    });
 
     return () => {
-      document.removeEventListener('click', enableAudio);
-      document.removeEventListener('keydown', enableAudio);
+      cleanupFns.forEach((fn) => fn());
     };
   }, []);
 
