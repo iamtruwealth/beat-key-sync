@@ -20,6 +20,7 @@ import { LiveSessionIndicator } from '@/components/cookmode/LiveSessionIndicator
 import { AccessLevelNotification } from '@/components/cookmode/AccessLevelNotification';
 import { CookModeChat } from '@/components/cookmode/CookModeChat';
 import { VideoStreamingPanel } from '@/components/cookmode/VideoStreamingPanel';
+import { BackgroundWebRTCConnector } from '@/components/cookmode/BackgroundWebRTCConnector';
 import { SessionParticipants } from '@/components/cookmode/SessionParticipants';
 import { SessionControls } from '@/components/cookmode/SessionControls';
 import { CookModeAudioControls } from '@/components/cookmode/CookModeAudioControls';
@@ -804,6 +805,13 @@ const CookMode = () => {
             </div>
           )}
 
+          {/* Background WebRTC connector to ensure viewers always receive audio */}
+          <BackgroundWebRTCConnector 
+            sessionId={sessionId!} 
+            canEdit={permissions.canEdit}
+            currentUserId={currentUser?.id}
+          />
+ 
           {/* Always visible chat section - takes remaining space */}
           <div className="flex-1 flex flex-col min-h-0">
             <Tabs defaultValue="chat" className="flex-1 flex flex-col">

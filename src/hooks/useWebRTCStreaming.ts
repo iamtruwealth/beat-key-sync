@@ -321,8 +321,17 @@ export const useWebRTCStreaming = ({ sessionId, canEdit, currentUserId }: UseWeb
           username,
           streaming: true
         });
-      }
 
+        // Initiate peer connections to all currently present participants
+        const presenceState = signalingChannel.current.presenceState?.() || {};
+        const others = (Object.values(presenceState).flat() as any[]);
+        for (const presence of others) {
+          if (presence.user_id && presence.user_id !== user?.id) {
+            await createPeerConnection(presence.user_id, presence.username || 'Guest', true);
+          }
+        }
+      }
+ 
       toast.success('Started video streaming with session audio');
     } catch (error) {
       console.error('Error starting stream:', error);
