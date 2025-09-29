@@ -587,6 +587,9 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const handleTimelineClick = useCallback((event: React.MouseEvent) => {
     if (!timelineRef.current) return;
     
+    // Don't handle timeline clicks if clicking on the playhead
+    if ((event.target as HTMLElement).closest('.playhead-container')) return;
+    
     const rect = timelineRef.current.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const time = snapToGrid(x / pixelsPerSecond);
@@ -959,10 +962,44 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
 
             {/* Playhead */}
             <div
-              className="absolute top-12 bottom-0 w-0.5 bg-primary z-20 pointer-events-none"
+              className="playhead-container absolute top-12 bottom-0 w-0.5 bg-primary z-20 cursor-pointer hover:w-1 transition-all"
               style={{ left: (currentTime % sessionDuration) * pixelsPerSecond }}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const startX = e.clientX;
+                const startTime = currentTime;
+                let isDragging = false;
+                
+                const handleMouseMove = (moveEvent: MouseEvent) => {
+                  if (!timelineRef.current) return;
+                  
+                  const rect = timelineRef.current.getBoundingClientRect();
+                  const deltaX = moveEvent.clientX - startX;
+                  const deltaTime = deltaX / pixelsPerSecond;
+                  const newTime = Math.max(0, Math.min(sessionDuration, startTime + deltaTime));
+                  
+                  isDragging = true;
+                  onSeek(newTime);
+                };
+                
+                const handleMouseUp = () => {
+                  document.removeEventListener('mousemove', handleMouseMove);
+                  document.removeEventListener('mouseup', handleMouseUp);
+                  document.body.style.cursor = '';
+                  document.body.style.userSelect = '';
+                };
+                
+                document.addEventListener('mousemove', handleMouseMove);
+                document.addEventListener('mouseup', handleMouseUp);
+                document.body.style.cursor = 'grabbing';
+                document.body.style.userSelect = 'none';
+              }}
             >
-              <div className="absolute -top-2 -left-1 w-3 h-3 bg-primary rotate-45" />
+              <div 
+                className="absolute -top-2 -left-1 w-3 h-3 bg-primary rotate-45 hover:scale-125 transition-transform cursor-grab active:cursor-grabbing" 
+              />
             </div>
 
             {/* Master Output Visualization */}
