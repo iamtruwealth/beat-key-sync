@@ -16,41 +16,41 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
   const { participants } = useWebRTCStreaming({ sessionId, canEdit, currentUserId });
 
   const [audioEnabled, setAudioEnabled] = useState(false);
+  const [overlayVisible, setOverlayVisible] = useState(true);
   const audioRefs = useRef<Record<string, HTMLAudioElement | null>>({});
   const gainNodesRef = useRef<Record<string, GainNode>>({});
 
-  // Triggered by first tap anywhere (overlay)
   const enableAudio = async () => {
     try {
-      await Tone.start(); // Resume AudioContext
+      await Tone.start(); // resume AudioContext
       setAudioEnabled(true);
+
+      // start fade out
+      setOverlayVisible(false);
+
       console.log('🔊 Audio context resumed for viewers');
     } catch (err) {
       console.warn('Failed to enable audio:', err);
     }
   };
 
-  // Connect remote streams through Tone.js + hidden <audio>
   useEffect(() => {
-    if (!audioEnabled) return; // Only connect after user gesture
+    if (!audioEnabled) return;
     const audioCtx = Tone.getContext().rawContext as AudioContext;
 
     participants.forEach((p) => {
       if (!p.stream) return;
       const userId = p.user_id;
 
-      // Create GainNode if not exists
       if (!gainNodesRef.current[userId]) {
         const gainNode = audioCtx.createGain();
         gainNode.gain.value = 1.0;
         gainNodesRef.current[userId] = gainNode;
       }
 
-      // Connect MediaStream to Tone.js
       const src = audioCtx.createMediaStreamSource(p.stream as MediaStream);
       src.connect(gainNodesRef.current[userId]).connect(audioCtx.destination);
 
-      // Hidden <audio> element for browser autoplay
       if (!audioRefs.current[userId]) {
         const audioEl = document.createElement('audio');
         audioEl.autoplay = true;
@@ -64,13 +64,11 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
       const el = audioRefs.current[userId]!;
       if (el.srcObject !== p.stream) {
         el.srcObject = p.stream as MediaStream;
-        el.play().catch((err) => {
-          console.warn('Auto-play blocked even after enable:', err);
-        });
+        el.play().catch((err) => console.warn('Auto-play blocked:', err));
       }
     });
 
-    // Cleanup audio and GainNodes for participants who left
+    // Cleanup participants that left
     const currentIds = new Set(participants.map((p) => p.user_id));
     Object.keys(audioRefs.current).forEach((id) => {
       if (!currentIds.has(id)) {
@@ -82,28 +80,33 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
     });
   }, [participants, audioEnabled]);
 
-  // Show full-screen overlay for first user gesture
-  if (!audioEnabled && participants.length > 0) {
+  // Overlay JSX — only rendered if overlayVisible
+  if (overlayVisible) {
     return (
       <div
         style={{
           position: 'fixed',
           top: 0,
           left: 0,
-          width: '100vw',
-          height: '100vh',
+          width: '100%',
+          height: '100%',
           backgroundColor: 'rgba(0,0,0,0.85)',
           zIndex: 9999,
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
           color: '#fff',
-          fontSize: '1.5rem',
+          fontSize: '2rem',
           textAlign: 'center',
-          flexDirection: 'column',
           cursor: 'pointer',
+          padding: '20px',
+          opacity: overlayVisible ? 1 : 0,
+          transition: 'opacity 0.5s ease',
         }}
         onClick={enableAudio}
+        onTransitionEnd={() => {
+          if (!overlayVisible) setOverlayVisible(false); // remove from DOM after fade
+        }}
       >
         Tap to Join Audio
       </div>
