@@ -370,13 +370,15 @@ const CookMode = () => {
 
   // Main Cook Mode Interface
   return (
-    <div className="min-h-screen bg-background overflow-hidden">
+    <div className="min-h-screen bg-background overflow-hidden flex">
       <MetaTags 
         title={`Cook Mode: ${session.name} | BeatPackz`}
         description="Live beat creation session in progress"
       />
 
-      {/* View Switcher - At Very Top Center of Page */}
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col">
+        {/* View Switcher - At Very Top Center of Page */}
       <div className="flex items-center justify-between p-4 border-b border-border/30 bg-card/20 backdrop-blur-sm">
         {/* Dashboard Button - Far Left */}
         <Button
@@ -526,9 +528,7 @@ const CookMode = () => {
         />
       </div>
 
-      {/* Main Interface */}
-      <div className="flex h-[calc(100vh-80px)]">
-        {/* DAW Area */}
+        {/* DAW Interface */}
         <div className="flex-1 flex flex-col">
           {/* Transport Controls - only show if user can edit */}
           {permissions.canEdit && (
@@ -576,8 +576,9 @@ const CookMode = () => {
             />
           </div>
         </div>
+      </div>
 
-        {/* Right Sidebar - Extended to full height */}
+      {/* Right Sidebar - Full Height */}
         <div className="w-80 border-l border-border/50 bg-card/20 backdrop-blur-sm flex flex-col h-full">
           {/* Sidebar Tabs */}
           <Tabs value={activeSidebarTab} onValueChange={(value) => setActiveSidebarTab(value as 'participants' | 'chat' | 'video')}>
