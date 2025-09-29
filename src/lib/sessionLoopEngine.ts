@@ -129,6 +129,7 @@ export class SessionLoopEngine {
         const secondsPerBeat = 60 / Tone.Transport.bpm.value;
         const playDurationSec = (clip.sourceDurationSeconds ?? (clip.durationInBeats * secondsPerBeat));
         const sourceOffsetSec = clip.sourceOffsetSeconds ?? 0;
+        console.log('Scheduling clip', clip.id, { startTime, endTime, sourceOffsetSec, playDurationSec });
         
         // Start at transport time with source offset/duration to respect trims
         player.start(startTime, sourceOffsetSec, playDurationSec);

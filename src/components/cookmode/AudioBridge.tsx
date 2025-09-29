@@ -211,7 +211,7 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
     if (!isInitialized.current) return;
     if (Array.isArray(clips) && clips.length > 0) {
       const engineClips = createClipsFromTimeline(clips, bpm);
-      console.log('AudioBridge: Timeline clips changed, updating engine clips');
+      console.log('AudioBridge: Timeline clips changed, updating engine clips', engineClips.map(c => ({ id: c.id, offsetInBeats: c.offsetInBeats, durationInBeats: c.durationInBeats, sourceOffsetSeconds: (c as any).sourceOffsetSeconds, sourceDurationSeconds: (c as any).sourceDurationSeconds })));
       sessionLoopEngine.setClips(engineClips, minBars);
     }
   }, [clips, bpm, createClipsFromTimeline, minBars]);
