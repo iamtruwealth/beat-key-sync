@@ -472,7 +472,10 @@ const CookMode = () => {
             onToggleMetronome={() => setMetronomeEnabled(!metronomeEnabled)}
             onUpdateBpm={(bpm) => updateSessionSettings({ bpm })}
             onUpdateKey={(key) => updateSessionSettings({ key })}
-            onUpdateMinBars={setMinBars}
+            onUpdateMinBars={(bars) => {
+              console.log('Updating minBars to:', bars);
+              setMinBars(bars);
+            }}
             onCreateEmptyTrack={async (name) => { await addEmptyTrack(name); }}
             onAddTrack={addTrack}
           />
