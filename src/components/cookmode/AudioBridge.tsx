@@ -214,7 +214,19 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
       console.log('AudioBridge: Timeline clips changed, updating engine clips');
       sessionLoopEngine.setClips(engineClips, minBars);
     }
-  }, [clips, bpm, createClipsFromTimeline]);
+  }, [clips, bpm, createClipsFromTimeline, minBars]);
+
+  // Apply new minimum bar count to loop length (works for both timeline and tracks-only modes)
+  useEffect(() => {
+    if (!isInitialized.current) return;
+    if (Array.isArray(clips) && clips.length > 0) {
+      const engineClips = createClipsFromTimeline(clips, bpm);
+      sessionLoopEngine.setClips(engineClips, minBars);
+    } else {
+      const engineClips = createClipsFromTracks(tracks, bpm);
+      sessionLoopEngine.setClips(engineClips, minBars);
+    }
+  }, [minBars, bpm, clips, tracks, createClipsFromTimeline, createClipsFromTracks]);
 
   // Handle track property updates (volume, mute, solo)
   useEffect(() => {
