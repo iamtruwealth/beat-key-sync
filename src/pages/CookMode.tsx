@@ -441,13 +441,37 @@ const CookMode = () => {
 
   // Loading state - show when we have sessionId but no session data, still checking auth, or still checking permissions
   if (sessionId && ((authLoading || (!session || !isConnected)) || permissionsLoading)) {
+    const getLoadingMessage = () => {
+      if (authLoading) return 'Checking authentication...';
+      if (permissionsLoading) return 'Checking permissions...';
+      if (!session) return 'Loading session data...';
+      if (!isConnected) return 'Connecting to realtime session...';
+      return 'Connecting to Cook Mode session...';
+    };
+
+    console.log('🔄 Loading state:', {
+      authLoading,
+      hasSession: !!session,
+      isConnected,
+      permissionsLoading,
+      sessionId
+    });
+
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-neon-cyan mx-auto mb-4"></div>
           <p className="text-muted-foreground">
-            {authLoading ? 'Checking authentication...' : 'Connecting to Cook Mode session...'}
+            {getLoadingMessage()}
           </p>
+          {process.env.NODE_ENV === 'development' && (
+            <div className="mt-4 text-xs text-muted-foreground opacity-50">
+              <div>Auth: {authLoading ? 'loading' : 'ready'}</div>
+              <div>Session: {session ? 'loaded' : 'missing'}</div>
+              <div>Connected: {isConnected ? 'yes' : 'no'}</div>
+              <div>Permissions: {permissionsLoading ? 'loading' : 'ready'}</div>
+            </div>
+          )}
         </div>
       </div>
     );
