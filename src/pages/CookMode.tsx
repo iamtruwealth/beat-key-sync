@@ -20,6 +20,7 @@ import { LiveSessionIndicator } from '@/components/cookmode/LiveSessionIndicator
 import { AccessLevelNotification } from '@/components/cookmode/AccessLevelNotification';
 import { CookModeChat } from '@/components/cookmode/CookModeChat';
 import { VideoStreamingPanel } from '@/components/cookmode/VideoStreamingPanel';
+import { AudioStreamViewer } from '@/components/cookmode/AudioStreamViewer';
 import { SessionParticipants } from '@/components/cookmode/SessionParticipants';
 import { SessionControls } from '@/components/cookmode/SessionControls';
 import { CookModeAudioControls } from '@/components/cookmode/CookModeAudioControls';
@@ -825,8 +826,20 @@ const CookMode = () => {
               </TabsContent>
               
               <TabsContent value="audio" className="flex-1 overflow-hidden min-h-0 m-0">
-                <div className="flex-1 overflow-auto p-4 pt-2">
-                  <CookModeAudioControls />
+                <div className="flex-1 overflow-auto p-4 pt-2 space-y-4">
+                  {/* Audio Stream Viewer for all users */}
+                  <div>
+                    <h4 className="text-sm font-medium text-foreground mb-2">Live Session Audio</h4>
+                    <AudioStreamViewer sessionId={sessionId!} />
+                  </div>
+                  
+                  {/* Audio Controls for editors only */}
+                  {permissions.canEdit && (
+                    <div>
+                      <h4 className="text-sm font-medium text-foreground mb-2">Audio Controls</h4>
+                      <CookModeAudioControls />
+                    </div>
+                  )}
                 </div>
               </TabsContent>
             </Tabs>
