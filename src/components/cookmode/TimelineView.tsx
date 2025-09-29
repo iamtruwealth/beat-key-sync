@@ -672,6 +672,20 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
 
     return (
       <div className="relative w-full h-full">
+        {/* Beat grid lines for this track */}
+        {Array.from({ length: totalBars }).map((_, bar) => 
+          [1, 2, 3, 4].map(beat => (
+            <div
+              key={`track-${track.id}-beat-${bar}-${beat}`}
+              className="absolute w-px bg-white/5 pointer-events-none z-10"
+              style={{ 
+                left: bar * pixelsPerBar + beat * pixelsPerBeat,
+                top: 0,
+                height: '100%'
+              }}
+            />
+          ))
+        ).flat()}
         {trackClips.map(clip => {
           const clipWidth = (clip.endTime - clip.startTime) * pixelsPerSecond;
           const clipLeft = clip.startTime * pixelsPerSecond;
