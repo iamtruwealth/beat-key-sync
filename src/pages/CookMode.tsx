@@ -1,3 +1,4 @@
+import * as Tone from 'tone';
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -158,22 +159,43 @@ const CookMode = () => {
     }
   }, [sessionId, session, joinSession, isAuthenticated]);
 
-  // Enable audio context on first user interaction
+  // Auto-enable audio context for live viewers
   useEffect(() => {
-    const enableAudio = () => {
-      // Create a dummy audio context to enable audio
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      if (audioContext.state === 'suspended') {
-        audioContext.resume().then(() => {
-          console.log('Audio context enabled');
-        });
+    const enableAudio = async () => {
+      try {
+        await Tone.start();
+        const ctx = Tone.getContext();
+        if (ctx.state === 'suspended') {
+          await ctx.resume();
+        }
+        console.log('🔊 Audio auto-enabled for live viewer');
+      } catch (e) {
+        console.warn('Auto audio enable failed, will try on first interaction:', e);
+        
+        // Fallback: enable on any user interaction
+        const fallbackEnable = async () => {
+          try {
+            await Tone.start();
+            const ctx = Tone.getContext();
+            if (ctx.state === 'suspended') {
+              await ctx.resume();
+            }
+            console.log('🔊 Audio enabled via fallback interaction');
+            document.removeEventListener('click', fallbackEnable);
+            document.removeEventListener('keydown', fallbackEnable);
+            document.removeEventListener('touchstart', fallbackEnable);
+          } catch (err) {
+            console.warn('Fallback audio enable failed:', err);
+          }
+        };
+        
+        document.addEventListener('click', fallbackEnable);
+        document.addEventListener('keydown', fallbackEnable);
+        document.addEventListener('touchstart', fallbackEnable);
       }
-      document.removeEventListener('click', enableAudio);
-      document.removeEventListener('keydown', enableAudio);
     };
 
-    document.addEventListener('click', enableAudio);
-    document.addEventListener('keydown', enableAudio);
+    enableAudio();
 
     return () => {
       document.removeEventListener('click', enableAudio);

@@ -160,19 +160,7 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
             </Button>
             
             <Button
-              onClick={async () => {
-                try {
-                  await Tone.start();
-                  const ctx = Tone.getContext();
-                  if (ctx.state === 'suspended') {
-                    await ctx.resume();
-                  }
-                  console.log('🔊 Audio unlocked via user gesture');
-                } catch (e) {
-                  console.warn('Tone.start() failed:', e);
-                }
-                onTogglePlayback();
-              }}
+              onClick={onTogglePlayback}
               className={`p-3 ${
                 isPlaying 
                   ? 'bg-gradient-to-r from-red-500 to-red-600 text-white hover:opacity-90' 
