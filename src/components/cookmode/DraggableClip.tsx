@@ -172,12 +172,16 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
       
       if (isTrimming === 'start') {
         newTrimStart = Math.min(snappedTime, trimEnd - 0.1); // Ensure start < end
+        // Only change start, keep end the same
+        if (Math.abs(newTrimStart - trimStart) > 0.01) {
+          onTrimClip(clip.id, isTrimming, newTrimStart, trimEnd);
+        }
       } else {
         newTrimEnd = Math.max(snappedTime, trimStart + 0.1); // Ensure end > start
-      }
-      
-      if (Math.abs(newTrimStart - trimStart) > 0.01 || Math.abs(newTrimEnd - trimEnd) > 0.01) {
-        onTrimClip(clip.id, isTrimming, newTrimStart, newTrimEnd);
+        // Only change end, keep start the same
+        if (Math.abs(newTrimEnd - trimEnd) > 0.01) {
+          onTrimClip(clip.id, isTrimming, trimStart, newTrimEnd);
+        }
       }
       
       setIsTrimming(null);
