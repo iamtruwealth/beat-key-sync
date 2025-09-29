@@ -723,16 +723,19 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                 setAudioClips(prev => prev.map(c => {
                   if (c.id !== clipId) return c;
                   const fullDur = c.fullDuration;
-                  const newS = Math.max(0, Math.min(s, fullDur - 0.05));
-                  const newE = Math.max(newS + 0.05, Math.min(e, fullDur));
-                  const newVisible = newE - newS;
+                  const minGap = 0.05;
+                  const curS = c.trimStart;
+                  const curE = c.trimEnd;
                   if (edge === 'start') {
-                    const oldEnd = c.endTime;
-                    const newStart = Math.max(0, oldEnd - newVisible);
-                    return { ...c, trimStart: newS, trimEnd: newE, startTime: newStart, endTime: oldEnd };
+                    const newS = Math.min(Math.max(0, s), Math.min(fullDur - minGap, curE - minGap));
+                    const newVisible = curE - newS; // keep end fixed
+                    const newStart = Math.max(0, c.endTime - newVisible);
+                    return { ...c, trimStart: newS, startTime: newStart };
                   } else {
+                    const newE = Math.max(Math.min(e, fullDur), Math.max(curS + minGap, 0));
+                    const newVisible = newE - curS; // keep start fixed
                     const newEnd = c.startTime + newVisible;
-                    return { ...c, trimStart: newS, trimEnd: newE, endTime: newEnd };
+                    return { ...c, trimEnd: newE, endTime: newEnd };
                   }
                 }));
               }}
