@@ -207,7 +207,6 @@ const CookMode: React.FC = () => {
     );
   }
 
-  if (sessionError || !session) {
 
   // Main Cook Mode Interface
   return (
@@ -271,6 +270,8 @@ const CookMode: React.FC = () => {
                     <span>Key: {session.target_genre}</span>
                     <LiveSessionIndicator 
                       participantCount={realtimeParticipants.length || participants.length} 
+                      isConnected={realtimeData.isConnected}
+                      canEdit={permissions.canEdit}
                     />
                   </div>
                 </div>
