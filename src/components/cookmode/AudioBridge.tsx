@@ -177,7 +177,10 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
                track.id !== prevTrack.id || 
                track.file_url !== prevTrack.file_url ||
                track.volume !== prevTrack.volume ||
-               track.isMuted !== prevTrack.isMuted;
+               track.isMuted !== prevTrack.isMuted ||
+               track.bars !== prevTrack.bars ||
+               (track.analyzed_duration || 0) !== (prevTrack.analyzed_duration || 0) ||
+               (track.duration || 0) !== (prevTrack.duration || 0);
       });
 
     if (tracksChanged) {

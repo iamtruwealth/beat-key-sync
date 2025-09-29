@@ -127,6 +127,29 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     }
   }, [tracks, secondsPerBar]);
 
+  // When analyzed/known durations arrive, extend initial placeholder clips to full length
+  useEffect(() => {
+    if (audioClips.length === 0) return;
+
+    setAudioClips(prev => {
+      let changed = false;
+      const updated = prev.map(clip => {
+        // Prefer duration from trackDurations map; fallback to track fields
+        const known = trackDurations.get(clip.trackId) || clip.originalTrack.analyzed_duration || clip.originalTrack.duration || 0;
+        if (!known || known <= 0) return clip;
+
+        const desiredEnd = clip.startTime + known; // seconds
+        // Only auto-extend if this was the initial clip starting at 0 and shorter than the analyzed length
+        if (clip.startTime === 0 && desiredEnd > clip.endTime + 0.01) {
+          changed = true;
+          return { ...clip, endTime: desiredEnd };
+        }
+        return clip;
+      });
+      return changed ? updated : prev;
+    });
+  }, [trackDurations, audioClips.length]);
+
   // Initialize audio clips from tracks - preserve existing arrangement
   useEffect(() => {
     console.log('Checking clips initialization:', { 
