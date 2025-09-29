@@ -63,7 +63,7 @@ export const useWebRTCStreaming = ({ sessionId, canEdit, currentUserId }: UseWeb
       .on('presence', { event: 'join' }, ({ newPresences }) => {
         console.log('📹 User joined video session:', newPresences);
         newPresences.forEach((presence: any) => {
-          if (presence.user_id !== currentUserId && isStreaming) {
+          if (presence.user_id !== currentUserId && localStream) {
             createPeerConnection(presence.user_id, presence.username, true);
           }
         });
@@ -77,7 +77,7 @@ export const useWebRTCStreaming = ({ sessionId, canEdit, currentUserId }: UseWeb
       .subscribe();
 
     signalingChannel.current = channel;
-  }, [sessionId, currentUserId, isStreaming]);
+  }, [sessionId, currentUserId]);
 
   // Create peer connection for a participant
   const createPeerConnection = async (userId: string, username: string, isInitiator: boolean) => {
@@ -331,7 +331,7 @@ export const useWebRTCStreaming = ({ sessionId, canEdit, currentUserId }: UseWeb
   };
 
   // Start as viewer (for guests - receive only, no camera)
-  const startAsViewer = async () => {
+  const startAsViewer = useCallback(async () => {
     try {
       console.log('👀 Starting as viewer - ready to receive streams');
       
@@ -360,7 +360,7 @@ export const useWebRTCStreaming = ({ sessionId, canEdit, currentUserId }: UseWeb
     } catch (error) {
       console.error('Error starting as viewer:', error);
     }
-  };
+  }, [currentUserId]);
 
   // Stop streaming
   const stopStreaming = () => {
@@ -409,16 +409,24 @@ export const useWebRTCStreaming = ({ sessionId, canEdit, currentUserId }: UseWeb
 
   // Setup signaling on mount and auto-connect guests
   useEffect(() => {
-    if (sessionId && currentUserId) {
-      setupSignaling();
+    if (!sessionId || !currentUserId) return;
+
+    console.log('🎬 Setting up WebRTC for session:', sessionId, 'canEdit:', canEdit);
+    setupSignaling();
+    
+    // Auto-start as viewer for guests
+    if (!canEdit) {
+      const timer = setTimeout(() => {
+        console.log('🎬 Auto-starting viewer mode for guest');
+        startAsViewer();
+      }, 1500); // Small delay to ensure signaling is ready
       
-      // Auto-start as viewer for guests
-      if (!canEdit) {
-        const timer = setTimeout(() => {
-          startAsViewer();
-        }, 1000); // Small delay to ensure signaling is ready
-        return () => clearTimeout(timer);
-      }
+      return () => {
+        clearTimeout(timer);
+        if (signalingChannel.current) {
+          signalingChannel.current.unsubscribe();
+        }
+      };
     }
 
     return () => {
@@ -427,7 +435,7 @@ export const useWebRTCStreaming = ({ sessionId, canEdit, currentUserId }: UseWeb
       }
       stopStreaming();
     };
-  }, [sessionId, currentUserId, canEdit]);
+  }, [sessionId, currentUserId, canEdit, setupSignaling, startAsViewer]);
 
   return {
     localStream,
