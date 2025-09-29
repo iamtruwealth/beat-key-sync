@@ -732,7 +732,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                   if (edge === 'start') {
                     const newS = Math.min(Math.max(0, s), Math.min(fullDur - minGap, curE - minGap));
                     const newVisible = curE - newS; // keep end fixed
-                    const newStart = Math.max(0, c.endTime - newVisible);
+                    const newStart = c.endTime - newVisible; // lock right edge
                     const next = { ...c, trimStart: newS, startTime: newStart };
                     console.log('[Trim] start', { s, e, newS, curE, newStart, next });
                     return next;
