@@ -20,7 +20,6 @@ import { LiveSessionIndicator } from '@/components/cookmode/LiveSessionIndicator
 import { AccessLevelNotification } from '@/components/cookmode/AccessLevelNotification';
 import { CookModeChat } from '@/components/cookmode/CookModeChat';
 import { VideoStreamingPanel } from '@/components/cookmode/VideoStreamingPanel';
-import { AudioStreamViewer } from '@/components/cookmode/AudioStreamViewer';
 import { SessionParticipants } from '@/components/cookmode/SessionParticipants';
 import { SessionControls } from '@/components/cookmode/SessionControls';
 import { CookModeAudioControls } from '@/components/cookmode/CookModeAudioControls';
@@ -827,11 +826,14 @@ const CookMode = () => {
               
               <TabsContent value="audio" className="flex-1 overflow-hidden min-h-0 m-0">
                 <div className="flex-1 overflow-auto p-4 pt-2 space-y-4">
-                  {/* Audio Stream Viewer for all users */}
-                  <div>
-                    <h4 className="text-sm font-medium text-foreground mb-2">Live Session Audio</h4>
-                    <AudioStreamViewer sessionId={sessionId!} autoStart={!permissions.canEdit} />
-                  </div>
+                  {/* Info for guests */}
+                  {!permissions.canEdit && (
+                    <div className="p-3 bg-card/50 border border-border/50 rounded-lg">
+                      <p className="text-sm text-muted-foreground">
+                        You're receiving live audio from producers automatically. Adjust the volume in your browser's tab controls.
+                      </p>
+                    </div>
+                  )}
                   
                   {/* Audio Controls for editors only */}
                   {permissions.canEdit && (
