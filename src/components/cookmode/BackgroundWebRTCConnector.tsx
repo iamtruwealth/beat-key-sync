@@ -1,6 +1,8 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useWebRTCStreaming } from '@/hooks/useWebRTCStreaming';
 import * as Tone from 'tone';
+import { Button } from '@/components/ui/button';
+import { Volume2 } from 'lucide-react';
 
 interface BackgroundWebRTCConnectorProps {
   sessionId: string;
@@ -16,56 +18,78 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
 }) => {
   const {
     participants,
-    // We don't expose controls here; hosts will use VideoStreamingPanel for camera streaming
   } = useWebRTCStreaming({ sessionId, canEdit, currentUserId });
 
-  // Keep refs of created WebAudio nodes per remote participant
-  const sourceNodesRef = useRef<Record<string, MediaStreamAudioSourceNode | null>>({});
+  const [audioEnabled, setAudioEnabled] = useState(false);
+  const audioRefs = useRef<Record<string, HTMLAudioElement | null>>({});
+
+  const enableAudio = async () => {
+    try {
+      await Tone.start();
+      setAudioEnabled(true);
+      console.log('🔊 Audio context resumed for remote streams');
+    } catch (err) {
+      console.warn('Failed to enable audio:', err);
+    }
+  };
 
   useEffect(() => {
-    const audioCtx = Tone.getContext().rawContext as AudioContext;
-
     participants.forEach((p) => {
       if (!p.stream) return;
 
-      const existing = sourceNodesRef.current[p.user_id];
-      const needsRecreate = !existing || (existing.mediaStream !== p.stream);
+      // Create or reuse audio element
+      if (!audioRefs.current[p.user_id]) {
+        const audioEl = document.createElement('audio');
+        audioEl.autoplay = true;
+        audioEl.setAttribute('playsinline', 'true');
+        audioEl.muted = false;
+        audioEl.style.display = 'none';
+        document.body.appendChild(audioEl);
+        audioRefs.current[p.user_id] = audioEl;
+        console.log('🔊 Created audio element for', p.username || p.user_id);
+      }
 
-      if (needsRecreate) {
-        try {
-          // Cleanup old node if any
-          if (existing) {
-            try { existing.disconnect(); } catch {}
-            sourceNodesRef.current[p.user_id] = null;
-          }
-
-          const src = audioCtx.createMediaStreamSource(p.stream as MediaStream);
-          src.connect(audioCtx.destination);
-          sourceNodesRef.current[p.user_id] = src;
-          console.log('[WebRTC] Connected remote stream to AudioContext for', p.username || p.user_id);
-        } catch (err) {
-          console.warn('Failed to connect remote stream to AudioContext:', err);
-        }
+      const el = audioRefs.current[p.user_id]!;
+      if (el.srcObject !== p.stream) {
+        el.srcObject = p.stream as MediaStream;
+        el.play().catch((err) => {
+          console.warn('Auto-play blocked for', p.username, '- click Enable Audio button:', err);
+        });
       }
     });
 
-    // Cleanup nodes for participants that left
+    // Cleanup audio elements for participants that left
     const currentIds = new Set(participants.map((p) => p.user_id));
-    Object.keys(sourceNodesRef.current).forEach((id) => {
+    Object.keys(audioRefs.current).forEach((id) => {
       if (!currentIds.has(id)) {
-        const node = sourceNodesRef.current[id];
-        if (node) {
-          try { node.disconnect(); } catch {}
+        const el = audioRefs.current[id];
+        if (el) {
+          el.pause();
+          el.srcObject = null;
+          el.remove();
         }
-        delete sourceNodesRef.current[id];
+        delete audioRefs.current[id];
       }
     });
-
-    return () => {
-      // Do not disconnect on rerender; handled above when participants change
-    };
   }, [participants]);
+
+  // Show enable audio button if needed and there are participants
+  if (!audioEnabled && participants.length > 0) {
+    return (
+      <div className="fixed bottom-4 right-4 z-50">
+        <Button
+          onClick={enableAudio}
+          className="bg-neon-cyan text-black hover:bg-neon-cyan/90 shadow-lg"
+          size="lg"
+        >
+          <Volume2 className="w-4 h-4 mr-2" />
+          Enable Audio
+        </Button>
+      </div>
+    );
+  }
 
   return null;
 };
+
 
