@@ -75,7 +75,7 @@ const CookMode = () => {
     saveSession,
     addEmptyTrack
   } = useCookModeSession(sessionId);
-  const { midiDevices, setActiveTrack, tracks: audioTracks, createTrack, loadSample } = useCookModeAudio();
+  const { midiDevices, setActiveTrack, tracks: audioTracks, createTrack, loadSample, setTrackTrim } = useCookModeAudio();
 
   useEffect(() => {
     if (sessionId && !session) {
@@ -487,7 +487,7 @@ const CookMode = () => {
               onAddTrack={addTrack}
               onRemoveTrack={removeTrack}
               onUpdateTrack={updateTrack}
-              onTrimTrack={trimTrack}
+              onTrimTrack={(id, s, e) => { trimTrack(id, s, e); setTrackTrim(id, s, e); }}
               onPlayPause={togglePlayback}
               onSeek={seekTo}
               externalActiveView={activeView}

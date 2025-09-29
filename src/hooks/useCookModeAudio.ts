@@ -35,6 +35,7 @@ export interface UseCookModeAudioReturn {
   stopRecording: () => void;
   playbackRecording: () => void;
   recordAudioInput: (trackId: string, durationMs?: number) => Promise<Blob>;
+  setTrackTrim: (trackId: string, trimStart: number, trimEnd: number) => void;
   
   // MIDI
   hasMidiDevices: boolean;
@@ -180,6 +181,11 @@ export function useCookModeAudio(): UseCookModeAudioReturn {
     engineRef.current.triggerSample(trackId, note, velocity);
   }, []);
 
+  const setTrackTrim = useCallback((trackId: string, trimStart: number, trimEnd: number): void => {
+    if (!engineRef.current) return;
+    engineRef.current.setTrackTrim(trackId, trimStart, trimEnd);
+  }, []);
+
   const setActiveTrack = useCallback((trackId: string): void => {
     if (!engineRef.current) {
       console.warn('⚠️ Audio engine not initialized');
@@ -283,6 +289,7 @@ export function useCookModeAudio(): UseCookModeAudioReturn {
     stopRecording,
     playbackRecording,
     recordAudioInput,
+    setTrackTrim,
     hasMidiDevices,
     lastMidiEvent,
     isAudioRecordingSupported,

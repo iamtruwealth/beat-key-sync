@@ -44,6 +44,8 @@ export interface AudioTrack {
   muted: boolean;
   solo: boolean;
   color: string;
+  trimStart?: number;
+  trimEnd?: number;
 }
 
 export interface MidiDevice {
@@ -327,7 +329,7 @@ export class CookModeAudioEngine {
       return;
     }
     
-    if (!track.sample?.player) {
+    if (!track.sample?.player || !track.sample.buffer) {
       console.warn(`⚠️ No sample loaded for track: ${trackId}`);
       return;
     }
@@ -343,16 +345,24 @@ export class CookModeAudioEngine {
       const playbackRate = Math.pow(2, semitoneOffset / 12);
       
       // Calculate volume based on velocity
-      const volumeDb = Tone.gainToDb(velocity / 127 * track.volume);
+      const volumeDb = Tone.gainToDb((velocity / 127) * track.volume);
+      
+      // Determine trim offset and duration
+      const totalDuration = track.sample.buffer.duration;
+      const offset = Math.max(0, Math.min(totalDuration, track.trimStart ?? 0));
+      const end = Math.max(offset + 0.01, Math.min(totalDuration, track.trimEnd ?? totalDuration));
+      const duration = Math.max(0.01, end - offset);
       
       // Set playback params with clickless fades
       track.sample.player.playbackRate = playbackRate;
       track.sample.player.fadeIn = 0.01; // 10ms attack
       track.sample.player.fadeOut = 0.03; // 30ms release
       track.sample.player.volume.value = volumeDb;
-      track.sample.player.start();
+      
+      // Start at offset for duration to respect trim
+      track.sample.player.start(undefined, offset, duration);
 
-      console.log(`🎵 Triggered sample on track ${trackId}, note ${note}, velocity ${velocity}`);
+      console.log(`🎵 Triggered sample on track ${trackId}, note ${note}, velocity ${velocity}, offset ${offset.toFixed(2)}s, duration ${duration.toFixed(2)}s`);
       
     } catch (error) {
       console.error(`❌ Failed to trigger sample on track ${trackId}:`, error);
@@ -449,13 +459,25 @@ export class CookModeAudioEngine {
     Tone.Transport.start();
   }
 
+  // Set per-track trim range
+  public setTrackTrim(trackId: string, trimStart: number, trimEnd: number): void {
+    const track = this.tracks.get(trackId);
+    if (!track) return;
+    const total = track.sample?.buffer?.duration ?? undefined;
+    const start = Math.max(0, trimStart);
+    const end = total ? Math.min(trimEnd, total) : trimEnd;
+    track.trimStart = Math.min(start, end - 0.01);
+    track.trimEnd = Math.max(end, start + 0.01);
+    this.notifyTrackUpdate();
+  }
+
   // Notify UI of track updates
   private notifyTrackUpdate(): void {
     if (this.onTrackUpdate) {
       this.onTrackUpdate(Array.from(this.tracks.values()));
     }
   }
-
+  
   // Get all tracks
   public getTracks(): AudioTrack[] {
     return Array.from(this.tracks.values());
