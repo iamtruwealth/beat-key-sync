@@ -165,15 +165,21 @@ export function useOptimizedAudioAnalysis() {
 
       const result = await workerPromise;
 
+      // Ensure duration is always populated; fall back to decoded buffer duration
+      const finalResult = {
+        ...result,
+        duration: (result as any).duration && (result as any).duration > 0 ? (result as any).duration : audioBuffer.duration,
+      } as AudioAnalysisResult;
+
       setAnalysisState(prev => ({ ...prev, progress: 100 }));
-      setCachedResult(file, result);
+      setCachedResult(file, finalResult);
 
       toast({
         title: "Audio analysis complete",
-        description: `Audio analyzed: BPM ${result.bpm}, Key ${result.key} (${Math.round((result.confidenceScore || 0) * 100)}% confidence)`,
+        description: `Audio analyzed: BPM ${finalResult.bpm}, Key ${finalResult.key} (${Math.round((finalResult.confidenceScore || 0) * 100)}% confidence)`,
       });
 
-      return result;
+      return finalResult;
 
     } catch (error) {
       console.error('Analysis error:', error);

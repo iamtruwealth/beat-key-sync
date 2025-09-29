@@ -82,15 +82,31 @@ export function useCookModeIntegration({
       console.log(`🎵 Adding new track to main system: ${newTrack.name}`);
       onAddTrack(newTrack);
 
+      // Quick duration probe for immediate timeline extension
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
+        const audioCtx = new AudioCtx();
+        const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+        const quickDuration = audioBuffer.duration;
+        audioCtx.close?.();
+        onUpdateTrack(trackId, { analyzed_duration: quickDuration, duration: quickDuration });
+        console.log(`⏱️ Quick duration probe: ${quickDuration}s`);
+      } catch (e) {
+        console.warn('Quick duration probe failed:', e);
+      }
+
       // Analyze the audio file to get duration and other metadata
       try {
         console.log(`🔍 Starting audio analysis for: ${file.name}`);
         const analysisResult = await analyzeFile(file);
         
-        // Update track with analyzed duration
+        // Update track with analyzed duration (only if valid)
         const updates: Partial<Track> = {
-          analyzed_duration: analysisResult.duration,
-          duration: analysisResult.duration
+          ...(analysisResult.duration && analysisResult.duration > 0 ? {
+            analyzed_duration: analysisResult.duration,
+            duration: analysisResult.duration
+          } : {})
         };
         
         console.log(`✅ Audio analysis complete for ${file.name}: ${analysisResult.duration}s`);
@@ -114,6 +130,20 @@ export function useCookModeIntegration({
       console.log(`🔄 Updating existing track with new sample: ${existingTrack.name}`);
       onUpdateTrack(trackId, updates);
 
+      // Quick duration probe for immediate update
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
+        const audioCtx = new AudioCtx();
+        const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+        const quickDuration = audioBuffer.duration;
+        audioCtx.close?.();
+        onUpdateTrack(trackId, { ...updates, analyzed_duration: quickDuration, duration: quickDuration });
+        console.log(`⏱️ Quick duration probe (update): ${quickDuration}s`);
+      } catch (e) {
+        console.warn('Quick duration probe (update) failed:', e);
+      }
+
       // Also analyze the new file
       try {
         console.log(`🔍 Analyzing updated track: ${file.name}`);
@@ -121,8 +151,10 @@ export function useCookModeIntegration({
         
         const analysisUpdates: Partial<Track> = {
           ...updates,
-          analyzed_duration: analysisResult.duration,
-          duration: analysisResult.duration
+          ...(analysisResult.duration && analysisResult.duration > 0 ? {
+            analyzed_duration: analysisResult.duration,
+            duration: analysisResult.duration
+          } : {})
         };
         
         console.log(`✅ Analysis complete for updated track ${file.name}: ${analysisResult.duration}s`);
