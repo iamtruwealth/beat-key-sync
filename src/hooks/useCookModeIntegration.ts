@@ -5,6 +5,8 @@
 
 import { useEffect, useCallback } from 'react';
 import { useCookModeAudio } from './useCookModeAudio';
+import { useToast } from '@/hooks/use-toast';
+import { useOptimizedAudioAnalysis } from '@/hooks/useOptimizedAudioAnalysis';
 
 interface Track {
   id: string;
@@ -33,6 +35,8 @@ export function useCookModeIntegration({
   onRemoveTrack
 }: CookModeIntegrationProps) {
   const audioEngine = useCookModeAudio();
+  const { toast } = useToast();
+  const { analyzeFile } = useOptimizedAudioAnalysis();
 
   // Sync audio engine tracks with existing track system
   useEffect(() => {
@@ -58,7 +62,7 @@ export function useCookModeIntegration({
   }, [existingTracks, audioEngine.tracks, audioEngine.isInitialized, audioEngine.createTrack]);
 
   // Handle sample loading and track creation
-  const handleSampleLoaded = useCallback((trackId: string, file: File) => {
+  const handleSampleLoaded = useCallback(async (trackId: string, file: File) => {
     // Check if this track exists in the main track system
     const existingTrack = existingTracks.find(t => t.id === trackId);
     
@@ -77,6 +81,29 @@ export function useCookModeIntegration({
 
       console.log(`🎵 Adding new track to main system: ${newTrack.name}`);
       onAddTrack(newTrack);
+
+      // Analyze the audio file to get duration and other metadata
+      try {
+        console.log(`🔍 Starting audio analysis for: ${file.name}`);
+        const analysisResult = await analyzeFile(file);
+        
+        // Update track with analyzed duration
+        const updates: Partial<Track> = {
+          analyzed_duration: analysisResult.duration,
+          duration: analysisResult.duration
+        };
+        
+        console.log(`✅ Audio analysis complete for ${file.name}: ${analysisResult.duration}s`);
+        onUpdateTrack(trackId, updates);
+        
+      } catch (error) {
+        console.error('Audio analysis failed:', error);
+        toast({
+          title: "Analysis Warning",
+          description: `Could not analyze ${file.name}. Using default duration.`,
+          variant: "destructive"
+        });
+      }
     } else {
       // Update existing track with new sample
       const updates: Partial<Track> = {
@@ -86,8 +113,28 @@ export function useCookModeIntegration({
 
       console.log(`🔄 Updating existing track with new sample: ${existingTrack.name}`);
       onUpdateTrack(trackId, updates);
+
+      // Also analyze the new file
+      try {
+        console.log(`🔍 Analyzing updated track: ${file.name}`);
+        const analysisResult = await analyzeFile(file);
+        
+        const analysisUpdates: Partial<Track> = {
+          ...updates,
+          analyzed_duration: analysisResult.duration,
+          duration: analysisResult.duration
+        };
+        
+        console.log(`✅ Analysis complete for updated track ${file.name}: ${analysisResult.duration}s`);
+        onUpdateTrack(trackId, analysisUpdates);
+        
+      } catch (error) {
+        console.error('Audio analysis failed for updated track:', error);
+        // Still apply the file update even if analysis fails
+        onUpdateTrack(trackId, updates);
+      }
     }
-  }, [existingTracks, onAddTrack, onUpdateTrack]);
+  }, [existingTracks, onAddTrack, onUpdateTrack, analyzeFile, toast]);
 
   // Handle recorded audio clips
   const handleAudioRecorded = useCallback((trackId: string, audioBlob: Blob) => {
