@@ -12,7 +12,9 @@ import { MetaTags } from '@/components/MetaTags';
 import { GlassMorphismSection } from '@/components/futuristic/GlassMorphismSection';
 import { useCookModeSession } from '@/hooks/useCookModeSession';
 import { useCookModeAudio } from '@/hooks/useCookModeAudio';
+import { useSessionRealtime } from '@/hooks/useSessionRealtime';
 import { CookModeDAW } from '@/components/cookmode/CookModeDAW';
+import { LiveSessionIndicator } from '@/components/cookmode/LiveSessionIndicator';
 import { CookModeChat } from '@/components/cookmode/CookModeChat';
 import { SessionParticipants } from '@/components/cookmode/SessionParticipants';
 import { SessionControls } from '@/components/cookmode/SessionControls';
@@ -77,6 +79,15 @@ const CookMode = () => {
     addEmptyTrack
   } = useCookModeSession(sessionId);
   const { midiDevices, setActiveTrack, tracks: audioTracks, createTrack, loadSample, setTrackTrim } = useCookModeAudio();
+
+  // Real-time collaboration
+  const { 
+    participants: realtimeParticipants, 
+    playbackState, 
+    broadcastPlaybackToggle, 
+    broadcastPlaybackSeek,
+    isConnected: realtimeConnected 
+  } = useSessionRealtime(sessionId);
 
   useEffect(() => {
     if (sessionId && !session) {
@@ -179,6 +190,21 @@ const CookMode = () => {
       title: "Success",
       description: "Session link copied to clipboard!"
     });
+  };
+
+  // Wrap playback controls to broadcast to other users
+  const handleTogglePlayback = () => {
+    togglePlayback();
+    if (broadcastPlaybackToggle) {
+      broadcastPlaybackToggle(!isPlaying);
+    }
+  };
+
+  const handleSeekTo = (time: number) => {
+    seekTo(time);
+    if (broadcastPlaybackSeek) {
+      broadcastPlaybackSeek(time);
+    }
   };
 
   // Session Creation Screen
@@ -367,10 +393,10 @@ const CookMode = () => {
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
                   <span>{session.target_bpm} BPM</span>
                   <span>Key: {session.target_genre}</span>
-                  <Badge variant="outline" className="text-xs">
-                    <Users className="w-3 h-3 mr-1" />
-                    {participants.length} online
-                  </Badge>
+                  <LiveSessionIndicator 
+                    participantCount={realtimeParticipants.length || participants.length} 
+                    isConnected={realtimeConnected} 
+                  />
                 </div>
               </div>
             </div>
@@ -467,8 +493,8 @@ const CookMode = () => {
             sessionId={sessionId}
             minBars={minBars}
             metronomeEnabled={metronomeEnabled}
-            onTogglePlayback={togglePlayback}
-            onSeek={seekTo}
+            onTogglePlayback={handleTogglePlayback}
+            onSeek={handleSeekTo}
             onToggleMetronome={() => setMetronomeEnabled(!metronomeEnabled)}
             onUpdateBpm={(bpm) => updateSessionSettings({ bpm })}
             onUpdateKey={(key) => updateSessionSettings({ key })}
