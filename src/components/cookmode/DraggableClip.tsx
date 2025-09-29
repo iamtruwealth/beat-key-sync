@@ -84,6 +84,12 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
   // Handle mouse down for clip movement
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0) return; // Only left click
+
+    // Prevent drag if user grabbed a trim handle
+    const target = e.target as HTMLElement;
+    if (target && target.closest('.trim-handle')) {
+      return;
+    }
     
     e.preventDefault();
     e.stopPropagation();
