@@ -102,28 +102,39 @@ const CookMode = () => {
     isConnected: realtimeConnected 
   } = useSessionRealtime(sessionId);
 
-  // Check authentication status first
+  // Check authentication status first (listener first, then fetch) with fallback timeout
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        setIsAuthenticated(!!session);
-      } catch (error) {
-        console.error('Auth check error:', error);
-        setIsAuthenticated(false);
-      } finally {
-        setAuthLoading(false);
-      }
-    };
-
-    checkAuth();
+    let mounted = true;
+    // Fallback in case SDK hangs; prevent infinite spinner
+    const timeoutId = window.setTimeout(() => {
+      if (mounted) setAuthLoading(false);
+    }, 2000);
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!mounted) return;
       setIsAuthenticated(!!session);
       setAuthLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        if (!mounted) return;
+        setIsAuthenticated(!!session);
+        setAuthLoading(false);
+        window.clearTimeout(timeoutId);
+      })
+      .catch((error) => {
+        console.error('Auth check error:', error);
+        if (mounted) setIsAuthenticated(false);
+        if (mounted) setAuthLoading(false);
+        window.clearTimeout(timeoutId);
+      });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+      window.clearTimeout(timeoutId);
+    };
   }, []);
 
   // Get current user for video streaming
