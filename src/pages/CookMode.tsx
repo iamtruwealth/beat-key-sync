@@ -47,7 +47,8 @@ import {
   ChevronDown,
   Piano,
   Video,
-  MessageSquare
+  MessageSquare,
+  UserPlus
 } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -463,6 +464,73 @@ const CookMode = () => {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Request Edit Access for viewers */}
+            {!permissions.canEdit && permissions.userRole === 'viewer' && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  try {
+                    const { data: { user } } = await supabase.auth.getUser();
+                    if (!user) return;
+
+                    // Add user as collaboration member with invited status
+                    const { error } = await supabase
+                      .from('collaboration_members')
+                      .insert({
+                        collaboration_id: sessionId,
+                        user_id: user.id,
+                        role: 'collaborator',
+                        status: 'invited',
+                        royalty_percentage: 0
+                      });
+
+                    if (error && !error.message.includes('duplicate')) throw error;
+
+                    // Create notification for session owner
+                    const { data: session } = await supabase
+                      .from('collaboration_projects')
+                      .select('name, created_by')
+                      .eq('id', sessionId)
+                      .single();
+
+                    const { data: userProfile } = await supabase
+                      .from('profiles')
+                      .select('producer_name')
+                      .eq('id', user.id)
+                      .single();
+
+                    await supabase
+                      .from('notifications')
+                      .insert({
+                        user_id: session?.created_by,
+                        type: 'collaboration_request',
+                        title: 'Edit Access Request',
+                        message: `${userProfile?.producer_name || 'A user'} is requesting edit access to "${session?.name || 'Cook Mode Session'}"`,
+                        item_id: sessionId,
+                        actor_id: user.id
+                      });
+
+                    toast({
+                      title: "Request Sent",
+                      description: "Your edit access request has been sent to the session owner"
+                    });
+                  } catch (error) {
+                    console.error('Error requesting edit access:', error);
+                    toast({
+                      title: "Error",
+                      description: "Failed to request edit access",
+                      variant: "destructive"
+                    });
+                  }
+                }}
+                className="border-border/50 hover:border-orange-400"
+              >
+                <UserPlus className="w-4 h-4 mr-2" />
+                Request Edit Access
+              </Button>
+            )}
+            
             {permissions.canEdit && (
               <>
                 <DropdownMenu>
