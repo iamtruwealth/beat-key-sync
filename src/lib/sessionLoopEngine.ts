@@ -3,10 +3,13 @@ import * as Tone from "tone";
 export type Clip = {
   id: string;
   url: string;
-  offsetInBeats: number;
-  durationInBeats: number;
+  offsetInBeats: number; // when to start on the transport timeline
+  durationInBeats: number; // how long it plays on the timeline
   gain?: number;
   muted?: boolean;
+  // Source trimming (in seconds within the audio file)
+  sourceOffsetSeconds?: number; // start offset inside the audio buffer
+  sourceDurationSeconds?: number; // duration from the offset to play
 };
 
 export class SessionLoopEngine {
@@ -111,16 +114,25 @@ export class SessionLoopEngine {
         // Sync to Transport and schedule start/stop times
         player.sync();
         
-        // Convert beats to bars:beats:sixteenths format
+        // Convert beats to bars:beats:sixteenths format for transport scheduling
         const startBars = Math.floor(clip.offsetInBeats / 4);
         const startBeats = clip.offsetInBeats % 4;
-        const endBars = Math.floor((clip.offsetInBeats + clip.durationInBeats) / 4);
-        const endBeats = (clip.offsetInBeats + clip.durationInBeats) % 4;
+        const endBeatsTotal = clip.offsetInBeats + clip.durationInBeats;
+        const endBars = Math.floor(endBeatsTotal / 4);
+        const endBeats = endBeatsTotal % 4;
         
         const startTime = `${startBars}:${startBeats}:0`;
         const endTime = `${endBars}:${endBeats}:0`;
         
-        player.start(startTime);
+        // Calculate playback offset and duration within the source buffer (seconds)
+        const secondsPerBeat = 60 / Tone.Transport.bpm.value;
+        const playDurationSec = (clip.sourceDurationSeconds ?? (clip.durationInBeats * secondsPerBeat));
+        const sourceOffsetSec = clip.sourceOffsetSeconds ?? 0;
+        
+        // Start at transport time with source offset/duration to respect trims
+        player.start(startTime, sourceOffsetSec, playDurationSec);
+        
+        // Also schedule a stop at transport end to ensure cleanup
         player.stop(endTime);
         
         if (clip.muted) {

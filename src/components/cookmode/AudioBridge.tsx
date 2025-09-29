@@ -16,8 +16,11 @@ interface Track {
 
 interface TimelineClip {
   id: string;
-  startTime: number; // seconds
-  endTime: number;   // seconds
+  startTime: number; // seconds on timeline
+  endTime: number;   // seconds on timeline (container width)
+  fullDuration?: number; // total length of source audio in seconds
+  trimStart?: number; // seconds offset within source
+  trimEnd?: number;   // seconds offset within source
   originalTrack: Track;
 }
 
@@ -88,10 +91,17 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
   const createClipsFromTimeline = useCallback((timelineClips: TimelineClip[], currentBPM: number): Clip[] => {
     const secondsPerBeat = 60 / currentBPM;
     return timelineClips.map(tc => {
-      const durationSec = Math.max(0, tc.endTime - tc.startTime);
+      const durationSecContainer = Math.max(0.1, tc.endTime - tc.startTime);
       const offsetInBeats = Math.round((tc.startTime / secondsPerBeat) * 1000) / 1000;
-      const durationInBeats = Math.max(1, Math.round((durationSec / secondsPerBeat) * 1000) / 1000);
+      const durationInBeats = Math.max(0.25, Math.round((durationSecContainer / secondsPerBeat) * 1000) / 1000);
       const track = tc.originalTrack;
+
+      // Source trimming values from clip (fallback to full track duration)
+      const sourceTotal = tc.fullDuration ?? track.analyzed_duration ?? track.duration ?? durationSecContainer;
+      const sourceStart = Math.max(0, tc.trimStart ?? 0);
+      const sourceEnd = Math.min(sourceTotal, tc.trimEnd ?? sourceTotal);
+      const sourceDuration = Math.max(0.05, sourceEnd - sourceStart);
+
       return {
         id: tc.id,
         url: track.file_url,
@@ -99,6 +109,8 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
         durationInBeats,
         gain: track.volume || 1,
         muted: track.isMuted || false,
+        sourceOffsetSeconds: sourceStart,
+        sourceDurationSeconds: sourceDuration,
       } as Clip;
     });
   }, []);
