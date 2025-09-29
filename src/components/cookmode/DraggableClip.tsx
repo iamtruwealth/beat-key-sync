@@ -136,15 +136,15 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
         clipRef.current.style.left = `${newLeft}px`;
       }
     } else if (isTrimming && fullDuration > 0) {
-      const rawTime = Math.max(0, Math.min(fullDuration, dragStart.startTime + deltaTime));
-      const snappedTime = snapToGrid(rawTime);
+      // For trimming, do NOT snap to grid for smoother precision
+      const timeForTrim = Math.max(0, Math.min(fullDuration, dragStart.startTime + deltaTime));
       
       let tempTrimStart = trimStart;
       let tempTrimEnd = trimEnd;
       if (isTrimming === 'start') {
-        tempTrimStart = Math.min(snappedTime, trimEnd - 0.1);
+        tempTrimStart = Math.min(timeForTrim, trimEnd - 0.1);
       } else {
-        tempTrimEnd = Math.max(snappedTime, trimStart + 0.1);
+        tempTrimEnd = Math.max(timeForTrim, trimStart + 0.1);
       }
       const tempWidthPx = Math.max(4, (tempTrimEnd - tempTrimStart) * pixelsPerSecond);
       // Live visual feedback: keep the non-dragged edge fixed
@@ -179,20 +179,20 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
         onClipMove(clip.id, snappedStartTime);
       }
     } else if (isTrimming && onTrimClip && fullDuration > 0) {
+      // For trimming, avoid grid snapping to prevent "dragging" feel
       const newTime = Math.max(0, Math.min(fullDuration, dragStart.startTime + deltaTime));
-      const snappedTime = snapToGrid(newTime);
       
       let newTrimStart = trimStart;
       let newTrimEnd = trimEnd;
       
       if (isTrimming === 'start') {
-        newTrimStart = Math.min(snappedTime, trimEnd - 0.1); // Ensure start < end
+        newTrimStart = Math.min(newTime, trimEnd - 0.1); // Ensure start < end
         // Only change start, keep end the same
         if (Math.abs(newTrimStart - trimStart) > 0.01) {
           onTrimClip(clip.id, isTrimming, newTrimStart, trimEnd);
         }
       } else {
-        newTrimEnd = Math.max(snappedTime, trimStart + 0.1); // Ensure end > start
+        newTrimEnd = Math.max(newTime, trimStart + 0.1); // Ensure end > start
         // Only change end, keep start the same
         if (Math.abs(newTrimEnd - trimEnd) > 0.01) {
           onTrimClip(clip.id, isTrimming, trimStart, newTrimEnd);
