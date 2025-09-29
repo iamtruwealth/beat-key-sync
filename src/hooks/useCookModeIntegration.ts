@@ -96,30 +96,10 @@ export function useCookModeIntegration({
         console.warn('Quick duration probe failed:', e);
       }
 
-      // Analyze the audio file to get duration and other metadata
-      try {
-        console.log(`🔍 Starting audio analysis for: ${file.name}`);
-        const analysisResult = await analyzeFile(file);
-        
-        // Update track with analyzed duration (only if valid)
-        const updates: Partial<Track> = {
-          ...(analysisResult.duration && analysisResult.duration > 0 ? {
-            analyzed_duration: analysisResult.duration,
-            duration: analysisResult.duration
-          } : {})
-        };
-        
-        console.log(`✅ Audio analysis complete for ${file.name}: ${analysisResult.duration}s`);
-        onUpdateTrack(trackId, updates);
-        
-      } catch (error) {
-        console.error('Audio analysis failed:', error);
-        toast({
-          title: "Analysis Warning",
-          description: `Could not analyze ${file.name}. Using default duration.`,
-          variant: "destructive"
-        });
-      }
+      // Skip full analysis for CookMode - we only need duration for timeline
+      // Full analysis with BPM/key can be done later if needed
+      console.log(`⚡ Using quick duration analysis for CookMode: ${file.name}`);
+      // The quick duration probe above already set the duration, so we're done!
     } else {
       // Update existing track with new sample
       const updates: Partial<Track> = {
@@ -144,27 +124,9 @@ export function useCookModeIntegration({
         console.warn('Quick duration probe (update) failed:', e);
       }
 
-      // Also analyze the new file
-      try {
-        console.log(`🔍 Analyzing updated track: ${file.name}`);
-        const analysisResult = await analyzeFile(file);
-        
-        const analysisUpdates: Partial<Track> = {
-          ...updates,
-          ...(analysisResult.duration && analysisResult.duration > 0 ? {
-            analyzed_duration: analysisResult.duration,
-            duration: analysisResult.duration
-          } : {})
-        };
-        
-        console.log(`✅ Analysis complete for updated track ${file.name}: ${analysisResult.duration}s`);
-        onUpdateTrack(trackId, analysisUpdates);
-        
-      } catch (error) {
-        console.error('Audio analysis failed for updated track:', error);
-        // Still apply the file update even if analysis fails
-        onUpdateTrack(trackId, updates);
-      }
+      // Skip full analysis for CookMode updates - we only need duration
+      console.log(`⚡ Using quick duration analysis for updated track: ${file.name}`);
+      // The quick duration probe above already updated the duration
     }
   }, [existingTracks, onAddTrack, onUpdateTrack, analyzeFile, toast]);
 
