@@ -85,12 +85,29 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0) return; // Only left click
 
-    // Prevent drag if user grabbed a trim handle
     const target = e.target as HTMLElement;
+    // 1) If the explicit trim handle was grabbed, delegate to trim handler
     if (target && target.closest('.trim-handle')) {
-      return;
+      return; // handleTrimMouseDown will run from the handle itself
+    }
+
+    // 2) Edge-dragging: if click is within threshold from left/right edge, start trim
+    const EDGE_THRESHOLD = 8; // px
+    if (clipRef.current) {
+      const rect = clipRef.current.getBoundingClientRect();
+      const xFromLeft = e.clientX - rect.left;
+      const xFromRight = rect.right - e.clientX;
+      if (xFromLeft <= EDGE_THRESHOLD) {
+        handleTrimMouseDown(e, 'start');
+        return;
+      }
+      if (xFromRight <= EDGE_THRESHOLD) {
+        handleTrimMouseDown(e, 'end');
+        return;
+      }
     }
     
+    // 3) Otherwise, start drag (move clip)
     e.preventDefault();
     e.stopPropagation();
     
