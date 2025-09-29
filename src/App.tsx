@@ -323,16 +323,8 @@ const App = () => (
                 </div>
               </RoleProtectedRoute>
             } />
-            <Route path="/cook-mode" element={
-              <RoleProtectedRoute allowedRoles={['producer']}>
-                <CookMode />
-              </RoleProtectedRoute>
-            } />
-            <Route path="/cook-mode/:sessionId" element={
-              <RoleProtectedRoute allowedRoles={['producer']}>
-                <CookMode />
-              </RoleProtectedRoute>
-            } />
+            <Route path="/cook-mode" element={<CookMode />} />
+            <Route path="/cook-mode/:sessionId" element={<CookMode />} />
             
             {/* Catch-all routes */}
             <Route path="/analytics" element={

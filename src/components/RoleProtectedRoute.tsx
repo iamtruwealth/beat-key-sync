@@ -133,7 +133,7 @@ export function RoleProtectedRoute({ children, allowedRoles }: RoleProtectedRout
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [navigate, allowedRoles]);
+  }, [navigate, allowedRoles, location.pathname]);
 
   if (loading) {
     return (

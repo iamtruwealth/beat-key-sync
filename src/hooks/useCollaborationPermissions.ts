@@ -24,9 +24,13 @@ export const useCollaborationPermissions = (collaborationId: string | null) => {
     }
 
     const checkPermissions = async () => {
+      console.log('🔍 Checking permissions for collaboration:', collaborationId);
       try {
         const { data: { user } } = await supabase.auth.getUser();
+        console.log('🔍 Current user for permissions check:', user?.id);
+        
         if (!user) {
+          console.log('🔍 No user found, setting minimal permissions');
           setPermissions({ canEdit: false, canView: false, userRole: null, isOwner: false });
           setLoading(false);
           return;
@@ -40,10 +44,17 @@ export const useCollaborationPermissions = (collaborationId: string | null) => {
           .maybeSingle();
 
         if (!project) {
+          console.log('🔍 Project not found or no access:', collaborationId);
           setPermissions({ canEdit: false, canView: false, userRole: null, isOwner: false });
           setLoading(false);
           return;
         }
+
+        console.log('🔍 Project data:', { 
+          created_by: project.created_by, 
+          allow_public_access: project.allow_public_access,
+          user_id: user.id 
+        });
 
         const isOwner = project?.created_by === user.id;
         const hasPublicAccess = project?.allow_public_access === true;
@@ -77,13 +88,13 @@ export const useCollaborationPermissions = (collaborationId: string | null) => {
           isOwner
         });
 
-        console.log('🔐 Collaboration permissions:', {
+        console.log('🔐 Final collaboration permissions:', {
           collaborationId,
           userId: user.id,
           isOwner,
           hasPublicAccess,
           member,
-          permissions: { canEdit, canView, userRole }
+          finalPermissions: { canEdit, canView, userRole }
         });
 
       } catch (error) {

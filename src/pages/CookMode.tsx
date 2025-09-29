@@ -61,6 +61,8 @@ const CookMode = () => {
   const [showVideo, setShowVideo] = useState(false);
   const [metronomeEnabled, setMetronomeEnabled] = useState(false);
   const [minBars, setMinBars] = useState(8);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [sessionConfig, setSessionConfig] = useState({
     bpm: 120,
     key: 'C',
@@ -100,23 +102,50 @@ const CookMode = () => {
     isConnected: realtimeConnected 
   } = useSessionRealtime(sessionId);
 
+  // Check authentication status first
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setIsAuthenticated(!!session);
+      } catch (error) {
+        console.error('Auth check error:', error);
+        setIsAuthenticated(false);
+      } finally {
+        setAuthLoading(false);
+      }
+    };
+
+    checkAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setIsAuthenticated(!!session);
+      setAuthLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
   // Get current user for video streaming
   const [currentUser, setCurrentUser] = useState<any>(null);
   
   useEffect(() => {
+    if (!isAuthenticated) return;
+    
     const getCurrentUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       setCurrentUser(user);
     };
     getCurrentUser();
-  }, []);
+  }, [isAuthenticated]);
 
+  // Join session when we have sessionId and are authenticated
   useEffect(() => {
-    if (sessionId && !session) {
+    if (sessionId && !session && isAuthenticated) {
       console.log('Joining session:', sessionId);
       joinSession(sessionId);
     }
-  }, [sessionId, session, joinSession]);
+  }, [sessionId, session, joinSession, isAuthenticated]);
 
   // Enable audio context on first user interaction
   useEffect(() => {
@@ -249,6 +278,22 @@ const CookMode = () => {
 
   // Session Creation Screen
   if (!sessionId) {
+    // Redirect to auth if not authenticated for session creation
+    if (!authLoading && !isAuthenticated) {
+      navigate('/auth');
+      return null;
+    }
+
+    if (authLoading) {
+      return (
+        <div className="min-h-screen bg-background flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-neon-cyan mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading...</p>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="min-h-screen bg-background p-6 relative overflow-hidden">
         <MetaTags 
@@ -363,13 +408,32 @@ const CookMode = () => {
     );
   }
 
-  // Loading state - show when we have sessionId but no session data or still checking permissions
-  if (sessionId && ((!session || !isConnected) || permissionsLoading)) {
+  // Loading state - show when we have sessionId but no session data, still checking auth, or still checking permissions
+  if (sessionId && ((authLoading || (!session || !isConnected)) || permissionsLoading)) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-neon-cyan mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Connecting to Cook Mode session...</p>
+          <p className="text-muted-foreground">
+            {authLoading ? 'Checking authentication...' : 'Connecting to Cook Mode session...'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Handle unauthenticated users accessing shared sessions
+  if (sessionId && !authLoading && !isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto p-6">
+          <h1 className="text-2xl font-bold mb-4">Sign In Required</h1>
+          <p className="text-muted-foreground mb-6">
+            You need to sign in to join this Cook Mode session.
+          </p>
+          <Button onClick={() => navigate('/auth')} className="w-full">
+            Sign In to Join Session
+          </Button>
         </div>
       </div>
     );
