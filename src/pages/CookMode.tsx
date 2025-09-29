@@ -599,7 +599,7 @@ const CookMode = () => {
               <Users className="w-4 h-4" />
               Participants ({participants.length})
             </h4>
-            <SessionParticipants participants={participants} sessionId={sessionId!} />
+            <SessionParticipants participants={participants} sessionId={sessionId!} showVideo={showVideo} />
           </div>
 
           {/* Video section - conditionally visible with fixed height */}
