@@ -57,7 +57,7 @@ const CookMode = () => {
   const navigate = useNavigate();
   const [isHost, setIsHost] = useState(false);
   const [activeView, setActiveView] = useState<'timeline' | 'mixer'>('timeline');
-  const [activeSidebarTab, setActiveSidebarTab] = useState<'participants' | 'chat' | 'video'>('participants');
+  const [showVideo, setShowVideo] = useState(false);
   const [metronomeEnabled, setMetronomeEnabled] = useState(false);
   const [minBars, setMinBars] = useState(8);
   const [sessionConfig, setSessionConfig] = useState({
@@ -579,54 +579,52 @@ const CookMode = () => {
 
         {/* Right Sidebar */}
         <div className="w-80 border-l border-border/50 bg-card/20 backdrop-blur-sm flex flex-col">
-          {/* Sidebar Tabs */}
-          <Tabs value={activeSidebarTab} onValueChange={(value) => setActiveSidebarTab(value as 'participants' | 'chat' | 'video')}>
-            <div className="p-4 border-b border-border/50">
-              <TabsList className="grid w-full grid-cols-3 bg-background/50">
-                <TabsTrigger 
-                  value="participants" 
-                  className="flex items-center gap-2 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-                >
-                  <Users className="w-3 h-3" />
-                  Users
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="chat" 
-                  className="flex items-center gap-2 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-                >
-                  <MessageSquare className="w-3 h-3" />
-                  Chat
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="video" 
-                  className="flex items-center gap-2 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-                >
-                  <Video className="w-3 h-3" />
-                  Video
-                </TabsTrigger>
-              </TabsList>
-            </div>
+          {/* Video Toggle Header */}
+          <div className="p-4 border-b border-border/50 flex items-center justify-between">
+            <h3 className="font-medium text-foreground">Collaboration</h3>
+            <Button
+              variant={showVideo ? "default" : "outline"}
+              size="sm"
+              onClick={() => setShowVideo(!showVideo)}
+              className="flex items-center gap-2"
+            >
+              <Video className="w-4 h-4" />
+              {showVideo ? "Hide Video" : "Show Video"}
+            </Button>
+          </div>
 
-            <div className="flex-1 overflow-hidden">
-              <TabsContent value="participants" className="h-full m-0">
-                <div className="p-4">
-                  <SessionParticipants participants={participants} sessionId={sessionId!} />
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="chat" className="h-full m-0">
-                <CookModeChat sessionId={sessionId!} />
-              </TabsContent>
-              
-              <TabsContent value="video" className="h-full m-0">
-                <VideoStreamingPanel 
-                  sessionId={sessionId!} 
-                  canEdit={permissions.canEdit}
-                  currentUserId={currentUser?.id}
-                />
-              </TabsContent>
+          {/* Always visible participants section */}
+          <div className="p-4 border-b border-border/50">
+            <h4 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
+              <Users className="w-4 h-4" />
+              Participants ({participants.length})
+            </h4>
+            <SessionParticipants participants={participants} sessionId={sessionId!} />
+          </div>
+
+          {/* Video section - conditionally visible */}
+          {showVideo && (
+            <div className="border-b border-border/50">
+              <VideoStreamingPanel 
+                sessionId={sessionId!} 
+                canEdit={permissions.canEdit}
+                currentUserId={currentUser?.id}
+              />
             </div>
-          </Tabs>
+          )}
+
+          {/* Always visible chat section */}
+          <div className="flex-1 flex flex-col">
+            <div className="p-4 pb-2 border-b border-border/50">
+              <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
+                <MessageSquare className="w-4 h-4" />
+                Chat
+              </h4>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <CookModeChat sessionId={sessionId!} />
+            </div>
+          </div>
         </div>
       </div>
     </div>
