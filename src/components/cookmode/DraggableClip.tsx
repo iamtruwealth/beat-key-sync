@@ -19,8 +19,11 @@ interface Track {
 interface AudioClip {
   id: string;
   trackId: string;
-  startTime: number;
-  endTime: number;
+  startTime: number; // position on timeline (seconds)
+  endTime: number;   // derived: startTime + (trimEnd - trimStart)
+  fullDuration: number; // total length of original audio (seconds)
+  trimStart: number; // visible starts at this offset within the file
+  trimEnd: number;   // visible ends at this offset within the file
   originalTrack: Track;
   isSelected?: boolean;
 }
@@ -38,7 +41,7 @@ interface DraggableClipProps {
   onClipDoubleClick?: (clipId: string) => void;
   onDuplicateClip?: (clipId: string) => void;
   onDeleteClip?: (clipId: string) => void;
-  onTrimClip?: (trackId: string, trimStart: number, trimEnd: number) => void;
+  onTrimClip?: (clipId: string, trimStart: number, trimEnd: number) => void;
   className?: string;
 }
 
@@ -63,13 +66,13 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
   const [isTrimming, setIsTrimming] = useState<'start' | 'end' | null>(null);
   const [dragStart, setDragStart] = useState({ x: 0, startTime: 0 });
 
-  // Calculate trim values
-  const track = clip.originalTrack;
-  const trackDuration = track.analyzed_duration || track.duration || 0;
-  const trimStart = track.trimStart || 0;
-  const trimEnd = track.trimEnd || trackDuration;
+  // Calculate clip timings
+  const fullDuration = clip.fullDuration || clip.originalTrack.analyzed_duration || clip.originalTrack.duration || 0;
+  const trimStart = Math.max(0, clip.trimStart ?? 0);
+  const trimEnd = Math.min(fullDuration, clip.trimEnd ?? fullDuration);
+  const visibleDuration = Math.max(0.1, trimEnd - trimStart);
   
-  const clipWidth = (clip.endTime - clip.startTime) * pixelsPerSecond;
+  const clipWidth = visibleDuration * pixelsPerSecond;
   const clipLeft = clip.startTime * pixelsPerSecond;
 
   // Grid snapping function

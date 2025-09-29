@@ -32,8 +32,11 @@ interface Track {
 interface AudioClip {
   id: string;
   trackId: string;
-  startTime: number;
-  endTime: number;
+  startTime: number; // position on timeline (seconds)
+  endTime: number;   // derived from trimEnd - trimStart
+  fullDuration: number; // total audio length (seconds)
+  trimStart: number; // seconds offset into source
+  trimEnd: number;   // seconds offset into source
   originalTrack: Track;
   isSelected?: boolean;
 }
@@ -246,7 +249,10 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
             id: `${track.id}-clip-0`,
             trackId: track.id,
             startTime: 0,
-            endTime: clipDuration, // Use bars-based duration for clip length
+            endTime: clipDuration, // start + (trimEnd - trimStart)
+            fullDuration: clipDuration,
+            trimStart: 0,
+            trimEnd: clipDuration,
             originalTrack: track
           };
           console.log('Creating clip for NEW track:', track.name, 'Bars:', resolvedBars, 'Duration:', clipDuration, 'Known duration:', knownDuration, 'Clip:', clip);
@@ -321,6 +327,9 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       trackId: targetTrackId || copiedClip.trackId,
       startTime: snappedTime,
       endTime: snappedTime + duration,
+      fullDuration: copiedClip.fullDuration,
+      trimStart: copiedClip.trimStart,
+      trimEnd: copiedClip.trimEnd,
       originalTrack: copiedClip.originalTrack
     };
 
@@ -362,6 +371,9 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       trackId: clip.trackId,
       startTime: newStartTime,
       endTime: newStartTime + duration,
+      fullDuration: clip.fullDuration,
+      trimStart: clip.trimStart,
+      trimEnd: clip.trimEnd,
       originalTrack: clip.originalTrack
     };
 
@@ -388,60 +400,32 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
 
   // Move clip function
   const moveClip = useCallback((clipId: string, newStartTime: number) => {
-    // Find the clip to get its original position
     const targetClip = audioClips.find(clip => clip.id === clipId);
-    if (!targetClip) {
-      console.warn('Clip not found for move operation:', clipId);
-      return;
-    }
+    if (!targetClip) return;
 
     const originalStartTime = targetClip.startTime;
-    const originalEndTime = targetClip.endTime;
-    const duration = originalEndTime - originalStartTime;
+    const duration = targetClip.endTime - targetClip.startTime;
     const newEndTime = newStartTime + duration;
 
-    // Only proceed if the position actually changed
-    if (Math.abs(newStartTime - originalStartTime) < 0.01) {
-      return;
-    }
+    if (Math.abs(newStartTime - originalStartTime) < 0.01) return;
 
     console.log(`🎵 Moving clip ${clipId} from ${originalStartTime}s to ${newStartTime}s`);
 
-    // Update the clip position
-    setAudioClips(prev => prev.map(clip => {
-      if (clip.id === clipId) {
-        return {
-          ...clip,
-          startTime: newStartTime,
-          endTime: newEndTime
-        };
-      }
-      return clip;
-    }));
+    setAudioClips(prev => prev.map(c => c.id === clipId ? { ...c, startTime: newStartTime, endTime: newEndTime } : c));
 
-    // Register the move action with UndoManager
-    const undoMoveAction = createMoveAction(
+    const fromPos = { startTime: originalStartTime, endTime: originalStartTime + duration };
+    const toPos = { startTime: newStartTime, endTime: newEndTime };
+    const moveAction = createMoveAction(
       targetClip.trackId,
       clipId,
-      { startTime: originalStartTime, endTime: originalEndTime },
-      { startTime: newStartTime, endTime: newEndTime },
+      fromPos,
+      toPos,
       () => {
-        console.log(`🔄 Undoing move of clip ${clipId} back to ${originalStartTime}s`);
-        setAudioClips(prev => prev.map(clip => {
-          if (clip.id === clipId) {
-            return {
-              ...clip,
-              startTime: originalStartTime,
-              endTime: originalEndTime
-            };
-          }
-          return clip;
-        }));
+        setAudioClips(prev => prev.map(c => c.id === clipId ? { ...c, startTime: originalStartTime, endTime: originalStartTime + duration } : c));
       },
       `Move clip from ${originalStartTime.toFixed(2)}s to ${newStartTime.toFixed(2)}s`
     );
-
-    undoManager.push(undoMoveAction);
+    undoManager.push(moveAction);
   }, [audioClips]);
 
   // Delete track function
@@ -733,7 +717,10 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
               }}
               onDuplicateClip={duplicateClip}
               onDeleteClip={deleteClip}
-              onTrimClip={onTrimTrack}
+              onTrimClip={(clipId, s, e) => {
+                setAudioClips(prev => prev.map(c => c.id === clipId ? { ...c, trimStart: s, trimEnd: e, endTime: c.startTime + (e - s) } : c));
+                if (onTrimTrack) onTrimTrack(track.id, s, e);
+              }}
               className={selectedClips.has(clip.id) ? 'ring-2 ring-primary' : ''}
             />
           );
