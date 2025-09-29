@@ -285,6 +285,24 @@ export const useWebRTCStreaming = ({ sessionId, canEdit, currentUserId }: UseWeb
         localVideoRef.current.srcObject = stream;
       }
 
+      // Get session's mixed audio for viewers
+      const sessionMixedAudio = sessionLoopEngine.getMixedAudioStream();
+      if (sessionMixedAudio) {
+        const audioTrack = sessionMixedAudio.getAudioTracks()[0];
+        if (audioTrack) {
+          console.log('🔊 Adding session mixed audio track to WebRTC streams');
+          externalAudioTrackRef.current = audioTrack;
+          externalAudioStreamRef.current = sessionMixedAudio;
+          
+          // Add session audio to existing peer connections
+          participants.forEach(participant => {
+            if (participant.peerConnection) {
+              participant.peerConnection.addTrack(audioTrack, sessionMixedAudio);
+            }
+          });
+        }
+      }
+
       // Join the WebRTC presence
       if (signalingChannel.current) {
         const { data: { user } } = await supabase.auth.getUser();
@@ -305,7 +323,7 @@ export const useWebRTCStreaming = ({ sessionId, canEdit, currentUserId }: UseWeb
         });
       }
 
-      toast.success('Started video streaming');
+      toast.success('Started video streaming with session audio');
     } catch (error) {
       console.error('Error starting stream:', error);
       toast.error('Failed to start video stream');
