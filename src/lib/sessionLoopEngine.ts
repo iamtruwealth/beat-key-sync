@@ -47,7 +47,7 @@ export class SessionLoopEngine {
     console.log(`BPM set to ${bpm}`);
   }
 
-  async setClips(clips: Clip[]) {
+  async setClips(clips: Clip[], minBars: number = 4) {
     await this.initialize();
 
     // Dispose existing players and gains
@@ -62,9 +62,10 @@ export class SessionLoopEngine {
       0 // No minimum - let it be based purely on content
     );
     
-    // If no clips exist, default to 4 bars minimum
-    if (this.loopEndInBeats === 0) {
-      this.loopEndInBeats = 16; // 4 bars minimum only when no clips exist
+    // Apply minimum bar count
+    const minBeats = minBars * 4;
+    if (this.loopEndInBeats < minBeats) {
+      this.loopEndInBeats = minBeats;
     }
     
     // Set Transport loop end using bars:beats:sixteenths format

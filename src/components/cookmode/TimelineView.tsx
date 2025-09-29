@@ -47,6 +47,7 @@ interface TimelineViewProps {
   currentTime: number;
   bpm: number;
   metronomeEnabled?: boolean;
+  minBars?: number;
   onPlayPause: () => void;
   onSeek: (time: number) => void;
   onTracksUpdate?: (tracks: Track[]) => void;
@@ -63,6 +64,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   currentTime,
   bpm,
   metronomeEnabled = false,
+  minBars = 8,
   onPlayPause,
   onSeek,
   onTracksUpdate,
@@ -763,6 +765,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         bpm={bpm}
         isPlaying={isPlaying}
         currentTime={currentTime}
+        minBars={minBars}
         onTick={handleTick}
         onPlayPause={onPlayPause}
         onSeek={onSeek}

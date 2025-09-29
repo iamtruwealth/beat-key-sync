@@ -50,6 +50,7 @@ const CookMode = () => {
   const [isHost, setIsHost] = useState(false);
   const [activeView, setActiveView] = useState<'timeline' | 'mixer'>('timeline');
   const [metronomeEnabled, setMetronomeEnabled] = useState(false);
+  const [minBars, setMinBars] = useState(8);
   const [sessionConfig, setSessionConfig] = useState({
     bpm: 120,
     key: 'C',
@@ -464,19 +465,20 @@ const CookMode = () => {
             bpm={session.target_bpm || 120}
             sessionKey={session.target_genre}
             sessionId={sessionId}
+            minBars={minBars}
             metronomeEnabled={metronomeEnabled}
             onTogglePlayback={togglePlayback}
             onSeek={seekTo}
             onToggleMetronome={() => setMetronomeEnabled(!metronomeEnabled)}
             onUpdateBpm={(bpm) => updateSessionSettings({ bpm })}
             onUpdateKey={(key) => updateSessionSettings({ key })}
+            onUpdateMinBars={setMinBars}
             onCreateEmptyTrack={async (name) => { await addEmptyTrack(name); }}
             onAddTrack={addTrack}
           />
 
           <Separator className="border-border/50" />
 
-          {/* DAW Interface */}
           <div className="flex-1 overflow-hidden">
             <CookModeDAW
               tracks={tracks}
@@ -484,6 +486,7 @@ const CookMode = () => {
               currentTime={currentTime}
               bpm={session.target_bpm || 120}
               metronomeEnabled={metronomeEnabled}
+              minBars={minBars}
               onAddTrack={addTrack}
               onRemoveTrack={removeTrack}
               onUpdateTrack={updateTrack}

@@ -30,6 +30,7 @@ interface AudioBridgeProps {
   bpm: number;
   isPlaying: boolean;
   currentTime: number;
+  minBars?: number;
   onTick: (seconds: number) => void;
   onPlayPause: () => void;
   onSeek: (seconds: number) => void;
@@ -41,6 +42,7 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
   bpm,
   isPlaying,
   currentTime,
+  minBars = 8,
   onTick,
   onPlayPause,
   onSeek
@@ -125,11 +127,11 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
         if (Array.isArray(clips) && clips.length > 0) {
           const engineClips = createClipsFromTimeline(clips, bpm);
           console.log('AudioBridge: Initial timeline clips:', engineClips);
-          await sessionLoopEngine.setClips(engineClips);
+          await sessionLoopEngine.setClips(engineClips, minBars);
         } else if (tracks.length > 0) {
           const engineClips = createClipsFromTracks(tracks, bpm);
           console.log('AudioBridge: Initial track clips:', engineClips);
-          await sessionLoopEngine.setClips(engineClips);
+          await sessionLoopEngine.setClips(engineClips, minBars);
           previousTracks.current = [...tracks];
         }
         isInitialized.current = true;
@@ -168,10 +170,10 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
       // Recreate clips with new BPM timing
       if (Array.isArray(clips) && clips.length > 0) {
         const engineClips = createClipsFromTimeline(clips, bpm);
-        sessionLoopEngine.setClips(engineClips);
+        sessionLoopEngine.setClips(engineClips, minBars);
       } else if (tracks.length > 0) {
         const engineClips = createClipsFromTracks(tracks, bpm);
-        sessionLoopEngine.setClips(engineClips);
+        sessionLoopEngine.setClips(engineClips, minBars);
       }
     }
   }, [bpm, tracks, clips, createClipsFromTracks, createClipsFromTimeline]);
@@ -199,7 +201,7 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
       console.log('AudioBridge: Tracks changed, updating clips');
       const engineClips = createClipsFromTracks(tracks, bpm);
       console.log('AudioBridge: Created clips from tracks:', engineClips);
-      sessionLoopEngine.setClips(engineClips);
+      sessionLoopEngine.setClips(engineClips, minBars);
       previousTracks.current = [...tracks];
     }
   }, [tracks, bpm, clips, createClipsFromTracks]);
@@ -210,7 +212,7 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
     if (Array.isArray(clips) && clips.length > 0) {
       const engineClips = createClipsFromTimeline(clips, bpm);
       console.log('AudioBridge: Timeline clips changed, updating engine clips');
-      sessionLoopEngine.setClips(engineClips);
+      sessionLoopEngine.setClips(engineClips, minBars);
     }
   }, [clips, bpm, createClipsFromTimeline]);
 

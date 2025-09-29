@@ -44,6 +44,7 @@ interface CookModeDAWProps {
   currentTime: number;
   bpm: number;
   metronomeEnabled?: boolean;
+  minBars?: number;
   onAddTrack: (file: File, trackName: string, stemType: string) => Promise<void>;
   onRemoveTrack: (trackId: string) => Promise<void>;
   onUpdateTrack: (trackId: string, updates: Partial<Track>) => void;
@@ -64,6 +65,7 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
   currentTime,
   bpm,
   metronomeEnabled = false,
+  minBars = 8,
   onAddTrack,
   onRemoveTrack,
   onUpdateTrack,
@@ -405,6 +407,7 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
                 currentTime={currentTime}
                 bpm={bpm}
                 metronomeEnabled={metronomeEnabled}
+                minBars={minBars}
                 onPlayPause={onPlayPause}
                 onSeek={onSeek}
                 onTracksUpdate={handleTracksUpdateFromTimeline}

@@ -20,7 +20,8 @@ import {
   Circle,
   Mic,
   Upload,
-  FileAudio
+  FileAudio,
+  Grid
 } from 'lucide-react';
 import { undoManager } from '@/lib/UndoManager';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -36,12 +37,14 @@ interface SessionControlsProps {
   isLooping?: boolean;
   metronomeEnabled?: boolean;
   sessionId?: string;
+  minBars?: number;
   onTogglePlayback: () => void;
   onSeek: (time: number) => void;
   onToggleLoop?: () => void;
   onToggleMetronome?: () => void;
   onUpdateBpm?: (bpm: number) => void;
   onUpdateKey?: (key: string) => void;
+  onUpdateMinBars?: (bars: number) => void;
   onCreateEmptyTrack?: (name: string) => Promise<void> | void;
   onAddTrack?: (file: File, trackName: string, stemType: string) => Promise<void>;
 }
@@ -54,12 +57,14 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
   isLooping = false,
   metronomeEnabled = false,
   sessionId,
+  minBars = 8,
   onTogglePlayback,
   onSeek,
   onToggleLoop,
   onToggleMetronome,
   onUpdateBpm,
   onUpdateKey,
+  onUpdateMinBars,
   onCreateEmptyTrack,
   onAddTrack
 }) => {
@@ -336,6 +341,31 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
                     <span className="text-xs text-muted-foreground">BPM</span>
                   </>
                 )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Min Bars Control */}
+          <Card className="bg-card/50 border-border/50">
+            <CardContent className="p-2">
+              <div className="flex items-center gap-2">
+                <Grid className="w-4 h-4 text-orange-400" />
+                <Select 
+                  value={minBars.toString()} 
+                  onValueChange={(value) => onUpdateMinBars?.(parseInt(value))}
+                >
+                  <SelectTrigger className="w-12 h-6 text-xs border-none bg-transparent p-0">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background border-border">
+                    {[4, 8, 16, 32, 64].map((bars) => (
+                      <SelectItem key={bars} value={bars.toString()} className="text-xs">
+                        {bars}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <span className="text-xs text-muted-foreground">Min Bars</span>
               </div>
             </CardContent>
           </Card>
