@@ -210,18 +210,18 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
       const snappedTime = snapToGrid(newTime);
       console.log('[DraggableClip] trim mouseup', { clipId: clip.id, edge: isTrimming, newTime, snappedTime, trimStart, trimEnd });
       
-      let newTrimStart = trimStart;
-      let newTrimEnd = trimEnd;
-      
       if (isTrimming === 'start') {
-        newTrimStart = Math.min(snappedTime, trimEnd - 0.1); // Ensure start < end
-        // Only change start; TimelineView onTrimClip will update startTime to lock right edge
+        // For start trim, calculate the new trimStart based on the drag delta
+        const trimDelta = deltaTime;
+        const newTrimStart = Math.max(0, Math.min(trimStart + trimDelta, trimEnd - 0.1));
+        
         if (Math.abs(newTrimStart - trimStart) > 0.01) {
           onTrimClip(clip.id, isTrimming, newTrimStart, trimEnd);
         }
       } else {
-        newTrimEnd = Math.max(snappedTime, trimStart + 0.1); // Ensure end > start
-        // Only change end, keep start the same
+        // For end trim, calculate the new trimEnd
+        const newTrimEnd = Math.max(snappedTime, trimStart + 0.1);
+        
         if (Math.abs(newTrimEnd - trimEnd) > 0.01) {
           onTrimClip(clip.id, isTrimming, trimStart, newTrimEnd);
         }
