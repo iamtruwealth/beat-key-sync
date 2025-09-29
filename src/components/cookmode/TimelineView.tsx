@@ -182,6 +182,35 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     });
   }, [trackDurations, audioClips.length]);
 
+  // Update clip durations when tracks are trimmed
+  useEffect(() => {
+    setAudioClips(prev => {
+      let changed = false;
+      const updated = prev.map(clip => {
+        const track = tracks.find(t => t.id === clip.trackId);
+        if (!track) return clip;
+        
+        const trimStart = track.trimStart || 0;
+        const trimEnd = track.trimEnd;
+        const trackDuration = track.analyzed_duration || track.duration || 0;
+        
+        if (trimEnd && trimEnd < trackDuration) {
+          // Update clip endTime based on trim
+          const trimmedDuration = trimEnd - trimStart;
+          const newEndTime = clip.startTime + trimmedDuration;
+          
+          if (Math.abs(newEndTime - clip.endTime) > 0.01) {
+            changed = true;
+            return { ...clip, endTime: newEndTime };
+          }
+        }
+        
+        return clip;
+      });
+      return changed ? updated : prev;
+    });
+  }, [tracks]);
+
   // Initialize audio clips from tracks - preserve existing arrangement
   useEffect(() => {
     console.log('Checking clips initialization:', { 

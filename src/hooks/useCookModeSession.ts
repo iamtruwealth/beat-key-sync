@@ -586,12 +586,7 @@ export function useCookModeSession(sessionId?: string) {
   const trimTrack = useCallback((trackId: string, trimStart: number, trimEnd: number) => {
     const updates = { trimStart, trimEnd };
     updateTrack(trackId, updates);
-    
-    toast({
-      title: "Clip Trimmed",
-      description: `Trimmed to ${trimStart.toFixed(1)}s - ${trimEnd.toFixed(1)}s`
-    });
-  }, [updateTrack, toast]);
+  }, [updateTrack]);
 
   const updateSessionSettings = useCallback(async (updates: { bpm?: number; key?: string }) => {
     try {
