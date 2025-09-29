@@ -22,6 +22,9 @@ interface AudioClip {
   trackId: string;
   startTime: number;
   endTime: number;
+  fullDuration: number;
+  trimStart: number;
+  trimEnd: number;
   originalTrack: Track;
   isSelected?: boolean;
 }
@@ -181,40 +184,37 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
     };
   }, []);
 
-  // Update playhead position based on Tone.Transport time
+  // Update playhead position based on timeline time and clip trims
   useEffect(() => {
     if (!waveSurferRef.current || !isLoaded) return;
 
     try {
-      const track = clip.originalTrack;
-      const trimStart = track.trimStart || 0;
-      const trimEnd = track.trimEnd || (track.analyzed_duration || track.duration || clipDuration);
-      const trimmedDuration = trimEnd - trimStart;
-      
-      // Calculate relative position within this clip
+      const fullDuration = clip.fullDuration || clip.originalTrack.analyzed_duration || clip.originalTrack.duration || clipDuration;
+      const startOffset = Math.max(0, clip.trimStart ?? 0);
+      const endOffset = Math.min(fullDuration, clip.trimEnd ?? fullDuration);
+      const trimmedDuration = Math.max(0.01, endOffset - startOffset);
+
+      // Calculate relative position within this clip container
       const relativeTime = currentTime - clip.startTime;
       
       if (relativeTime >= 0 && relativeTime <= clipDuration) {
-        // Map the relative time to the trimmed audio portion
+        // Map the relative time to the trimmed audio portion in the source
         const progress = relativeTime / clipDuration;
-        const audioTime = trimStart + (progress * trimmedDuration);
-        const totalDuration = track.analyzed_duration || track.duration || clipDuration;
-        const audioProgress = Math.max(0, Math.min(1, audioTime / totalDuration));
+        const audioTime = startOffset + (progress * trimmedDuration);
+        const audioProgress = Math.max(0, Math.min(1, audioTime / fullDuration));
         
         waveSurferRef.current.seekTo(audioProgress);
       } else if (currentTime < clip.startTime) {
-        // Playhead is before this clip - show start of trimmed region
-        const audioProgress = Math.max(0, Math.min(1, trimStart / (track.analyzed_duration || track.duration || clipDuration)));
+        const audioProgress = Math.max(0, Math.min(1, startOffset / fullDuration));
         waveSurferRef.current.seekTo(audioProgress);
       } else {
-        // Playhead is after this clip - show end of trimmed region
-        const audioProgress = Math.max(0, Math.min(1, trimEnd / (track.analyzed_duration || track.duration || clipDuration)));
+        const audioProgress = Math.max(0, Math.min(1, endOffset / fullDuration));
         waveSurferRef.current.seekTo(audioProgress);
       }
     } catch (err) {
       console.error('Error updating WaveSurfer playhead:', err);
     }
-  }, [currentTime, clip.startTime, clip.endTime, clipDuration, isLoaded, clip.originalTrack]);
+  }, [currentTime, clip.startTime, clip.endTime, clipDuration, isLoaded, clip.fullDuration, clip.trimStart, clip.trimEnd]);
 
   // Update visual opacity based on mute state
   useEffect(() => {
@@ -307,38 +307,6 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
             className="w-full h-full"
           />
           
-          {/* Trim overlays to show trimmed regions */}
-          {(() => {
-            const track = clip.originalTrack;
-            const trimStart = track.trimStart || 0;
-            const trimEnd = track.trimEnd;
-            const totalDuration = track.analyzed_duration || track.duration || clipDuration;
-            
-            if (trimStart > 0 || (trimEnd && trimEnd < totalDuration)) {
-              const startTrimPercent = (trimStart / totalDuration) * 100;
-              const endTrimPercent = trimEnd ? ((totalDuration - trimEnd) / totalDuration) * 100 : 0;
-              
-              return (
-                <>
-                  {/* Left trim overlay */}
-                  {trimStart > 0 && (
-                    <div
-                      className="absolute top-0 left-0 h-full bg-black/40 border-r border-red-500/50 pointer-events-none"
-                      style={{ width: `${startTrimPercent}%` }}
-                    />
-                  )}
-                  {/* Right trim overlay */}
-                  {trimEnd && trimEnd < totalDuration && (
-                    <div
-                      className="absolute top-0 right-0 h-full bg-black/40 border-l border-red-500/50 pointer-events-none"
-                      style={{ width: `${endTrimPercent}%` }}
-                    />
-                  )}
-                </>
-              );
-            }
-            return null;
-          })()}
           
           {/* Loading overlay */}
           {!isLoaded && (

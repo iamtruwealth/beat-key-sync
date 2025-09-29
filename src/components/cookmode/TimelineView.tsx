@@ -717,8 +717,19 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
               }}
               onDuplicateClip={duplicateClip}
               onDeleteClip={deleteClip}
-              onTrimClip={(clipId, s, e) => {
-                setAudioClips(prev => prev.map(c => c.id === clipId ? { ...c, trimStart: s, trimEnd: e, endTime: c.startTime + (e - s) } : c));
+              onTrimClip={(clipId, edge, s, e) => {
+                setAudioClips(prev => prev.map(c => {
+                  if (c.id !== clipId) return c;
+                  const newVisible = Math.max(0.1, e - s);
+                  if (edge === 'start') {
+                    const oldEnd = c.endTime;
+                    const newStart = oldEnd - newVisible;
+                    return { ...c, trimStart: s, trimEnd: e, startTime: newStart, endTime: oldEnd };
+                  } else {
+                    const newEnd = c.startTime + newVisible;
+                    return { ...c, trimStart: s, trimEnd: e, endTime: newEnd };
+                  }
+                }));
                 if (onTrimTrack) onTrimTrack(track.id, s, e);
               }}
               className={selectedClips.has(clip.id) ? 'ring-2 ring-primary' : ''}

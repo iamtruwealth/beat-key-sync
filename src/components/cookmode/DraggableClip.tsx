@@ -41,7 +41,7 @@ interface DraggableClipProps {
   onClipDoubleClick?: (clipId: string) => void;
   onDuplicateClip?: (clipId: string) => void;
   onDeleteClip?: (clipId: string) => void;
-  onTrimClip?: (clipId: string, trimStart: number, trimEnd: number) => void;
+  onTrimClip?: (clipId: string, edge: 'start' | 'end', trimStart: number, trimEnd: number) => void;
   className?: string;
 }
 
@@ -177,7 +177,7 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
       }
       
       if (Math.abs(newTrimStart - trimStart) > 0.01 || Math.abs(newTrimEnd - trimEnd) > 0.01) {
-        onTrimClip(clip.id, newTrimStart, newTrimEnd);
+        onTrimClip(clip.id, isTrimming, newTrimStart, newTrimEnd);
       }
       
       setIsTrimming(null);
