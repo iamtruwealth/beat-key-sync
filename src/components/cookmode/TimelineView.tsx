@@ -177,9 +177,12 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
 
         const desiredEnd = clip.startTime + known; // seconds
         // Only auto-extend if this was the initial clip starting at 0 and shorter than the analyzed length
-        if (clip.startTime === 0 && desiredEnd > clip.endTime + 0.01) {
+        // AND hasn't been manually trimmed (trimStart is 0 and trimEnd matches current endTime)
+        const isUntrimmed = (clip.trimStart === 0 || clip.trimStart === undefined) && 
+                           (clip.trimEnd === clip.endTime || clip.trimEnd === undefined || Math.abs(clip.trimEnd - clip.endTime) < 0.01);
+        if (clip.startTime === 0 && desiredEnd > clip.endTime + 0.01 && isUntrimmed) {
           changed = true;
-          return { ...clip, endTime: desiredEnd };
+          return { ...clip, endTime: desiredEnd, trimEnd: known };
         }
         return clip;
       });
