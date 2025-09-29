@@ -954,6 +954,21 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           <div className="flex-1 relative overflow-x-auto" ref={timelineRef}>
             {/* Ruler */}
             <div className="h-[63.5px] bg-black/40 border-b border-white/10 relative">
+              {/* Beat grid lines spanning all tracks */}
+              {Array.from({ length: totalBars }).map((_, bar) => 
+                [1, 2, 3, 4].map(beat => (
+                  <div
+                    key={`track-beat-${bar}-${beat}`}
+                    className="absolute w-px bg-white/5 pointer-events-none z-10"
+                    style={{ 
+                      left: bar * pixelsPerBar + beat * pixelsPerBeat,
+                      top: 0,
+                      height: '100%'
+                    }}
+                  />
+                ))
+              ).flat()}
+              
               {renderBarMarkers()}
               <div className="absolute top-6 left-2 text-xs text-gray-400">
                 Position: {formatPosition(currentTime)} | Bar: {formatTime(currentTime)}
