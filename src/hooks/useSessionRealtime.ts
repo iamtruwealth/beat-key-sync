@@ -113,9 +113,9 @@ export const useSessionRealtime = (sessionId: string | null) => {
     };
   }, [sessionId]);
 
-  // Broadcast functions
-  const broadcastPlaybackToggle = (isPlaying: boolean) => {
-    if (channel) {
+  // Broadcast functions - only allow if user has edit permissions
+  const broadcastPlaybackToggle = (isPlaying: boolean, canEdit: boolean = true) => {
+    if (channel && canEdit) {
       channel.send({
         type: 'broadcast',
         event: 'playback-toggle',
@@ -124,8 +124,8 @@ export const useSessionRealtime = (sessionId: string | null) => {
     }
   };
 
-  const broadcastPlaybackSeek = (currentTime: number) => {
-    if (channel) {
+  const broadcastPlaybackSeek = (currentTime: number, canEdit: boolean = true) => {
+    if (channel && canEdit) {
       channel.send({
         type: 'broadcast',
         event: 'playback-seek',
@@ -134,8 +134,8 @@ export const useSessionRealtime = (sessionId: string | null) => {
     }
   };
 
-  const broadcastSessionSettings = (bpm: number, key: string) => {
-    if (channel) {
+  const broadcastSessionSettings = (bpm: number, key: string, canEdit: boolean = true) => {
+    if (channel && canEdit) {
       channel.send({
         type: 'broadcast',
         event: 'session-settings',

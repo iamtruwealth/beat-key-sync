@@ -13,8 +13,10 @@ import { GlassMorphismSection } from '@/components/futuristic/GlassMorphismSecti
 import { useCookModeSession } from '@/hooks/useCookModeSession';
 import { useCookModeAudio } from '@/hooks/useCookModeAudio';
 import { useSessionRealtime } from '@/hooks/useSessionRealtime';
+import { useCollaborationPermissions } from '@/hooks/useCollaborationPermissions';
 import { CookModeDAW } from '@/components/cookmode/CookModeDAW';
 import { LiveSessionIndicator } from '@/components/cookmode/LiveSessionIndicator';
+import { AccessLevelNotification } from '@/components/cookmode/AccessLevelNotification';
 import { CookModeChat } from '@/components/cookmode/CookModeChat';
 import { SessionParticipants } from '@/components/cookmode/SessionParticipants';
 import { SessionControls } from '@/components/cookmode/SessionControls';
@@ -79,6 +81,9 @@ const CookMode = () => {
     addEmptyTrack
   } = useCookModeSession(sessionId);
   const { midiDevices, setActiveTrack, tracks: audioTracks, createTrack, loadSample, setTrackTrim } = useCookModeAudio();
+
+  // Check collaboration permissions
+  const { permissions, loading: permissionsLoading } = useCollaborationPermissions(sessionId);
 
   // Real-time collaboration
   const { 
@@ -323,13 +328,25 @@ const CookMode = () => {
     );
   }
 
-  // Loading state - only show when we have a sessionId but no session data
-  if (sessionId && (!session || !isConnected)) {
+  // Loading state - show when we have sessionId but no session data or still checking permissions
+  if (sessionId && ((!session || !isConnected) || permissionsLoading)) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-neon-cyan mx-auto mb-4"></div>
           <p className="text-muted-foreground">Connecting to Cook Mode session...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Check if user has permission to view this session
+  if (sessionId && !permissionsLoading && !permissions.canView) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Access Denied</h1>
+          <p className="text-muted-foreground">You don't have permission to view this session.</p>
         </div>
       </div>
     );
@@ -396,6 +413,7 @@ const CookMode = () => {
                   <LiveSessionIndicator 
                     participantCount={realtimeParticipants.length || participants.length} 
                     isConnected={realtimeConnected} 
+                    canEdit={permissions.canEdit}
                   />
                 </div>
               </div>
@@ -403,36 +421,40 @@ const CookMode = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="border-border/50 hover:border-neon-cyan/50 flex items-center gap-2"
-                >
-                  <Piano className="w-4 h-4" />
-                  MIDI
-                  <ChevronDown className="w-3 h-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-64 bg-background/95 backdrop-blur-sm border border-border/50">
-                <div className="p-2">
-                  <div className="text-sm font-medium mb-2">MIDI Controllers</div>
-                  {midiDevices && midiDevices.length > 0 ? (
-                    <>
-                      {midiDevices.map((device) => (
-                        <DropdownMenuItem key={device.id} className="flex items-center gap-2">
-                          <div className={`w-2 h-2 rounded-full ${device.connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                          <span className="text-sm">{device.name}</span>
-                        </DropdownMenuItem>
-                      ))}
-                    </>
-                  ) : (
-                    <div className="text-xs text-muted-foreground">No MIDI controllers detected</div>
-                  )}
-                </div>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {permissions.canEdit && (
+              <>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-border/50 hover:border-neon-cyan/50 flex items-center gap-2"
+                    >
+                      <Piano className="w-4 h-4" />
+                      MIDI
+                      <ChevronDown className="w-3 h-3" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-64 bg-background/95 backdrop-blur-sm border border-border/50">
+                    <div className="p-2">
+                      <div className="text-sm font-medium mb-2">MIDI Controllers</div>
+                      {midiDevices && midiDevices.length > 0 ? (
+                        <>
+                          {midiDevices.map((device) => (
+                            <DropdownMenuItem key={device.id} className="flex items-center gap-2">
+                              <div className={`w-2 h-2 rounded-full ${device.connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                              <span className="text-sm">{device.name}</span>
+                            </DropdownMenuItem>
+                          ))}
+                        </>
+                      ) : (
+                        <div className="text-xs text-muted-foreground">No MIDI controllers detected</div>
+                      )}
+                    </div>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
+            )}
             
             <Button
               variant="outline"
@@ -445,66 +467,76 @@ const CookMode = () => {
             </Button>
             
             
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="border-border/50 hover:border-electric-blue/50 flex items-center gap-2"
-                >
-                  <Save className="w-4 h-4" />
-                  Save Session
-                  <ChevronDown className="w-3 h-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem 
-                  onClick={() => handleSaveSession(false)}
-                  className="flex items-center gap-2"
-                >
-                  <Save className="w-4 h-4" />
-                  Save Only
-                  <span className="text-xs text-muted-foreground ml-auto">Keep working</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={() => handleSaveSession(true)}
-                  className="flex items-center gap-2"
-                >
-                  <Download className="w-4 h-4" />
-                  Save & Publish
-                  <span className="text-xs text-muted-foreground ml-auto">Finalize project</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {permissions.canEdit && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-border/50 hover:border-electric-blue/50 flex items-center gap-2"
+                  >
+                    <Save className="w-4 h-4" />
+                    Save Session
+                    <ChevronDown className="w-3 h-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem 
+                    onClick={() => handleSaveSession(false)}
+                    className="flex items-center gap-2"
+                  >
+                    <Save className="w-4 h-4" />
+                    Save Only
+                    <span className="text-xs text-muted-foreground ml-auto">Keep working</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={() => handleSaveSession(true)}
+                    className="flex items-center gap-2"
+                  >
+                    <Download className="w-4 h-4" />
+                    Save & Publish
+                    <span className="text-xs text-muted-foreground ml-auto">Finalize project</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         </div>
+        
+        {/* Access Level Notification */}
+        <AccessLevelNotification 
+          canEdit={permissions.canEdit} 
+          userRole={permissions.userRole} 
+        />
       </div>
 
       {/* Main Interface */}
       <div className="flex h-[calc(100vh-80px)]">
         {/* DAW Area */}
         <div className="flex-1 flex flex-col">
-          {/* Transport Controls */}
-          <SessionControls
-            isPlaying={isPlaying}
-            currentTime={currentTime}
-            bpm={session.target_bpm || 120}
-            sessionKey={session.target_genre}
-            sessionId={sessionId}
-            minBars={minBars}
-            metronomeEnabled={metronomeEnabled}
-            onTogglePlayback={handleTogglePlayback}
-            onSeek={handleSeekTo}
-            onToggleMetronome={() => setMetronomeEnabled(!metronomeEnabled)}
-            onUpdateBpm={(bpm) => updateSessionSettings({ bpm })}
-            onUpdateKey={(key) => updateSessionSettings({ key })}
-            onUpdateMinBars={(bars) => {
-              console.log('Updating minBars to:', bars);
-              setMinBars(bars);
-            }}
-            onCreateEmptyTrack={async (name) => { await addEmptyTrack(name); }}
-            onAddTrack={addTrack}
-          />
+          {/* Transport Controls - only show if user can edit */}
+          {permissions.canEdit && (
+            <SessionControls
+              isPlaying={isPlaying}
+              currentTime={currentTime}
+              bpm={session.target_bpm || 120}
+              sessionKey={session.target_genre}
+              sessionId={sessionId}
+              minBars={minBars}
+              metronomeEnabled={metronomeEnabled}
+              onTogglePlayback={handleTogglePlayback}
+              onSeek={handleSeekTo}
+              onToggleMetronome={() => setMetronomeEnabled(!metronomeEnabled)}
+              onUpdateBpm={(bpm) => updateSessionSettings({ bpm })}
+              onUpdateKey={(key) => updateSessionSettings({ key })}
+              onUpdateMinBars={(bars) => {
+                console.log('Updating minBars to:', bars);
+                setMinBars(bars);
+              }}
+              onCreateEmptyTrack={async (name) => { await addEmptyTrack(name); }}
+              onAddTrack={addTrack}
+            />
+          )}
 
           <Separator className="border-border/50" />
 
@@ -516,18 +548,15 @@ const CookMode = () => {
               bpm={session.target_bpm || 120}
               metronomeEnabled={metronomeEnabled}
               minBars={minBars}
-              onAddTrack={addTrack}
-              onRemoveTrack={removeTrack}
-              onUpdateTrack={updateTrack}
-              onTrimTrack={(id, s, e) => { trimTrack(id, s, e); setTrackTrim(id, s, e); }}
-              onPlayPause={togglePlayback}
-              onSeek={seekTo}
-              externalActiveView={activeView}
-              onActiveViewChange={(v) => setActiveView(v)}
-              setActiveTrack={setActiveTrack}
-              activeTrackId={audioTracks.find(t => t.id)?.id}
-              createTrack={createTrack}
-              loadSample={loadSample}
+              onAddTrack={permissions.canEdit ? addTrack : undefined}
+              onRemoveTrack={permissions.canEdit ? removeTrack : undefined}
+              onUpdateTrack={permissions.canEdit ? updateTrack : undefined}
+              onTogglePlayback={permissions.canEdit ? handleTogglePlayback : undefined}
+              onSeek={permissions.canEdit ? handleSeekTo : undefined}
+              onTrimTrack={permissions.canEdit ? trimTrack : undefined}
+              activeView={activeView}
+              onViewChange={setActiveView}
+              readOnly={!permissions.canEdit}
             />
           </div>
         </div>
