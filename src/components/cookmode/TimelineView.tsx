@@ -634,7 +634,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       const x = bar * pixelsPerBar;
       markers.push(
         <div key={`bar-${bar}`} className="absolute h-full z-30 pointer-events-none">
-          <div className="w-px h-full bg-white/20 relative" style={{ left: x }}>
+          <div className="w-px h-full bg-white/20 relative" style={{ left: Math.max(1, x) }}>
             <span className="absolute top-1 left-1 text-xs text-white z-30 bg-gray-900/80 px-1 rounded">
               {bar + 1}
             </span>
