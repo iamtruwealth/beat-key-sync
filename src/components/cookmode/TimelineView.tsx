@@ -639,8 +639,8 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
               {bar + 1}
             </span>
           </div>
-          {/* Beat markers */}
-          {[1, 2, 3].map(beat => (
+          {/* Beat markers - show all 4 beats per bar */}
+          {[1, 2, 3, 4].map(beat => (
             <div
               key={`beat-${bar}-${beat}`}
               className="absolute w-px h-full bg-white/10"
