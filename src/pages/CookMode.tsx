@@ -823,6 +823,9 @@ const CookMode = () => {
               activeView={activeView}
               onViewChange={setActiveView}
               readOnly={!permissions.canEdit}
+              setActiveTrack={setActiveTrack}
+              createTrack={createTrack}
+              loadSample={loadSample}
             />
           </div>
         </div>

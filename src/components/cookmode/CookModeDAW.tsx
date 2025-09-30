@@ -54,6 +54,10 @@ interface CookModeDAWProps {
   activeView?: 'timeline' | 'mixer';
   onViewChange?: (view: 'timeline' | 'mixer') => void;
   readOnly?: boolean;
+  // Cook Mode Audio Engine (for MIDI activation)
+  setActiveTrack?: (trackId: string) => void;
+  createTrack?: (name: string) => string;
+  loadSample?: (trackId: string, file: File) => Promise<void>;
 }
 
 export const CookModeDAW: React.FC<CookModeDAWProps> = ({
@@ -71,7 +75,10 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
   onSeek,
   activeView: externalActiveView,
   onViewChange,
-  readOnly = false
+  readOnly = false,
+  setActiveTrack,
+  createTrack,
+  loadSample
 }) => {
   const [isAddingTrack, setIsAddingTrack] = useState(false);
   const [activeView, setActiveView] = useState<'timeline' | 'mixer'>('timeline');
@@ -427,6 +434,9 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
                 onSeek={onSeek}
                 onTracksUpdate={handleTracksUpdateFromTimeline}
                 onTrimTrack={onTrimTrack}
+                setActiveTrack={setActiveTrack}
+                createTrack={createTrack}
+                loadSample={loadSample}
               />
             )}
           </TabsContent>
