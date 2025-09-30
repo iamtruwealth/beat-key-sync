@@ -37,6 +37,14 @@ export class HostMasterAudio {
       // Connect master gain to stream destination (for broadcasting)
       this.masterGain.connect(this.mediaStreamDestination);
       
+      // Create a continuous silent tone to keep the stream alive
+      const oscillator = this.audioContext.createOscillator();
+      const silentGain = this.audioContext.createGain();
+      silentGain.gain.value = 0.001; // Nearly silent
+      oscillator.connect(silentGain);
+      silentGain.connect(this.masterGain);
+      oscillator.start();
+      
       console.log('🎵 HostMasterAudio initialized: destination tracks', this.mediaStreamDestination.stream.getAudioTracks().map(t => t.id));
     } catch (error) {
       console.error('Failed to initialize HostMasterAudio:', error);
