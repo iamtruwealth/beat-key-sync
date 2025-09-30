@@ -306,11 +306,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
     >
-      {error ? (
-        <div className="flex items-center justify-center h-full bg-red-500/10 border-red-500">
-          <span className="text-xs text-red-400">Failed to load</span>
-        </div>
-      ) : !track.file_url || track.file_url.trim() === '' ? (
+      {!track.file_url || track.file_url.trim() === '' ? (
         // Empty track - ready for recording or MIDI input
         <div className="flex items-center justify-center h-full bg-purple-500/10 border-purple-500/30 border-dashed">
           <div className="text-center">
@@ -318,74 +314,86 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
             <span className="text-xs text-purple-400">Ready to Record</span>
           </div>
         </div>
-      ) : isLoading || (!isLoaded && track.file_url) ? (
-        <div className="flex items-center justify-center h-full bg-blue-500/10 border-blue-500">
-          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400"></div>
-          <span className="text-xs text-blue-400 ml-2">Loading...</span>
-        </div>
       ) : (
         <>
-          {/* WaveSurfer container */}
-          <div
-            ref={containerRef}
-            id={containerId}
-            className="w-full h-full relative"
-          />
+          <div className="relative w-full h-full">
+            {/* WaveSurfer container (always rendered so init can attach) */}
+            <div
+              ref={containerRef}
+              id={containerId}
+              className="w-full h-full"
+            />
 
-          {/* Trim overlays: dim hidden (trimmed) parts so only visible segment pops */}
-          {(() => {
-            const total = clip.fullDuration || clip.originalTrack.analyzed_duration || clip.originalTrack.duration || clipDuration;
-            if (!total || total <= 0) return null;
-            const s = Math.max(0, Math.min(clip.trimStart ?? 0, total));
-            const e = Math.max(s, Math.min(clip.trimEnd ?? total, total));
-            const leftPct = (s / total) * 100;
-            const rightPct = ((total - e) / total) * 100;
-            return (
-              <>
-                {leftPct > 0 && (
-                  <div
-                    className="pointer-events-none absolute top-0 left-0 h-full bg-background/60 border-r border-border/40"
-                    style={{ width: `${leftPct}%` }}
-                  />
-                )}
-                {rightPct > 0 && (
-                  <div
-                    className="pointer-events-none absolute top-0 right-0 h-full bg-background/60 border-l border-border/40"
-                    style={{ width: `${rightPct}%` }}
-                  />
-                )}
-              </>
-            );
-          })()}
-           
-           {/* Clip action buttons */}
-          <div className="absolute bottom-1 right-1 z-20 flex gap-1">
-            <button
-              type="button"
-              className="inline-flex items-center justify-center h-6 w-6 rounded-md bg-background/80 text-foreground border border-border shadow-sm hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              aria-label="Duplicate clip"
-              title="Duplicate clip"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (onDuplicateClip) onDuplicateClip(clip.id);
-              }}
-            >
-              <Copy className="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="button"
-              className="inline-flex items-center justify-center h-6 w-6 rounded-md bg-background/80 text-foreground border border-border shadow-sm hover:bg-destructive/20 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              aria-label="Delete clip"
-              title="Delete clip"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (onDeleteClip) onDeleteClip(clip.id);
-              }}
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
+            {/* Loading overlay */}
+            {(isLoading || (!isLoaded && track.file_url)) && !error && (
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-blue-500/10 border-blue-500">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400"></div>
+                <span className="text-xs text-blue-400 ml-2">Loading...</span>
+              </div>
+            )}
+
+            {/* Error overlay */}
+            {error && (
+              <div className="absolute inset-0 flex items-center justify-center bg-red-500/10 border-red-500">
+                <span className="text-xs text-red-400">Failed to load</span>
+              </div>
+            )}
+
+            {/* Trim overlays: dim hidden (trimmed) parts so only visible segment pops */}
+            {(() => {
+              const total = clip.fullDuration || clip.originalTrack.analyzed_duration || clip.originalTrack.duration || clipDuration;
+              if (!total || total <= 0) return null;
+              const s = Math.max(0, Math.min(clip.trimStart ?? 0, total));
+              const e = Math.max(s, Math.min(clip.trimEnd ?? total, total));
+              const leftPct = (s / total) * 100;
+              const rightPct = ((total - e) / total) * 100;
+              return (
+                <>
+                  {leftPct > 0 && (
+                    <div
+                      className="pointer-events-none absolute top-0 left-0 h-full bg-background/60 border-r border-border/40"
+                      style={{ width: `${leftPct}%` }}
+                    />
+                  )}
+                  {rightPct > 0 && (
+                    <div
+                      className="pointer-events-none absolute top-0 right-0 h-full bg-background/60 border-l border-border/40"
+                      style={{ width: `${rightPct}%` }}
+                    />
+                  )}
+                </>
+              );
+            })()}
+
+            {/* Clip action buttons */}
+            <div className="absolute bottom-1 right-1 z-20 flex gap-1">
+              <button
+                type="button"
+                className="inline-flex items-center justify-center h-6 w-6 rounded-md bg-background/80 text-foreground border border-border shadow-sm hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label="Duplicate clip"
+                title="Duplicate clip"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (onDuplicateClip) onDuplicateClip(clip.id);
+                }}
+              >
+                <Copy className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                className="inline-flex items-center justify-center h-6 w-6 rounded-md bg-background/80 text-foreground border border-border shadow-sm hover:bg-destructive/20 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label="Delete clip"
+                title="Delete clip"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (onDeleteClip) onDeleteClip(clip.id);
+                }}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         </>
       )}
