@@ -71,9 +71,13 @@ export class HostMasterAudio {
     }
 
     try {
-      // No direct routing from destination. Stream bus is provided for engine sources.
+      // Fork Tone.js destination to our master gain so everything the host hears is also broadcast
+      const toneContext = Tone.getContext();
+      const toneDestination = (toneContext.destination as any)._nativeAudioNode || toneContext.destination;
+      (toneDestination as AudioNode).connect(this.masterGain);
+
       this.isRouted = true;
-      console.log('🎵 HostMasterAudio stream bus ready for engine connections');
+      console.log('🎵 CookModeEngine routed to HostMasterAudio (forked to stream)');
     } catch (error) {
       console.error('Failed to connect CookModeEngine:', error);
       throw error;

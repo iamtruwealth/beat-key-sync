@@ -43,8 +43,10 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
       await Tone.start();
       setAudioEnabled(true);
 
-      // Start fade out
-      setOverlayVisible(false);
+      // Hide overlay immediately for host; viewers will hide after playback starts
+      if (canEdit) {
+        setOverlayVisible(false);
+      }
 
       console.log('🔊 Audio context resumed');
     } catch (err) {
@@ -73,28 +75,8 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
           audioTracks: streamWithAudio.getAudioTracks().map((t) => t.id),
         });
 
-        // Create MediaStreamAudioSourceNode for direct audio processing
+        // Use a simple audio element for reliable playback
         try {
-          const source = audioContextRef.current.createMediaStreamSource(streamWithAudio);
-          
-          // Create ScriptProcessorNode for buffering (deprecated but works)
-          const processor = audioContextRef.current.createScriptProcessor(4096, 1, 1);
-          
-          processor.onaudioprocess = (event) => {
-            const inputData = event.inputBuffer.getChannelData(0);
-            if (audioBufferRef.current) {
-              audioBufferRef.current.addChunk(new Float32Array(inputData));
-            }
-          };
-          
-          source.connect(processor);
-          processor.connect(audioContextRef.current.destination);
-          
-          console.log('📻 Radio Viewer: Buffered audio processing connected');
-        } catch (error) {
-          console.warn('Failed to create audio processing chain:', error);
-          
-          // Fallback to simple audio element
           if (!viewerAudioRef.current) {
             const audioEl = document.createElement('audio');
             audioEl.autoplay = true;
@@ -104,9 +86,18 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
             document.body.appendChild(audioEl);
             viewerAudioRef.current = audioEl;
           }
-          
+
           viewerAudioRef.current.srcObject = streamWithAudio;
-          viewerAudioRef.current.play().catch((err) => console.warn('Fallback auto-play blocked:', err));
+          viewerAudioRef.current.play()
+            .then(() => {
+              console.log('📻 Radio Viewer: Playback started');
+              setOverlayVisible(false);
+            })
+            .catch((err) => {
+              console.warn('Viewer auto-play blocked:', err);
+            });
+        } catch (error) {
+          console.warn('Failed to start viewer playback:', error);
         }
       }
       
