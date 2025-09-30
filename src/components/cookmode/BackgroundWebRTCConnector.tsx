@@ -1,12 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useWebRTCStreaming } from '@/hooks/useWebRTCStreaming';
 import { HostMasterAudio } from '@/host/HostMasterAudio';
+import * as Tone from 'tone';
 
 interface BackgroundWebRTCConnectorProps {
   sessionId: string;
   canEdit: boolean;
   currentUserId?: string;
-  masterPlayer: any; // your Tone.Player instance for host audio
+  masterPlayer: Tone.Player; // Tone.js player instance for host audio
 }
 
 export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps> = ({
@@ -19,61 +20,57 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
 
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [overlayVisible, setOverlayVisible] = useState(true);
-  const audioRefs = useRef<Record<string, HTMLAudioElement | null>>({});
 
+  const audioRefs = useRef<Record<string, HTMLAudioElement>>({});
   const hostAudioRef = useRef<HostMasterAudio | null>(null);
 
-  // ENABLE AUDIO ON SINGLE TAP
+  // Enable audio on tap
   const enableAudio = async () => {
-    if (audioEnabled) return;
-
     try {
-      // Initialize HostMasterAudio if not already
       if (!hostAudioRef.current) {
         hostAudioRef.current = new HostMasterAudio();
         hostAudioRef.current.connectNode(masterPlayer);
-
-        // Start looping audio (adjust loop points if needed)
         hostAudioRef.current.startLoop(masterPlayer, 0, masterPlayer.buffer?.duration || 8);
       }
 
-      // Resume Tone.js AudioContext
+      // Resume AudioContext
+      await Tone.start();
       await masterPlayer.context.resume();
 
-      // Attach master stream to all participants
-      const masterStream = hostAudioRef.current.masterStream;
-      participants.forEach((p) => {
-        const userId = p.user_id;
-        if (!audioRefs.current[userId]) {
-          const audioEl = document.createElement('audio');
-          audioEl.autoplay = true;
-          audioEl.setAttribute('playsinline', 'true');
-          audioEl.muted = false;
-          audioEl.style.display = 'none';
-          document.body.appendChild(audioEl);
-          audioRefs.current[userId] = audioEl;
-        }
-
-        const el = audioRefs.current[userId]!;
-        if (el.srcObject !== masterStream) {
-          el.srcObject = masterStream;
-          el.play().catch((err) => console.warn('Auto-play blocked:', err));
-        }
-      });
-
-      // Mark audio as enabled and hide overlay
       setAudioEnabled(true);
       setOverlayVisible(false);
 
-      console.log('🔊 Audio context resumed and master stream started');
+      console.log('🔊 Audio context resumed and master loop started');
     } catch (err) {
       console.warn('Failed to enable audio:', err);
     }
   };
 
-  // CLEANUP LEFT PARTICIPANTS
+  // Attach master stream to all participant audio elements
   useEffect(() => {
-    if (!audioEnabled) return;
+    if (!audioEnabled || !hostAudioRef.current) return;
+
+    const masterStream = hostAudioRef.current.masterStream;
+
+    participants.forEach((p) => {
+      const userId = p.user_id;
+
+      if (!audioRefs.current[userId]) {
+        const audioEl = document.createElement('audio');
+        audioEl.autoplay = true;
+        audioEl.setAttribute('playsinline', 'true');
+        audioEl.muted = false;
+        audioEl.style.display = 'none';
+        audioEl.srcObject = masterStream;
+        document.body.appendChild(audioEl);
+        audioRefs.current[userId] = audioEl;
+      } else if (audioRefs.current[userId].srcObject !== masterStream) {
+        audioRefs.current[userId].srcObject = masterStream;
+        audioRefs.current[userId].play().catch((err) => console.warn('Auto-play blocked:', err));
+      }
+    });
+
+    // Remove audio elements for participants who left
     const currentIds = new Set(participants.map((p) => p.user_id));
     Object.keys(audioRefs.current).forEach((id) => {
       if (!currentIds.has(id)) {
@@ -84,7 +81,7 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
     });
   }, [participants, audioEnabled]);
 
-  // OVERLAY
+  // Overlay JSX
   if (overlayVisible) {
     return (
       <div
