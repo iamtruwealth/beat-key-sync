@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import * as Tone from 'tone';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
@@ -48,7 +47,6 @@ interface SessionControlsProps {
   onUpdateMinBars?: (bars: number) => void;
   onCreateEmptyTrack?: (name: string) => Promise<void> | void;
   onAddTrack?: (file: File, trackName: string, stemType: string) => Promise<void>;
-  canEdit?: boolean;
 }
 
 export const SessionControls: React.FC<SessionControlsProps> = ({
@@ -68,10 +66,9 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
   onUpdateKey,
   onUpdateMinBars,
   onCreateEmptyTrack,
-  onAddTrack,
-  canEdit = true
+  onAddTrack
 }) => {
-  const { createTrack, isRecording, startRecording, stopRecording, tracks: audioTracks, loadSample, setActiveTrack } = useCookModeAudio(canEdit);
+  const { createTrack, isRecording, startRecording, stopRecording, tracks: audioTracks, loadSample, setActiveTrack } = useCookModeAudio();
   const { toast } = useToast();
   const [masterVolume, setMasterVolume] = useState(75);
   const [sessionDuration, setSessionDuration] = useState(0);
@@ -162,19 +159,7 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
             </Button>
             
             <Button
-              onClick={async () => {
-                try {
-                  await Tone.start();
-                  const ctx = Tone.getContext();
-                  if (ctx.state === 'suspended') {
-                    await ctx.resume();
-                  }
-                  console.log('🔊 Audio unlocked via Play button');
-                } catch (e) {
-                  console.warn('Tone.start() failed:', e);
-                }
-                onTogglePlayback();
-              }}
+              onClick={onTogglePlayback}
               className={`p-3 ${
                 isPlaying 
                   ? 'bg-gradient-to-r from-red-500 to-red-600 text-white hover:opacity-90' 

@@ -41,7 +41,6 @@ import UserProfile from "./pages/UserProfile";
 import Onboarding from "./pages/Onboarding";
 import Collaborate from "./pages/Collaborate";
 import CookMode from "./pages/CookMode";
-import ViewerTest from "./pages/ViewerTest";
 
 import { FuturisticWaveformPlayer } from "./components/player/FuturisticWaveformPlayer";
 
@@ -324,11 +323,16 @@ const App = () => (
                 </div>
               </RoleProtectedRoute>
             } />
-            <Route path="/cook-mode" element={<CookMode />} />
-            <Route path="/cook-mode/:sessionId" element={<CookMode />} />
-            
-            {/* Public viewer test route - no auth required */}
-            <Route path="/viewer/:sessionId" element={<ViewerTest />} />
+            <Route path="/cook-mode" element={
+              <RoleProtectedRoute allowedRoles={['producer']}>
+                <CookMode />
+              </RoleProtectedRoute>
+            } />
+            <Route path="/cook-mode/:sessionId" element={
+              <RoleProtectedRoute allowedRoles={['producer']}>
+                <CookMode />
+              </RoleProtectedRoute>
+            } />
             
             {/* Catch-all routes */}
             <Route path="/analytics" element={

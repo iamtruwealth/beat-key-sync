@@ -496,22 +496,7 @@ export type Database = {
           referral_source?: string | null
           tracked_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "fk_collaboration_analytics_collaboration_id"
-            columns: ["collaboration_id"]
-            isOneToOne: false
-            referencedRelation: "collaboration_projects"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_collaboration_analytics_member_id"
-            columns: ["member_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       collaboration_applications: {
         Row: {
@@ -574,15 +559,7 @@ export type Database = {
           status?: string
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "fk_collaboration_members_collaboration_id"
-            columns: ["collaboration_id"]
-            isOneToOne: false
-            referencedRelation: "collaboration_projects"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       collaboration_messages: {
         Row: {
@@ -612,26 +589,10 @@ export type Database = {
           message_type?: string
           sender_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "fk_collaboration_messages_collaboration_id"
-            columns: ["collaboration_id"]
-            isOneToOne: false
-            referencedRelation: "collaboration_projects"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_collaboration_messages_sender_id"
-            columns: ["sender_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       collaboration_projects: {
         Row: {
-          allow_public_access: boolean | null
           cover_art_url: string | null
           created_at: string
           created_by: string
@@ -647,7 +608,6 @@ export type Database = {
           workspace_type: string
         }
         Insert: {
-          allow_public_access?: boolean | null
           cover_art_url?: string | null
           created_at?: string
           created_by: string
@@ -663,7 +623,6 @@ export type Database = {
           workspace_type?: string
         }
         Update: {
-          allow_public_access?: boolean | null
           cover_art_url?: string | null
           created_at?: string
           created_by?: string
@@ -678,15 +637,7 @@ export type Database = {
           updated_at?: string
           workspace_type?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "fk_collaboration_projects_created_by"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       collaboration_requests: {
         Row: {
@@ -725,15 +676,7 @@ export type Database = {
           status?: string
           title?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "collaboration_requests_requester_id_fkey"
-            columns: ["requester_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       collaboration_sessions: {
         Row: {
@@ -769,22 +712,7 @@ export type Database = {
           started_at?: string
           started_by?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "fk_collaboration_sessions_collaboration_id"
-            columns: ["collaboration_id"]
-            isOneToOne: false
-            referencedRelation: "collaboration_projects"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_collaboration_sessions_started_by"
-            columns: ["started_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       collaboration_stems: {
         Row: {
@@ -826,22 +754,7 @@ export type Database = {
           uploaded_by?: string
           version_number?: number
         }
-        Relationships: [
-          {
-            foreignKeyName: "fk_collaboration_stems_collaboration_id"
-            columns: ["collaboration_id"]
-            isOneToOne: false
-            referencedRelation: "collaboration_projects"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_collaboration_stems_uploaded_by"
-            columns: ["uploaded_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       featured_beat_packs: {
         Row: {
@@ -1708,10 +1621,6 @@ export type Database = {
           target_user_id: string
         }
         Returns: string
-      }
-      enable_session_sharing: {
-        Args: { session_id: string }
-        Returns: boolean
       }
       get_all_profiles_for_admin: {
         Args: Record<PropertyKey, never>

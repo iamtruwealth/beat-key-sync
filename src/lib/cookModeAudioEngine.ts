@@ -274,7 +274,6 @@ export class CookModeAudioEngine {
       
       // Create Tone.js player
       const player = new Tone.Player(audioBuffer).toDestination();
-      
       player.fadeIn = 0.01;
       player.fadeOut = 0.03;
       player.autostart = false;

@@ -19,10 +19,9 @@ interface Participant {
 interface SessionParticipantsProps {
   participants: Participant[];
   sessionId: string;
-  showVideo?: boolean;
 }
 
-export const SessionParticipants: React.FC<SessionParticipantsProps> = ({ participants, sessionId, showVideo = false }) => {
+export const SessionParticipants: React.FC<SessionParticipantsProps> = ({ participants, sessionId }) => {
   const getRoleIcon = (role: string) => {
     switch (role) {
       case 'creator':
@@ -109,31 +108,29 @@ export const SessionParticipants: React.FC<SessionParticipantsProps> = ({ partic
         )}
       </div>
 
-      {/* Session Stats - Hidden when video is active */}
-      {!showVideo && (
-        <Card className="bg-card/20 border-border/30">
-          <CardContent className="p-3">
-            <div className="space-y-2">
-              <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">Session Status</span>
-                <Badge variant="outline" className="text-green-400 border-green-400/30">
-                  Live
-                </Badge>
-              </div>
-              
-              <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">Active Members</span>
-                <span className="text-foreground font-medium">{participants.length}</span>
-              </div>
-              
-              <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">Session Mode</span>
-                <span className="text-neon-cyan font-medium">Cook Mode</span>
-              </div>
+      {/* Session Stats */}
+      <Card className="bg-card/20 border-border/30">
+        <CardContent className="p-3">
+          <div className="space-y-2">
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">Session Status</span>
+              <Badge variant="outline" className="text-green-400 border-green-400/30">
+                Live
+              </Badge>
             </div>
-          </CardContent>
-        </Card>
-      )}
+            
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">Active Members</span>
+              <span className="text-foreground font-medium">{participants.length}</span>
+            </div>
+            
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">Session Mode</span>
+              <span className="text-neon-cyan font-medium">Cook Mode</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

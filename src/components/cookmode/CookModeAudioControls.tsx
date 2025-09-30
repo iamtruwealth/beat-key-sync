@@ -27,12 +27,10 @@ import { undoManager } from '@/lib/UndoManager';
 
 interface CookModeAudioControlsProps {
   className?: string;
-  canEdit?: boolean;
 }
 
 export const CookModeAudioControls: React.FC<CookModeAudioControlsProps> = ({
-  className = "",
-  canEdit = true
+  className = ""
 }) => {
   const {
     tracks,
@@ -49,7 +47,7 @@ export const CookModeAudioControls: React.FC<CookModeAudioControlsProps> = ({
     stopRecording,
     playbackRecording,
     recordAudioInput
-  } = useCookModeAudio(canEdit);
+  } = useCookModeAudio();
 
   const [newTrackName, setNewTrackName] = useState('');
   const [selectedTrackId, setSelectedTrackId] = useState<string>('');

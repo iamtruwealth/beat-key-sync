@@ -45,15 +45,18 @@ interface CookModeDAWProps {
   bpm: number;
   metronomeEnabled?: boolean;
   minBars?: number;
-  onAddTrack?: (file: File, trackName: string, stemType: string) => Promise<void>;
-  onRemoveTrack?: (trackId: string) => Promise<void>;
-  onUpdateTrack?: (trackId: string, updates: Partial<Track>) => void;
+  onAddTrack: (file: File, trackName: string, stemType: string) => Promise<void>;
+  onRemoveTrack: (trackId: string) => Promise<void>;
+  onUpdateTrack: (trackId: string, updates: Partial<Track>) => void;
   onTrimTrack?: (trackId: string, trimStart: number, trimEnd: number) => void;
-  onTogglePlayback?: () => void;
-  onSeek?: (time: number) => void;
-  activeView?: 'timeline' | 'mixer';
-  onViewChange?: (view: 'timeline' | 'mixer') => void;
-  readOnly?: boolean;
+  onPlayPause: () => void;
+  onSeek: (time: number) => void;
+  externalActiveView?: 'timeline' | 'mixer';
+  onActiveViewChange?: (view: 'timeline' | 'mixer') => void;
+  setActiveTrack?: (trackId: string) => void;
+  activeTrackId?: string;
+  createTrack?: (name: string) => string;
+  loadSample?: (trackId: string, file: File) => Promise<void>;
 }
 
 export const CookModeDAW: React.FC<CookModeDAWProps> = ({
@@ -67,11 +70,14 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
   onRemoveTrack,
   onUpdateTrack,
   onTrimTrack,
-  onTogglePlayback,
+  onPlayPause,
   onSeek,
-  activeView: externalActiveView,
-  onViewChange,
-  readOnly = false
+  externalActiveView,
+  onActiveViewChange,
+  setActiveTrack,
+  activeTrackId,
+  createTrack,
+  loadSample
 }) => {
   const [isAddingTrack, setIsAddingTrack] = useState(false);
   const [activeView, setActiveView] = useState<'timeline' | 'mixer'>('timeline');
@@ -86,7 +92,7 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
   // Controlled/uncontrolled view state
   const view = externalActiveView ?? activeView;
   const handleViewChange = (value: string) => {
-    if (onViewChange) onViewChange(value as 'timeline' | 'mixer');
+    if (onActiveViewChange) onActiveViewChange(value as 'timeline' | 'mixer');
     else setActiveView(value as 'timeline' | 'mixer');
   };
 
@@ -203,7 +209,7 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
   };
 
   const handleAddTrack = async () => {
-    if (!newTrackData.file || !newTrackData.name || !onAddTrack) {
+    if (!newTrackData.file || !newTrackData.name) {
       toast.error('Please select a file and enter a track name');
       return;
     }
@@ -423,10 +429,14 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
                 bpm={bpm}
                 metronomeEnabled={metronomeEnabled}
                 minBars={minBars}
-                onPlayPause={onTogglePlayback}
+                onPlayPause={onPlayPause}
                 onSeek={onSeek}
                 onTracksUpdate={handleTracksUpdateFromTimeline}
                 onTrimTrack={onTrimTrack}
+                setActiveTrack={setActiveTrack}
+                activeTrackId={activeTrackId}
+                createTrack={createTrack}
+                loadSample={loadSample}
               />
             )}
           </TabsContent>
@@ -533,9 +543,8 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
             ) : (
               <FuturisticMixerBoard
                 tracks={tracks}
-                onUpdateTrack={readOnly ? undefined : onUpdateTrack}
-                onRemoveTrack={readOnly ? undefined : onRemoveTrack}
-                
+                onUpdateTrack={onUpdateTrack}
+                onRemoveTrack={onRemoveTrack}
               />
             )}
           </TabsContent>

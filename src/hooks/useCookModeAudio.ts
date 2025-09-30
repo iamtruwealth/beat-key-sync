@@ -45,7 +45,7 @@ export interface UseCookModeAudioReturn {
   isAudioRecordingSupported: boolean;
 }
 
-export function useCookModeAudio(isHost: boolean = true): UseCookModeAudioReturn {
+export function useCookModeAudio(): UseCookModeAudioReturn {
   const { toast } = useToast();
   const engineRef = useRef<CookModeAudioEngine | null>(null);
   
@@ -56,16 +56,11 @@ export function useCookModeAudio(isHost: boolean = true): UseCookModeAudioReturn
   const [isInitialized, setIsInitialized] = useState(false);
   const [lastMidiEvent, setLastMidiEvent] = useState<MidiEvent | null>(null);
 
-  // Initialize audio engine (only for host)
+  // Initialize audio engine
   useEffect(() => {
-    if (!isHost) {
-      setIsInitialized(true); // Viewers don't need the engine
-      return;
-    }
-
     const initializeEngine = async () => {
       try {
-        console.log('🎵 Initializing Cook Mode Audio Engine from hook (HOST)...');
+        console.log('🎵 Initializing Cook Mode Audio Engine from hook...');
         
         const engine = sharedEngine ?? new CookModeAudioEngine();
         if (!sharedEngine) sharedEngine = engine;
@@ -131,7 +126,7 @@ export function useCookModeAudio(isHost: boolean = true): UseCookModeAudioReturn
         engineRef.current = null;
       }
     };
-  }, [toast, isHost]);
+  }, [toast]);
 
   // Create a new track
   const createTrack = useCallback((name: string): string => {

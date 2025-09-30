@@ -51,26 +51,13 @@ export default function ProfilePage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    const checkAuthAndLoadProfile = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setLoading(false);
-        // Redirect to auth page or show login required message
-        return;
-      }
-      await loadProfile();
-    };
-    
-    checkAuthAndLoadProfile();
+    loadProfile();
   }, []);
 
   const loadProfile = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setLoading(false);
-        return;
-      }
+      if (!user) return;
 
       const { data, error } = await supabase
         .from('profiles')
