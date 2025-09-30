@@ -71,13 +71,18 @@ export class HostMasterAudio {
     }
 
     try {
-      // Fork Tone.js destination to our master gain so everything the host hears is also broadcast
-      const toneContext = Tone.getContext();
-      const toneDestination = (toneContext.destination as any)._nativeAudioNode || toneContext.destination;
-      (toneDestination as AudioNode).connect(this.masterGain);
+      // Fork Tone.js output (Destination) to the MediaStream destination so
+      // everything the host hears is also sent to the broadcast stream.
+      if (!this.mediaStreamDestination) {
+        throw new Error('MediaStreamDestination not initialized');
+      }
+
+      const toneDestination = Tone.getContext().destination as any; // Tone.Destination
+      // Connect Tone's master output directly to the stream destination
+      toneDestination.connect(this.mediaStreamDestination);
 
       this.isRouted = true;
-      console.log('🎵 CookModeEngine routed to HostMasterAudio (forked to stream)');
+      console.log('🎵 Routed Tone.Destination to MediaStream for broadcast');
     } catch (error) {
       console.error('Failed to connect CookModeEngine:', error);
       throw error;

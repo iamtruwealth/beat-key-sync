@@ -75,8 +75,20 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
             console.log('📻 Viewer: Audio playback started');
             setOverlayVisible(false);
           } catch (playError) {
-            console.warn('📻 Viewer: Auto-play failed:', playError);
-            // Keep overlay visible for manual retry
+            console.warn('📻 Viewer: Auto-play failed, using WebAudio fallback:', playError);
+            try {
+              // Fallback: route MediaStream into WebAudio graph (allowed after Tone.start())
+              if (!audioContextRef.current) {
+                audioContextRef.current = new AudioContext({ sampleRate: 24000 });
+              }
+              const source = audioContextRef.current.createMediaStreamSource(hostStream);
+              source.connect(audioContextRef.current.destination);
+              console.log('📻 Viewer: WebAudio fallback connected');
+              setOverlayVisible(false);
+            } catch (webaudioErr) {
+              console.error('📻 Viewer: WebAudio fallback failed:', webaudioErr);
+              // Keep overlay visible for manual retry
+            }
           }
         } else {
           console.log('📻 Viewer: No host stream found yet, waiting...');
@@ -136,8 +148,19 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
             setOverlayVisible(false);
           })
           .catch((err) => {
-            console.warn('📻 Viewer: Auto-play blocked, user interaction required:', err);
-            // Overlay stays visible until manual interaction
+            console.warn('📻 Viewer: Auto-play blocked, trying WebAudio fallback:', err);
+            try {
+              if (!audioContextRef.current) {
+                audioContextRef.current = new AudioContext({ sampleRate: 24000 });
+              }
+              const source = audioContextRef.current.createMediaStreamSource(hostStream);
+              source.connect(audioContextRef.current.destination);
+              console.log('📻 Viewer: WebAudio fallback connected (effect)');
+              setOverlayVisible(false);
+            } catch (webaudioErr) {
+              console.error('📻 Viewer: WebAudio fallback failed (effect):', webaudioErr);
+              // Overlay stays visible; user can tap again
+            }
           });
 
         // Handle audio events for debugging
