@@ -60,13 +60,22 @@ export function useCookModeSession(sessionId?: string) {
 
   // Real-time subscription for session updates
   useEffect(() => {
+    // Set up a timeout to prevent indefinite loading
+    const connectionTimeout = setTimeout(() => {
+      if (!isConnected) {
+        console.warn('🔗 Realtime connection timeout, proceeding without realtime features');
+        setIsConnected(true); // Allow the app to continue
+      }
+    }, 10000); // 10 second timeout
     if (!sessionId) return;
 
     const setupRealtime = async () => {
+      console.log('🔗 Setting up realtime for session:', sessionId);
       try {
         // Join realtime channel for this session
         const channel = supabase.channel(`cook-mode-${sessionId}`)
           .on('presence', { event: 'sync' }, () => {
+            console.log('🔗 Presence sync event');
             const newState = channel.presenceState();
             const participantList: Participant[] = [];
             Object.values(newState).forEach((presences: any) => {
@@ -154,13 +163,18 @@ export function useCookModeSession(sessionId?: string) {
             } : null);
           });
 
-        await channel.subscribe();
+        console.log('🔗 Subscribing to channel...');
+        const subscriptionResult = await channel.subscribe();
+        console.log('🔗 Channel subscription result:', subscriptionResult);
+        
         setIsConnected(true);
         channelRef.current = channel;
+        console.log('🔗 Realtime connected successfully');
         
         // Track user presence
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
+          console.log('🔗 Tracking user presence:', user.id);
           // Check if this user is the session creator to assign correct role
           const { data: sessionData } = await supabase
             .from('collaboration_projects')
@@ -169,15 +183,20 @@ export function useCookModeSession(sessionId?: string) {
             .single();
           
           const isCreator = sessionData?.created_by === user.id;
+          console.log('🔗 User is creator:', isCreator);
           
-          await channel.track({
+          const trackResult = await channel.track({
             user_id: user.id,
             joined_at: new Date().toISOString(),
             role: isCreator ? 'creator' : 'collaborator'
           });
+          console.log('🔗 Presence tracking result:', trackResult);
+        } else {
+          console.log('🔗 No user found for presence tracking');
         }
       } catch (error) {
-        console.error('Error setting up realtime:', error);
+        console.error('❌ Error setting up realtime:', error);
+        setIsConnected(false); // Ensure we don't get stuck
         toast({
           title: "Connection Error",
           description: "Failed to connect to live session",
@@ -189,6 +208,7 @@ export function useCookModeSession(sessionId?: string) {
     setupRealtime();
 
     return () => {
+      clearTimeout(connectionTimeout);
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
         setIsConnected(false);

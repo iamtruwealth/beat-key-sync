@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,9 @@ import {
   Calendar,
   Trash2,
   Settings,
-  Filter
+  Filter,
+  UserPlus,
+  UserX
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -28,12 +31,15 @@ interface Notification {
   read_at?: string;
   data: Record<string, any>;
   created_at: string;
+  item_id?: string;
+  actor_id?: string;
 }
 
 const notificationIcons = {
   message: MessageSquare,
   paperwork: FileText,
   collaboration: Users,
+  collaboration_invite: UserPlus,
   payment: DollarSign,
   release: Music,
   reminder: Calendar,
@@ -44,6 +50,7 @@ const notificationColors = {
   message: "text-blue-500",
   paperwork: "text-yellow-500",
   collaboration: "text-green-500",
+  collaboration_invite: "text-neon-cyan",
   payment: "text-emerald-500",
   release: "text-purple-500",
   reminder: "text-orange-500",
@@ -51,9 +58,11 @@ const notificationColors = {
 };
 
 export default function NotificationsPage() {
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
+  const [processingInvite, setProcessingInvite] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -157,6 +166,69 @@ export default function NotificationsPage() {
         description: "Failed to delete notification",
         variant: "destructive"
       });
+    }
+  };
+
+  const handleInviteAction = async (notificationId: string, action: 'accept' | 'decline', sessionId?: string) => {
+    if (!sessionId) return;
+    
+    try {
+      setProcessingInvite(notificationId);
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      if (action === 'accept') {
+        // Update collaboration member status to accepted
+        const { error: memberError } = await supabase
+          .from('collaboration_members')
+          .update({ 
+            status: 'accepted',
+            joined_at: new Date().toISOString()
+          })
+          .eq('collaboration_id', sessionId)
+          .eq('user_id', user.id);
+
+        if (memberError) throw memberError;
+
+        // Mark notification as read
+        await markAsRead(notificationId);
+
+        toast({
+          title: "Invitation Accepted",
+          description: "You've joined the Cook Mode session!",
+        });
+
+        // Navigate to the Cook Mode session
+        navigate(`/cook-mode/${sessionId}`);
+      } else {
+        // Decline invitation - remove from collaboration members
+        const { error: memberError } = await supabase
+          .from('collaboration_members')
+          .delete()
+          .eq('collaboration_id', sessionId)
+          .eq('user_id', user.id);
+
+        if (memberError) throw memberError;
+
+        // Mark notification as read
+        await markAsRead(notificationId);
+
+        toast({
+          title: "Invitation Declined",
+          description: "You've declined the Cook Mode invitation.",
+        });
+      }
+
+    } catch (error) {
+      console.error('Error handling invite action:', error);
+      toast({
+        title: "Error",
+        description: "Failed to process invitation",
+        variant: "destructive"
+      });
+    } finally {
+      setProcessingInvite(null);
     }
   };
 
@@ -271,12 +343,37 @@ export default function NotificationsPage() {
                           <p className="text-sm text-muted-foreground mt-1">
                             {notification.message}
                           </p>
+                          
+                          {/* Collaboration Invite Actions */}
+                          {notification.type === 'collaboration_invite' && !notification.read_at && notification.item_id && (
+                            <div className="flex gap-2 mt-3">
+                              <Button
+                                size="sm"
+                                onClick={() => handleInviteAction(notification.id, 'accept', notification.item_id)}
+                                disabled={processingInvite === notification.id}
+                                className="bg-neon-cyan text-black hover:bg-neon-cyan/90"
+                              >
+                                <UserPlus className="w-4 h-4 mr-1" />
+                                {processingInvite === notification.id ? 'Accepting...' : 'Accept & Join'}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleInviteAction(notification.id, 'decline', notification.item_id)}
+                                disabled={processingInvite === notification.id}
+                              >
+                                <UserX className="w-4 h-4 mr-1" />
+                                Decline
+                              </Button>
+                            </div>
+                          )}
+                          
                           <p className="text-xs text-muted-foreground mt-2">
                             {formatTime(notification.created_at)}
                           </p>
                         </div>
                         <div className="flex items-center gap-1">
-                          {!notification.read_at && (
+                          {!notification.read_at && notification.type !== 'collaboration_invite' && (
                             <Button
                               size="sm"
                               variant="ghost"

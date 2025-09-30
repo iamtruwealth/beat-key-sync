@@ -18,6 +18,7 @@ export class SessionLoopEngine {
   private clips: Clip[] = [];
   private loopEndInBeats = 0;
   private isInitialized = false;
+  private mediaStreamDest?: MediaStreamAudioDestinationNode;
   
   onTick?: (seconds: number) => void;
 
@@ -25,20 +26,12 @@ export class SessionLoopEngine {
     if (this.isInitialized) return;
     
     try {
-      // Ensure audio context is active
-      if (Tone.getContext().state === 'suspended') {
-        await Tone.start();
-      }
-      
-      // Configure transport for loop playback
+      await Tone.start();
       Tone.Transport.loop = true;
       Tone.Transport.loopStart = 0;
-      Tone.Transport.swing = 0;
-      Tone.Transport.swingSubdivision = "8n";
-      
-      // Set reasonable volume to prevent clipping
-      Tone.getDestination().volume.value = -6;
-      
+      // Create a MediaStreamDestination to mirror the session mix for viewers
+      const raw = Tone.getContext().rawContext as AudioContext;
+      this.mediaStreamDest = raw.createMediaStreamDestination();
       this.isInitialized = true;
       console.log('SessionLoopEngine initialized successfully');
     } catch (error) {
@@ -98,33 +91,40 @@ export class SessionLoopEngine {
     // Create players for each clip
     for (const clip of this.clips) {
       try {
-        console.log(`🎵 SessionLoopEngine: Loading clip ${clip.id} from ${clip.url}`);
-        
         const gain = new Tone.Gain(clip.gain ?? 1).toDestination();
+        // Mirror mix to MediaStreamDestination for viewers
+        try {
+          if (this.mediaStreamDest) {
+            // @ts-ignore Tone.Gain can connect to native AudioNode
+            gain.connect(this.mediaStreamDest);
+          }
+        } catch (err) {
+          console.warn('Could not connect gain to MediaStreamDestination:', err);
+        }
         const player = new Tone.Player({ 
           url: clip.url, 
           loop: false, 
           autostart: false,
           onerror: (error) => {
-            console.error(`❌ Error loading clip ${clip.id}:`, error);
+            console.error(`Error loading clip ${clip.id}:`, error);
           }
         }).connect(gain);
 
         // Wait for buffer to load - buffer loads automatically with URL in constructor
         await new Promise<void>((resolve, reject) => {
           if (player.loaded) {
-            console.log(`✅ Clip ${clip.id} already loaded`);
+            console.log(`Clip ${clip.id} already loaded`);
             resolve();
           } else {
-            console.log(`⏳ Waiting for clip ${clip.id} to load...`);
+            console.log(`Waiting for clip ${clip.id} to load...`);
             const timeout = setTimeout(() => {
-              reject(new Error(`Timeout loading clip ${clip.id} from ${clip.url}`));
-            }, 15000); // 15 second timeout
+              reject(new Error(`Timeout loading clip ${clip.id}`));
+            }, 10000); // 10 second timeout
             
             const checkLoaded = () => {
               if (player.loaded) {
                 clearTimeout(timeout);
-                console.log(`✅ Clip ${clip.id} loaded successfully`);
+                console.log(`Clip ${clip.id} loaded successfully`);
                 resolve();
               } else {
                 setTimeout(checkLoaded, 100);
@@ -151,7 +151,7 @@ export class SessionLoopEngine {
         const secondsPerBeat = 60 / Tone.Transport.bpm.value;
         const playDurationSec = (clip.sourceDurationSeconds ?? (clip.durationInBeats * secondsPerBeat));
         const sourceOffsetSec = clip.sourceOffsetSeconds ?? 0;
-        console.log(`🎵 Scheduling clip ${clip.id}:`, { startTime, endTime, sourceOffsetSec, playDurationSec });
+        console.log('Scheduling clip', clip.id, { startTime, endTime, sourceOffsetSec, playDurationSec });
         
         // Start at transport time with source offset/duration to respect trims
         player.start(startTime, sourceOffsetSec, playDurationSec);
@@ -161,15 +161,14 @@ export class SessionLoopEngine {
         
         if (clip.muted) {
           gain.gain.value = 0;
-          console.log(`🔇 Clip ${clip.id} is muted`);
         }
         
         this.players.set(clip.id, player);
         this.gains.set(clip.id, gain);
         
-        console.log(`✅ Added clip ${clip.id} from ${startTime} to ${endTime}`);
+        console.log(`Added clip ${clip.id} from ${startTime} to ${endTime}`);
       } catch (error) {
-        console.error(`❌ Failed to load clip ${clip.id}:`, error);
+        console.error(`Failed to load clip ${clip.id}:`, error);
         throw error;
       }
     }
@@ -189,18 +188,11 @@ export class SessionLoopEngine {
     await this.initialize();
     
     try {
-      // Ensure audio context is running
-      if (Tone.getContext().state !== 'running') {
-        await Tone.start();
-      }
-      
       // If resuming from pause, keep current position; otherwise start from beginning
       if (Tone.Transport.state !== 'paused') {
         Tone.Transport.position = 0;
       }
-      
-      // Start with small delay to ensure everything is ready
-      Tone.Transport.start("+0.1");
+      Tone.Transport.start("+0.05");
       this.startTransportTicker();
       console.log('Session playback started');
     } catch (error) {
@@ -257,6 +249,10 @@ export class SessionLoopEngine {
 
   get loopDurationInSeconds(): number {
     return Tone.Time(Tone.Transport.loopEnd).toSeconds();
+  }
+
+  getMixedAudioStream(): MediaStream | null {
+    return this.mediaStreamDest?.stream ?? null;
   }
 
   private transportTimer?: number;
