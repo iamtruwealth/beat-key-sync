@@ -26,31 +26,67 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
 
   const enableAudio = async () => {
     try {
-      // Initialize HostMasterAudio if it doesn't exist
-      if (!hostAudioRef.current) {
-        hostAudioRef.current = HostMasterAudio.getInstance();
-        await hostAudioRef.current.initialize();
-        console.log('🎵 HostMasterAudio initialized');
-      }
-
-      // If this is the host (canEdit), connect CookModeEngine to master audio
-      if (canEdit && hostAudioRef.current.isInitialized) {
-        hostAudioRef.current.connectToCookModeEngine();
-        console.log('🎵 Host: CookModeEngine connected to master audio');
-      }
-
+      console.log('🔊 Enabling audio - canEdit:', canEdit);
+      
       // Resume Tone.js AudioContext
       await Tone.start();
-      setAudioEnabled(true);
+      console.log('🔊 Tone.js context started');
 
-      // Hide overlay immediately for host; viewers will hide after playback starts
       if (canEdit) {
-        setOverlayVisible(false);
-      }
+        // Host: Initialize HostMasterAudio
+        if (!hostAudioRef.current) {
+          hostAudioRef.current = HostMasterAudio.getInstance();
+          await hostAudioRef.current.initialize();
+          console.log('🎵 Host: HostMasterAudio initialized');
+        }
 
-      console.log('🔊 Audio context resumed');
+        if (hostAudioRef.current.isInitialized) {
+          hostAudioRef.current.connectToCookModeEngine();
+          console.log('🎵 Host: CookModeEngine connected to master audio');
+        }
+        
+        setOverlayVisible(false);
+        console.log('🎵 Host: Overlay hidden immediately');
+      } else {
+        // Viewer: Check for host stream immediately
+        const hostStream = participants.find(
+          (p) => p.stream && (p.stream as MediaStream).getAudioTracks().length > 0
+        )?.stream as MediaStream | undefined;
+
+        if (hostStream) {
+          console.log('📻 Viewer: Found host stream, connecting audio');
+          
+          // Create and connect audio element
+          if (!viewerAudioRef.current) {
+            const audioEl = document.createElement('audio');
+            audioEl.autoplay = true;
+            audioEl.setAttribute('playsinline', 'true');
+            audioEl.muted = false;
+            audioEl.volume = 1.0;
+            audioEl.style.display = 'none';
+            document.body.appendChild(audioEl);
+            viewerAudioRef.current = audioEl;
+          }
+
+          viewerAudioRef.current.srcObject = hostStream;
+          
+          try {
+            await viewerAudioRef.current.play();
+            console.log('📻 Viewer: Audio playback started');
+            setOverlayVisible(false);
+          } catch (playError) {
+            console.warn('📻 Viewer: Auto-play failed:', playError);
+            // Keep overlay visible for manual retry
+          }
+        } else {
+          console.log('📻 Viewer: No host stream found yet, waiting...');
+          // Keep overlay visible until stream is available
+        }
+      }
+      
+      setAudioEnabled(true);
     } catch (err) {
-      console.warn('Failed to enable audio:', err);
+      console.error('Failed to enable audio:', err);
     }
   };
 
