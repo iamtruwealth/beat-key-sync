@@ -9,6 +9,7 @@ export class HostMasterAudio {
   private startTime: number = 0;
   private loopDuration: number = 0;
   private isPlaying: boolean = false;
+  private isRouted: boolean = false;
 
   private constructor() {}
 
@@ -47,6 +48,11 @@ export class HostMasterAudio {
       throw new Error('HostMasterAudio not initialized');
     }
 
+    if (this.isRouted) {
+      console.log('🎵 HostMasterAudio already routed; skipping duplicate connection');
+      return;
+    }
+
     try {
       // Get Tone.js Destination (GainNode) and connect it to our masterGain
       const toneContext = Tone.getContext();
@@ -55,6 +61,7 @@ export class HostMasterAudio {
       // Fork audio: keep default path (host hears), and add a fork to masterGain (for streaming)
       ;(toneDestination as AudioNode).connect(this.masterGain);
 
+      this.isRouted = true;
       console.log('🎵 CookModeEngine routed to HostMasterAudio (forked to stream)');
     } catch (error) {
       console.error('Failed to connect CookModeEngine:', error);

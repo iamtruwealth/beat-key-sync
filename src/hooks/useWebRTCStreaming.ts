@@ -142,6 +142,21 @@ export const useWebRTCStreaming = ({ sessionId, canEdit, currentUserId }: UseWeb
         console.log(`📹 Connection with ${username}:`, peerConnection.connectionState);
       };
 
+      // Ensure master audio sender is attached (replaceTrack to avoid dupes)
+      const ensureMasterAudioSender = () => {
+        if (!externalAudioTrackRef.current || !externalAudioStreamRef.current) return;
+        const masterTrack = externalAudioTrackRef.current;
+        const existingSender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'audio');
+        if (existingSender) {
+          if (existingSender.track?.id !== masterTrack.id) {
+            existingSender.replaceTrack(masterTrack).catch(() => {});
+          }
+        } else {
+          peerConnection.addTrack(masterTrack, externalAudioStreamRef.current);
+        }
+      };
+      ensureMasterAudioSender();
+
       setParticipants(prev => {
         const updated = new Map(prev);
         updated.set(userId, { 
