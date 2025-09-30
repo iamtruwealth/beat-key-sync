@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useWebRTCStreaming } from '@/hooks/useWebRTCStreaming';
 import * as Tone from 'tone';
+import { HostMasterAudio } from '@/lib/HostMasterAudio';
 
 interface BackgroundWebRTCConnectorProps {
   sessionId: string;
@@ -19,13 +20,22 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
   const [overlayVisible, setOverlayVisible] = useState(true);
   const audioRefs = useRef<Record<string, HTMLAudioElement | null>>({});
   const gainNodesRef = useRef<Record<string, GainNode>>({});
+  const hostAudioRef = useRef<HostMasterAudio | null>(null);
 
   const enableAudio = async () => {
     try {
-      await Tone.start(); // resume AudioContext
+      // Initialize HostMasterAudio if it doesn't exist
+      if (!hostAudioRef.current) {
+        hostAudioRef.current = HostMasterAudio.getInstance();
+        await hostAudioRef.current.initialize();
+        console.log('🎵 HostMasterAudio initialized');
+      }
+
+      // Resume Tone.js AudioContext
+      await Tone.start();
       setAudioEnabled(true);
 
-      // start fade out
+      // Start fade out
       setOverlayVisible(false);
 
       console.log('🔊 Audio context resumed for viewers');
@@ -35,21 +45,13 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
   };
 
   useEffect(() => {
-    if (!audioEnabled) return;
-    const audioCtx = Tone.getContext().rawContext as AudioContext;
+    if (!audioEnabled || !hostAudioRef.current) return;
+
+    const masterStream = hostAudioRef.current.getMasterStream();
+    if (!masterStream) return;
 
     participants.forEach((p) => {
-      if (!p.stream) return;
       const userId = p.user_id;
-
-      if (!gainNodesRef.current[userId]) {
-        const gainNode = audioCtx.createGain();
-        gainNode.gain.value = 1.0;
-        gainNodesRef.current[userId] = gainNode;
-      }
-
-      const src = audioCtx.createMediaStreamSource(p.stream as MediaStream);
-      src.connect(gainNodesRef.current[userId]).connect(audioCtx.destination);
 
       if (!audioRefs.current[userId]) {
         const audioEl = document.createElement('audio');
@@ -62,9 +64,18 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
       }
 
       const el = audioRefs.current[userId]!;
-      if (el.srcObject !== p.stream) {
-        el.srcObject = p.stream as MediaStream;
+      // Assign master stream to all participants for synchronized audio
+      if (el.srcObject !== masterStream) {
+        el.srcObject = masterStream;
+        
+        // For late joiners, seek to current playback position
+        const currentTime = hostAudioRef.current?.getCurrentTime() || 0;
+        if (currentTime > 0) {
+          el.currentTime = currentTime;
+        }
+        
         el.play().catch((err) => console.warn('Auto-play blocked:', err));
+        console.log(`🎵 Master stream assigned to participant ${userId}`);
       }
     });
 
@@ -75,7 +86,7 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
         audioRefs.current[id]?.pause();
         audioRefs.current[id]?.remove();
         delete audioRefs.current[id];
-        delete gainNodesRef.current[id];
+        console.log(`🧹 Cleaned up audio element for participant ${id}`);
       }
     });
   }, [participants, audioEnabled]);
