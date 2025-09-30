@@ -23,51 +23,57 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
 
   const hostAudioRef = useRef<HostMasterAudio | null>(null);
 
+  // ENABLE AUDIO ON SINGLE TAP
   const enableAudio = async () => {
-    try {
-      // Resume Tone.js AudioContext on user gesture
-      await masterPlayer.context.resume();
+    if (audioEnabled) return;
 
+    try {
+      // Initialize HostMasterAudio if not already
       if (!hostAudioRef.current) {
         hostAudioRef.current = new HostMasterAudio();
         hostAudioRef.current.connectNode(masterPlayer);
+
+        // Start looping audio (adjust loop points if needed)
         hostAudioRef.current.startLoop(masterPlayer, 0, masterPlayer.buffer?.duration || 8);
       }
 
+      // Resume Tone.js AudioContext
+      await masterPlayer.context.resume();
+
+      // Attach master stream to all participants
+      const masterStream = hostAudioRef.current.masterStream;
+      participants.forEach((p) => {
+        const userId = p.user_id;
+        if (!audioRefs.current[userId]) {
+          const audioEl = document.createElement('audio');
+          audioEl.autoplay = true;
+          audioEl.setAttribute('playsinline', 'true');
+          audioEl.muted = false;
+          audioEl.style.display = 'none';
+          document.body.appendChild(audioEl);
+          audioRefs.current[userId] = audioEl;
+        }
+
+        const el = audioRefs.current[userId]!;
+        if (el.srcObject !== masterStream) {
+          el.srcObject = masterStream;
+          el.play().catch((err) => console.warn('Auto-play blocked:', err));
+        }
+      });
+
+      // Mark audio as enabled and hide overlay
       setAudioEnabled(true);
       setOverlayVisible(false);
 
-      console.log('🔊 Audio context resumed, overlay removed, master audio playing');
+      console.log('🔊 Audio context resumed and master stream started');
     } catch (err) {
       console.warn('Failed to enable audio:', err);
     }
   };
 
+  // CLEANUP LEFT PARTICIPANTS
   useEffect(() => {
-    if (!audioEnabled || !hostAudioRef.current) return;
-
-    const masterStream = hostAudioRef.current.masterStream;
-
-    participants.forEach((p) => {
-      const userId = p.user_id;
-
-      if (!audioRefs.current[userId]) {
-        const audioEl = document.createElement('audio');
-        audioEl.autoplay = true;
-        audioEl.setAttribute('playsinline', 'true');
-        audioEl.muted = false;
-        audioEl.style.display = 'none';
-        document.body.appendChild(audioEl);
-        audioRefs.current[userId] = audioEl;
-      }
-
-      const el = audioRefs.current[userId]!;
-      if (el.srcObject !== masterStream) {
-        el.srcObject = masterStream;
-        el.play().catch((err) => console.warn('Auto-play blocked:', err));
-      }
-    });
-
+    if (!audioEnabled) return;
     const currentIds = new Set(participants.map((p) => p.user_id));
     Object.keys(audioRefs.current).forEach((id) => {
       if (!currentIds.has(id)) {
@@ -78,30 +84,35 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
     });
   }, [participants, audioEnabled]);
 
-  if (!overlayVisible) return null;
+  // OVERLAY
+  if (overlayVisible) {
+    return (
+      <div
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          backgroundColor: 'rgba(0,0,0,0.85)',
+          zIndex: 9999,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          color: '#fff',
+          fontSize: '2rem',
+          textAlign: 'center',
+          cursor: 'pointer',
+          padding: '20px',
+          opacity: 1,
+          transition: 'opacity 0.5s ease',
+        }}
+        onClick={enableAudio}
+      >
+        Tap to Join Audio
+      </div>
+    );
+  }
 
-  return (
-    <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
-        backgroundColor: 'rgba(0,0,0,0.85)',
-        zIndex: 9999,
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        color: '#fff',
-        fontSize: '2rem',
-        textAlign: 'center',
-        cursor: 'pointer',
-        padding: '20px',
-      }}
-      onClick={enableAudio}
-    >
-      Tap to Join Audio
-    </div>
-  );
+  return null;
 };
