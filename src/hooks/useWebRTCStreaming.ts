@@ -142,10 +142,20 @@ export const useWebRTCStreaming = ({ sessionId, canEdit, currentUserId }: UseWeb
         console.log(`📹 Connection with ${username}:`, peerConnection.connectionState);
       };
 
-      // Ensure master audio sender is attached (replaceTrack to avoid dupes)
+      // Ensure master audio sender is attached exactly once (no dupes)
       const ensureMasterAudioSender = () => {
         if (!externalAudioTrackRef.current || !externalAudioStreamRef.current) return;
         const masterTrack = externalAudioTrackRef.current;
+        const audioSenders = peerConnection.getSenders().filter(s => s.track && s.track.kind === 'audio');
+
+        // Remove any non-master audio senders to prevent double audio
+        audioSenders.forEach((s) => {
+          if (s.track && s.track.id !== masterTrack.id) {
+            console.log('🧹 Removing extra audio sender', s.track.id);
+            try { peerConnection.removeTrack(s); } catch {}
+          }
+        });
+
         const existingSender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'audio');
         if (existingSender) {
           if (existingSender.track?.id !== masterTrack.id) {
