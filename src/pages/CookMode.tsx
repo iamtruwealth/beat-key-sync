@@ -1,4 +1,3 @@
-import * as Tone from 'tone';
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -13,20 +12,12 @@ import { MetaTags } from '@/components/MetaTags';
 import { GlassMorphismSection } from '@/components/futuristic/GlassMorphismSection';
 import { useCookModeSession } from '@/hooks/useCookModeSession';
 import { useCookModeAudio } from '@/hooks/useCookModeAudio';
-import { useSessionRealtime } from '@/hooks/useSessionRealtime';
-import { useCollaborationPermissions } from '@/hooks/useCollaborationPermissions';
 import { CookModeDAW } from '@/components/cookmode/CookModeDAW';
-import { LiveSessionIndicator } from '@/components/cookmode/LiveSessionIndicator';
-import { AccessLevelNotification } from '@/components/cookmode/AccessLevelNotification';
 import { CookModeChat } from '@/components/cookmode/CookModeChat';
-import { VideoStreamingPanel } from '@/components/cookmode/VideoStreamingPanel';
-import { BackgroundWebRTCConnector } from '@/components/cookmode/BackgroundWebRTCConnector';
-import { useWebRTCStreaming } from '@/hooks/useWebRTCStreaming';
-import { useAudioOnlyStreaming } from '@/hooks/useAudioOnlyStreaming';
 import { SessionParticipants } from '@/components/cookmode/SessionParticipants';
 import { SessionControls } from '@/components/cookmode/SessionControls';
 import { CookModeAudioControls } from '@/components/cookmode/CookModeAudioControls';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Play, 
   Pause, 
@@ -49,24 +40,17 @@ import {
   Layers,
   LayoutDashboard,
   ChevronDown,
-  Piano,
-  Video,
-  MessageSquare,
-  UserPlus
+  Piano
 } from 'lucide-react';
-import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/components/ui/use-toast';
 
 const CookMode = () => {
   const { sessionId } = useParams();
   const navigate = useNavigate();
   const [isHost, setIsHost] = useState(false);
   const [activeView, setActiveView] = useState<'timeline' | 'mixer'>('timeline');
-  const [showVideo, setShowVideo] = useState(false);
   const [metronomeEnabled, setMetronomeEnabled] = useState(false);
   const [minBars, setMinBars] = useState(8);
-  const [authLoading, setAuthLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [sessionConfig, setSessionConfig] = useState({
     bpm: 120,
     key: 'C',
@@ -92,147 +76,46 @@ const CookMode = () => {
     saveSession,
     addEmptyTrack
   } = useCookModeSession(sessionId);
-  // Check collaboration permissions
-  const { permissions, loading: permissionsLoading } = useCollaborationPermissions(sessionId);
-  
-  const { midiDevices, setActiveTrack, tracks: audioTracks, createTrack, loadSample, setTrackTrim } = useCookModeAudio(permissions?.canEdit || false);
+  const { midiDevices, setActiveTrack, tracks: audioTracks, createTrack, loadSample, setTrackTrim } = useCookModeAudio();
 
-  // Real-time collaboration
-  const { 
-    participants: realtimeParticipants, 
-    playbackState, 
-    broadcastPlaybackToggle, 
-    broadcastPlaybackSeek,
-    isConnected: realtimeConnected 
-  } = useSessionRealtime(sessionId);
-
-  // Check authentication status first (listener first, then fetch) with fallback timeout
   useEffect(() => {
-    let mounted = true;
-    // Fallback in case SDK hangs; prevent infinite spinner
-    const timeoutId = window.setTimeout(() => {
-      if (mounted) setAuthLoading(false);
-    }, 2000);
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!mounted) return;
-      setIsAuthenticated(!!session);
-      setAuthLoading(false);
-    });
-
-    supabase.auth.getSession()
-      .then(({ data: { session } }) => {
-        if (!mounted) return;
-        setIsAuthenticated(!!session);
-        setAuthLoading(false);
-        window.clearTimeout(timeoutId);
-      })
-      .catch((error) => {
-        console.error('Auth check error:', error);
-        if (mounted) setIsAuthenticated(false);
-        if (mounted) setAuthLoading(false);
-        window.clearTimeout(timeoutId);
-      });
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-      window.clearTimeout(timeoutId);
-    };
-  }, []);
-
-  // Get current user for video streaming
-  const [currentUser, setCurrentUser] = useState<any>(null);
-  
-  useEffect(() => {
-    if (!isAuthenticated) return;
-    
-    const getCurrentUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setCurrentUser(user);
-    };
-    getCurrentUser();
-  }, [isAuthenticated]);
-
-  // WebRTC video streaming hook (optional, separate from audio)
-  const {
-    isStreaming,
-    startStreaming,
-    stopStreaming,
-  } = useWebRTCStreaming({ 
-    sessionId: sessionId || '', 
-    canEdit: permissions.canEdit, 
-    currentUserId: currentUser?.id 
-  });
-
-  // Audio-only streaming hook (for session music)
-  const {
-    isStreamingAudio,
-    viewerCount,
-    startAudioStreaming,
-    stopAudioStreaming
-  } = useAudioOnlyStreaming({
-    sessionId: sessionId || '',
-    isHost: permissions.canEdit,
-    currentUserId: currentUser?.id
-  });
-
-  // Join session when we have sessionId and are authenticated
-  useEffect(() => {
-    if (sessionId && !session && isAuthenticated) {
+    if (sessionId && !session) {
       console.log('Joining session:', sessionId);
       joinSession(sessionId);
     }
-  }, [sessionId, session, joinSession, isAuthenticated]);
+  }, [sessionId, session, joinSession]);
 
-  // Auto-enable audio context for live viewers (with safe fallbacks)
+  // Enable audio context on first user interaction
   useEffect(() => {
-    const cleanupFns: Array<() => void> = [];
-
-    const tryEnable = async () => {
-      await Tone.start();
-      const ctx = Tone.getContext();
-      if (ctx.state === 'suspended') {
-        await ctx.resume();
+    const enableAudio = () => {
+      // Create a dummy audio context to enable audio
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      if (audioContext.state === 'suspended') {
+        audioContext.resume().then(() => {
+          console.log('Audio context enabled');
+        });
       }
-      console.log('🔊 Audio auto-enabled for live viewer');
+      document.removeEventListener('click', enableAudio);
+      document.removeEventListener('keydown', enableAudio);
     };
 
-    const attachFallback = () => {
-      const fallbackEnable = async () => {
-        try {
-          await Tone.start();
-          const ctx = Tone.getContext();
-          if (ctx.state === 'suspended') {
-            await ctx.resume();
-          }
-          console.log('🔊 Audio enabled via fallback interaction');
-        } catch (err) {
-          console.warn('Fallback audio enable failed:', err);
-        }
-      };
-
-      ['click', 'keydown', 'touchstart'].forEach((evt) => {
-        const handler = () => fallbackEnable();
-        document.addEventListener(evt, handler, { once: true });
-        cleanupFns.push(() => document.removeEventListener(evt, handler));
-      });
-    };
-
-    tryEnable().catch((e) => {
-      console.warn('Auto audio enable failed, attaching fallbacks:', e);
-      attachFallback();
-    });
+    document.addEventListener('click', enableAudio);
+    document.addEventListener('keydown', enableAudio);
 
     return () => {
-      cleanupFns.forEach((fn) => fn());
+      document.removeEventListener('click', enableAudio);
+      document.removeEventListener('keydown', enableAudio);
     };
   }, []);
 
   const handleCreateSession = async () => {
     console.log('[CookMode] handleCreateSession clicked', sessionConfig);
     if (!sessionConfig.name || !sessionConfig.bpm) {
-      toast.error("Please fill in all session details");
+      toast({
+        title: "Error",
+        description: "Please fill in all session details",
+        variant: "destructive"
+      });
       return;
     }
 
@@ -247,10 +130,17 @@ const CookMode = () => {
       
       setIsHost(true);
       navigate(`/cook-mode/${newSessionId}`);
-      toast.success("Cook Mode session created! Share the link to invite collaborators.");
+      toast({
+        title: "Success",
+        description: "Cook Mode session created! Share the link to invite collaborators."
+      });
     } catch (error) {
       console.error('Error creating session:', error);
-      toast.error("Failed to create session");
+      toast({
+        title: "Error", 
+        description: "Failed to create session",
+        variant: "destructive"
+      });
     }
   };
 
@@ -260,71 +150,39 @@ const CookMode = () => {
     try {
       await saveSession(publishImmediately);
       if (publishImmediately) {
-        toast.success("Session saved and published! Converting to Beat Pack...");
+        toast({
+          title: "Success",
+          description: "Session saved and published! Converting to Beat Pack..."
+        });
         // Navigate to split sheet creation
         navigate(`/collaborate/projects/${session.id}/finalize`);
       } else {
-        toast.success("Session saved successfully! You can continue working or publish later.");
+        toast({
+          title: "Success",
+          description: "Session saved successfully! You can continue working or publish later."
+        });
       }
     } catch (error) {
       console.error('Error saving session:', error);
-      toast.error("Failed to save session");
+      toast({
+        title: "Error",
+        description: "Failed to save session",
+        variant: "destructive"
+      });
     }
   };
 
   const shareSessionLink = async () => {
-    try {
-      // Enable public access for this session
-      const { error } = await supabase.rpc('enable_session_sharing', {
-        session_id: sessionId
-      });
-
-      if (error) {
-        console.error('Error enabling session sharing:', error);
-      }
-
-      const link = `${window.location.origin}/cook-mode/${sessionId}`;
-      await navigator.clipboard.writeText(link);
-      toast.success("Session link copied to clipboard! Anyone with this link can now join the session.");
-    } catch (error) {
-      console.error('Error sharing session:', error);
-      toast.error("Failed to share session link");
-    }
-  };
-
-  // Wrap playback controls to broadcast to other users
-  const handleTogglePlayback = () => {
-    togglePlayback();
-    if (broadcastPlaybackToggle) {
-      broadcastPlaybackToggle(!isPlaying);
-    }
-  };
-
-  const handleSeekTo = (time: number) => {
-    seekTo(time);
-    if (broadcastPlaybackSeek) {
-      broadcastPlaybackSeek(time);
-    }
+    const link = `${window.location.origin}/cook-mode/${sessionId}`;
+    await navigator.clipboard.writeText(link);
+    toast({
+      title: "Success",
+      description: "Session link copied to clipboard!"
+    });
   };
 
   // Session Creation Screen
   if (!sessionId) {
-    // Redirect to auth if not authenticated for session creation
-    if (!authLoading && !isAuthenticated) {
-      navigate('/auth');
-      return null;
-    }
-
-    if (authLoading) {
-      return (
-        <div className="min-h-screen bg-background flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-neon-cyan mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading...</p>
-          </div>
-        </div>
-      );
-    }
     return (
       <div className="min-h-screen bg-background p-6 relative overflow-hidden">
         <MetaTags 
@@ -439,69 +297,13 @@ const CookMode = () => {
     );
   }
 
-  // Loading state - show when we have sessionId but no session data, still checking auth, or still checking permissions
-  if (sessionId && ((authLoading || (!session || !isConnected)) || permissionsLoading)) {
-    const getLoadingMessage = () => {
-      if (authLoading) return 'Checking authentication...';
-      if (permissionsLoading) return 'Checking permissions...';
-      if (!session) return 'Loading session data...';
-      if (!isConnected) return 'Connecting to realtime session...';
-      return 'Connecting to Cook Mode session...';
-    };
-
-    console.log('🔄 Loading state:', {
-      authLoading,
-      hasSession: !!session,
-      isConnected,
-      permissionsLoading,
-      sessionId
-    });
-
+  // Loading state - only show when we have a sessionId but no session data
+  if (sessionId && (!session || !isConnected)) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-neon-cyan mx-auto mb-4"></div>
-          <p className="text-muted-foreground">
-            {getLoadingMessage()}
-          </p>
-          {process.env.NODE_ENV === 'development' && (
-            <div className="mt-4 text-xs text-muted-foreground opacity-50">
-              <div>Auth: {authLoading ? 'loading' : 'ready'}</div>
-              <div>Session: {session ? 'loaded' : 'missing'}</div>
-              <div>Connected: {isConnected ? 'yes' : 'no'}</div>
-              <div>Permissions: {permissionsLoading ? 'loading' : 'ready'}</div>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // Handle unauthenticated users accessing shared sessions
-  if (sessionId && !authLoading && !isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center max-w-md mx-auto p-6">
-          <h1 className="text-2xl font-bold mb-4">Sign In Required</h1>
-          <p className="text-muted-foreground mb-6">
-            You need to sign in to join this Cook Mode session.
-          </p>
-          <Button onClick={() => navigate('/auth')} className="w-full">
-            Sign In to Join Session
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  // Check if user has permission to view this session
-  if (sessionId && !permissionsLoading && !permissions.canView) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Session Not Available</h1>
-          <p className="text-muted-foreground mb-4">This Cook Mode session is not publicly accessible.</p>
-          <p className="text-sm text-muted-foreground">Ask the session owner to share a valid link or invite you as a collaborator.</p>
+          <p className="text-muted-foreground">Connecting to Cook Mode session...</p>
         </div>
       </div>
     );
@@ -561,165 +363,50 @@ const CookMode = () => {
                 <Zap className="w-5 h-5 text-neon-cyan animate-pulse" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
-                  {session.name}
-                  {!permissions.canEdit && permissions.userRole === 'viewer' && (
-                    <Badge variant="outline" className="text-xs border-orange-400 text-orange-400">
-                      View Only
-                    </Badge>
-                  )}
-                </h1>
+                <h1 className="text-xl font-bold text-foreground">{session.name}</h1>
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
                   <span>{session.target_bpm} BPM</span>
                   <span>Key: {session.target_genre}</span>
-                  <LiveSessionIndicator 
-                    participantCount={realtimeParticipants.length || participants.length} 
-                    isConnected={realtimeConnected} 
-                    canEdit={permissions.canEdit}
-                  />
+                  <Badge variant="outline" className="text-xs">
+                    <Users className="w-3 h-3 mr-1" />
+                    {participants.length} online
+                  </Badge>
                 </div>
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Request Edit Access for viewers */}
-            {!permissions.canEdit && permissions.userRole === 'viewer' && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={async () => {
-                  try {
-                    const { data: { user } } = await supabase.auth.getUser();
-                    if (!user) return;
-
-                    // Add user as collaboration member with invited status
-                    const { error } = await supabase
-                      .from('collaboration_members')
-                      .insert({
-                        collaboration_id: sessionId,
-                        user_id: user.id,
-                        role: 'collaborator',
-                        status: 'invited',
-                        royalty_percentage: 0
-                      });
-
-                    if (error && !error.message.includes('duplicate')) throw error;
-
-                    // Create notification for session owner
-                    const { data: session } = await supabase
-                      .from('collaboration_projects')
-                      .select('name, created_by')
-                      .eq('id', sessionId)
-                      .single();
-
-                    const { data: userProfile } = await supabase
-                      .from('profiles')
-                      .select('producer_name')
-                      .eq('id', user.id)
-                      .single();
-
-                    await supabase
-                      .from('notifications')
-                      .insert({
-                        user_id: session?.created_by,
-                        type: 'collaboration_request',
-                        title: 'Edit Access Request',
-                        message: `${userProfile?.producer_name || 'A user'} is requesting edit access to "${session?.name || 'Cook Mode Session'}"`,
-                        item_id: sessionId,
-                        actor_id: user.id
-                      });
-
-                    toast.success("Your edit access request has been sent to the session owner");
-                  } catch (error) {
-                    console.error('Error requesting edit access:', error);
-                    toast.error("Failed to request edit access");
-                  }
-                }}
-                className="border-border/50 hover:border-orange-400"
-              >
-                <UserPlus className="w-4 h-4 mr-2" />
-                Request Edit Access
-              </Button>
-            )}
-            
-            {permissions.canEdit && (
-              <>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="border-border/50 hover:border-neon-cyan/50 flex items-center gap-2"
-                    >
-                      <Piano className="w-4 h-4" />
-                      MIDI
-                      <ChevronDown className="w-3 h-3" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-64 bg-background/95 backdrop-blur-sm border border-border/50">
-                    <div className="p-2">
-                      <div className="text-sm font-medium mb-2">MIDI Controllers</div>
-                      {midiDevices && midiDevices.length > 0 ? (
-                        <>
-                          {midiDevices.map((device) => (
-                            <DropdownMenuItem key={device.id} className="flex items-center gap-2">
-                              <div className={`w-2 h-2 rounded-full ${device.connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                              <span className="text-sm">{device.name}</span>
-                            </DropdownMenuItem>
-                          ))}
-                        </>
-                      ) : (
-                        <div className="text-xs text-muted-foreground">No MIDI controllers detected</div>
-                      )}
-                    </div>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              {/* Start/Stop Audio Stream Button (session music only) */}
-              {!isStreamingAudio ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
                 <Button
-                  onClick={startAudioStreaming}
-                  className="bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:opacity-90"
-                  size="sm"
-                >
-                  <Volume2 className="w-4 h-4 mr-2" />
-                  Start Audio Stream
-                </Button>
-              ) : (
-                <Button
-                  onClick={stopAudioStreaming}
                   variant="outline"
                   size="sm"
-                  className="border-green-500 text-green-500"
+                  className="border-border/50 hover:border-neon-cyan/50 flex items-center gap-2"
                 >
-                  <Volume2 className="w-4 h-4 mr-2" />
-                  Stop Audio Stream
+                  <Piano className="w-4 h-4" />
+                  MIDI
+                  <ChevronDown className="w-3 h-3" />
                 </Button>
-              )}
-
-              {/* Optional: Start/Stop Video Stream Button (camera + mic) */}
-              {!isStreaming ? (
-                <Button
-                  onClick={startStreaming}
-                  variant="outline"
-                  size="sm"
-                >
-                  <Video className="w-4 h-4 mr-2" />
-                  Start Video
-                </Button>
-              ) : (
-                <Button
-                  onClick={stopStreaming}
-                  variant="destructive"
-                  size="sm"
-                >
-                  <Video className="w-4 h-4 mr-2" />
-                  Stop Video
-                </Button>
-              )}
-            </>
-          )}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64 bg-background/95 backdrop-blur-sm border border-border/50">
+                <div className="p-2">
+                  <div className="text-sm font-medium mb-2">MIDI Controllers</div>
+                  {midiDevices && midiDevices.length > 0 ? (
+                    <>
+                      {midiDevices.map((device) => (
+                        <DropdownMenuItem key={device.id} className="flex items-center gap-2">
+                          <div className={`w-2 h-2 rounded-full ${device.connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                          <span className="text-sm">{device.name}</span>
+                        </DropdownMenuItem>
+                      ))}
+                    </>
+                  ) : (
+                    <div className="text-xs text-muted-foreground">No MIDI controllers detected</div>
+                  )}
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
             
             <Button
               variant="outline"
@@ -732,77 +419,66 @@ const CookMode = () => {
             </Button>
             
             
-            {permissions.canEdit && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="border-border/50 hover:border-electric-blue/50 flex items-center gap-2"
-                  >
-                    <Save className="w-4 h-4" />
-                    Save Session
-                    <ChevronDown className="w-3 h-3" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem 
-                    onClick={() => handleSaveSession(false)}
-                    className="flex items-center gap-2"
-                  >
-                    <Save className="w-4 h-4" />
-                    Save Only
-                    <span className="text-xs text-muted-foreground ml-auto">Keep working</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    onClick={() => handleSaveSession(true)}
-                    className="flex items-center gap-2"
-                  >
-                    <Download className="w-4 h-4" />
-                    Save & Publish
-                    <span className="text-xs text-muted-foreground ml-auto">Finalize project</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-border/50 hover:border-electric-blue/50 flex items-center gap-2"
+                >
+                  <Save className="w-4 h-4" />
+                  Save Session
+                  <ChevronDown className="w-3 h-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem 
+                  onClick={() => handleSaveSession(false)}
+                  className="flex items-center gap-2"
+                >
+                  <Save className="w-4 h-4" />
+                  Save Only
+                  <span className="text-xs text-muted-foreground ml-auto">Keep working</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => handleSaveSession(true)}
+                  className="flex items-center gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                  Save & Publish
+                  <span className="text-xs text-muted-foreground ml-auto">Finalize project</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
-        
-        {/* Access Level Notification */}
-        <AccessLevelNotification 
-          canEdit={permissions.canEdit} 
-          userRole={permissions.userRole} 
-        />
       </div>
 
       {/* Main Interface */}
       <div className="flex h-[calc(100vh-80px)]">
         {/* DAW Area */}
         <div className="flex-1 flex flex-col">
-          {/* Transport Controls - only show if user can edit */}
-          {permissions.canEdit && (
-            <SessionControls
-              canEdit={permissions.canEdit}
-              isPlaying={isPlaying}
-              currentTime={currentTime}
-              bpm={session.target_bpm || 120}
-              sessionKey={session.target_genre}
-              sessionId={sessionId}
-              minBars={minBars}
-              metronomeEnabled={metronomeEnabled}
-              onTogglePlayback={handleTogglePlayback}
-              onSeek={handleSeekTo}
-              onToggleMetronome={() => setMetronomeEnabled(!metronomeEnabled)}
-              onUpdateBpm={(bpm) => updateSessionSettings({ bpm })}
-              onUpdateKey={(key) => updateSessionSettings({ key })}
-              onUpdateMinBars={(bars) => {
-                console.log('Updating minBars to:', bars);
-                setMinBars(bars);
-              }}
-              onCreateEmptyTrack={async (name) => { await addEmptyTrack(name); }}
-              onAddTrack={addTrack}
-            />
-          )}
+          {/* Transport Controls */}
+          <SessionControls
+            isPlaying={isPlaying}
+            currentTime={currentTime}
+            bpm={session.target_bpm || 120}
+            sessionKey={session.target_genre}
+            sessionId={sessionId}
+            minBars={minBars}
+            metronomeEnabled={metronomeEnabled}
+            onTogglePlayback={togglePlayback}
+            onSeek={seekTo}
+            onToggleMetronome={() => setMetronomeEnabled(!metronomeEnabled)}
+            onUpdateBpm={(bpm) => updateSessionSettings({ bpm })}
+            onUpdateKey={(key) => updateSessionSettings({ key })}
+            onUpdateMinBars={(bars) => {
+              console.log('Updating minBars to:', bars);
+              setMinBars(bars);
+            }}
+            onCreateEmptyTrack={async (name) => { await addEmptyTrack(name); }}
+            onAddTrack={addTrack}
+          />
 
           <Separator className="border-border/50" />
 
@@ -814,103 +490,33 @@ const CookMode = () => {
               bpm={session.target_bpm || 120}
               metronomeEnabled={metronomeEnabled}
               minBars={minBars}
-              onAddTrack={permissions.canEdit ? addTrack : undefined}
-              onRemoveTrack={permissions.canEdit ? removeTrack : undefined}
-              onUpdateTrack={permissions.canEdit ? updateTrack : undefined}
-              onTogglePlayback={permissions.canEdit ? handleTogglePlayback : undefined}
-              onSeek={permissions.canEdit ? handleSeekTo : undefined}
-              onTrimTrack={permissions.canEdit ? trimTrack : undefined}
-              activeView={activeView}
-              onViewChange={setActiveView}
-              readOnly={!permissions.canEdit}
+              onAddTrack={addTrack}
+              onRemoveTrack={removeTrack}
+              onUpdateTrack={updateTrack}
+              onTrimTrack={(id, s, e) => { trimTrack(id, s, e); setTrackTrim(id, s, e); }}
+              onPlayPause={togglePlayback}
+              onSeek={seekTo}
+              externalActiveView={activeView}
+              onActiveViewChange={(v) => setActiveView(v)}
+              setActiveTrack={setActiveTrack}
+              activeTrackId={audioTracks.find(t => t.id)?.id}
+              createTrack={createTrack}
+              loadSample={loadSample}
             />
           </div>
         </div>
 
         {/* Right Sidebar */}
-        <div className="w-80 border-l border-border/50 bg-card/20 backdrop-blur-sm flex flex-col h-full">
-          {/* Video Toggle Header */}
-          <div className="p-4 border-b border-border/50 flex items-center justify-between">
-            <h3 className="font-medium text-foreground">Collaboration</h3>
-            <Button
-              variant={showVideo ? "default" : "outline"}
-              size="sm"
-              onClick={() => setShowVideo(!showVideo)}
-              className="flex items-center gap-2"
-            >
-              <Video className="w-4 h-4" />
-              {showVideo ? "Hide Video" : "Show Video"}
-            </Button>
+        <div className="w-80 border-l border-border/50 bg-card/20 backdrop-blur-sm flex flex-col">
+          {/* Participants */}
+          <div className="p-4 border-b border-border/50">
+            <SessionParticipants participants={participants} sessionId={sessionId!} />
           </div>
 
-          {/* Always visible participants section */}
-          <div className="p-4 border-b border-border/50 flex-shrink-0">
-            <h4 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
-              <Users className="w-4 h-4" />
-              Participants ({participants.length})
-            </h4>
-            <SessionParticipants participants={participants} sessionId={sessionId!} showVideo={showVideo} />
-          </div>
 
-          {/* Video section - conditionally visible with fixed height */}
-          {showVideo && (
-            <div className="border-b border-border/50 flex-shrink-0" style={{ height: '240px' }}>
-              <VideoStreamingPanel 
-                sessionId={sessionId!} 
-                canEdit={permissions.canEdit}
-                currentUserId={currentUser?.id}
-              />
-            </div>
-          )}
-
-          {/* Background WebRTC connector to ensure viewers always receive audio */}
-          <BackgroundWebRTCConnector 
-            sessionId={sessionId!} 
-            canEdit={permissions.canEdit}
-            currentUserId={currentUser?.id}
-          />
- 
-          {/* Always visible chat section - takes remaining space */}
-          <div className="flex-1 flex flex-col min-h-0">
-            <Tabs defaultValue="chat" className="flex-1 flex flex-col">
-              <TabsList className="grid w-full grid-cols-2 mx-4 mt-4">
-                <TabsTrigger value="chat" className="flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4" />
-                  Chat
-                </TabsTrigger>
-                <TabsTrigger value="audio" className="flex items-center gap-2">
-                  <Piano className="w-4 h-4" />
-                  Audio
-                </TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="chat" className="flex-1 overflow-hidden min-h-0 m-0">
-                <div className="flex-1 overflow-hidden min-h-0 p-4 pt-2">
-                  <CookModeChat sessionId={sessionId!} />
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="audio" className="flex-1 overflow-hidden min-h-0 m-0">
-                <div className="flex-1 overflow-auto p-4 pt-2 space-y-4">
-                  {/* Info for guests */}
-                  {!permissions.canEdit && (
-                    <div className="p-3 bg-card/50 border border-border/50 rounded-lg">
-                      <p className="text-sm text-muted-foreground">
-                        You're receiving live audio from producers automatically. Adjust the volume in your browser's tab controls.
-                      </p>
-                    </div>
-                  )}
-                  
-                  {/* Audio Controls for editors only */}
-                  {permissions.canEdit && (
-                    <div>
-                      <h4 className="text-sm font-medium text-foreground mb-2">Audio Controls</h4>
-                      <CookModeAudioControls canEdit={permissions.canEdit} />
-                    </div>
-                  )}
-                </div>
-              </TabsContent>
-            </Tabs>
+          {/* Chat */}
+          <div className="flex-1 overflow-hidden">
+            <CookModeChat sessionId={sessionId!} />
           </div>
         </div>
       </div>
