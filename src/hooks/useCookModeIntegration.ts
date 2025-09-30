@@ -26,15 +26,17 @@ interface CookModeIntegrationProps {
   onAddTrack: (track: Track) => void;
   onUpdateTrack: (trackId: string, updates: Partial<Track>) => void;
   onRemoveTrack: (trackId: string) => void;
+  canEdit?: boolean;
 }
 
 export function useCookModeIntegration({
   tracks: existingTracks,
   onAddTrack,
   onUpdateTrack,
-  onRemoveTrack
+  onRemoveTrack,
+  canEdit = true
 }: CookModeIntegrationProps) {
-  const audioEngine = useCookModeAudio();
+  const audioEngine = useCookModeAudio(canEdit);
   const { toast } = useToast();
   const { analyzeFile } = useOptimizedAudioAnalysis();
 

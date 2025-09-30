@@ -18,6 +18,7 @@ export class SessionLoopEngine {
   private clips: Clip[] = [];
   private loopEndInBeats = 0;
   private isInitialized = false;
+  private mediaStreamDest?: MediaStreamAudioDestinationNode;
   
   onTick?: (seconds: number) => void;
 
@@ -28,6 +29,9 @@ export class SessionLoopEngine {
       await Tone.start();
       Tone.Transport.loop = true;
       Tone.Transport.loopStart = 0;
+      // Create a MediaStreamDestination to mirror the session mix for viewers
+      const raw = Tone.getContext().rawContext as AudioContext;
+      this.mediaStreamDest = raw.createMediaStreamDestination();
       this.isInitialized = true;
       console.log('SessionLoopEngine initialized successfully');
     } catch (error) {
@@ -88,6 +92,15 @@ export class SessionLoopEngine {
     for (const clip of this.clips) {
       try {
         const gain = new Tone.Gain(clip.gain ?? 1).toDestination();
+        // Mirror mix to MediaStreamDestination for viewers
+        try {
+          if (this.mediaStreamDest) {
+            // @ts-ignore Tone.Gain can connect to native AudioNode
+            gain.connect(this.mediaStreamDest);
+          }
+        } catch (err) {
+          console.warn('Could not connect gain to MediaStreamDestination:', err);
+        }
         const player = new Tone.Player({ 
           url: clip.url, 
           loop: false, 
@@ -236,6 +249,10 @@ export class SessionLoopEngine {
 
   get loopDurationInSeconds(): number {
     return Tone.Time(Tone.Transport.loopEnd).toSeconds();
+  }
+
+  getMixedAudioStream(): MediaStream | null {
+    return this.mediaStreamDest?.stream ?? null;
   }
 
   private transportTimer?: number;

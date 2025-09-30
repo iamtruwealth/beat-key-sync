@@ -74,6 +74,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const loadedUrlRef = useRef<string | null>(null);
   const initTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const track = clip.originalTrack;
   const clipDuration = clip.endTime - clip.startTime;
@@ -110,6 +111,17 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
         setIsLoading(true);
         setError(null);
 
+        // Start a safety timeout so the UI doesn't spin forever
+        if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
+        loadingTimeoutRef.current = setTimeout(() => {
+          if (!isLoaded) {
+            console.warn(`Waveform load timeout for track: ${track.name}`);
+            setError('Waveform took too long to load');
+            setIsLoading(false);
+            setIsLoaded(false);
+          }
+        }, 8000);
+
         const waveSurfer = WaveSurfer.create({
           container: containerRef.current,
           waveColor: getTrackWaveColor(trackIndex, isMuted),
@@ -130,14 +142,27 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
 
         waveSurferRef.current = waveSurfer;
 
+        // Surface internal errors from wavesurfer
+        waveSurfer.on('error', (e: any) => {
+          console.error(`WaveSurfer error for track ${track.name}:`, e);
+          if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
+          setError('Failed to load waveform');
+          setIsLoaded(false);
+          setIsLoading(false);
+        });
+
         // Load the audio file
         waveSurfer.load(track.file_url).then(() => {
+          if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
           if (waveSurferRef.current === waveSurfer) { // Check if this is still the current instance
             setIsLoaded(true);
             setError(null);
             setIsLoading(false);
             loadedUrlRef.current = track.file_url;
             console.log(`WaveSurfer loaded for track: ${track.name}`);
+            
+            // Force immediate update to prevent loading state persistence
+            waveSurfer.pause(); // Ensure it never plays
           }
         }).catch((err) => {
           if (waveSurferRef.current === waveSurfer) { // Check if this is still the current instance
@@ -166,7 +191,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
         clearTimeout(initTimeoutRef.current);
       }
     };
-  }, [track.id, track.file_url, trackHeight, trackIndex, isMuted]); // Include necessary dependencies
+  }, [track.id, track.file_url, trackHeight, trackIndex]); // Removed isMuted from dependencies to prevent re-initialization
 
   // Cleanup on unmount
   useEffect(() => {
@@ -293,7 +318,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
             <span className="text-xs text-purple-400">Ready to Record</span>
           </div>
         </div>
-      ) : isLoading ? (
+      ) : isLoading || (!isLoaded && track.file_url) ? (
         <div className="flex items-center justify-center h-full bg-blue-500/10 border-blue-500">
           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400"></div>
           <span className="text-xs text-blue-400 ml-2">Loading...</span>
@@ -332,15 +357,8 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
               </>
             );
           })()}
-          {/* Loading overlay */}
-          {!isLoaded && (
-            <div className="absolute inset-0 flex items-center justify-center bg-background/50">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-            </div>
-          )}
-          
            
-          {/* Clip action buttons */}
+           {/* Clip action buttons */}
           <div className="absolute bottom-1 right-1 z-20 flex gap-1">
             <button
               type="button"
