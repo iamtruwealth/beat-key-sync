@@ -98,31 +98,33 @@ export class SessionLoopEngine {
     // Create players for each clip
     for (const clip of this.clips) {
       try {
+        console.log(`🎵 SessionLoopEngine: Loading clip ${clip.id} from ${clip.url}`);
+        
         const gain = new Tone.Gain(clip.gain ?? 1).toDestination();
         const player = new Tone.Player({ 
           url: clip.url, 
           loop: false, 
           autostart: false,
           onerror: (error) => {
-            console.error(`Error loading clip ${clip.id}:`, error);
+            console.error(`❌ Error loading clip ${clip.id}:`, error);
           }
         }).connect(gain);
 
         // Wait for buffer to load - buffer loads automatically with URL in constructor
         await new Promise<void>((resolve, reject) => {
           if (player.loaded) {
-            console.log(`Clip ${clip.id} already loaded`);
+            console.log(`✅ Clip ${clip.id} already loaded`);
             resolve();
           } else {
-            console.log(`Waiting for clip ${clip.id} to load...`);
+            console.log(`⏳ Waiting for clip ${clip.id} to load...`);
             const timeout = setTimeout(() => {
-              reject(new Error(`Timeout loading clip ${clip.id}`));
-            }, 10000); // 10 second timeout
+              reject(new Error(`Timeout loading clip ${clip.id} from ${clip.url}`));
+            }, 15000); // 15 second timeout
             
             const checkLoaded = () => {
               if (player.loaded) {
                 clearTimeout(timeout);
-                console.log(`Clip ${clip.id} loaded successfully`);
+                console.log(`✅ Clip ${clip.id} loaded successfully`);
                 resolve();
               } else {
                 setTimeout(checkLoaded, 100);
@@ -149,7 +151,7 @@ export class SessionLoopEngine {
         const secondsPerBeat = 60 / Tone.Transport.bpm.value;
         const playDurationSec = (clip.sourceDurationSeconds ?? (clip.durationInBeats * secondsPerBeat));
         const sourceOffsetSec = clip.sourceOffsetSeconds ?? 0;
-        console.log('Scheduling clip', clip.id, { startTime, endTime, sourceOffsetSec, playDurationSec });
+        console.log(`🎵 Scheduling clip ${clip.id}:`, { startTime, endTime, sourceOffsetSec, playDurationSec });
         
         // Start at transport time with source offset/duration to respect trims
         player.start(startTime, sourceOffsetSec, playDurationSec);
@@ -159,14 +161,15 @@ export class SessionLoopEngine {
         
         if (clip.muted) {
           gain.gain.value = 0;
+          console.log(`🔇 Clip ${clip.id} is muted`);
         }
         
         this.players.set(clip.id, player);
         this.gains.set(clip.id, gain);
         
-        console.log(`Added clip ${clip.id} from ${startTime} to ${endTime}`);
+        console.log(`✅ Added clip ${clip.id} from ${startTime} to ${endTime}`);
       } catch (error) {
-        console.error(`Failed to load clip ${clip.id}:`, error);
+        console.error(`❌ Failed to load clip ${clip.id}:`, error);
         throw error;
       }
     }

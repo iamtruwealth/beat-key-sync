@@ -122,33 +122,46 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
   useEffect(() => {
     const initEngine = async () => {
       try {
+        console.log('🎵 AudioBridge: Starting engine initialization...');
+        console.log('🎵 AudioBridge: Tracks:', tracks.length, tracks.map(t => t.name));
+        console.log('🎵 AudioBridge: Clips:', clips?.length || 0);
+        
         await sessionLoopEngine.initialize();
+        
         // Set initial BPM and clips
         sessionLoopEngine.setBpm(bpm);
+        console.log(`🎵 AudioBridge: BPM set to ${bpm}`);
+        
         if (Array.isArray(clips) && clips.length > 0) {
           const engineClips = createClipsFromTimeline(clips, bpm);
-          console.log('AudioBridge: Initial timeline clips:', engineClips);
+          console.log('🎵 AudioBridge: Initial timeline clips:', engineClips);
           await sessionLoopEngine.setClips(engineClips, minBars);
         } else if (tracks.length > 0) {
           const engineClips = createClipsFromTracks(tracks, bpm);
-          console.log('AudioBridge: Initial track clips:', engineClips);
+          console.log('🎵 AudioBridge: Initial track clips:', engineClips);
           await sessionLoopEngine.setClips(engineClips, minBars);
           previousTracks.current = [...tracks];
+        } else {
+          console.log('🎵 AudioBridge: No tracks or clips to initialize');
         }
+        
         isInitialized.current = true;
-        console.log('AudioBridge: Engine initialized');
+        console.log('✅ AudioBridge: Engine initialized successfully');
+        
         // Start playback if requested
         if (isPlaying) {
+          console.log('🎵 AudioBridge: Starting playback immediately');
           await sessionLoopEngine.start();
         }
       } catch (error) {
-        console.error('AudioBridge: Failed to initialize engine:', error);
+        console.error('❌ AudioBridge: Failed to initialize engine:', error);
       }
     };
 
     initEngine();
 
     return () => {
+      console.log('🎵 AudioBridge: Disposing engine');
       sessionLoopEngine.dispose();
     };
   }, []);
@@ -248,11 +261,18 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
 
   // Handle playback state changes
   useEffect(() => {
-    if (!isInitialized.current) return;
+    if (!isInitialized.current) {
+      console.log('🎵 AudioBridge: Engine not initialized, skipping playback state change');
+      return;
+    }
 
+    console.log(`🎵 AudioBridge: Playback state change - isPlaying: ${isPlaying}, engine.isPlaying: ${sessionLoopEngine.isPlaying}`);
+    
     if (isPlaying && !sessionLoopEngine.isPlaying) {
+      console.log('🎵 AudioBridge: Starting playback');
       sessionLoopEngine.start();
     } else if (!isPlaying && sessionLoopEngine.isPlaying) {
+      console.log('🎵 AudioBridge: Pausing playback');
       sessionLoopEngine.pause();
     }
   }, [isPlaying]);
