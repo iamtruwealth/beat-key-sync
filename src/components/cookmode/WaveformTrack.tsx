@@ -138,6 +138,9 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
             setIsLoading(false);
             loadedUrlRef.current = track.file_url;
             console.log(`WaveSurfer loaded for track: ${track.name}`);
+            
+            // Force immediate update to prevent loading state persistence
+            waveSurfer.pause(); // Ensure it never plays
           }
         }).catch((err) => {
           if (waveSurferRef.current === waveSurfer) { // Check if this is still the current instance
@@ -166,7 +169,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
         clearTimeout(initTimeoutRef.current);
       }
     };
-  }, [track.id, track.file_url, trackHeight, trackIndex, isMuted]); // Include necessary dependencies
+  }, [track.id, track.file_url, trackHeight, trackIndex]); // Removed isMuted from dependencies to prevent re-initialization
 
   // Cleanup on unmount
   useEffect(() => {
@@ -293,7 +296,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
             <span className="text-xs text-purple-400">Ready to Record</span>
           </div>
         </div>
-      ) : isLoading ? (
+      ) : isLoading || (!isLoaded && track.file_url) ? (
         <div className="flex items-center justify-center h-full bg-blue-500/10 border-blue-500">
           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400"></div>
           <span className="text-xs text-blue-400 ml-2">Loading...</span>
@@ -332,15 +335,8 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
               </>
             );
           })()}
-          {/* Loading overlay */}
-          {!isLoaded && (
-            <div className="absolute inset-0 flex items-center justify-center bg-background/50">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-            </div>
-          )}
-          
            
-          {/* Clip action buttons */}
+           {/* Clip action buttons */}
           <div className="absolute bottom-1 right-1 z-20 flex gap-1">
             <button
               type="button"
