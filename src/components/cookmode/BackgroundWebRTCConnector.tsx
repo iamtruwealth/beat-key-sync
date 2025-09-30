@@ -48,7 +48,6 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
 
     const masterStream = hostAudioRef.current.masterStream;
 
-    // Ensure every participant gets an audio element
     participants.forEach((p) => {
       const userId = p.user_id;
 
@@ -63,9 +62,20 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
       }
 
       const el = audioRefs.current[userId]!;
+
       if (el.srcObject !== masterStream) {
         el.srcObject = masterStream;
-        el.play().catch((err) => console.warn('Auto-play blocked:', err));
+
+        // **Late joiner fix** — start at current loop position
+        const currentTime = hostAudioRef.current.getCurrentTime();
+        const loopDuration = masterPlayer.loopEnd - masterPlayer.loopStart || 8;
+        const offset = currentTime % loopDuration;
+
+        el.play().then(() => {
+          const audioCtx = masterPlayer.context.rawContext as AudioContext;
+          // Adjust playback position for late joiner
+          masterPlayer.start(audioCtx.currentTime, masterPlayer.loopStart + offset);
+        }).catch((err) => console.warn('Auto-play blocked:', err));
       }
     });
 
