@@ -21,6 +21,7 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
   const audioRefs = useRef<Record<string, HTMLAudioElement | null>>({});
   const gainNodesRef = useRef<Record<string, GainNode>>({});
   const hostAudioRef = useRef<HostMasterAudio | null>(null);
+  const viewerAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const enableAudio = async () => {
     try {
@@ -53,9 +54,43 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
   useEffect(() => {
     if (!audioEnabled) return;
 
+    if (!canEdit) {
+      // Viewer: use a single hidden audio element and attach the first stream that has audio
+      const streamWithAudio = participants.find(
+        (p) => p.stream && (p.stream as MediaStream).getAudioTracks().length > 0
+      )?.stream as MediaStream | undefined;
+
+      if (streamWithAudio) {
+        if (!viewerAudioRef.current) {
+          const audioEl = document.createElement('audio');
+          audioEl.autoplay = true;
+          audioEl.setAttribute('playsinline', 'true');
+          audioEl.muted = false;
+          audioEl.style.display = 'none';
+          document.body.appendChild(audioEl);
+          viewerAudioRef.current = audioEl;
+        }
+        const el = viewerAudioRef.current!;
+        if (el.srcObject !== streamWithAudio) {
+          console.log('🎧 Viewer assigning remote master stream', {
+            audioTracks: streamWithAudio.getAudioTracks().map((t) => t.id),
+          });
+          el.srcObject = streamWithAudio;
+          el.play().catch((err) => console.warn('Viewer auto-play blocked:', err));
+        }
+      } else if (viewerAudioRef.current) {
+        viewerAudioRef.current.pause();
+        viewerAudioRef.current.remove();
+        viewerAudioRef.current = null;
+      }
+
+      // Do not create per-participant elements in viewer mode
+      return;
+    }
+
+    // Host/editor: monitor per-participant audio
     participants.forEach((p) => {
       if (!p.stream) return;
-      // Only play streams that actually contain audio
       const hasAudio = (p.stream as MediaStream)?.getAudioTracks()?.length > 0;
       if (!hasAudio) return;
 
@@ -77,7 +112,7 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
       }
     });
 
-    // Cleanup participants that left
+    // Cleanup participants that left (host/editor)
     const currentIds = new Set(participants.map((p) => p.user_id));
     Object.keys(audioRefs.current).forEach((id) => {
       if (!currentIds.has(id)) {
@@ -86,7 +121,7 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
         delete audioRefs.current[id];
       }
     });
-  }, [participants, audioEnabled]);
+  }, [participants, audioEnabled, canEdit]);
 
   // Overlay JSX — only rendered if overlayVisible
   if (overlayVisible) {
