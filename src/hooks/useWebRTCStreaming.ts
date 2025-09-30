@@ -56,6 +56,36 @@ export const useWebRTCStreaming = ({ sessionId, canEdit, currentUserId }: UseWeb
           await handleIceCandidate(payload.from, payload.candidate);
         }
       })
+      .on('broadcast', { event: 'sync-request' }, async ({ payload }) => {
+        // Host responds to sync requests from late joiners
+        if (canEdit && payload.from !== currentUserId) {
+          const hostMaster = HostMasterAudio.getInstance();
+          if (hostMaster.isInitialized) {
+            const syncData = {
+              currentTime: hostMaster.getCurrentPlaybackTime(),
+              loopDuration: hostMaster.getLoopDuration(),
+              isPlaying: hostMaster.hasPlayer
+            };
+            
+            channel.send({
+              type: 'broadcast',
+              event: 'sync-response',
+              payload: {
+                from: currentUserId,
+                to: payload.from,
+                syncData
+              }
+            });
+          }
+        }
+      })
+      .on('broadcast', { event: 'sync-response' }, ({ payload }) => {
+        // Late joiner receives sync data
+        if (payload.to === currentUserId && !canEdit) {
+          console.log('📻 Received sync data for late join:', payload.syncData);
+          // This would be used by the audio element to sync if needed
+        }
+      })
       .on('presence', { event: 'sync' }, () => {
         const presenceState = channel.presenceState();
         console.log('📹 WebRTC presence sync:', presenceState);
@@ -66,6 +96,11 @@ export const useWebRTCStreaming = ({ sessionId, canEdit, currentUserId }: UseWeb
         newPresences.forEach((presence: any) => {
           if (presence.user_id !== currentUserId) {
             createPeerConnection(presence.user_id, presence.username, true);
+            
+            // If we're the host and someone joined, they might be a late joiner
+            if (canEdit) {
+              console.log('📻 Host: New viewer joined, they will auto-sync to master stream');
+            }
           }
         });
       })
@@ -78,7 +113,7 @@ export const useWebRTCStreaming = ({ sessionId, canEdit, currentUserId }: UseWeb
       .subscribe();
 
     signalingChannel.current = channel;
-  }, [sessionId, currentUserId]);
+  }, [sessionId, currentUserId, canEdit]);
 
   // Create peer connection for a participant
   const createPeerConnection = async (userId: string, username: string, isInitiator: boolean) => {
@@ -327,40 +362,46 @@ export const useWebRTCStreaming = ({ sessionId, canEdit, currentUserId }: UseWeb
     });
   };
 
-  // Start radio-style streaming (host broadcasts, viewers receive)
+  // Start master audio broadcasting (host only)
   const startStreaming = async () => {
     try {
-      // Radio approach: Host broadcasts audio only (no viewer microphones)
-      // Video is optional, audio is from HostMasterAudio
+      console.log('📻 Starting master audio broadcast');
+      
+      // Initialize HostMasterAudio first
+      const hostMaster = HostMasterAudio.getInstance();
+      if (!hostMaster.isInitialized) {
+        await hostMaster.initialize();
+        hostMaster.connectToCookModeEngine();
+      }
+
+      // Get the master audio stream for broadcasting
+      const masterAudioStream = hostMaster.getMasterStream();
+      if (!masterAudioStream) {
+        throw new Error('No master audio stream available');
+      }
+
+      // Create main broadcast stream (audio + optional video)
       const stream = streamEnabled.video 
         ? await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
         : new MediaStream();
 
+      // Add master audio track to the broadcast stream
+      const audioTrack = masterAudioStream.getAudioTracks()[0];
+      if (audioTrack) {
+        console.log('📻 Adding master audio track to broadcast stream');
+        stream.addTrack(audioTrack);
+        externalAudioTrackRef.current = audioTrack;
+        externalAudioStreamRef.current = masterAudioStream;
+      }
+
       setLocalStream(stream);
       setIsStreaming(true);
-      setStreamEnabled(prev => ({ ...prev, audio: false }));
 
       if (localVideoRef.current) {
         localVideoRef.current.srcObject = stream;
       }
 
-      // Radio broadcast: Use HostMasterAudio for one-way audio streaming
-      const hostMaster = HostMasterAudio.getInstance();
-      const masterAudioStream = hostMaster.getMasterStream();
-      
-      if (masterAudioStream) {
-        const audioTrack = masterAudioStream.getAudioTracks()[0];
-        if (audioTrack) {
-          console.log('📻 Radio Mode: Broadcasting master audio to all viewers');
-          externalAudioTrackRef.current = audioTrack;
-          externalAudioStreamRef.current = masterAudioStream;
-          
-          // Add audio track to the main stream for broadcasting
-          stream.addTrack(audioTrack);
-        }
-      }
-
-      // Join the WebRTC presence
+      // Join WebRTC presence as host
       if (signalingChannel.current) {
         const { data: { user } } = await supabase.auth.getUser();
         const { data: profile } = await supabase
@@ -371,37 +412,38 @@ export const useWebRTCStreaming = ({ sessionId, canEdit, currentUserId }: UseWeb
 
         const username = profile?.producer_name || 
                         `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || 
-                        'Anonymous';
+                        'Host';
 
         await signalingChannel.current.track({
           user_id: user?.id,
           username,
-          streaming: true
+          streaming: true,
+          role: 'host'
         });
 
-        // Initiate peer connections to all currently present participants
+        // Connect to all existing participants
         const presenceState = signalingChannel.current.presenceState?.() || {};
         const others = (Object.values(presenceState).flat() as any[]);
         for (const presence of others) {
           if (presence.user_id && presence.user_id !== user?.id) {
-            await createPeerConnection(presence.user_id, presence.username || 'Guest', true);
+            await createPeerConnection(presence.user_id, presence.username || 'Viewer', true);
           }
         }
       }
- 
-      toast.success('📻 Radio broadcast started - one-way audio stream active');
+  
+      toast.success('📻 Master audio broadcast started - streaming to all viewers');
     } catch (error) {
-      console.error('Error starting stream:', error);
-      toast.error('Failed to start video stream');
+      console.error('Error starting master audio broadcast:', error);
+      toast.error('Failed to start audio broadcast');
     }
   };
 
-  // Start as viewer (for guests - receive only, no camera)
+  // Start as viewer (receive master audio stream)
   const startAsViewer = useCallback(async () => {
     try {
-      console.log('👀 Starting as viewer - ready to receive streams');
+      console.log('👀 Starting as viewer - ready to receive master audio stream');
       
-      // Join the WebRTC presence as a viewer
+      // Join WebRTC presence as viewer
       if (signalingChannel.current) {
         const { data: { user } } = await supabase.auth.getUser();
         const { data: profile } = await supabase
@@ -412,17 +454,28 @@ export const useWebRTCStreaming = ({ sessionId, canEdit, currentUserId }: UseWeb
 
         const username = profile?.producer_name || 
                         `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || 
-                        'Anonymous';
+                        'Viewer';
 
         await signalingChannel.current.track({
           user_id: user?.id,
           username,
-          streaming: false // Viewer, not streaming
+          streaming: false,
+          role: 'viewer'
+        });
+
+        // Request sync from host for late joining
+        signalingChannel.current.send({
+          type: 'broadcast',
+          event: 'sync-request',
+          payload: {
+            from: user?.id,
+            message: 'Late joiner requesting sync'
+          }
         });
       }
 
-      setIsStreaming(false); // Not streaming, just viewing
-      console.log('✅ Viewer connected - will receive audio/video from hosts');
+      setIsStreaming(false); // Viewers don't stream
+      console.log('✅ Viewer connected - will receive master audio stream');
     } catch (error) {
       console.error('Error starting as viewer:', error);
     }

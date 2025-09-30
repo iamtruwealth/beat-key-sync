@@ -65,47 +65,70 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
     }
 
     if (!canEdit) {
-      // Radio Viewer Mode: One-way receive with buffered playback
-      const streamWithAudio = participants.find(
+      // Viewer Mode: Receive master audio stream from host
+      const hostStream = participants.find(
         (p) => p.stream && (p.stream as MediaStream).getAudioTracks().length > 0
       )?.stream as MediaStream | undefined;
 
-      if (streamWithAudio && audioContextRef.current) {
-        console.log('📻 Radio Viewer: Receiving broadcast stream', {
-          audioTracks: streamWithAudio.getAudioTracks().map((t) => t.id),
+      if (hostStream) {
+        console.log('📻 Viewer: Receiving master audio stream from host', {
+          audioTracks: hostStream.getAudioTracks().map((t) => t.id),
         });
 
-        // Use a simple audio element for reliable playback
-        try {
-          if (!viewerAudioRef.current) {
-            const audioEl = document.createElement('audio');
-            audioEl.autoplay = true;
-            audioEl.setAttribute('playsinline', 'true');
-            audioEl.muted = false;
-            audioEl.style.display = 'none';
-            document.body.appendChild(audioEl);
-            viewerAudioRef.current = audioEl;
-          }
-
-          viewerAudioRef.current.srcObject = streamWithAudio;
-          viewerAudioRef.current.play()
-            .then(() => {
-              console.log('📻 Radio Viewer: Playback started');
-              setOverlayVisible(false);
-            })
-            .catch((err) => {
-              console.warn('Viewer auto-play blocked:', err);
-            });
-        } catch (error) {
-          console.warn('Failed to start viewer playback:', error);
+        // Create hidden audio element for seamless playback
+        if (!viewerAudioRef.current) {
+          const audioEl = document.createElement('audio');
+          audioEl.autoplay = true;
+          audioEl.setAttribute('playsinline', 'true');
+          audioEl.muted = false;
+          audioEl.style.display = 'none';
+          audioEl.style.position = 'fixed';
+          audioEl.style.left = '-9999px';
+          document.body.appendChild(audioEl);
+          viewerAudioRef.current = audioEl;
+          
+          console.log('📻 Viewer: Created hidden audio element');
         }
+
+        // Attach the master stream
+        viewerAudioRef.current.srcObject = hostStream;
+        
+        // Start playback and hide overlay when audio starts
+        viewerAudioRef.current.play()
+          .then(() => {
+            console.log('📻 Viewer: Master audio playback started successfully');
+            setOverlayVisible(false);
+          })
+          .catch((err) => {
+            console.warn('📻 Viewer: Auto-play blocked, user interaction required:', err);
+            // Overlay stays visible until manual interaction
+          });
+
+        // Handle audio events for debugging
+        viewerAudioRef.current.addEventListener('loadstart', () => {
+          console.log('📻 Viewer: Audio loading started');
+        });
+        
+        viewerAudioRef.current.addEventListener('canplay', () => {
+          console.log('📻 Viewer: Audio can start playing');
+        });
+        
+        viewerAudioRef.current.addEventListener('playing', () => {
+          console.log('📻 Viewer: Audio is playing');
+          setOverlayVisible(false);
+        });
       }
       
-      return; // Viewers don't need participant management
+      return; // Viewers don't need additional processing
     }
 
-    // Host Mode: Standard WebRTC (for potential future multi-host support)
-    console.log('📻 Radio Host: Broadcasting to', participants.length, 'viewers');
+    // Host Mode: Broadcasting master audio to all viewers
+    console.log('📻 Host: Broadcasting master audio to', participants.length, 'viewers');
+    
+    // Ensure HostMasterAudio is connected for broadcasting
+    if (canEdit && hostAudioRef.current && hostAudioRef.current.isInitialized) {
+      console.log('📻 Host: Master audio system ready for broadcast');
+    }
   }, [participants, audioEnabled, canEdit]);
 
   // Overlay JSX — only rendered if overlayVisible
@@ -136,7 +159,7 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
           if (!overlayVisible) setOverlayVisible(false); // remove from DOM after fade
         }}
       >
-        📻 Tap to Join Radio Stream
+        📻 Tap to Join Master Audio Stream
       </div>
     );
   }

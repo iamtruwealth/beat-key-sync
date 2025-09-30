@@ -111,6 +111,17 @@ export class HostMasterAudio {
     return elapsed % this.loopDuration;
   }
 
+  // Get current playback time for sync purposes
+  getCurrentPlaybackTime(): number {
+    if (!this.audioContext) return 0;
+    return this.audioContext.currentTime;
+  }
+
+  // Get loop duration for sync
+  getLoopDuration(): number {
+    return this.loopDuration;
+  }
+
   seekTo(time: number): void {
     if (!this.masterPlayer || !this.audioContext) {
       return;
