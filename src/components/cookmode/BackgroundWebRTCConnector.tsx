@@ -1,59 +1,55 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useWebRTCStreaming } from '@/hooks/useWebRTCStreaming';
-import { HostMasterAudio } from '@/host/HostMasterAudio';
 import * as Tone from 'tone';
 
 interface BackgroundWebRTCConnectorProps {
   sessionId: string;
   canEdit: boolean;
   currentUserId?: string;
-  masterPlayer: Tone.Player; // Tone.js player instance for host audio
 }
 
 export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps> = ({
   sessionId,
   canEdit,
   currentUserId,
-  masterPlayer,
 }) => {
   const { participants } = useWebRTCStreaming({ sessionId, canEdit, currentUserId });
 
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [overlayVisible, setOverlayVisible] = useState(true);
+  const audioRefs = useRef<Record<string, HTMLAudioElement | null>>({});
+  const gainNodesRef = useRef<Record<string, GainNode>>({});
 
-  const audioRefs = useRef<Record<string, HTMLAudioElement>>({});
-  const hostAudioRef = useRef<HostMasterAudio | null>(null);
-
-  // Enable audio on tap
   const enableAudio = async () => {
     try {
-      if (!hostAudioRef.current) {
-        hostAudioRef.current = new HostMasterAudio();
-        hostAudioRef.current.connectNode(masterPlayer);
-        hostAudioRef.current.startLoop(masterPlayer, 0, masterPlayer.buffer?.duration || 8);
-      }
-
-      // Resume AudioContext
-      await Tone.start();
-      await masterPlayer.context.resume();
-
+      await Tone.start(); // resume AudioContext
       setAudioEnabled(true);
+
+      // start fade out
       setOverlayVisible(false);
 
-      console.log('🔊 Audio context resumed and master loop started');
+      console.log('🔊 Audio context resumed for viewers');
     } catch (err) {
       console.warn('Failed to enable audio:', err);
     }
   };
 
-  // Attach master stream to all participant audio elements
   useEffect(() => {
-    if (!audioEnabled || !hostAudioRef.current) return;
-
-    const masterStream = hostAudioRef.current.masterStream;
+    if (!audioEnabled) return;
+    const audioCtx = Tone.getContext().rawContext as AudioContext;
 
     participants.forEach((p) => {
+      if (!p.stream) return;
       const userId = p.user_id;
+
+      if (!gainNodesRef.current[userId]) {
+        const gainNode = audioCtx.createGain();
+        gainNode.gain.value = 1.0;
+        gainNodesRef.current[userId] = gainNode;
+      }
+
+      const src = audioCtx.createMediaStreamSource(p.stream as MediaStream);
+      src.connect(gainNodesRef.current[userId]).connect(audioCtx.destination);
 
       if (!audioRefs.current[userId]) {
         const audioEl = document.createElement('audio');
@@ -61,27 +57,30 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
         audioEl.setAttribute('playsinline', 'true');
         audioEl.muted = false;
         audioEl.style.display = 'none';
-        audioEl.srcObject = masterStream;
         document.body.appendChild(audioEl);
         audioRefs.current[userId] = audioEl;
-      } else if (audioRefs.current[userId].srcObject !== masterStream) {
-        audioRefs.current[userId].srcObject = masterStream;
-        audioRefs.current[userId].play().catch((err) => console.warn('Auto-play blocked:', err));
+      }
+
+      const el = audioRefs.current[userId]!;
+      if (el.srcObject !== p.stream) {
+        el.srcObject = p.stream as MediaStream;
+        el.play().catch((err) => console.warn('Auto-play blocked:', err));
       }
     });
 
-    // Remove audio elements for participants who left
+    // Cleanup participants that left
     const currentIds = new Set(participants.map((p) => p.user_id));
     Object.keys(audioRefs.current).forEach((id) => {
       if (!currentIds.has(id)) {
         audioRefs.current[id]?.pause();
         audioRefs.current[id]?.remove();
         delete audioRefs.current[id];
+        delete gainNodesRef.current[id];
       }
     });
   }, [participants, audioEnabled]);
 
-  // Overlay JSX
+  // Overlay JSX — only rendered if overlayVisible
   if (overlayVisible) {
     return (
       <div
@@ -101,10 +100,13 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
           textAlign: 'center',
           cursor: 'pointer',
           padding: '20px',
-          opacity: 1,
+          opacity: overlayVisible ? 1 : 0,
           transition: 'opacity 0.5s ease',
         }}
         onClick={enableAudio}
+        onTransitionEnd={() => {
+          if (!overlayVisible) setOverlayVisible(false); // remove from DOM after fade
+        }}
       >
         Tap to Join Audio
       </div>
@@ -113,3 +115,5 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
 
   return null;
 };
+
+
