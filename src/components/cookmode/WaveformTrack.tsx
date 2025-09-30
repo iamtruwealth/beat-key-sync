@@ -74,6 +74,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const loadedUrlRef = useRef<string | null>(null);
   const initTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const track = clip.originalTrack;
   const clipDuration = clip.endTime - clip.startTime;
@@ -110,6 +111,17 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
         setIsLoading(true);
         setError(null);
 
+        // Start a safety timeout so the UI doesn't spin forever
+        if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
+        loadingTimeoutRef.current = setTimeout(() => {
+          if (!isLoaded) {
+            console.warn(`Waveform load timeout for track: ${track.name}`);
+            setError('Waveform took too long to load');
+            setIsLoading(false);
+            setIsLoaded(false);
+          }
+        }, 8000);
+
         const waveSurfer = WaveSurfer.create({
           container: containerRef.current,
           waveColor: getTrackWaveColor(trackIndex, isMuted),
@@ -130,8 +142,18 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
 
         waveSurferRef.current = waveSurfer;
 
+        // Surface internal errors from wavesurfer
+        waveSurfer.on('error', (e: any) => {
+          console.error(`WaveSurfer error for track ${track.name}:`, e);
+          if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
+          setError('Failed to load waveform');
+          setIsLoaded(false);
+          setIsLoading(false);
+        });
+
         // Load the audio file
         waveSurfer.load(track.file_url).then(() => {
+          if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
           if (waveSurferRef.current === waveSurfer) { // Check if this is still the current instance
             setIsLoaded(true);
             setError(null);
