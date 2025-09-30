@@ -53,8 +53,20 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
   useEffect(() => {
     if (!audioEnabled || !hostAudioRef.current) return;
 
+    // For viewers, we just need to make sure they can hear the master stream
+    if (!canEdit) {
+      // Viewers don't need to setup individual participant streams
+      // The master audio will be streamed to them via WebRTC
+      console.log('🎧 Viewer audio setup complete - waiting for host stream');
+      return;
+    }
+
+    // For hosts, set up the master stream for broadcasting
     const masterStream = hostAudioRef.current.getMasterStream();
-    if (!masterStream) return;
+    if (!masterStream) {
+      console.warn('⚠️ No master stream available for broadcasting');
+      return;
+    }
 
     participants.forEach((p) => {
       const userId = p.user_id;
@@ -70,18 +82,11 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
       }
 
       const el = audioRefs.current[userId]!;
-      // Assign master stream to all participants for synchronized audio
+      // Assign master stream to broadcast to participants
       if (el.srcObject !== masterStream) {
         el.srcObject = masterStream;
-        
-        // For late joiners, seek to current playback position
-        const currentTime = hostAudioRef.current?.getCurrentTime() || 0;
-        if (currentTime > 0) {
-          el.currentTime = currentTime;
-        }
-        
         el.play().catch((err) => console.warn('Auto-play blocked:', err));
-        console.log(`🎵 Master stream assigned to participant ${userId}`);
+        console.log(`🎵 Master stream assigned for broadcasting to participant ${userId}`);
       }
     });
 
@@ -95,7 +100,7 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
         console.log(`🧹 Cleaned up audio element for participant ${id}`);
       }
     });
-  }, [participants, audioEnabled]);
+  }, [participants, audioEnabled, canEdit]);
 
   // Overlay JSX — only rendered if overlayVisible
   if (overlayVisible) {

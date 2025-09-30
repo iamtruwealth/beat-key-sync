@@ -48,15 +48,21 @@ export class HostMasterAudio {
     }
 
     try {
-      // Connect Tone.js master output to our master gain
+      // Get Tone.js context and destination
       const toneContext = Tone.getContext();
       const toneDestination = toneContext.destination;
       
-      // Disconnect Tone's default destination and connect to our master gain
-      toneDestination.disconnect();
-      toneDestination.connect(this.masterGain);
+      // Get the native audio node from Tone's destination
+      const toneDestinationNode = (toneDestination as any)._nativeAudioNode || toneDestination;
       
-      console.log('🎵 CookModeEngine connected to HostMasterAudio');
+      // Connect Tone's output to both the speakers AND our master stream
+      // This allows the host to hear the audio while also streaming it
+      toneDestinationNode.connect(this.masterGain);
+      
+      // Also connect to the default destination so host can hear it
+      toneDestinationNode.connect(this.audioContext.destination);
+      
+      console.log('🎵 CookModeEngine connected to HostMasterAudio - host can hear + streaming');
     } catch (error) {
       console.error('Failed to connect CookModeEngine:', error);
       throw error;
