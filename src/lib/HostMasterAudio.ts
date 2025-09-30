@@ -32,7 +32,7 @@ export class HostMasterAudio {
       // Create MediaStreamAudioDestinationNode for broadcasting
       this.mediaStreamDestination = this.audioContext.createMediaStreamDestination();
       
-      // Connect master gain to stream destination
+      // Connect master gain to stream destination (for broadcasting)
       this.masterGain.connect(this.mediaStreamDestination);
       
       console.log('🎵 HostMasterAudio initialized');
@@ -48,21 +48,14 @@ export class HostMasterAudio {
     }
 
     try {
-      // Get Tone.js context and destination
+      // Get Tone.js Destination (GainNode) and connect it to our masterGain
       const toneContext = Tone.getContext();
-      const toneDestination = toneContext.destination;
-      
-      // Get the native audio node from Tone's destination
-      const toneDestinationNode = (toneDestination as any)._nativeAudioNode || toneDestination;
-      
-      // Connect Tone's output to both the speakers AND our master stream
-      // This allows the host to hear the audio while also streaming it
-      toneDestinationNode.connect(this.masterGain);
-      
-      // Also connect to the default destination so host can hear it
-      toneDestinationNode.connect(this.audioContext.destination);
-      
-      console.log('🎵 CookModeEngine connected to HostMasterAudio - host can hear + streaming');
+      const toneDestination = (toneContext.destination as any)._nativeAudioNode || toneContext.destination;
+
+      // Fork audio: keep default path (host hears), and add a fork to masterGain (for streaming)
+      ;(toneDestination as AudioNode).connect(this.masterGain);
+
+      console.log('🎵 CookModeEngine routed to HostMasterAudio (forked to stream)');
     } catch (error) {
       console.error('Failed to connect CookModeEngine:', error);
       throw error;

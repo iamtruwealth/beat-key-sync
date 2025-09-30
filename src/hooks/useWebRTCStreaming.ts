@@ -96,16 +96,28 @@ export const useWebRTCStreaming = ({ sessionId, canEdit, currentUserId }: UseWeb
         peerConnection.addTrack(externalAudioTrackRef.current, externalAudioStreamRef.current);
       }
 
-      // Handle incoming stream
+      // Handle incoming track(s) - merge into a single combined stream per participant
       peerConnection.ontrack = (event) => {
-        console.log('📹 Received remote stream from:', username);
-        const [remoteStream] = event.streams;
+        const [incomingStream] = event.streams;
         setParticipants(prev => {
           const updated = new Map(prev);
-          const participant = updated.get(userId) || { user_id: userId, username };
-          participant.stream = remoteStream;
-          participant.peerConnection = peerConnection;
-          updated.set(userId, participant);
+          const existing = updated.get(userId) || { user_id: userId, username } as any;
+
+          // Create or reuse a combined MediaStream
+          if (!(existing as any).combinedStream) {
+            (existing as any).combinedStream = new MediaStream();
+          }
+          const combined: MediaStream = (existing as any).combinedStream;
+
+          // Add new tracks if not already present
+          incomingStream.getTracks().forEach(track => {
+            const already = combined.getTracks().some(t => t.id === track.id);
+            if (!already) combined.addTrack(track);
+          });
+
+          existing.stream = combined;
+          existing.peerConnection = peerConnection;
+          updated.set(userId, existing);
           return updated;
         });
       };

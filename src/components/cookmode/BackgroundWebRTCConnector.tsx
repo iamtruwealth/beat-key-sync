@@ -55,8 +55,11 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
 
     participants.forEach((p) => {
       if (!p.stream) return;
-      const userId = p.user_id;
+      // Only play streams that actually contain audio
+      const hasAudio = (p.stream as MediaStream)?.getAudioTracks()?.length > 0;
+      if (!hasAudio) return;
 
+      const userId = p.user_id;
       if (!audioRefs.current[userId]) {
         const audioEl = document.createElement('audio');
         audioEl.autoplay = true;
