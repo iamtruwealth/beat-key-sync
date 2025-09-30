@@ -51,24 +51,10 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
   };
 
   useEffect(() => {
-    if (!audioEnabled || !hostAudioRef.current) return;
-
-    // For viewers, we just need to make sure they can hear the master stream
-    if (!canEdit) {
-      // Viewers don't need to setup individual participant streams
-      // The master audio will be streamed to them via WebRTC
-      console.log('🎧 Viewer audio setup complete - waiting for host stream');
-      return;
-    }
-
-    // For hosts, set up the master stream for broadcasting
-    const masterStream = hostAudioRef.current.getMasterStream();
-    if (!masterStream) {
-      console.warn('⚠️ No master stream available for broadcasting');
-      return;
-    }
+    if (!audioEnabled) return;
 
     participants.forEach((p) => {
+      if (!p.stream) return;
       const userId = p.user_id;
 
       if (!audioRefs.current[userId]) {
@@ -82,11 +68,9 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
       }
 
       const el = audioRefs.current[userId]!;
-      // Assign master stream to broadcast to participants
-      if (el.srcObject !== masterStream) {
-        el.srcObject = masterStream;
+      if (el.srcObject !== p.stream) {
+        el.srcObject = p.stream as MediaStream;
         el.play().catch((err) => console.warn('Auto-play blocked:', err));
-        console.log(`🎵 Master stream assigned for broadcasting to participant ${userId}`);
       }
     });
 
@@ -97,10 +81,9 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
         audioRefs.current[id]?.pause();
         audioRefs.current[id]?.remove();
         delete audioRefs.current[id];
-        console.log(`🧹 Cleaned up audio element for participant ${id}`);
       }
     });
-  }, [participants, audioEnabled, canEdit]);
+  }, [participants, audioEnabled]);
 
   // Overlay JSX — only rendered if overlayVisible
   if (overlayVisible) {

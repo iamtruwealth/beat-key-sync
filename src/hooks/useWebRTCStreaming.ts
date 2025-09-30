@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { sessionLoopEngine } from '@/lib/sessionLoopEngine';
+import { HostMasterAudio } from '@/lib/HostMasterAudio';
 
 interface Participant {
   user_id: string;
@@ -63,7 +64,7 @@ export const useWebRTCStreaming = ({ sessionId, canEdit, currentUserId }: UseWeb
       .on('presence', { event: 'join' }, ({ newPresences }) => {
         console.log('📹 User joined video session:', newPresences);
         newPresences.forEach((presence: any) => {
-          if (presence.user_id !== currentUserId && localStream) {
+          if (presence.user_id !== currentUserId) {
             createPeerConnection(presence.user_id, presence.username, true);
           }
         });
@@ -273,24 +274,27 @@ export const useWebRTCStreaming = ({ sessionId, canEdit, currentUserId }: UseWeb
   // Start streaming (for hosts with camera)
   const startStreaming = async () => {
     try {
+      // Capture video only; audio is provided via HostMasterAudio master stream
       const stream = await navigator.mediaDevices.getUserMedia({
         video: streamEnabled.video,
-        audio: streamEnabled.audio
+        audio: false
       });
 
       setLocalStream(stream);
       setIsStreaming(true);
+      setStreamEnabled(prev => ({ ...prev, audio: false }));
 
       if (localVideoRef.current) {
         localVideoRef.current.srcObject = stream;
       }
 
-      // Get session's mixed audio for viewers
-      const sessionMixedAudio = sessionLoopEngine.getMixedAudioStream();
+      // Get session's mixed audio for viewers (deprecated) or HostMasterAudio stream
+      const hostMaster = HostMasterAudio.getInstance();
+      const sessionMixedAudio = hostMaster.getMasterStream() || sessionLoopEngine.getMixedAudioStream();
       if (sessionMixedAudio) {
         const audioTrack = sessionMixedAudio.getAudioTracks()[0];
         if (audioTrack) {
-          console.log('🔊 Adding session mixed audio track to WebRTC streams');
+          console.log('🔊 Adding master audio track to WebRTC streams');
           externalAudioTrackRef.current = audioTrack;
           externalAudioStreamRef.current = sessionMixedAudio;
           
@@ -415,6 +419,43 @@ export const useWebRTCStreaming = ({ sessionId, canEdit, currentUserId }: UseWeb
       }
     }
   };
+
+  // Master audio attachment for hosts (HostMasterAudio)
+  const masterTrackIdRef = useRef<string | null>(null);
+  const attachHostMasterAudio = useCallback(() => {
+    try {
+      const hostMaster = HostMasterAudio.getInstance();
+      const masterStream = hostMaster.getMasterStream();
+      if (!masterStream) return;
+      const track = masterStream.getAudioTracks()[0];
+      if (!track) return;
+
+      externalAudioTrackRef.current = track;
+      externalAudioStreamRef.current = masterStream;
+
+      // Avoid re-adding the same track repeatedly
+      if (masterTrackIdRef.current === track.id) return;
+      masterTrackIdRef.current = track.id;
+
+      participants.forEach(p => {
+        const pc = p.peerConnection;
+        if (!pc) return;
+        const already = pc.getSenders().some(s => s.track && s.track.id === track.id);
+        if (!already) {
+          pc.addTrack(track, masterStream);
+        }
+      });
+      console.log('🔊 Master audio attached to all peer connections');
+    } catch (e) {
+      console.warn('Failed to attach master audio:', e);
+    }
+  }, [participants]);
+
+  useEffect(() => {
+    if (canEdit) {
+      attachHostMasterAudio();
+    }
+  }, [canEdit, participants, attachHostMasterAudio]);
 
   // Setup signaling on mount and auto-connect guests
   useEffect(() => {
