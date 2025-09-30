@@ -25,6 +25,7 @@ export class HostMasterAudio {
       // Initialize Tone.js AudioContext
       await Tone.start();
       this.audioContext = Tone.getContext().rawContext as AudioContext;
+      console.log('🎧 AudioContext sampleRate:', this.audioContext.sampleRate);
       
       // Create master gain node
       this.masterGain = this.audioContext.createGain();
@@ -36,7 +37,7 @@ export class HostMasterAudio {
       // Connect master gain to stream destination (for broadcasting)
       this.masterGain.connect(this.mediaStreamDestination);
       
-      console.log('🎵 HostMasterAudio initialized');
+      console.log('🎵 HostMasterAudio initialized: destination tracks', this.mediaStreamDestination.stream.getAudioTracks().map(t => t.id));
     } catch (error) {
       console.error('Failed to initialize HostMasterAudio:', error);
       throw error;

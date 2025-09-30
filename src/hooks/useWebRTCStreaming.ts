@@ -149,13 +149,32 @@ export const useWebRTCStreaming = ({ sessionId, canEdit, currentUserId }: UseWeb
         const existingSender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'audio');
         if (existingSender) {
           if (existingSender.track?.id !== masterTrack.id) {
-            existingSender.replaceTrack(masterTrack).catch(() => {});
+            console.log('🔁 Replacing audio sender track with master track');
+            existingSender.replaceTrack(masterTrack).catch((e) => console.warn('replaceTrack failed', e));
           }
         } else {
+          console.log('➕ Adding master audio track to peer connection');
           peerConnection.addTrack(masterTrack, externalAudioStreamRef.current);
         }
       };
       ensureMasterAudioSender();
+
+      // Renegotiate when new tracks are added (especially after adding master audio)
+      peerConnection.onnegotiationneeded = async () => {
+        try {
+          if (!signalingChannel.current) return;
+          console.log('🌀 onnegotiationneeded - creating offer');
+          const offer = await peerConnection.createOffer();
+          await peerConnection.setLocalDescription(offer);
+          signalingChannel.current.send({
+            type: 'broadcast',
+            event: 'webrtc-offer',
+            payload: { from: currentUserId, to: userId, offer }
+          });
+        } catch (e) {
+          console.warn('Negotiation failed:', e);
+        }
+      };
 
       setParticipants(prev => {
         const updated = new Map(prev);
