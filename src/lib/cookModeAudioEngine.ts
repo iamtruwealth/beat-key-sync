@@ -6,6 +6,7 @@
 
 import * as Tone from 'tone';
 import { undoManager, ActionType } from './UndoManager';
+import { HostMasterAudio } from './HostMasterAudio';
 
 // Types and Interfaces
 export interface AudioSample {
@@ -274,6 +275,17 @@ export class CookModeAudioEngine {
       
       // Create Tone.js player
       const player = new Tone.Player(audioBuffer).toDestination();
+      
+      // Also send to broadcast stream bus if available
+      try {
+        const hostMaster = HostMasterAudio.getInstance();
+        const bus = hostMaster.getStreamBus?.();
+        if (bus) {
+          // Connect Tone.Player output to native GainNode bus
+          (player as any).connect(bus as any);
+        }
+      } catch {}
+      
       player.fadeIn = 0.01;
       player.fadeOut = 0.03;
       player.autostart = false;

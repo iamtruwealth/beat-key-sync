@@ -11,8 +11,9 @@ export class HostMasterAudio {
   private isPlaying: boolean = false;
   private isRouted: boolean = false;
   private continuousOscillator: OscillatorNode | null = null;
-
-  private constructor() {}
+  private streamBus: GainNode | null = null;
+ 
+   private constructor() {}
 
   static getInstance(): HostMasterAudio {
     if (!HostMasterAudio.instance) {
@@ -37,6 +38,11 @@ export class HostMasterAudio {
       
       // Connect master gain to stream destination (for broadcasting)
       this.masterGain.connect(this.mediaStreamDestination);
+
+      // Create stream bus (tap point for broadcasting)
+      this.streamBus = this.audioContext.createGain();
+      this.streamBus.gain.value = 1.0;
+      this.streamBus.connect(this.masterGain);
       
       // Create a continuous silent tone to keep the stream alive (radio approach)
       this.continuousOscillator = this.audioContext.createOscillator();
@@ -65,15 +71,9 @@ export class HostMasterAudio {
     }
 
     try {
-      // Get Tone.js Destination (GainNode) and connect it to our masterGain
-      const toneContext = Tone.getContext();
-      const toneDestination = (toneContext.destination as any)._nativeAudioNode || toneContext.destination;
-
-      // Fork audio: keep default path (host hears), and add a fork to masterGain (for streaming)
-      ;(toneDestination as AudioNode).connect(this.masterGain);
-
+      // No direct routing from destination. Stream bus is provided for engine sources.
       this.isRouted = true;
-      console.log('🎵 CookModeEngine routed to HostMasterAudio (forked to stream)');
+      console.log('🎵 HostMasterAudio stream bus ready for engine connections');
     } catch (error) {
       console.error('Failed to connect CookModeEngine:', error);
       throw error;
@@ -130,6 +130,10 @@ export class HostMasterAudio {
     return this.mediaStreamDestination?.stream || null;
   }
 
+  getStreamBus(): GainNode | null {
+    return this.streamBus;
+  }
+ 
   setMasterVolume(volume: number): void {
     if (this.masterGain) {
       this.masterGain.gain.value = Math.max(0, Math.min(1, volume));
@@ -158,6 +162,11 @@ export class HostMasterAudio {
     if (this.masterGain) {
       this.masterGain.disconnect();
       this.masterGain = null;
+    }
+
+    if (this.streamBus) {
+      this.streamBus.disconnect();
+      this.streamBus = null;
     }
     
     if (this.mediaStreamDestination) {
