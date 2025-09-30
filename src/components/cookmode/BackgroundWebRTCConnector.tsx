@@ -20,12 +20,63 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
 
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [showJoinButton, setShowJoinButton] = useState(true);
-  // Safety: legacy variable to avoid runtime errors from stale bundles
-  const overlayVisible = false;
   const hostAudioRef = useRef<HostMasterAudio | null>(null);
   const viewerAudioRef = useRef<HTMLAudioElement | null>(null);
   const audioBufferRef = useRef<AudioBuffer | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const pollTimerRef = useRef<number | null>(null);
+  const participantsRef = useRef(participants);
+
+  useEffect(() => {
+    participantsRef.current = participants;
+  }, [participants]);
+
+  const tryAttachHostStream = async (): Promise<boolean> => {
+    const hostStream = participantsRef.current.find(
+      (p) => p.stream && (p.stream as MediaStream).getAudioTracks().length > 0
+    )?.stream as MediaStream | undefined;
+
+    if (!hostStream) {
+      return false;
+    }
+
+    if (!viewerAudioRef.current) {
+      const audioEl = document.createElement('audio');
+      audioEl.autoplay = true;
+      audioEl.setAttribute('playsinline', 'true');
+      audioEl.muted = false;
+      audioEl.volume = 1.0;
+      audioEl.style.display = 'none';
+      document.body.appendChild(audioEl);
+      viewerAudioRef.current = audioEl;
+    }
+
+    if (viewerAudioRef.current.srcObject !== hostStream) {
+      viewerAudioRef.current.srcObject = hostStream;
+    }
+
+    try {
+      await viewerAudioRef.current.play();
+      console.log('📻 Viewer: Audio playback started');
+      setShowJoinButton(false);
+      return true;
+    } catch (playError) {
+      console.warn('📻 Viewer: Auto-play failed, using WebAudio fallback:', playError);
+      try {
+        if (!audioContextRef.current) {
+          audioContextRef.current = new AudioContext({ sampleRate: 24000 });
+        }
+        const source = audioContextRef.current.createMediaStreamSource(hostStream);
+        source.connect(audioContextRef.current.destination);
+        console.log('📻 Viewer: WebAudio fallback connected');
+        setShowJoinButton(false);
+        return true;
+      } catch (webaudioErr) {
+        console.error('📻 Viewer: WebAudio fallback failed:', webaudioErr);
+        return false;
+      }
+    }
+  };
 
   const enableAudio = async () => {
     try {
@@ -51,51 +102,18 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
         setShowJoinButton(false);
         console.log('🎵 Host: Join button hidden immediately');
       } else {
-        // Viewer: Check for host stream immediately
-        const hostStream = participants.find(
-          (p) => p.stream && (p.stream as MediaStream).getAudioTracks().length > 0
-        )?.stream as MediaStream | undefined;
-
-        if (hostStream) {
-          console.log('📻 Viewer: Found host stream, connecting audio');
-          
-          // Create and connect audio element
-          if (!viewerAudioRef.current) {
-            const audioEl = document.createElement('audio');
-            audioEl.autoplay = true;
-            audioEl.setAttribute('playsinline', 'true');
-            audioEl.muted = false;
-            audioEl.volume = 1.0;
-            audioEl.style.display = 'none';
-            document.body.appendChild(audioEl);
-            viewerAudioRef.current = audioEl;
-          }
-
-          viewerAudioRef.current.srcObject = hostStream;
-          
-          try {
-            await viewerAudioRef.current.play();
-            console.log('📻 Viewer: Audio playback started');
-            setShowJoinButton(false);
-          } catch (playError) {
-            console.warn('📻 Viewer: Auto-play failed, using WebAudio fallback:', playError);
-            try {
-              // Fallback: route MediaStream into WebAudio graph (allowed after Tone.start())
-              if (!audioContextRef.current) {
-                audioContextRef.current = new AudioContext({ sampleRate: 24000 });
-              }
-              const source = audioContextRef.current.createMediaStreamSource(hostStream);
-              source.connect(audioContextRef.current.destination);
-              console.log('📻 Viewer: WebAudio fallback connected');
-              setShowJoinButton(false);
-            } catch (webaudioErr) {
-              console.error('📻 Viewer: WebAudio fallback failed:', webaudioErr);
-              // Keep button visible for manual retry
+        // Viewer: Try to attach host stream, then poll until available
+        const success = await tryAttachHostStream();
+        if (!success) {
+          console.log('📻 Viewer: No host stream yet, polling...');
+          if (pollTimerRef.current) window.clearInterval(pollTimerRef.current);
+          pollTimerRef.current = window.setInterval(async () => {
+            const ok = await tryAttachHostStream();
+            if (ok && pollTimerRef.current) {
+              window.clearInterval(pollTimerRef.current);
+              pollTimerRef.current = null;
             }
-          }
-        } else {
-          console.log('📻 Viewer: No host stream found yet, waiting...');
-          // Keep button visible until stream is available
+          }, 1000);
         }
       }
       
@@ -192,6 +210,15 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
       console.log('📻 Host: Master audio system ready for broadcast');
     }
   }, [participants, audioEnabled, canEdit]);
+
+  useEffect(() => {
+    return () => {
+      if (pollTimerRef.current) {
+        window.clearInterval(pollTimerRef.current);
+        pollTimerRef.current = null;
+      }
+    };
+  }, []);
 
   // Show join button if needed
   if (showJoinButton) {
