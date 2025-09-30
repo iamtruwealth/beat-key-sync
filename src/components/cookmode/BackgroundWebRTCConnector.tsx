@@ -25,23 +25,19 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
 
   const enableAudio = async () => {
     try {
-      // Initialize HostMasterAudio if not already
+      // Resume Tone.js AudioContext on user gesture
+      await masterPlayer.context.resume();
+
       if (!hostAudioRef.current) {
         hostAudioRef.current = new HostMasterAudio();
         hostAudioRef.current.connectNode(masterPlayer);
-
-        // Start looping the master player
         hostAudioRef.current.startLoop(masterPlayer, 0, masterPlayer.buffer?.duration || 8);
       }
 
-      // Resume Tone.js audio context
-      await masterPlayer.context.resume();
-
-      // Enable audio and hide overlay
       setAudioEnabled(true);
       setOverlayVisible(false);
 
-      console.log('🔊 Audio context resumed for viewers');
+      console.log('🔊 Audio context resumed, overlay removed, master audio playing');
     } catch (err) {
       console.warn('Failed to enable audio:', err);
     }
@@ -52,7 +48,6 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
 
     const masterStream = hostAudioRef.current.masterStream;
 
-    // Ensure every participant gets an audio element
     participants.forEach((p) => {
       const userId = p.user_id;
 
@@ -73,7 +68,6 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
       }
     });
 
-    // Cleanup participants that left
     const currentIds = new Set(participants.map((p) => p.user_id));
     Object.keys(audioRefs.current).forEach((id) => {
       if (!currentIds.has(id)) {
@@ -84,33 +78,30 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
     });
   }, [participants, audioEnabled]);
 
-  // Overlay JSX — only rendered if overlayVisible
-  if (overlayVisible) {
-    return (
-      <div
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          backgroundColor: 'rgba(0,0,0,0.85)',
-          zIndex: 9999,
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          color: '#fff',
-          fontSize: '2rem',
-          textAlign: 'center',
-          cursor: 'pointer',
-          padding: '20px',
-        }}
-        onClick={enableAudio}
-      >
-        Tap to Join Audio
-      </div>
-    );
-  }
+  if (!overlayVisible) return null;
 
-  return null;
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        backgroundColor: 'rgba(0,0,0,0.85)',
+        zIndex: 9999,
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        color: '#fff',
+        fontSize: '2rem',
+        textAlign: 'center',
+        cursor: 'pointer',
+        padding: '20px',
+      }}
+      onClick={enableAudio}
+    >
+      Tap to Join Audio
+    </div>
+  );
 };
