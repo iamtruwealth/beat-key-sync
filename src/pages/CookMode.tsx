@@ -92,10 +92,10 @@ const CookMode = () => {
     saveSession,
     addEmptyTrack
   } = useCookModeSession(sessionId);
-  const { midiDevices, setActiveTrack, tracks: audioTracks, createTrack, loadSample, setTrackTrim } = useCookModeAudio();
-
   // Check collaboration permissions
   const { permissions, loading: permissionsLoading } = useCollaborationPermissions(sessionId);
+  
+  const { midiDevices, setActiveTrack, tracks: audioTracks, createTrack, loadSample, setTrackTrim } = useCookModeAudio(permissions?.canEdit || false);
 
   // Real-time collaboration
   const { 
@@ -782,6 +782,7 @@ const CookMode = () => {
           {/* Transport Controls - only show if user can edit */}
           {permissions.canEdit && (
             <SessionControls
+              canEdit={permissions.canEdit}
               isPlaying={isPlaying}
               currentTime={currentTime}
               bpm={session.target_bpm || 120}
@@ -904,7 +905,7 @@ const CookMode = () => {
                   {permissions.canEdit && (
                     <div>
                       <h4 className="text-sm font-medium text-foreground mb-2">Audio Controls</h4>
-                      <CookModeAudioControls />
+                      <CookModeAudioControls canEdit={permissions.canEdit} />
                     </div>
                   )}
                 </div>

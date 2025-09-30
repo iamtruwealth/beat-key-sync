@@ -42,38 +42,25 @@ export class HostMasterAudio {
     }
   }
 
-  connectPlayer(audioUrl: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      try {
-        // Dispose existing player if any
-        if (this.masterPlayer) {
-          this.masterPlayer.dispose();
-        }
+  connectToCookModeEngine(): void {
+    if (!this.audioContext || !this.masterGain) {
+      throw new Error('HostMasterAudio not initialized');
+    }
 
-        // Create new Tone.js Player
-        this.masterPlayer = new Tone.Player({
-          url: audioUrl,
-          loop: true,
-          autostart: false,
-          onload: () => {
-            if (this.masterPlayer && this.audioContext && this.masterGain) {
-              // Connect player to master gain through Tone.js
-              this.masterPlayer.connect(this.masterGain);
-              this.loopDuration = this.masterPlayer.buffer.duration;
-              console.log(`🎵 Player connected, loop duration: ${this.loopDuration}s`);
-              resolve();
-            }
-          },
-          onerror: (error) => {
-            console.error('Player load error:', error);
-            reject(error);
-          }
-        });
-      } catch (error) {
-        console.error('Failed to connect player:', error);
-        reject(error);
-      }
-    });
+    try {
+      // Connect Tone.js master output to our master gain
+      const toneContext = Tone.getContext();
+      const toneDestination = toneContext.destination;
+      
+      // Disconnect Tone's default destination and connect to our master gain
+      toneDestination.disconnect();
+      toneDestination.connect(this.masterGain);
+      
+      console.log('🎵 CookModeEngine connected to HostMasterAudio');
+    } catch (error) {
+      console.error('Failed to connect CookModeEngine:', error);
+      throw error;
+    }
   }
 
   async startLooping(): Promise<void> {

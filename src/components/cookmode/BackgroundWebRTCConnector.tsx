@@ -31,6 +31,12 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
         console.log('🎵 HostMasterAudio initialized');
       }
 
+      // If this is the host (canEdit), connect CookModeEngine to master audio
+      if (canEdit && hostAudioRef.current.isInitialized) {
+        hostAudioRef.current.connectToCookModeEngine();
+        console.log('🎵 Host: CookModeEngine connected to master audio');
+      }
+
       // Resume Tone.js AudioContext
       await Tone.start();
       setAudioEnabled(true);
@@ -38,7 +44,7 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
       // Start fade out
       setOverlayVisible(false);
 
-      console.log('🔊 Audio context resumed for viewers');
+      console.log('🔊 Audio context resumed');
     } catch (err) {
       console.warn('Failed to enable audio:', err);
     }

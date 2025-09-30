@@ -48,6 +48,7 @@ interface SessionControlsProps {
   onUpdateMinBars?: (bars: number) => void;
   onCreateEmptyTrack?: (name: string) => Promise<void> | void;
   onAddTrack?: (file: File, trackName: string, stemType: string) => Promise<void>;
+  canEdit?: boolean;
 }
 
 export const SessionControls: React.FC<SessionControlsProps> = ({
@@ -67,9 +68,10 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
   onUpdateKey,
   onUpdateMinBars,
   onCreateEmptyTrack,
-  onAddTrack
+  onAddTrack,
+  canEdit = true
 }) => {
-  const { createTrack, isRecording, startRecording, stopRecording, tracks: audioTracks, loadSample, setActiveTrack } = useCookModeAudio();
+  const { createTrack, isRecording, startRecording, stopRecording, tracks: audioTracks, loadSample, setActiveTrack } = useCookModeAudio(canEdit);
   const { toast } = useToast();
   const [masterVolume, setMasterVolume] = useState(75);
   const [sessionDuration, setSessionDuration] = useState(0);
