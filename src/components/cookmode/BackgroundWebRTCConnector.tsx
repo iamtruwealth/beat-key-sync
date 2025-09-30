@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useWebRTCStreaming } from '@/hooks/useWebRTCStreaming';
+import { Button } from '@/components/ui/button';
 import * as Tone from 'tone';
 import { HostMasterAudio } from '@/lib/HostMasterAudio';
 import { AudioBuffer } from '@/lib/AudioBuffer';
@@ -18,7 +19,7 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
   const { participants } = useWebRTCStreaming({ sessionId, canEdit, currentUserId });
 
   const [audioEnabled, setAudioEnabled] = useState(false);
-  const [overlayVisible, setOverlayVisible] = useState(true);
+  const [showJoinButton, setShowJoinButton] = useState(true);
   const hostAudioRef = useRef<HostMasterAudio | null>(null);
   const viewerAudioRef = useRef<HTMLAudioElement | null>(null);
   const audioBufferRef = useRef<AudioBuffer | null>(null);
@@ -45,8 +46,8 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
           console.log('🎵 Host: CookModeEngine connected to master audio');
         }
         
-        setOverlayVisible(false);
-        console.log('🎵 Host: Overlay hidden immediately');
+        setShowJoinButton(false);
+        console.log('🎵 Host: Join button hidden immediately');
       } else {
         // Viewer: Check for host stream immediately
         const hostStream = participants.find(
@@ -73,7 +74,7 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
           try {
             await viewerAudioRef.current.play();
             console.log('📻 Viewer: Audio playback started');
-            setOverlayVisible(false);
+            setShowJoinButton(false);
           } catch (playError) {
             console.warn('📻 Viewer: Auto-play failed, using WebAudio fallback:', playError);
             try {
@@ -84,15 +85,15 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
               const source = audioContextRef.current.createMediaStreamSource(hostStream);
               source.connect(audioContextRef.current.destination);
               console.log('📻 Viewer: WebAudio fallback connected');
-              setOverlayVisible(false);
+              setShowJoinButton(false);
             } catch (webaudioErr) {
               console.error('📻 Viewer: WebAudio fallback failed:', webaudioErr);
-              // Keep overlay visible for manual retry
+              // Keep button visible for manual retry
             }
           }
         } else {
           console.log('📻 Viewer: No host stream found yet, waiting...');
-          // Keep overlay visible until stream is available
+          // Keep button visible until stream is available
         }
       }
       
@@ -141,11 +142,11 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
         // Attach the master stream
         viewerAudioRef.current.srcObject = hostStream;
         
-        // Start playback and hide overlay when audio starts
+        // Start playback and hide button when audio starts
         viewerAudioRef.current.play()
           .then(() => {
             console.log('📻 Viewer: Master audio playback started successfully');
-            setOverlayVisible(false);
+            setShowJoinButton(false);
           })
           .catch((err) => {
             console.warn('📻 Viewer: Auto-play blocked, trying WebAudio fallback:', err);
@@ -156,10 +157,10 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
               const source = audioContextRef.current.createMediaStreamSource(hostStream);
               source.connect(audioContextRef.current.destination);
               console.log('📻 Viewer: WebAudio fallback connected (effect)');
-              setOverlayVisible(false);
+              setShowJoinButton(false);
             } catch (webaudioErr) {
               console.error('📻 Viewer: WebAudio fallback failed (effect):', webaudioErr);
-              // Overlay stays visible; user can tap again
+              // Button stays visible; user can tap again
             }
           });
 
@@ -174,7 +175,7 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
         
         viewerAudioRef.current.addEventListener('playing', () => {
           console.log('📻 Viewer: Audio is playing');
-          setOverlayVisible(false);
+          setShowJoinButton(false);
         });
       }
       
@@ -190,40 +191,20 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
     }
   }, [participants, audioEnabled, canEdit]);
 
-  // Overlay JSX — only rendered if overlayVisible
-  if (overlayVisible) {
+  // Show join button if needed
+  if (showJoinButton) {
     return (
-      <div
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          backgroundColor: 'rgba(0,0,0,0.85)',
-          zIndex: 9999,
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          color: '#fff',
-          fontSize: '2rem',
-          textAlign: 'center',
-          cursor: 'pointer',
-          padding: '20px',
-          opacity: overlayVisible ? 1 : 0,
-          transition: 'opacity 0.5s ease',
-        }}
-        onClick={enableAudio}
-        onTransitionEnd={() => {
-          if (!overlayVisible) setOverlayVisible(false); // remove from DOM after fade
-        }}
-      >
-        📻 Tap to Join Master Audio Stream
+      <div className="fixed bottom-4 right-4 z-50">
+        <Button 
+          onClick={enableAudio}
+          className="bg-primary hover:bg-primary/90 text-primary-foreground"
+          size="lg"
+        >
+          📻 Join Audio Stream
+        </Button>
       </div>
     );
   }
 
   return null;
 };
-
-
