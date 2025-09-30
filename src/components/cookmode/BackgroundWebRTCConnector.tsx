@@ -20,6 +20,8 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
 
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [showJoinButton, setShowJoinButton] = useState(true);
+  // Safety: legacy variable to avoid runtime errors from stale bundles
+  const overlayVisible = false;
   const hostAudioRef = useRef<HostMasterAudio | null>(null);
   const viewerAudioRef = useRef<HTMLAudioElement | null>(null);
   const audioBufferRef = useRef<AudioBuffer | null>(null);
