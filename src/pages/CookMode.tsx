@@ -85,27 +85,11 @@ const CookMode = () => {
     }
   }, [sessionId, session, joinSession]);
 
-  // Enable audio context on first user interaction
+  // Enable audio context on first user interaction - handled by audio engines now
   useEffect(() => {
-    const enableAudio = () => {
-      // Create a dummy audio context to enable audio
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      if (audioContext.state === 'suspended') {
-        audioContext.resume().then(() => {
-          console.log('Audio context enabled');
-        });
-      }
-      document.removeEventListener('click', enableAudio);
-      document.removeEventListener('keydown', enableAudio);
-    };
-
-    document.addEventListener('click', enableAudio);
-    document.addEventListener('keydown', enableAudio);
-
-    return () => {
-      document.removeEventListener('click', enableAudio);
-      document.removeEventListener('keydown', enableAudio);
-    };
+    // Audio context initialization is now handled by the individual audio engines
+    // This ensures better coordination and prevents conflicts
+    console.log('CookMode audio context management delegated to engines');
   }, []);
 
   const handleCreateSession = async () => {

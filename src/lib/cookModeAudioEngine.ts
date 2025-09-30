@@ -85,12 +85,33 @@ export class CookModeAudioEngine {
     try {
       console.log('🎵 Initializing Cook Mode Audio Engine...');
       
+      // Ensure audio context is enabled on user interaction
+      const enableAudioContext = async () => {
+        try {
+          if (Tone.getContext().state === 'suspended') {
+            await Tone.start();
+            console.log('✅ Audio context resumed');
+          }
+        } catch (error) {
+          console.warn('⚠️ Failed to resume audio context:', error);
+        }
+      };
+
+      // Add click handler to enable audio
+      document.addEventListener('click', enableAudioContext, { once: true });
+      document.addEventListener('keydown', enableAudioContext, { once: true });
+      
       // Initialize Tone.js
       await Tone.start();
       this.audioContext = Tone.getContext().rawContext as AudioContext;
       
-      // Set up master transport
+      // Set up master transport with better settings
       Tone.Transport.bpm.value = 120;
+      Tone.Transport.swing = 0;
+      Tone.Transport.swingSubdivision = "8n";
+      
+      // Configure audio processing
+      Tone.getDestination().volume.value = -6; // Prevent clipping
       
       console.log('✅ Audio engine initialized');
     } catch (error) {
@@ -340,6 +361,22 @@ export class CookModeAudioEngine {
     }
 
     try {
+      // Ensure audio context is running
+      if (Tone.getContext().state !== 'running') {
+        Tone.start().then(() => {
+          console.log('🔊 Audio context started for sample trigger');
+          this.triggerSampleInternal(track, note, velocity);
+        });
+      } else {
+        this.triggerSampleInternal(track, note, velocity);
+      }
+    } catch (error) {
+      console.error(`❌ Failed to trigger sample on track ${trackId}:`, error);
+    }
+  }
+
+  private triggerSampleInternal(track: AudioTrack, note: number, velocity: number): void {
+    try {
       // Calculate playback rate based on note (C4 = 60 is baseline)
       const semitoneOffset = note - 60;
       const playbackRate = Math.pow(2, semitoneOffset / 12);
@@ -348,24 +385,34 @@ export class CookModeAudioEngine {
       const volumeDb = Tone.gainToDb((velocity / 127) * track.volume);
       
       // Determine trim offset and duration
-      const totalDuration = track.sample.buffer.duration;
+      const totalDuration = track.sample?.buffer?.duration || 0;
       const offset = Math.max(0, Math.min(totalDuration, track.trimStart ?? 0));
       const end = Math.max(offset + 0.01, Math.min(totalDuration, track.trimEnd ?? totalDuration));
       const duration = Math.max(0.01, end - offset);
       
-      // Set playback params with clickless fades
-      track.sample.player.playbackRate = playbackRate;
-      track.sample.player.fadeIn = 0.01; // 10ms attack
-      track.sample.player.fadeOut = 0.03; // 30ms release
-      track.sample.player.volume.value = volumeDb;
+      // Create a new player instance for each trigger to avoid conflicts
+      const tempPlayer = new Tone.Player(track.sample!.buffer!).toDestination();
+      tempPlayer.playbackRate = playbackRate;
+      tempPlayer.fadeIn = 0.005; // 5ms attack
+      tempPlayer.fadeOut = 0.02; // 20ms release
+      tempPlayer.volume.value = volumeDb;
       
-      // Start at offset for duration to respect trim
-      track.sample.player.start(undefined, offset, duration);
+      // Start playback with offset and duration
+      tempPlayer.start("+0.01", offset, duration);
+      
+      // Clean up after playback
+      setTimeout(() => {
+        try {
+          tempPlayer.dispose();
+        } catch (e) {
+          console.warn('Failed to dispose temp player:', e);
+        }
+      }, (duration + 0.1) * 1000);
 
-      console.log(`🎵 Triggered sample on track ${trackId}, note ${note}, velocity ${velocity}, offset ${offset.toFixed(2)}s, duration ${duration.toFixed(2)}s`);
+      console.log(`🎵 Triggered sample on track ${track.id}, note ${note}, velocity ${velocity}, offset ${offset.toFixed(2)}s, duration ${duration.toFixed(2)}s`);
       
     } catch (error) {
-      console.error(`❌ Failed to trigger sample on track ${trackId}:`, error);
+      console.error(`❌ Failed to trigger sample internal:`, error);
     }
   }
 

@@ -25,9 +25,20 @@ export class SessionLoopEngine {
     if (this.isInitialized) return;
     
     try {
-      await Tone.start();
+      // Ensure audio context is active
+      if (Tone.getContext().state === 'suspended') {
+        await Tone.start();
+      }
+      
+      // Configure transport for loop playback
       Tone.Transport.loop = true;
       Tone.Transport.loopStart = 0;
+      Tone.Transport.swing = 0;
+      Tone.Transport.swingSubdivision = "8n";
+      
+      // Set reasonable volume to prevent clipping
+      Tone.getDestination().volume.value = -6;
+      
       this.isInitialized = true;
       console.log('SessionLoopEngine initialized successfully');
     } catch (error) {
@@ -175,11 +186,18 @@ export class SessionLoopEngine {
     await this.initialize();
     
     try {
+      // Ensure audio context is running
+      if (Tone.getContext().state !== 'running') {
+        await Tone.start();
+      }
+      
       // If resuming from pause, keep current position; otherwise start from beginning
       if (Tone.Transport.state !== 'paused') {
         Tone.Transport.position = 0;
       }
-      Tone.Transport.start("+0.05");
+      
+      // Start with small delay to ensure everything is ready
+      Tone.Transport.start("+0.1");
       this.startTransportTicker();
       console.log('Session playback started');
     } catch (error) {
