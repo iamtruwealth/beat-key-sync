@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useWebRTCStreaming } from '@/hooks/useWebRTCStreaming';
-import * as Tone from 'tone';
+import { Button } from '@/components/ui/button';
+import { Volume2 } from 'lucide-react';
 
 interface BackgroundWebRTCConnectorProps {
   sessionId: string;
@@ -8,6 +9,7 @@ interface BackgroundWebRTCConnectorProps {
   currentUserId?: string;
 }
 
+// Viewer-only background audio connector
 export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps> = ({
   sessionId,
   canEdit,
@@ -16,46 +18,34 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
   const { participants } = useWebRTCStreaming({ sessionId, canEdit, currentUserId });
 
   const [audioEnabled, setAudioEnabled] = useState(false);
-  const [overlayVisible, setOverlayVisible] = useState(true);
   const audioRefs = useRef<Record<string, HTMLAudioElement | null>>({});
-  const gainNodesRef = useRef<Record<string, GainNode>>({});
 
+  // Tap-to-enable AudioContext
   const enableAudio = async () => {
     try {
-      await Tone.start(); // resume AudioContext
+      await new AudioContext().resume(); // simple AudioContext resume
       setAudioEnabled(true);
-
-      // start fade out
-      setOverlayVisible(false);
-
-      console.log('🔊 Audio context resumed for viewers');
+      console.log('🔊 Audio enabled for viewer');
     } catch (err) {
       console.warn('Failed to enable audio:', err);
     }
   };
 
+  // Connect all participant streams (host + collaborators)
   useEffect(() => {
     if (!audioEnabled) return;
-    const audioCtx = Tone.getContext().rawContext as AudioContext;
 
     participants.forEach((p) => {
       if (!p.stream) return;
+
       const userId = p.user_id;
 
-      if (!gainNodesRef.current[userId]) {
-        const gainNode = audioCtx.createGain();
-        gainNode.gain.value = 1.0;
-        gainNodesRef.current[userId] = gainNode;
-      }
-
-      const src = audioCtx.createMediaStreamSource(p.stream as MediaStream);
-      src.connect(gainNodesRef.current[userId]).connect(audioCtx.destination);
-
+      // Create hidden <audio> element if missing
       if (!audioRefs.current[userId]) {
         const audioEl = document.createElement('audio');
         audioEl.autoplay = true;
         audioEl.setAttribute('playsinline', 'true');
-        audioEl.muted = false;
+        audioEl.muted = false; // viewers hear host
         audioEl.style.display = 'none';
         document.body.appendChild(audioEl);
         audioRefs.current[userId] = audioEl;
@@ -68,52 +58,31 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
       }
     });
 
-    // Cleanup participants that left
+    // Cleanup departed participants
     const currentIds = new Set(participants.map((p) => p.user_id));
     Object.keys(audioRefs.current).forEach((id) => {
       if (!currentIds.has(id)) {
         audioRefs.current[id]?.pause();
         audioRefs.current[id]?.remove();
         delete audioRefs.current[id];
-        delete gainNodesRef.current[id];
       }
     });
   }, [participants, audioEnabled]);
 
-  // Overlay JSX — only rendered if overlayVisible
-  if (overlayVisible) {
+  // Show tap-to-enable overlay if audio not yet enabled
+  if (!audioEnabled && participants.length > 0) {
     return (
-      <div
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          backgroundColor: 'rgba(0,0,0,0.85)',
-          zIndex: 9999,
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          color: '#fff',
-          fontSize: '2rem',
-          textAlign: 'center',
-          cursor: 'pointer',
-          padding: '20px',
-          opacity: overlayVisible ? 1 : 0,
-          transition: 'opacity 0.5s ease',
-        }}
-        onClick={enableAudio}
-        onTransitionEnd={() => {
-          if (!overlayVisible) setOverlayVisible(false); // remove from DOM after fade
-        }}
-      >
-        Tap to Join Audio
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 text-white text-center p-4 cursor-pointer">
+        <Button
+          onClick={enableAudio}
+          className="bg-neon-cyan text-black hover:bg-neon-cyan/90 shadow-lg px-6 py-4 text-lg flex items-center"
+        >
+          <Volume2 className="w-5 h-5 mr-2" />
+          Tap to Join Audio
+        </Button>
       </div>
     );
   }
 
   return null;
 };
-
-
