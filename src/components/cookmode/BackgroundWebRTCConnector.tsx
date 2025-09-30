@@ -6,7 +6,7 @@ interface BackgroundWebRTCConnectorProps {
   sessionId: string;
   canEdit: boolean;
   currentUserId?: string;
-  masterPlayer: any; // Tone.Player instance
+  masterPlayer: any; // your Tone.Player instance for host audio
 }
 
 export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps> = ({
@@ -24,22 +24,18 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
   const hostAudioRef = useRef<HostMasterAudio | null>(null);
 
   const enableAudio = async () => {
-    setOverlayVisible(false); // hide overlay immediately
     try {
       if (!hostAudioRef.current) {
         hostAudioRef.current = new HostMasterAudio();
         hostAudioRef.current.connectNode(masterPlayer);
 
-        // Start looping audio
-        hostAudioRef.current.startLoop(
-          masterPlayer,
-          0,
-          masterPlayer.buffer?.duration || 8
-        );
+        // Start loop (adjust loop points as needed)
+        hostAudioRef.current.startLoop(masterPlayer, 0, masterPlayer.buffer?.duration || 8);
       }
 
       await masterPlayer.context.resume();
       setAudioEnabled(true);
+      setOverlayVisible(false);
 
       console.log('🔊 Audio context resumed for viewers');
     } catch (err) {
@@ -84,6 +80,7 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
     });
   }, [participants, audioEnabled]);
 
+  // Overlay JSX — only rendered if overlayVisible
   if (overlayVisible) {
     return (
       <div
@@ -107,8 +104,11 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
           transition: 'opacity 0.5s ease',
         }}
         onClick={enableAudio}
+        onTransitionEnd={() => {
+          if (!overlayVisible) setOverlayVisible(false);
+        }}
       >
-        Tap to Join Audio
+        Double Tap to Join Audio
       </div>
     );
   }
