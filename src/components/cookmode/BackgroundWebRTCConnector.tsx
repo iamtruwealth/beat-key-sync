@@ -25,15 +25,19 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
 
   const enableAudio = async () => {
     try {
+      // Initialize HostMasterAudio if not already
       if (!hostAudioRef.current) {
         hostAudioRef.current = new HostMasterAudio();
         hostAudioRef.current.connectNode(masterPlayer);
 
-        // Start loop (adjust loop points as needed)
+        // Start looping the master player
         hostAudioRef.current.startLoop(masterPlayer, 0, masterPlayer.buffer?.duration || 8);
       }
 
+      // Resume Tone.js audio context
       await masterPlayer.context.resume();
+
+      // Enable audio and hide overlay
       setAudioEnabled(true);
       setOverlayVisible(false);
 
@@ -100,15 +104,10 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
           textAlign: 'center',
           cursor: 'pointer',
           padding: '20px',
-          opacity: overlayVisible ? 1 : 0,
-          transition: 'opacity 0.5s ease',
         }}
         onClick={enableAudio}
-        onTransitionEnd={() => {
-          if (!overlayVisible) setOverlayVisible(false);
-        }}
       >
-        Double Tap to Join Audio
+        Tap to Join Audio
       </div>
     );
   }
