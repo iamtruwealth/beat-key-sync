@@ -327,14 +327,14 @@ export const useWebRTCStreaming = ({ sessionId, canEdit, currentUserId }: UseWeb
     });
   };
 
-  // Start streaming (for hosts with camera)
+  // Start radio-style streaming (host broadcasts, viewers receive)
   const startStreaming = async () => {
     try {
-      // Capture video only; audio is provided via HostMasterAudio master stream
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: streamEnabled.video,
-        audio: false
-      });
+      // Radio approach: Host broadcasts audio only (no viewer microphones)
+      // Video is optional, audio is from HostMasterAudio
+      const stream = streamEnabled.video 
+        ? await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+        : new MediaStream();
 
       setLocalStream(stream);
       setIsStreaming(true);
@@ -344,22 +344,19 @@ export const useWebRTCStreaming = ({ sessionId, canEdit, currentUserId }: UseWeb
         localVideoRef.current.srcObject = stream;
       }
 
-      // Get session's mixed audio for viewers (deprecated) or HostMasterAudio stream
+      // Radio broadcast: Use HostMasterAudio for one-way audio streaming
       const hostMaster = HostMasterAudio.getInstance();
-      const sessionMixedAudio = hostMaster.getMasterStream() || sessionLoopEngine.getMixedAudioStream();
-      if (sessionMixedAudio) {
-        const audioTrack = sessionMixedAudio.getAudioTracks()[0];
+      const masterAudioStream = hostMaster.getMasterStream();
+      
+      if (masterAudioStream) {
+        const audioTrack = masterAudioStream.getAudioTracks()[0];
         if (audioTrack) {
-          console.log('🔊 Adding master audio track to WebRTC streams');
+          console.log('📻 Radio Mode: Broadcasting master audio to all viewers');
           externalAudioTrackRef.current = audioTrack;
-          externalAudioStreamRef.current = sessionMixedAudio;
+          externalAudioStreamRef.current = masterAudioStream;
           
-          // Add session audio to existing peer connections
-          participants.forEach(participant => {
-            if (participant.peerConnection) {
-              participant.peerConnection.addTrack(audioTrack, sessionMixedAudio);
-            }
-          });
+          // Add audio track to the main stream for broadcasting
+          stream.addTrack(audioTrack);
         }
       }
 
@@ -392,7 +389,7 @@ export const useWebRTCStreaming = ({ sessionId, canEdit, currentUserId }: UseWeb
         }
       }
  
-      toast.success('Started video streaming with session audio');
+      toast.success('📻 Radio broadcast started - one-way audio stream active');
     } catch (error) {
       console.error('Error starting stream:', error);
       toast.error('Failed to start video stream');

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useWebRTCStreaming } from '@/hooks/useWebRTCStreaming';
 import * as Tone from 'tone';
 import { HostMasterAudio } from '@/lib/HostMasterAudio';
+import { AudioBuffer } from '@/lib/AudioBuffer';
 
 interface BackgroundWebRTCConnectorProps {
   sessionId: string;
@@ -18,10 +19,10 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
 
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [overlayVisible, setOverlayVisible] = useState(true);
-  const audioRefs = useRef<Record<string, HTMLAudioElement | null>>({});
-  const gainNodesRef = useRef<Record<string, GainNode>>({});
   const hostAudioRef = useRef<HostMasterAudio | null>(null);
   const viewerAudioRef = useRef<HTMLAudioElement | null>(null);
+  const audioBufferRef = useRef<AudioBuffer | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
 
   const enableAudio = async () => {
     try {
@@ -54,73 +55,66 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
   useEffect(() => {
     if (!audioEnabled) return;
 
+    // Initialize audio context and buffer for viewers
+    if (!canEdit && !audioContextRef.current) {
+      audioContextRef.current = new AudioContext({ sampleRate: 24000 });
+      audioBufferRef.current = new AudioBuffer(audioContextRef.current);
+      console.log('📻 Radio Viewer: AudioContext and buffer initialized');
+    }
+
     if (!canEdit) {
-      // Viewer: use a single hidden audio element and attach the first stream that has audio
+      // Radio Viewer Mode: One-way receive with buffered playback
       const streamWithAudio = participants.find(
         (p) => p.stream && (p.stream as MediaStream).getAudioTracks().length > 0
       )?.stream as MediaStream | undefined;
 
-      if (streamWithAudio) {
-        if (!viewerAudioRef.current) {
-          const audioEl = document.createElement('audio');
-          audioEl.autoplay = true;
-          audioEl.setAttribute('playsinline', 'true');
-          audioEl.muted = false;
-          audioEl.style.display = 'none';
-          document.body.appendChild(audioEl);
-          viewerAudioRef.current = audioEl;
-        }
-        const el = viewerAudioRef.current!;
-        if (el.srcObject !== streamWithAudio) {
-          console.log('🎧 Viewer assigning remote master stream', {
-            audioTracks: streamWithAudio.getAudioTracks().map((t) => t.id),
-          });
-          el.srcObject = streamWithAudio;
-          el.play().catch((err) => console.warn('Viewer auto-play blocked:', err));
-        }
-      } else if (viewerAudioRef.current) {
-        viewerAudioRef.current.pause();
-        viewerAudioRef.current.remove();
-        viewerAudioRef.current = null;
-      }
+      if (streamWithAudio && audioContextRef.current) {
+        console.log('📻 Radio Viewer: Receiving broadcast stream', {
+          audioTracks: streamWithAudio.getAudioTracks().map((t) => t.id),
+        });
 
-      // Do not create per-participant elements in viewer mode
-      return;
+        // Create MediaStreamAudioSourceNode for direct audio processing
+        try {
+          const source = audioContextRef.current.createMediaStreamSource(streamWithAudio);
+          
+          // Create ScriptProcessorNode for buffering (deprecated but works)
+          const processor = audioContextRef.current.createScriptProcessor(4096, 1, 1);
+          
+          processor.onaudioprocess = (event) => {
+            const inputData = event.inputBuffer.getChannelData(0);
+            if (audioBufferRef.current) {
+              audioBufferRef.current.addChunk(new Float32Array(inputData));
+            }
+          };
+          
+          source.connect(processor);
+          processor.connect(audioContextRef.current.destination);
+          
+          console.log('📻 Radio Viewer: Buffered audio processing connected');
+        } catch (error) {
+          console.warn('Failed to create audio processing chain:', error);
+          
+          // Fallback to simple audio element
+          if (!viewerAudioRef.current) {
+            const audioEl = document.createElement('audio');
+            audioEl.autoplay = true;
+            audioEl.setAttribute('playsinline', 'true');
+            audioEl.muted = false;
+            audioEl.style.display = 'none';
+            document.body.appendChild(audioEl);
+            viewerAudioRef.current = audioEl;
+          }
+          
+          viewerAudioRef.current.srcObject = streamWithAudio;
+          viewerAudioRef.current.play().catch((err) => console.warn('Fallback auto-play blocked:', err));
+        }
+      }
+      
+      return; // Viewers don't need participant management
     }
 
-    // Host/editor: monitor per-participant audio
-    participants.forEach((p) => {
-      if (!p.stream) return;
-      const hasAudio = (p.stream as MediaStream)?.getAudioTracks()?.length > 0;
-      if (!hasAudio) return;
-
-      const userId = p.user_id;
-      if (!audioRefs.current[userId]) {
-        const audioEl = document.createElement('audio');
-        audioEl.autoplay = true;
-        audioEl.setAttribute('playsinline', 'true');
-        audioEl.muted = false;
-        audioEl.style.display = 'none';
-        document.body.appendChild(audioEl);
-        audioRefs.current[userId] = audioEl;
-      }
-
-      const el = audioRefs.current[userId]!;
-      if (el.srcObject !== p.stream) {
-        el.srcObject = p.stream as MediaStream;
-        el.play().catch((err) => console.warn('Auto-play blocked:', err));
-      }
-    });
-
-    // Cleanup participants that left (host/editor)
-    const currentIds = new Set(participants.map((p) => p.user_id));
-    Object.keys(audioRefs.current).forEach((id) => {
-      if (!currentIds.has(id)) {
-        audioRefs.current[id]?.pause();
-        audioRefs.current[id]?.remove();
-        delete audioRefs.current[id];
-      }
-    });
+    // Host Mode: Standard WebRTC (for potential future multi-host support)
+    console.log('📻 Radio Host: Broadcasting to', participants.length, 'viewers');
   }, [participants, audioEnabled, canEdit]);
 
   // Overlay JSX — only rendered if overlayVisible
@@ -151,7 +145,7 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
           if (!overlayVisible) setOverlayVisible(false); // remove from DOM after fade
         }}
       >
-        Tap to Join Audio
+        📻 Tap to Join Radio Stream
       </div>
     );
   }

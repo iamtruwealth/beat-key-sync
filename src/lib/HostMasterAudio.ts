@@ -10,6 +10,7 @@ export class HostMasterAudio {
   private loopDuration: number = 0;
   private isPlaying: boolean = false;
   private isRouted: boolean = false;
+  private continuousOscillator: OscillatorNode | null = null;
 
   private constructor() {}
 
@@ -37,13 +38,14 @@ export class HostMasterAudio {
       // Connect master gain to stream destination (for broadcasting)
       this.masterGain.connect(this.mediaStreamDestination);
       
-      // Create a continuous silent tone to keep the stream alive
-      const oscillator = this.audioContext.createOscillator();
+      // Create a continuous silent tone to keep the stream alive (radio approach)
+      this.continuousOscillator = this.audioContext.createOscillator();
       const silentGain = this.audioContext.createGain();
-      silentGain.gain.value = 0.001; // Nearly silent
-      oscillator.connect(silentGain);
+      silentGain.gain.value = 0.001; // Nearly silent but keeps stream active
+      this.continuousOscillator.frequency.value = 20; // Sub-audible frequency
+      this.continuousOscillator.connect(silentGain);
       silentGain.connect(this.masterGain);
-      oscillator.start();
+      this.continuousOscillator.start();
       
       console.log('🎵 HostMasterAudio initialized: destination tracks', this.mediaStreamDestination.stream.getAudioTracks().map(t => t.id));
     } catch (error) {
@@ -142,6 +144,12 @@ export class HostMasterAudio {
   }
 
   dispose(): void {
+    if (this.continuousOscillator) {
+      this.continuousOscillator.stop();
+      this.continuousOscillator.disconnect();
+      this.continuousOscillator = null;
+    }
+    
     if (this.masterPlayer) {
       this.masterPlayer.dispose();
       this.masterPlayer = null;
