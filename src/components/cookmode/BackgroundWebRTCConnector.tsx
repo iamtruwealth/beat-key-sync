@@ -6,7 +6,7 @@ interface BackgroundWebRTCConnectorProps {
   sessionId: string;
   canEdit: boolean;
   currentUserId?: string;
-  masterPlayer: any; // your Tone.Player instance for host audio
+  masterPlayer: any; // Tone.Player instance
 }
 
 export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps> = ({
@@ -24,18 +24,22 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
   const hostAudioRef = useRef<HostMasterAudio | null>(null);
 
   const enableAudio = async () => {
+    setOverlayVisible(false); // hide overlay immediately
     try {
       if (!hostAudioRef.current) {
         hostAudioRef.current = new HostMasterAudio();
         hostAudioRef.current.connectNode(masterPlayer);
 
-        // Start loop (adjust loop points as needed)
-        hostAudioRef.current.startLoop(masterPlayer, 0, masterPlayer.buffer?.duration || 8);
+        // Start looping audio
+        hostAudioRef.current.startLoop(
+          masterPlayer,
+          0,
+          masterPlayer.buffer?.duration || 8
+        );
       }
 
       await masterPlayer.context.resume();
       setAudioEnabled(true);
-      setOverlayVisible(false);
 
       console.log('🔊 Audio context resumed for viewers');
     } catch (err) {
@@ -48,6 +52,7 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
 
     const masterStream = hostAudioRef.current.masterStream;
 
+    // Ensure every participant gets an audio element
     participants.forEach((p) => {
       const userId = p.user_id;
 
@@ -62,20 +67,9 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
       }
 
       const el = audioRefs.current[userId]!;
-
       if (el.srcObject !== masterStream) {
         el.srcObject = masterStream;
-
-        // **Late joiner fix** — start at current loop position
-        const currentTime = hostAudioRef.current.getCurrentTime();
-        const loopDuration = masterPlayer.loopEnd - masterPlayer.loopStart || 8;
-        const offset = currentTime % loopDuration;
-
-        el.play().then(() => {
-          const audioCtx = masterPlayer.context.rawContext as AudioContext;
-          // Adjust playback position for late joiner
-          masterPlayer.start(audioCtx.currentTime, masterPlayer.loopStart + offset);
-        }).catch((err) => console.warn('Auto-play blocked:', err));
+        el.play().catch((err) => console.warn('Auto-play blocked:', err));
       }
     });
 
@@ -90,7 +84,6 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
     });
   }, [participants, audioEnabled]);
 
-  // Overlay JSX — only rendered if overlayVisible
   if (overlayVisible) {
     return (
       <div
@@ -114,9 +107,6 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
           transition: 'opacity 0.5s ease',
         }}
         onClick={enableAudio}
-        onTransitionEnd={() => {
-          if (!overlayVisible) setOverlayVisible(false);
-        }}
       >
         Tap to Join Audio
       </div>
