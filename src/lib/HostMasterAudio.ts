@@ -44,22 +44,23 @@ export class HostMasterAudio {
       // Create MediaStreamAudioDestinationNode for broadcasting
       this.mediaStreamDestination = this.audioContext.createMediaStreamDestination();
       
-      // Create AudioWorklet node for buffer-safe processing
-      if (this.audioContext.audioWorklet) {
-        this.audioWorkletNode = new AudioWorkletNode(this.audioContext, 'audio-stream-processor');
-        
-        // Route: streamBus -> AudioWorklet -> masterGain -> [speakers + stream]
-        this.streamBus = this.audioContext.createGain();
-        this.streamBus.gain.value = 1.0;
-        this.streamBus.connect(this.audioWorkletNode);
-        this.audioWorkletNode.connect(this.masterGain);
-        
-        console.log('🎵 Audio processing moved to AudioWorklet (high-priority thread)');
+      // Create AudioWorklet node for buffer-safe processing (guarded)
+      const canUseWorklet = !!(this.audioContext as any).audioWorklet && typeof (window as any).AudioWorkletNode !== 'undefined';
+      this.streamBus = this.audioContext.createGain();
+      this.streamBus.gain.value = 1.0;
+      if (canUseWorklet) {
+        try {
+          this.audioWorkletNode = new AudioWorkletNode(this.audioContext as BaseAudioContext, 'audio-stream-processor');
+          this.streamBus.connect(this.audioWorkletNode);
+          this.audioWorkletNode.connect(this.masterGain!);
+          console.log('🎵 Audio processing moved to AudioWorklet (high-priority thread)');
+        } catch (err) {
+          console.warn('⚠️ Failed to create AudioWorkletNode, falling back:', err);
+          this.streamBus.connect(this.masterGain!);
+        }
       } else {
         // Fallback without worklet
-        this.streamBus = this.audioContext.createGain();
-        this.streamBus.gain.value = 1.0;
-        this.streamBus.connect(this.masterGain);
+        this.streamBus.connect(this.masterGain!);
       }
       
       // Connect master gain to BOTH speakers and stream destination
