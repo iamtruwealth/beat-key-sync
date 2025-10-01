@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useViewerAudioStream } from './webrtc/useViewerAudioStream';
 
 interface UseAudioOnlyStreamingProps {
   sessionId: string;
@@ -20,7 +21,7 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
   const [sessionAudioStream, setSessionAudioStream] = useState<MediaStream | null>(null);
   
   const signalingChannel = useRef<any>(null);
-  const viewerAudioElementRef = useRef<HTMLAudioElement | null>(null);
+  const { playRemoteStream, stopAudioPlayback } = useViewerAudioStream();
   const iceServers = [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' }
@@ -84,28 +85,16 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
       }
 
       // Handle incoming audio (for viewers)
-      peerConnection.ontrack = (event) => {
+      peerConnection.ontrack = async (event) => {
         console.log('🎵 Viewer: Received remote audio stream from host');
         const [remoteStream] = event.streams;
         
-        // Use single audio element for all tracks (prevents duplicate playback)
-        if (!viewerAudioElementRef.current) {
-          const audioEl = document.createElement('audio');
-          audioEl.autoplay = true;
-          audioEl.style.display = 'none';
-          document.body.appendChild(audioEl);
-          viewerAudioElementRef.current = audioEl;
-          console.log('🎵 Viewer: Created single audio element for session');
-        }
-        
-        // Update srcObject only if it's different
-        if (viewerAudioElementRef.current.srcObject !== remoteStream) {
-          viewerAudioElementRef.current.srcObject = remoteStream;
-          console.log('🎵 Viewer: Updated audio element with new stream');
-          
-          viewerAudioElementRef.current.play().catch((err) => {
-            console.warn('🎵 Viewer: Autoplay blocked, waiting for user gesture:', err);
-          });
+        try {
+          await playRemoteStream(remoteStream);
+          console.log('✅ Viewer: Successfully playing remote audio stream');
+        } catch (error) {
+          console.error('❌ Viewer: Failed to play remote audio:', error);
+          toast.error('Failed to play audio. Please click "Join Audio" button.');
         }
       };
 
@@ -330,14 +319,9 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
       setRemoteParticipants(new Map());
       setSessionAudioStream(null);
       
-      // Clean up viewer audio element
-      if (viewerAudioElementRef.current) {
-        viewerAudioElementRef.current.pause();
-        viewerAudioElementRef.current.srcObject = null;
-        viewerAudioElementRef.current.remove();
-        viewerAudioElementRef.current = null;
-        console.log('🎵 Viewer: Cleaned up audio element');
-      }
+      // Clean up viewer audio
+      stopAudioPlayback();
+      console.log('🎵 Viewer: Cleaned up audio');
       
       if (signalingChannel.current) {
         signalingChannel.current.untrack();
@@ -379,14 +363,9 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
     joinAsViewer();
 
     return () => {
-      // Cleanup viewer audio element on unmount
-      if (viewerAudioElementRef.current) {
-        viewerAudioElementRef.current.pause();
-        viewerAudioElementRef.current.srcObject = null;
-        viewerAudioElementRef.current.remove();
-        viewerAudioElementRef.current = null;
-        console.log('🎵 Viewer: Cleaned up audio element on unmount');
-      }
+      // Cleanup viewer audio on unmount
+      stopAudioPlayback();
+      console.log('🎵 Viewer: Cleaned up audio on unmount');
       
       if (signalingChannel.current) {
         signalingChannel.current.unsubscribe();
