@@ -122,6 +122,7 @@ export default function ViewerTest() {
         sessionId={sessionId}
         canEdit={false}
         currentUserId={currentUserId}
+        isStreamingAudio={false}
       />
     </div>
   );

@@ -1,245 +1,61 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { useWebRTCStreaming } from '@/hooks/useWebRTCStreaming';
+import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import * as Tone from 'tone';
-import { HostMasterAudio } from '@/lib/HostMasterAudio';
-import { AudioBuffer } from '@/lib/AudioBuffer';
 
 interface BackgroundWebRTCConnectorProps {
   sessionId: string;
   canEdit: boolean;
   currentUserId?: string;
+  isStreamingAudio: boolean;
 }
 
+/**
+ * BackgroundWebRTCConnector
+ * 
+ * Simple audio enabler for viewers. The audio-only streaming hook (useAudioOnlyStreaming) 
+ * handles all WebRTC connections and audio delivery. This component just ensures 
+ * the audio context is enabled with a user gesture for viewers.
+ */
 export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps> = ({
-  sessionId,
   canEdit,
-  currentUserId,
+  isStreamingAudio,
 }) => {
-  const { participants } = useWebRTCStreaming({ sessionId, canEdit, currentUserId });
-
+  const [showJoinButton, setShowJoinButton] = useState(!canEdit);
   const [audioEnabled, setAudioEnabled] = useState(false);
-  const [showJoinButton, setShowJoinButton] = useState(true);
-  const hostAudioRef = useRef<HostMasterAudio | null>(null);
-  const viewerAudioRef = useRef<HTMLAudioElement | null>(null);
-  const audioBufferRef = useRef<AudioBuffer | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const pollTimerRef = useRef<number | null>(null);
-  const participantsRef = useRef(participants);
-
-  useEffect(() => {
-    participantsRef.current = participants;
-  }, [participants]);
-
-  const tryAttachHostStream = async (): Promise<boolean> => {
-    const hostParticipant = participantsRef.current.find(
-      (p) => p.stream && (p.stream as MediaStream).getAudioTracks().length > 0
-    );
-
-    if (!hostParticipant || !hostParticipant.stream) {
-      console.log('📻 Viewer: No host stream found. Participants:', participantsRef.current.length);
-      return false;
-    }
-
-    const hostStream = hostParticipant.stream as MediaStream;
-    const audioTracks = hostStream.getAudioTracks();
-    console.log('📻 Viewer: Found host stream with', audioTracks.length, 'audio track(s)');
-
-    if (!viewerAudioRef.current) {
-      const audioEl = document.createElement('audio');
-      audioEl.autoplay = true;
-      audioEl.setAttribute('playsinline', 'true');
-      audioEl.muted = false;
-      audioEl.volume = 1.0;
-      audioEl.style.display = 'none';
-      document.body.appendChild(audioEl);
-      viewerAudioRef.current = audioEl;
-      console.log('📻 Viewer: Created audio element');
-    }
-
-    if (viewerAudioRef.current.srcObject !== hostStream) {
-      viewerAudioRef.current.srcObject = hostStream;
-      console.log('📻 Viewer: Set audio srcObject');
-    }
-
-    try {
-      await viewerAudioRef.current.play();
-      console.log('✅ Viewer: Audio playback started');
-      setShowJoinButton(false);
-      return true;
-    } catch (playError) {
-      console.warn('⚠️ Viewer: HTML5 playback failed, trying WebAudio:', playError);
-      
-      try {
-        if (!audioContextRef.current) {
-          audioContextRef.current = new AudioContext({ sampleRate: 24000 });
-        }
-        if (audioContextRef.current.state === 'suspended') {
-          await audioContextRef.current.resume();
-        }
-        const source = audioContextRef.current.createMediaStreamSource(hostStream);
-        source.connect(audioContextRef.current.destination);
-        console.log('✅ Viewer: WebAudio fallback connected');
-        setShowJoinButton(false);
-        return true;
-      } catch (webaudioErr) {
-        console.error('❌ Viewer: WebAudio fallback failed:', webaudioErr);
-        return false;
-      }
-    }
-  };
 
   const enableAudio = async () => {
-    console.log('🔊 Join Audio clicked - canEdit:', canEdit);
+    console.log('🔊 Enabling audio context with user gesture');
     
     try {
+      // Start Tone.js audio context (required for all browsers)
       await Tone.start();
       const toneContext = Tone.getContext();
       if (toneContext.state === 'suspended') {
         await toneContext.resume();
       }
-      console.log('🔊 Tone.js started, state:', toneContext.state);
-
-      if (canEdit) {
-        // Host
-        if (!hostAudioRef.current) {
-          hostAudioRef.current = HostMasterAudio.getInstance();
-          await hostAudioRef.current.initialize();
-        }
-
-        if (hostAudioRef.current.isInitialized) {
-          hostAudioRef.current.connectToCookModeEngine();
-        }
-        
-        setShowJoinButton(false);
-        setAudioEnabled(true);
-      } else {
-        // Viewer
-        if (!audioContextRef.current) {
-          audioContextRef.current = new AudioContext({ sampleRate: 24000 });
-        }
-        if (audioContextRef.current.state === 'suspended') {
-          await audioContextRef.current.resume();
-        }
-        
-        setAudioEnabled(true);
-        
-        const success = await tryAttachHostStream();
-        if (!success) {
-          console.log('📻 Starting to poll for host stream');
-          if (pollTimerRef.current) window.clearInterval(pollTimerRef.current);
-          pollTimerRef.current = window.setInterval(async () => {
-            const ok = await tryAttachHostStream();
-            if (ok && pollTimerRef.current) {
-              window.clearInterval(pollTimerRef.current);
-              pollTimerRef.current = null;
-            }
-          }, 1000);
-        }
-      }
+      
+      console.log('✅ Audio context enabled, state:', toneContext.state);
+      setAudioEnabled(true);
+      setShowJoinButton(false);
     } catch (err) {
       console.error('❌ Failed to enable audio:', err);
     }
   };
 
+  // Hide button once audio is streaming (for viewers)
   useEffect(() => {
-    if (!audioEnabled) return;
-
-    // Initialize audio context and buffer for viewers
-    if (!canEdit && !audioContextRef.current) {
-      audioContextRef.current = new AudioContext({ sampleRate: 24000 });
-      audioBufferRef.current = new AudioBuffer(audioContextRef.current);
-      console.log('📻 Radio Viewer: AudioContext and buffer initialized');
+    if (!canEdit && isStreamingAudio && audioEnabled) {
+      console.log('📻 Audio streaming active, hiding join button');
+      setShowJoinButton(false);
     }
+  }, [canEdit, isStreamingAudio, audioEnabled]);
 
-    if (!canEdit) {
-      // Viewer Mode: Receive master audio stream from host
-      const hostStream = participants.find(
-        (p) => p.stream && (p.stream as MediaStream).getAudioTracks().length > 0
-      )?.stream as MediaStream | undefined;
+  // Host doesn't need join button
+  if (canEdit) {
+    return null;
+  }
 
-      if (hostStream) {
-        console.log('📻 Viewer: Receiving master audio stream from host', {
-          audioTracks: hostStream.getAudioTracks().map((t) => t.id),
-        });
-
-        // Create hidden audio element for seamless playback
-        if (!viewerAudioRef.current) {
-          const audioEl = document.createElement('audio');
-          audioEl.autoplay = true;
-          audioEl.setAttribute('playsinline', 'true');
-          audioEl.muted = false;
-          audioEl.style.display = 'none';
-          audioEl.style.position = 'fixed';
-          audioEl.style.left = '-9999px';
-          document.body.appendChild(audioEl);
-          viewerAudioRef.current = audioEl;
-          
-          console.log('📻 Viewer: Created hidden audio element');
-        }
-
-        // Attach the master stream
-        viewerAudioRef.current.srcObject = hostStream;
-        
-        // Start playback and hide button when audio starts
-        viewerAudioRef.current.play()
-          .then(() => {
-            console.log('📻 Viewer: Master audio playback started successfully');
-            setShowJoinButton(false);
-          })
-          .catch((err) => {
-            console.warn('📻 Viewer: Auto-play blocked, trying WebAudio fallback:', err);
-            try {
-              if (!audioContextRef.current) {
-                audioContextRef.current = new AudioContext({ sampleRate: 24000 });
-              }
-              const source = audioContextRef.current.createMediaStreamSource(hostStream);
-              source.connect(audioContextRef.current.destination);
-              console.log('📻 Viewer: WebAudio fallback connected (effect)');
-              setShowJoinButton(false);
-            } catch (webaudioErr) {
-              console.error('📻 Viewer: WebAudio fallback failed (effect):', webaudioErr);
-              // Button stays visible; user can tap again
-            }
-          });
-
-        // Handle audio events for debugging
-        viewerAudioRef.current.addEventListener('loadstart', () => {
-          console.log('📻 Viewer: Audio loading started');
-        });
-        
-        viewerAudioRef.current.addEventListener('canplay', () => {
-          console.log('📻 Viewer: Audio can start playing');
-        });
-        
-        viewerAudioRef.current.addEventListener('playing', () => {
-          console.log('📻 Viewer: Audio is playing');
-          setShowJoinButton(false);
-        });
-      }
-      
-      return; // Viewers don't need additional processing
-    }
-
-    // Host Mode: Broadcasting master audio to all viewers
-    console.log('📻 Host: Broadcasting master audio to', participants.length, 'viewers');
-    
-    // Ensure HostMasterAudio is connected for broadcasting
-    if (canEdit && hostAudioRef.current && hostAudioRef.current.isInitialized) {
-      console.log('📻 Host: Master audio system ready for broadcast');
-    }
-  }, [participants, audioEnabled, canEdit]);
-
-  useEffect(() => {
-    return () => {
-      if (pollTimerRef.current) {
-        window.clearInterval(pollTimerRef.current);
-        pollTimerRef.current = null;
-      }
-    };
-  }, []);
-
-  // Show join button if needed
+  // Show join button for viewers
   if (showJoinButton) {
     return (
       <div className="fixed bottom-24 right-8 z-[9999] pointer-events-auto">

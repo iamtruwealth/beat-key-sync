@@ -871,6 +871,7 @@ const CookMode = () => {
             sessionId={sessionId!} 
             canEdit={permissions.canEdit}
             currentUserId={currentUser?.id}
+            isStreamingAudio={isStreamingAudio}
           />
  
           {/* Always visible chat section - takes remaining space */}
