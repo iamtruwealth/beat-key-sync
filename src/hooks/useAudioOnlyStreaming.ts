@@ -34,53 +34,8 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
     { urls: 'stun:stun1.l.google.com:19302' }
   ];
 
-  // Setup signaling for audio-only WebRTC
-  const setupSignaling = useCallback(() => {
-    const channel = supabase.channel(`audio-only-${sessionId}`);
-
-    channel
-      .on('broadcast', { event: 'audio-offer' }, async ({ payload }) => {
-        if (payload.to === currentUserId && payload.from !== currentUserId) {
-          await handleOffer(payload.from, payload.offer);
-        }
-      })
-      .on('broadcast', { event: 'audio-answer' }, async ({ payload }) => {
-        if (payload.to === currentUserId && payload.from !== currentUserId) {
-          await handleAnswer(payload.from, payload.answer);
-        }
-      })
-      .on('broadcast', { event: 'audio-ice-candidate' }, async ({ payload }) => {
-        if (payload.to === currentUserId && payload.from !== currentUserId) {
-          await handleIceCandidate(payload.from, payload.candidate);
-        }
-      })
-      .on('presence', { event: 'sync' }, () => {
-        const presenceState = channel.presenceState();
-        console.log('🎵 Audio presence sync:', presenceState);
-        updateParticipantsList(presenceState);
-      })
-      .on('presence', { event: 'join' }, ({ newPresences }) => {
-        console.log('🎵 Viewer joined audio session:', newPresences);
-        newPresences.forEach((presence: any) => {
-          if (presence.user_id !== currentUserId && sessionAudioStreamRef.current && isHost) {
-            console.log('🎵 Host: Creating peer connection for new viewer:', presence.username);
-            createPeerConnection(presence.user_id, presence.username, true);
-          }
-        });
-      })
-      .on('presence', { event: 'leave' }, ({ leftPresences }) => {
-        console.log('🎵 Viewer left audio session:', leftPresences);
-        leftPresences.forEach((presence: any) => {
-          removePeerConnection(presence.user_id);
-        });
-      })
-      .subscribe();
-
-    signalingChannel.current = channel;
-  }, [sessionId, currentUserId, isHost, sessionAudioStream]);
-
   // Create peer connection for a viewer
-  const createPeerConnection = async (userId: string, username: string, isInitiator: boolean) => {
+  const createPeerConnection = useCallback(async (userId: string, username: string, isInitiator: boolean) => {
     try {
       const peerConnection = new RTCPeerConnection({ iceServers });
       
@@ -166,9 +121,9 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
       console.error('Error creating audio peer connection:', error);
       toast.error('Failed to connect audio to participant');
     }
-  };
+  }, [isHost, currentUserId, playRemoteStream]);
 
-  const handleOffer = async (fromUserId: string, offer: RTCSessionDescriptionInit) => {
+  const handleOffer = useCallback(async (fromUserId: string, offer: RTCSessionDescriptionInit) => {
     try {
       let participant = remoteParticipants.get(fromUserId);
       let peerConnection = participant?.peerConnection;
@@ -199,9 +154,9 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
     } catch (error) {
       console.error('Error handling audio offer:', error);
     }
-  };
+  }, [remoteParticipants, createPeerConnection, currentUserId]);
 
-  const handleAnswer = async (fromUserId: string, answer: RTCSessionDescriptionInit) => {
+  const handleAnswer = useCallback(async (fromUserId: string, answer: RTCSessionDescriptionInit) => {
     try {
       const participant = remoteParticipants.get(fromUserId);
       if (participant?.peerConnection) {
@@ -210,9 +165,9 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
     } catch (error) {
       console.error('Error handling audio answer:', error);
     }
-  };
+  }, [remoteParticipants]);
 
-  const handleIceCandidate = async (fromUserId: string, candidate: RTCIceCandidateInit) => {
+  const handleIceCandidate = useCallback(async (fromUserId: string, candidate: RTCIceCandidateInit) => {
     try {
       const participant = remoteParticipants.get(fromUserId);
       if (participant?.peerConnection) {
@@ -221,9 +176,9 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
     } catch (error) {
       console.error('Error handling audio ICE candidate:', error);
     }
-  };
+  }, [remoteParticipants]);
 
-  const removePeerConnection = (userId: string) => {
+  const removePeerConnection = useCallback((userId: string) => {
     setRemoteParticipants(prev => {
       const updated = new Map(prev);
       const participant = updated.get(userId);
@@ -233,9 +188,9 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
       updated.delete(userId);
       return updated;
     });
-  };
+  }, []);
 
-  const updateParticipantsList = (presenceState: any) => {
+  const updateParticipantsList = useCallback((presenceState: any) => {
     setRemoteParticipants(prev => {
       const updated = new Map(prev);
       const currentParticipants = new Set();
@@ -267,7 +222,52 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
 
       return updated;
     });
-  };
+  }, [currentUserId]);
+
+  // Setup signaling for audio-only WebRTC (defined after all handlers)
+  const setupSignaling = useCallback(() => {
+    const channel = supabase.channel(`audio-only-${sessionId}`);
+
+    channel
+      .on('broadcast', { event: 'audio-offer' }, async ({ payload }) => {
+        if (payload.to === currentUserId && payload.from !== currentUserId) {
+          await handleOffer(payload.from, payload.offer);
+        }
+      })
+      .on('broadcast', { event: 'audio-answer' }, async ({ payload }) => {
+        if (payload.to === currentUserId && payload.from !== currentUserId) {
+          await handleAnswer(payload.from, payload.answer);
+        }
+      })
+      .on('broadcast', { event: 'audio-ice-candidate' }, async ({ payload }) => {
+        if (payload.to === currentUserId && payload.from !== currentUserId) {
+          await handleIceCandidate(payload.from, payload.candidate);
+        }
+      })
+      .on('presence', { event: 'sync' }, () => {
+        const presenceState = channel.presenceState();
+        console.log('🎵 Audio presence sync:', presenceState);
+        updateParticipantsList(presenceState);
+      })
+      .on('presence', { event: 'join' }, ({ newPresences }) => {
+        console.log('🎵 Viewer joined audio session:', newPresences);
+        newPresences.forEach((presence: any) => {
+          if (presence.user_id !== currentUserId && sessionAudioStreamRef.current && isHost) {
+            console.log('🎵 Host: Creating peer connection for new viewer:', presence.username);
+            createPeerConnection(presence.user_id, presence.username, true);
+          }
+        });
+      })
+      .on('presence', { event: 'leave' }, ({ leftPresences }) => {
+        console.log('🎵 Viewer left audio session:', leftPresences);
+        leftPresences.forEach((presence: any) => {
+          removePeerConnection(presence.user_id);
+        });
+      })
+      .subscribe();
+
+    signalingChannel.current = channel;
+  }, [sessionId, currentUserId, isHost, handleOffer, handleAnswer, handleIceCandidate, updateParticipantsList, createPeerConnection, removePeerConnection]);
 
   // Start audio streaming (host only)
   const startAudioStreaming = useCallback(async () => {
@@ -379,63 +379,20 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
 
   // Auto-join as viewer
   useEffect(() => {
-    console.log('🎵 Viewer effect triggered:', { isHost, sessionId, currentUserId });
-    
-    if (isHost) {
-      console.log('🎵 Skipping viewer join: user is host');
-      return;
-    }
-    if (!sessionId) {
-      console.log('🎵 Skipping viewer join: no sessionId');
-      return;
-    }
-    if (!currentUserId) {
-      console.log('🎵 Skipping viewer join: no currentUserId');
+    if (isHost || !sessionId || !currentUserId) {
       return;
     }
 
     console.log('🎵 Viewer: Starting auto-join for session:', sessionId);
     
-    const joinAsViewer = async () => {
-      try {
-        const channel = supabase.channel(`audio-only-${sessionId}`);
+    // Use the single, stable setupSignaling function
+    setupSignaling();
 
-        channel
-          .on('broadcast', { event: 'audio-offer' }, async ({ payload }) => {
-            console.log('🎵 Viewer: Received audio offer from:', payload.from);
-            if (payload.to === currentUserId && payload.from !== currentUserId) {
-              await handleOffer(payload.from, payload.offer);
-            }
-          })
-          .on('broadcast', { event: 'audio-answer' }, async ({ payload }) => {
-            if (payload.to === currentUserId && payload.from !== currentUserId) {
-              await handleAnswer(payload.from, payload.answer);
-            }
-          })
-          .on('broadcast', { event: 'audio-ice-candidate' }, async ({ payload }) => {
-            if (payload.to === currentUserId && payload.from !== currentUserId) {
-              await handleIceCandidate(payload.from, payload.candidate);
-            }
-          })
-          .on('presence', { event: 'sync' }, () => {
-            const presenceState = channel.presenceState();
-            console.log('🎵 Viewer: Audio presence sync:', presenceState);
-            updateParticipantsList(presenceState);
-          })
-          .on('presence', { event: 'join' }, ({ newPresences }) => {
-            console.log('🎵 Viewer: Host joined audio session:', newPresences);
-          })
-          .on('presence', { event: 'leave' }, ({ leftPresences }) => {
-            console.log('🎵 Viewer: Participant left audio session:', leftPresences);
-            leftPresences.forEach((presence: any) => {
-              removePeerConnection(presence.user_id);
-            });
-          });
-
-        signalingChannel.current = channel;
-
-        // Subscribe and wait for SUBSCRIBED status
-        await channel.subscribe(async (status) => {
+    // The viewer's job is to announce its presence. The host will then send an offer.
+    const trackPresence = async () => {
+      if (signalingChannel.current) {
+        // Wait for the channel to be fully subscribed before tracking
+        await signalingChannel.current.subscribe(async (status) => {
           console.log('🎵 Viewer: Channel subscription status:', status);
           
           if (status === 'SUBSCRIBED') {
@@ -446,21 +403,18 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
               .eq('id', user?.id)
               .single();
 
-            await channel.track({
+            await signalingChannel.current.track({
               user_id: user?.id,
               username: profile?.producer_name || 'Viewer',
               streaming: false
             });
-            
             console.log('🎵 Viewer: Joined audio session and tracking presence');
           }
         });
-      } catch (error) {
-        console.error('🎵 Viewer: Error joining audio session:', error);
       }
     };
 
-    joinAsViewer();
+    trackPresence();
 
     return () => {
       // Cleanup viewer audio on unmount
@@ -468,10 +422,11 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
       console.log('🎵 Viewer: Cleaned up audio on unmount');
       
       if (signalingChannel.current) {
+        signalingChannel.current.untrack();
         signalingChannel.current.unsubscribe();
       }
     };
-  }, [sessionId, currentUserId, isHost, stopAudioPlayback, handleOffer, handleAnswer, handleIceCandidate, updateParticipantsList, removePeerConnection]);
+  }, [isHost, sessionId, currentUserId, setupSignaling, stopAudioPlayback]);
 
   return {
     isStreamingAudio,
