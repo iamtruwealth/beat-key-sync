@@ -28,6 +28,7 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
   
   const signalingChannel = useRef<any>(null);
   const sessionAudioStreamRef = useRef<MediaStream | null>(null);
+  const channelSubscribedRef = useRef<boolean>(false);
   const { playRemoteStream, stopAudioPlayback } = useViewerAudioStream();
   const iceServers = [
     { urls: 'stun:stun.l.google.com:19302' },
@@ -226,6 +227,11 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
 
   // Setup signaling for audio-only WebRTC (defined after all handlers)
   const setupSignaling = useCallback(() => {
+    // Reuse existing channel if already created
+    if (signalingChannel.current) {
+      return signalingChannel.current;
+    }
+
     const channel = supabase.channel(`audio-only-${sessionId}`);
 
     channel
@@ -263,10 +269,10 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
         leftPresences.forEach((presence: any) => {
           removePeerConnection(presence.user_id);
         });
-      })
-      .subscribe();
+      });
 
     signalingChannel.current = channel;
+    return channel;
   }, [sessionId, currentUserId, isHost, handleOffer, handleAnswer, handleIceCandidate, updateParticipantsList, createPeerConnection, removePeerConnection]);
 
   // Start audio streaming (host only)
@@ -311,31 +317,43 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
 
       setSessionAudioStream(sessionAudio);
       sessionAudioStreamRef.current = sessionAudio;
-      setupSignaling();
+      const channel = setupSignaling();
 
-      // Join presence
-      const { data: { user } } = await supabase.auth.getUser();
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('producer_name')
-        .eq('id', user?.id)
-        .single();
+      const trackHostAndOffer = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('producer_name')
+          .eq('id', user?.id)
+          .single();
 
-      if (signalingChannel.current) {
-        await signalingChannel.current.track({
+        await channel.track({
           user_id: user?.id,
           username: profile?.producer_name || 'Host',
           streaming: true
         });
 
         // Create peer connections for existing viewers
-        const presenceState = signalingChannel.current.presenceState?.() || {};
+        const presenceState = channel.presenceState?.() || {};
         const others = (Object.values(presenceState).flat() as any[]);
         for (const presence of others) {
           if (presence.user_id && presence.user_id !== user?.id) {
             await createPeerConnection(presence.user_id, presence.username || 'Viewer', true);
           }
         }
+      };
+
+      if (channelSubscribedRef.current) {
+        console.log('🎵 Host: Channel already subscribed, tracking presence immediately');
+        await trackHostAndOffer();
+      } else {
+        channel.subscribe(async (status) => {
+          console.log('🎵 Host: Channel subscription status:', status);
+          if (status === 'SUBSCRIBED') {
+            channelSubscribedRef.current = true;
+            await trackHostAndOffer();
+          }
+        });
       }
 
       setIsStreamingAudio(true);
@@ -367,6 +385,8 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
       if (signalingChannel.current) {
         signalingChannel.current.untrack();
         signalingChannel.current.unsubscribe();
+        signalingChannel.current = null;
+        channelSubscribedRef.current = false;
       }
 
       setIsStreamingAudio(false);
@@ -385,36 +405,37 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
 
     console.log('🎵 Viewer: Starting auto-join for session:', sessionId);
     
-    // Use the single, stable setupSignaling function
-    setupSignaling();
+    // Use the single, stable setupSignaling function and subscribe once
+    const channel = setupSignaling();
 
-    // The viewer's job is to announce its presence. The host will then send an offer.
-    const trackPresence = async () => {
-      if (signalingChannel.current) {
-        // Wait for the channel to be fully subscribed before tracking
-        await signalingChannel.current.subscribe(async (status) => {
-          console.log('🎵 Viewer: Channel subscription status:', status);
-          
-          if (status === 'SUBSCRIBED') {
-            const { data: { user } } = await supabase.auth.getUser();
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('producer_name')
-              .eq('id', user?.id)
-              .single();
+    const ensureViewerTracked = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('producer_name')
+        .eq('id', user?.id)
+        .single();
 
-            await signalingChannel.current.track({
-              user_id: user?.id,
-              username: profile?.producer_name || 'Viewer',
-              streaming: false
-            });
-            console.log('🎵 Viewer: Joined audio session and tracking presence');
-          }
-        });
-      }
+      await channel.track({
+        user_id: user?.id,
+        username: profile?.producer_name || 'Viewer',
+        streaming: false
+      });
+      console.log('🎵 Viewer: Joined audio session and tracking presence');
     };
 
-    trackPresence();
+    if (channelSubscribedRef.current) {
+      console.log('🎵 Viewer: Channel already subscribed, tracking immediately');
+      ensureViewerTracked();
+    } else {
+      channel.subscribe(async (status) => {
+        console.log('🎵 Viewer: Channel subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          channelSubscribedRef.current = true;
+          await ensureViewerTracked();
+        }
+      });
+    }
 
     return () => {
       // Cleanup viewer audio on unmount
