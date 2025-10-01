@@ -48,8 +48,10 @@ export const useRadioBroadcast = ({ sessionId, currentUserId }: UseRadioBroadcas
     if (isBroadcasting) return;
 
     try {
+      console.log('[Radio] Starting broadcast...');
       const channel = setupChannel();
 
+      console.log('[Radio] Getting user...');
       const { data: { user } } = await supabase.auth.getUser();
       const { data: profile } = await supabase
         .from('profiles')
@@ -57,6 +59,7 @@ export const useRadioBroadcast = ({ sessionId, currentUserId }: UseRadioBroadcas
         .eq('id', user?.id)
         .single();
 
+      console.log('[Radio] Tracking presence...');
       const presence = await channel.track({
         user_id: user?.id,
         username: profile?.producer_name || 'Host',
@@ -65,29 +68,40 @@ export const useRadioBroadcast = ({ sessionId, currentUserId }: UseRadioBroadcas
       });
       if (!presence) console.warn('Radio: presence tracking failed');
 
+      console.log('[Radio] Subscribing to channel...');
       if (!channelRef.current) {
         await new Promise<void>((resolve) => channel.subscribe((status) => status === 'SUBSCRIBED' && resolve()));
       } else if ((channelRef.current as any).state !== 'SUBSCRIBED') {
         await new Promise<void>((resolve) => channel.subscribe((status) => status === 'SUBSCRIBED' && resolve()));
       }
 
-      // Get master session audio from HostMasterAudio
+      console.log('[Radio] Getting HostMasterAudio...');
       const { HostMasterAudio } = await import('@/lib/HostMasterAudio');
       const hostMaster = HostMasterAudio.getInstance();
+      console.log('[Radio] HostMaster initialized?', hostMaster.isInitialized);
+      
       if (!hostMaster.isInitialized) {
+        console.log('[Radio] Initializing HostMasterAudio...');
         await hostMaster.initialize();
         hostMaster.connectToCookModeEngine();
       }
+      
+      console.log('[Radio] Getting master stream...');
       const sessionStream = hostMaster.getMasterStream();
+      console.log('[Radio] Got stream?', !!sessionStream, 'tracks:', sessionStream?.getTracks().length);
+      
       if (!sessionStream) {
+        console.error('[Radio] No stream from HostMasterAudio');
         toast.error('No audio available. Start playback first.');
         return;
       }
 
+      console.log('[Radio] Creating AudioContext...');
       const context = new AudioContext({ sampleRate: SAMPLE_RATE });
       const source = context.createMediaStreamSource(sessionStream);
       const processor = context.createScriptProcessor(BUFFER_SIZE, 1, 1);
 
+      console.log('[Radio] Setting up audio processor...');
       processor.onaudioprocess = (e) => {
         const input = e.inputBuffer.getChannelData(0);
         const pcm16 = float32ToPCM16(input);
@@ -96,6 +110,7 @@ export const useRadioBroadcast = ({ sessionId, currentUserId }: UseRadioBroadcas
         const seq = ++seqRef.current;
 
         if (!announcedRef.current) {
+          console.log('[Radio] Sending radio-start event');
           channel.send({
             type: 'broadcast',
             event: 'radio-start',
@@ -118,10 +133,11 @@ export const useRadioBroadcast = ({ sessionId, currentUserId }: UseRadioBroadcas
       sourceRef.current = source;
       processorRef.current = processor;
       setIsBroadcasting(true);
+      console.log('[Radio] ✅ Broadcast started successfully');
       toast.success('Broadcast started');
     } catch (e) {
-      console.error('Radio start error', e);
-      toast.error('Failed to start broadcast');
+      console.error('[Radio] ❌ Start error:', e);
+      toast.error(`Failed to start broadcast: ${e.message}`);
     }
   }, [isBroadcasting, setupChannel, currentUserId]);
 
