@@ -16,7 +16,11 @@ interface RemoteParticipant {
 }
 
 export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseAudioOnlyStreamingProps) => {
-  console.log('🎵 useAudioOnlyStreaming initialized:', { sessionId, isHost, currentUserId });
+  console.log('🎵 useAudioOnlyStreaming initialized:', { 
+    sessionId: sessionId || '(empty)', 
+    isHost, 
+    currentUserId: currentUserId || '(undefined)' 
+  });
   
   const [isStreamingAudio, setIsStreamingAudio] = useState(false);
   const [remoteParticipants, setRemoteParticipants] = useState<Map<string, RemoteParticipant>>(new Map());
