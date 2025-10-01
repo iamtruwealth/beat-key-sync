@@ -289,9 +289,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
   };
 
   // Dynamic styling for selection and record arm states
-  const containerClassName = `relative border-2 rounded cursor-pointer overflow-hidden ${className} ${
-    isSelected ? 'border-neon-cyan shadow-[0_0_20px_rgba(0,255,255,0.5)]' : ''
-  }`;
+  const containerClassName = `relative cursor-pointer overflow-hidden ${className}`;
 
   return (
     <div
@@ -299,9 +297,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
       style={{
         width: clipWidth,
         height: trackHeight - 8,
-        minWidth: 100, // Minimum width for visibility
-        borderColor: isSelected ? 'hsl(var(--neon-cyan))' : getTrackBorderColor(trackIndex),
-        boxShadow: isSelected ? '0 0 20px rgba(0, 255, 255, 0.5)' : undefined
+        minWidth: 100 // Minimum width for visibility
       }}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
