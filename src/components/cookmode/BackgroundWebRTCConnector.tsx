@@ -20,6 +20,7 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
 
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [showJoinButton, setShowJoinButton] = useState(true);
+  const [isConnecting, setIsConnecting] = useState(false);
   const hostAudioRef = useRef<HostMasterAudio | null>(null);
   const viewerAudioRef = useRef<HTMLAudioElement | null>(null);
   const audioBufferRef = useRef<AudioBuffer | null>(null);
@@ -37,24 +38,25 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
     );
 
     if (!hostParticipant || !hostParticipant.stream) {
-      console.log('📻 Viewer: No host stream found in participants:', participantsRef.current.length);
+      console.log('📻 Viewer: No host stream found. Participants:', participantsRef.current.length);
       return false;
     }
 
     const hostStream = hostParticipant.stream as MediaStream;
     const audioTracks = hostStream.getAudioTracks();
-    console.log('📻 Viewer: Found host stream with', audioTracks.length, 'audio tracks');
+    console.log('📻 Viewer: Found host stream with', audioTracks.length, 'audio track(s)');
 
     if (!viewerAudioRef.current) {
       const audioEl = document.createElement('audio');
       audioEl.autoplay = true;
       audioEl.setAttribute('playsinline', 'true');
+      audioEl.setAttribute('webkit-playsinline', 'true');
       audioEl.muted = false;
       audioEl.volume = 1.0;
       audioEl.style.display = 'none';
       document.body.appendChild(audioEl);
       viewerAudioRef.current = audioEl;
-      console.log('📻 Viewer: Created audio element');
+      console.log('📻 Viewer: Created audio element with iOS attributes');
     }
 
     if (viewerAudioRef.current.srcObject !== hostStream) {
@@ -63,36 +65,56 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
     }
 
     try {
+      // Critical: Use the already-initialized audioContext from user gesture
+      if (!audioContextRef.current) {
+        console.error('❌ Viewer: AudioContext not initialized!');
+        return false;
+      }
+
+      if (audioContextRef.current.state === 'suspended') {
+        await audioContextRef.current.resume();
+        console.log('📻 Viewer: Resumed suspended AudioContext in tryAttach');
+      }
+
+      // Try HTML5 audio first
       await viewerAudioRef.current.play();
-      console.log('✅ Viewer: Audio playback started successfully');
+      console.log('✅ Viewer: HTML5 audio playback started successfully');
       setShowJoinButton(false);
+      setIsConnecting(false);
       return true;
     } catch (playError) {
-      console.warn('⚠️ Viewer: Auto-play failed, using WebAudio fallback:', playError);
+      console.warn('⚠️ Viewer: HTML5 auto-play failed, using WebAudio:', playError);
+      
+      // Fallback to WebAudio API (works better on iOS)
       try {
-        if (!audioContextRef.current) {
-          audioContextRef.current = new AudioContext({ sampleRate: 24000 });
-        }
         if (audioContextRef.current.state === 'suspended') {
           await audioContextRef.current.resume();
         }
         const source = audioContextRef.current.createMediaStreamSource(hostStream);
         source.connect(audioContextRef.current.destination);
-        console.log('✅ Viewer: WebAudio fallback connected');
+        console.log('✅ Viewer: WebAudio fallback connected and playing');
         setShowJoinButton(false);
+        setIsConnecting(false);
         return true;
       } catch (webaudioErr) {
         console.error('❌ Viewer: WebAudio fallback failed:', webaudioErr);
+        setIsConnecting(false);
         return false;
       }
     }
   };
 
   const enableAudio = async () => {
+    if (isConnecting) {
+      console.log('⏳ Already connecting, ignoring click');
+      return;
+    }
+    
+    setIsConnecting(true);
+    console.log('🔊 enableAudio clicked - canEdit:', canEdit);
+    
     try {
-      console.log('🔊 Enabling audio - canEdit:', canEdit);
-      
-      // Resume Tone.js AudioContext first
+      // Critical for iOS: Start Tone.js AudioContext with user gesture
       await Tone.start();
       const toneContext = Tone.getContext();
       if (toneContext.state === 'suspended') {
@@ -117,34 +139,51 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
         setAudioEnabled(true);
         console.log('🎵 Host: Audio enabled, join button hidden');
       } else {
-        // Viewer: Initialize audio context first to ensure it's ready
+        // Viewer: Initialize audio context with user gesture (critical for iOS)
         if (!audioContextRef.current) {
           audioContextRef.current = new AudioContext({ sampleRate: 24000 });
+          console.log('📻 Viewer: Created new AudioContext');
         }
         if (audioContextRef.current.state === 'suspended') {
           await audioContextRef.current.resume();
+          console.log('📻 Viewer: Resumed suspended AudioContext');
         }
-        console.log('📻 Viewer: AudioContext ready, state:', audioContextRef.current.state);
+        console.log('📻 Viewer: AudioContext state:', audioContextRef.current.state);
         
-        // Try to attach host stream, then poll until available
+        // Create a dummy oscillator to keep iOS audio active
+        const oscillator = audioContextRef.current.createOscillator();
+        const gainNode = audioContextRef.current.createGain();
+        gainNode.gain.value = 0; // Silent
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContextRef.current.destination);
+        oscillator.start();
+        oscillator.stop(audioContextRef.current.currentTime + 0.1);
+        console.log('📻 Viewer: Dummy oscillator played for iOS');
+        
+        setAudioEnabled(true);
+        
+        // Try to attach host stream immediately
         const success = await tryAttachHostStream();
-        if (!success) {
-          console.log('📻 Viewer: No host stream yet, polling every second...');
+        if (success) {
+          console.log('✅ Viewer: Audio stream attached successfully');
+        } else {
+          console.log('📻 Viewer: No host stream yet, will poll...');
+          // Start polling for host stream
           if (pollTimerRef.current) window.clearInterval(pollTimerRef.current);
           pollTimerRef.current = window.setInterval(async () => {
-            console.log('📻 Viewer: Polling for host stream...');
+            console.log('📻 Viewer: Polling for host stream... participants:', participantsRef.current.length);
             const ok = await tryAttachHostStream();
             if (ok && pollTimerRef.current) {
               window.clearInterval(pollTimerRef.current);
               pollTimerRef.current = null;
-              console.log('📻 Viewer: Stream attached, polling stopped');
+              console.log('✅ Viewer: Stream attached via polling, stopped polling');
             }
           }, 1000);
         }
-        setAudioEnabled(true);
       }
     } catch (err) {
       console.error('❌ Failed to enable audio:', err);
+      setIsConnecting(false);
     }
   };
 
@@ -248,13 +287,30 @@ export const BackgroundWebRTCConnector: React.FC<BackgroundWebRTCConnectorProps>
   // Show join button if needed
   if (showJoinButton) {
     return (
-      <div className="fixed bottom-24 right-8 z-[9999] pointer-events-auto">
+      <div 
+        className="fixed bottom-24 right-8 z-[9999]"
+        style={{ 
+          pointerEvents: 'auto',
+          touchAction: 'manipulation',
+          WebkitTapHighlightColor: 'transparent'
+        }}
+      >
         <Button 
           onClick={enableAudio}
-          className="bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:opacity-90 shadow-lg shadow-green-500/50 animate-pulse"
+          onTouchStart={(e) => {
+            e.preventDefault();
+            console.log('👆 Touch started on Join Audio button');
+          }}
+          onTouchEnd={(e) => {
+            e.preventDefault();
+            console.log('👆 Touch ended, calling enableAudio');
+            enableAudio();
+          }}
+          disabled={isConnecting}
+          className="bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:opacity-90 shadow-lg shadow-green-500/50 animate-pulse disabled:opacity-50"
           size="lg"
         >
-          🔊 Join Audio
+          {isConnecting ? '⏳ Connecting...' : '🔊 Join Audio'}
         </Button>
       </div>
     );
