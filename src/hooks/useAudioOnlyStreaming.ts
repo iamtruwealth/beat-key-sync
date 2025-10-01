@@ -29,6 +29,8 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
   const signalingChannel = useRef<any>(null);
   const sessionAudioStreamRef = useRef<MediaStream | null>(null);
   const channelSubscribedRef = useRef<boolean>(false);
+  const pendingOffersRef = useRef<Map<string, RTCSessionDescriptionInit>>(new Map());
+  const pendingCandidatesRef = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
   const { playRemoteStream, stopAudioPlayback } = useViewerAudioStream();
   const iceServers = [
     { urls: 'stun:stun.l.google.com:19302' },
@@ -99,6 +101,34 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
         return updated;
       });
 
+      // Process any pending offer for this user
+      const pendingOffer = pendingOffersRef.current.get(userId);
+      if (pendingOffer && !isInitiator) {
+        console.log('🎵 Viewer: Processing cached offer for', username);
+        await peerConnection.setRemoteDescription(pendingOffer);
+        const answer = await peerConnection.createAnswer();
+        await peerConnection.setLocalDescription(answer);
+        
+        signalingChannel.current?.send({
+          type: 'broadcast',
+          event: 'audio-answer',
+          payload: {
+            from: currentUserId,
+            to: userId,
+            answer: answer
+          }
+        });
+        
+        pendingOffersRef.current.delete(userId);
+        
+        // Process any pending ICE candidates
+        const pendingCandidates = pendingCandidatesRef.current.get(userId) || [];
+        for (const candidate of pendingCandidates) {
+          await peerConnection.addIceCandidate(candidate);
+        }
+        pendingCandidatesRef.current.delete(userId);
+      }
+
       // If initiator (host), create offer
       if (isInitiator) {
         const offer = await peerConnection.createOffer();
@@ -131,6 +161,7 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
       const peerConnection = participant?.peerConnection;
 
       if (peerConnection) {
+        console.log('🎵 Viewer: Processing offer immediately for user', fromUserId);
         await peerConnection.setRemoteDescription(offer);
         const answer = await peerConnection.createAnswer();
         await peerConnection.setLocalDescription(answer);
@@ -145,7 +176,8 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
           }
         });
       } else {
-        console.error('❌ Viewer: Received an offer but have no peer connection for user', fromUserId);
+        console.log('🎵 Viewer: Caching offer from user', fromUserId, '- peer connection not ready yet');
+        pendingOffersRef.current.set(fromUserId, offer);
       }
     } catch (error) {
       console.error('Error handling audio offer:', error);
@@ -168,6 +200,12 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
       const participant = remoteParticipants.get(fromUserId);
       if (participant?.peerConnection) {
         await participant.peerConnection.addIceCandidate(candidate);
+      } else {
+        console.log('🎵 Caching ICE candidate from user', fromUserId);
+        if (!pendingCandidatesRef.current.has(fromUserId)) {
+          pendingCandidatesRef.current.set(fromUserId, []);
+        }
+        pendingCandidatesRef.current.get(fromUserId)!.push(candidate);
       }
     } catch (error) {
       console.error('Error handling audio ICE candidate:', error);
