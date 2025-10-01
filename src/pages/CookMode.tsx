@@ -19,10 +19,6 @@ import { CookModeDAW } from '@/components/cookmode/CookModeDAW';
 import { LiveSessionIndicator } from '@/components/cookmode/LiveSessionIndicator';
 import { AccessLevelNotification } from '@/components/cookmode/AccessLevelNotification';
 import { CookModeChat } from '@/components/cookmode/CookModeChat';
-import { VideoStreamingPanel } from '@/components/cookmode/VideoStreamingPanel';
-import { BackgroundWebRTCConnector } from '@/components/cookmode/BackgroundWebRTCConnector';
-import { useWebRTCStreaming } from '@/hooks/useWebRTCStreaming';
-import { useAudioOnlyStreaming } from '@/hooks/useAudioOnlyStreaming';
 import { SessionParticipants } from '@/components/cookmode/SessionParticipants';
 import RadioStreamControls from '@/components/radio/RadioStreamControls';
 import { SessionControls } from '@/components/cookmode/SessionControls';
@@ -51,7 +47,6 @@ import {
   LayoutDashboard,
   ChevronDown,
   Piano,
-  Video,
   MessageSquare,
   UserPlus
 } from 'lucide-react';
@@ -63,7 +58,6 @@ const CookMode = () => {
   const navigate = useNavigate();
   const [isHost, setIsHost] = useState(false);
   const [activeView, setActiveView] = useState<'timeline' | 'mixer'>('timeline');
-  const [showVideo, setShowVideo] = useState(false);
   const [metronomeEnabled, setMetronomeEnabled] = useState(false);
   const [minBars, setMinBars] = useState(8);
   const [authLoading, setAuthLoading] = useState(true);
@@ -155,28 +149,6 @@ const CookMode = () => {
     getCurrentUser();
   }, [isAuthenticated]);
 
-  // WebRTC video streaming hook (optional, separate from audio)
-  const {
-    isStreaming,
-    startStreaming,
-    stopStreaming,
-  } = useWebRTCStreaming({ 
-    sessionId: sessionId || '', 
-    canEdit: permissions.canEdit, 
-    currentUserId: currentUser?.id 
-  });
-
-  // Audio-only streaming hook (for session music)
-  const {
-    isStreamingAudio,
-    viewerCount,
-    startAudioStreaming,
-    stopAudioStreaming
-  } = useAudioOnlyStreaming({
-    sessionId: sessionId || '',
-    isHost: permissions.canEdit,
-    currentUserId: currentUser?.id
-  });
 
   // Join session when we have sessionId and are authenticated
   useEffect(() => {
@@ -683,27 +655,6 @@ const CookMode = () => {
                 isHost={permissions.canEdit}
                 currentUserId={currentUser?.id}
               />
-
-              {/* Optional: Start/Stop Video Stream Button (camera + mic) */}
-              {!isStreaming ? (
-                <Button
-                  onClick={startStreaming}
-                  variant="outline"
-                  size="sm"
-                >
-                  <Video className="w-4 h-4 mr-2" />
-                  Start Video
-                </Button>
-              ) : (
-                <Button
-                  onClick={stopStreaming}
-                  variant="destructive"
-                  size="sm"
-                >
-                  <Video className="w-4 h-4 mr-2" />
-                  Stop Video
-                </Button>
-              )}
             </>
           )}
             
@@ -821,15 +772,6 @@ const CookMode = () => {
           {/* Video Toggle Header */}
           <div className="p-4 border-b border-border/50 flex items-center justify-between">
             <h3 className="font-medium text-foreground">Collaboration</h3>
-            <Button
-              variant={showVideo ? "default" : "outline"}
-              size="sm"
-              onClick={() => setShowVideo(!showVideo)}
-              className="flex items-center gap-2"
-            >
-              <Video className="w-4 h-4" />
-              {showVideo ? "Hide Video" : "Show Video"}
-            </Button>
           </div>
 
           {/* Always visible participants section */}
@@ -838,28 +780,9 @@ const CookMode = () => {
               <Users className="w-4 h-4" />
               Participants ({participants.length})
             </h4>
-            <SessionParticipants participants={participants} sessionId={sessionId!} showVideo={showVideo} />
+            <SessionParticipants participants={participants} sessionId={sessionId!} showVideo={false} />
           </div>
 
-          {/* Video section - conditionally visible with fixed height */}
-          {showVideo && (
-            <div className="border-b border-border/50 flex-shrink-0" style={{ height: '240px' }}>
-              <VideoStreamingPanel 
-                sessionId={sessionId!} 
-                canEdit={permissions.canEdit}
-                currentUserId={currentUser?.id}
-              />
-            </div>
-          )}
-
-          {/* Background WebRTC connector to ensure viewers always receive audio */}
-          <BackgroundWebRTCConnector 
-            sessionId={sessionId!} 
-            canEdit={permissions.canEdit}
-            currentUserId={currentUser?.id}
-            isStreamingAudio={isStreamingAudio}
-          />
- 
           {/* Always visible chat section - takes remaining space */}
           <div className="flex-1 flex flex-col min-h-0">
             <Tabs defaultValue="chat" className="flex-1 flex flex-col">

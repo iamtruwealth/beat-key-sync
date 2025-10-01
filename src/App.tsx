@@ -41,7 +41,6 @@ import UserProfile from "./pages/UserProfile";
 import Onboarding from "./pages/Onboarding";
 import Collaborate from "./pages/Collaborate";
 import CookMode from "./pages/CookMode";
-import ViewerTest from "./pages/ViewerTest";
 import MinimalViewer from "./pages/MinimalViewer";
 
 import { FuturisticWaveformPlayer } from "./components/player/FuturisticWaveformPlayer";
@@ -328,8 +327,7 @@ const App = () => (
             <Route path="/cook-mode" element={<CookMode />} />
             <Route path="/cook-mode/:sessionId" element={<CookMode />} />
             
-            {/* Public viewer test routes - no auth required */}
-            <Route path="/viewer/:sessionId" element={<ViewerTest />} />
+            {/* Public minimal viewer - no auth required */}
             <Route path="/minimal-viewer" element={<MinimalViewer />} />
             <Route path="/minimal-viewer/:sessionId" element={<MinimalViewer />} />
             
