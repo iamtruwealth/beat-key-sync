@@ -125,8 +125,8 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
         const waveSurfer = WaveSurfer.create({
           container: containerRef.current,
           waveColor: getTrackWaveColor(trackIndex, isMuted),
-          progressColor: getTrackProgressColor(trackIndex, isMuted),
-          cursorColor: 'rgba(255, 255, 255, 0.8)',
+          progressColor: 'transparent', // Disable progress visualization to prevent clipping
+          cursorColor: 'transparent', // Hide cursor
           barWidth: 2,
           barGap: 1,
           height: trackHeight - 16,
