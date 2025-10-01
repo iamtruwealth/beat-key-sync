@@ -318,11 +318,6 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
             <span className="text-xs text-purple-400">Ready to Record</span>
           </div>
         </div>
-      ) : isLoading || (!isLoaded && track.file_url) ? (
-        <div className="flex items-center justify-center h-full bg-blue-500/10 border-blue-500">
-          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400"></div>
-          <span className="text-xs text-blue-400 ml-2">Loading...</span>
-        </div>
       ) : (
         <>
           {/* WaveSurfer container */}
