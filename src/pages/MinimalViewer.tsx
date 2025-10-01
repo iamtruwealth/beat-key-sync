@@ -106,17 +106,18 @@ export default function MinimalViewer() {
     peerConnectionRef.current = pc;
 
     pc.onicecandidate = (event) => {
-    if (channelRef.current) {
-      channelRef.current.send({
-        type: 'broadcast',
-        event: 'audio-ice',
-        payload: {
-          from: 'viewer',
-          to: fromUserId,
-          candidate: event.candidate
-        }
-      });
-    }
+      if (event.candidate && channelRef.current) {
+        channelRef.current.send({
+          type: 'broadcast',
+          event: 'audio-ice-candidate',
+          payload: {
+            from: currentUserId,
+            to: fromUserId,
+            candidate: event.candidate
+          }
+        });
+        log('📤 Sent ICE candidate');
+      }
     };
 
     pc.ontrack = (event) => {
