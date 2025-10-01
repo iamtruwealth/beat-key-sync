@@ -105,6 +105,7 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
       // Handle ICE candidates
       peerConnection.onicecandidate = (event) => {
         if (event.candidate && signalingChannel.current) {
+          console.log('🎵 ICE candidate generated for', username);
           signalingChannel.current.send({
             type: 'broadcast',
             event: 'audio-ice-candidate',
@@ -115,6 +116,15 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
             }
           });
         }
+      };
+
+      // Monitor connection state
+      peerConnection.onconnectionstatechange = () => {
+        console.log('🎵 Connection state for', username, ':', peerConnection.connectionState);
+      };
+
+      peerConnection.oniceconnectionstatechange = () => {
+        console.log('🎵 ICE connection state for', username, ':', peerConnection.iceConnectionState);
       };
 
       setRemoteParticipants(prev => {
@@ -131,6 +141,7 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
       if (isInitiator) {
         const offer = await peerConnection.createOffer();
         await peerConnection.setLocalDescription(offer);
+        console.log('🎵 Host: Created offer for', username, 'with', peerConnection.getSenders().length, 'senders');
         
         signalingChannel.current?.send({
           type: 'broadcast',
@@ -141,6 +152,7 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
             offer: offer
           }
         });
+        console.log('🎵 Host: Sent offer to', username);
       }
 
       return peerConnection;
@@ -274,9 +286,25 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
         return;
       }
 
+      const tracks = sessionAudio.getTracks();
+      console.log('🎵 Host: Got master stream with', tracks.length, 'tracks');
+      tracks.forEach((track, idx) => {
+        console.log(`🎵 Track ${idx}:`, {
+          kind: track.kind,
+          id: track.id,
+          enabled: track.enabled,
+          muted: track.muted,
+          readyState: track.readyState
+        });
+      });
+
+      if (tracks.length === 0) {
+        toast.error('Audio stream has no tracks. Try starting playback first.');
+        return;
+      }
+
       setSessionAudioStream(sessionAudio);
       sessionAudioStreamRef.current = sessionAudio;
-      console.log('🎵 Host: Session audio stream set, tracks:', sessionAudio.getTracks().length);
       setupSignaling();
 
       // Join presence
