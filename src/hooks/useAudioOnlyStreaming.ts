@@ -256,11 +256,19 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
     try {
       console.log('🎵 Starting audio-only stream for session');
       
-      // Get the mixed session audio from the loop engine
-      const sessionAudio = sessionLoopEngine.getMixedAudioStream();
+      // Get the master audio stream from HostMasterAudio (radio broadcast)
+      const { HostMasterAudio } = await import('@/lib/HostMasterAudio');
+      const hostMaster = HostMasterAudio.getInstance();
+      
+      if (!hostMaster.isInitialized) {
+        await hostMaster.initialize();
+        hostMaster.connectToCookModeEngine();
+      }
+      
+      const sessionAudio = hostMaster.getMasterStream();
       
       if (!sessionAudio) {
-        toast.error('No session audio available. Play some tracks first.');
+        toast.error('No audio available. Make sure audio is playing.');
         return;
       }
 
