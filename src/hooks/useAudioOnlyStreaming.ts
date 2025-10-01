@@ -375,23 +375,69 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
   useEffect(() => {
     if (isHost || !sessionId || !currentUserId) return;
 
-    console.log('🎵 Joining as audio viewer');
-    setupSignaling();
-
+    console.log('🎵 Viewer: Starting auto-join for session:', sessionId);
+    
     const joinAsViewer = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('producer_name')
-        .eq('id', user?.id)
-        .single();
+      try {
+        const channel = supabase.channel(`audio-only-${sessionId}`);
 
-      if (signalingChannel.current) {
-        await signalingChannel.current.track({
-          user_id: user?.id,
-          username: profile?.producer_name || 'Viewer',
-          streaming: false
+        channel
+          .on('broadcast', { event: 'audio-offer' }, async ({ payload }) => {
+            console.log('🎵 Viewer: Received audio offer from:', payload.from);
+            if (payload.to === currentUserId && payload.from !== currentUserId) {
+              await handleOffer(payload.from, payload.offer);
+            }
+          })
+          .on('broadcast', { event: 'audio-answer' }, async ({ payload }) => {
+            if (payload.to === currentUserId && payload.from !== currentUserId) {
+              await handleAnswer(payload.from, payload.answer);
+            }
+          })
+          .on('broadcast', { event: 'audio-ice-candidate' }, async ({ payload }) => {
+            if (payload.to === currentUserId && payload.from !== currentUserId) {
+              await handleIceCandidate(payload.from, payload.candidate);
+            }
+          })
+          .on('presence', { event: 'sync' }, () => {
+            const presenceState = channel.presenceState();
+            console.log('🎵 Viewer: Audio presence sync:', presenceState);
+            updateParticipantsList(presenceState);
+          })
+          .on('presence', { event: 'join' }, ({ newPresences }) => {
+            console.log('🎵 Viewer: Host joined audio session:', newPresences);
+          })
+          .on('presence', { event: 'leave' }, ({ leftPresences }) => {
+            console.log('🎵 Viewer: Participant left audio session:', leftPresences);
+            leftPresences.forEach((presence: any) => {
+              removePeerConnection(presence.user_id);
+            });
+          });
+
+        signalingChannel.current = channel;
+
+        // Subscribe and wait for SUBSCRIBED status
+        await channel.subscribe(async (status) => {
+          console.log('🎵 Viewer: Channel subscription status:', status);
+          
+          if (status === 'SUBSCRIBED') {
+            const { data: { user } } = await supabase.auth.getUser();
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('producer_name')
+              .eq('id', user?.id)
+              .single();
+
+            await channel.track({
+              user_id: user?.id,
+              username: profile?.producer_name || 'Viewer',
+              streaming: false
+            });
+            
+            console.log('🎵 Viewer: Joined audio session and tracking presence');
+          }
         });
+      } catch (error) {
+        console.error('🎵 Viewer: Error joining audio session:', error);
       }
     };
 
@@ -406,7 +452,7 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
         signalingChannel.current.unsubscribe();
       }
     };
-  }, [sessionId, currentUserId, isHost, setupSignaling]);
+  }, [sessionId, currentUserId, isHost]);
 
   return {
     isStreamingAudio,
