@@ -24,10 +24,16 @@ export class HostMasterAudio {
 
   async initialize(): Promise<void> {
     try {
-      // Initialize Tone.js AudioContext
+      // Create AudioContext with balanced latency to prevent buffer underruns
+      const context = new AudioContext({
+        latencyHint: 'balanced', // Larger buffer to prevent stuttering
+        sampleRate: 44100
+      });
+      await Tone.setContext(context);
       await Tone.start();
+      
       this.audioContext = Tone.getContext().rawContext as AudioContext;
-      console.log('🎧 AudioContext sampleRate:', this.audioContext.sampleRate);
+      console.log('🎧 AudioContext initialized - Sample Rate:', this.audioContext.sampleRate, 'Base Latency:', this.audioContext.baseLatency);
       
       // Create master gain node - this is the central hub for all audio
       this.masterGain = this.audioContext.createGain();
