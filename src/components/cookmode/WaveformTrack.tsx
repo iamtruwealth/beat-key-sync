@@ -345,6 +345,62 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
     }
   }, [isMuted, opacity, trackIndex, isLoaded]);
 
+  // Persistently enforce visibility (especially during playback)
+  useEffect(() => {
+    const cont = containerRef.current;
+    if (!cont) return;
+    const logPrefix = `[WaveformTrack][${track.name}]`;
+
+    const enforce = () => {
+      try {
+        // Hide progress/cursor layers and remove any clipping/transform/zero-width that could hide canvases
+        cont.querySelectorAll('*').forEach((n) => {
+          const el = n as HTMLElement;
+          const cls = (el.className || '').toString().toLowerCase();
+          if (cls.includes('progress') || cls.includes('cursor')) {
+            el.style.display = 'none';
+          }
+          if (el.tagName === 'CANVAS') {
+            const c = el as HTMLCanvasElement;
+            c.style.display = 'block';
+            c.style.opacity = '1';
+            c.style.visibility = 'visible';
+          }
+          // Remove clipping and transforms
+          el.style.clipPath = 'none';
+          // @ts-ignore webkitClipPath
+          el.style.webkitClipPath = 'none';
+          el.style.transform = 'none';
+          // Fix accidental width:0%/height:0
+          const sw = el.style.width?.trim();
+          if (sw && sw.endsWith('%') && parseFloat(sw) === 0) {
+            el.style.width = '100%';
+          }
+          if (el.style.height === '0px') {
+            el.style.height = '';
+          }
+        });
+      } catch (e) {
+        console.warn(`${logPrefix} enforce failed`, e);
+      }
+    };
+
+    enforce();
+
+    let rafId = 0;
+    if (isPlaying) {
+      const loop = () => {
+        enforce();
+        rafId = requestAnimationFrame(loop);
+      };
+      rafId = requestAnimationFrame(loop);
+    }
+
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+    };
+  }, [isPlaying, containerId, track.name]);
+
   // Debug: log when playback state changes and canvas visibility/styles
   useEffect(() => {
     const cont = containerRef.current;
@@ -448,13 +504,22 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
           </div>
         </div>
       ) : (
-        <>
+        <> 
+          <style
+            dangerouslySetInnerHTML={{
+              __html: `#${containerId} * { clip-path: none !important; -webkit-clip-path: none !important; }
+                #${containerId} .wavesurfer__progress, #${containerId} [class*='progress'] { display: none !important; width: auto !important; }
+                #${containerId} canvas { display: block !important; opacity: 1 !important; visibility: visible !important; }
+                #${containerId} .wavesurfer__cursor { display: none !important; }`
+            }}
+          />
           {/* WaveSurfer container */}
           <div
             ref={containerRef}
             id={containerId}
             className="w-full h-full relative"
           />
+        </>
 
           {/* Trim overlays: dim hidden (trimmed) parts so only visible segment pops */}
           {(() => {
