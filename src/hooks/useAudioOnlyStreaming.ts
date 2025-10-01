@@ -21,6 +21,7 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
   const [sessionAudioStream, setSessionAudioStream] = useState<MediaStream | null>(null);
   
   const signalingChannel = useRef<any>(null);
+  const viewerAudioElementRef = useRef<HTMLAudioElement | null>(null);
   const iceServers = [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' }
@@ -85,19 +86,28 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
 
       // Handle incoming audio (for viewers)
       peerConnection.ontrack = (event) => {
-        console.log('🎵 Received remote audio stream from host');
+        console.log('🎵 Viewer: Received remote audio stream from host');
         const [remoteStream] = event.streams;
         
-        // Play the remote audio
-        const audioEl = document.createElement('audio');
-        audioEl.srcObject = remoteStream;
-        audioEl.autoplay = true;
-        audioEl.style.display = 'none';
-        document.body.appendChild(audioEl);
+        // Use single audio element for all tracks (prevents duplicate playback)
+        if (!viewerAudioElementRef.current) {
+          const audioEl = document.createElement('audio');
+          audioEl.autoplay = true;
+          audioEl.style.display = 'none';
+          document.body.appendChild(audioEl);
+          viewerAudioElementRef.current = audioEl;
+          console.log('🎵 Viewer: Created single audio element for session');
+        }
         
-        audioEl.play().catch((err) => {
-          console.warn('Autoplay blocked, click to enable:', err);
-        });
+        // Update srcObject only if it's different
+        if (viewerAudioElementRef.current.srcObject !== remoteStream) {
+          viewerAudioElementRef.current.srcObject = remoteStream;
+          console.log('🎵 Viewer: Updated audio element with new stream');
+          
+          viewerAudioElementRef.current.play().catch((err) => {
+            console.warn('🎵 Viewer: Autoplay blocked, waiting for user gesture:', err);
+          });
+        }
       };
 
       // Handle ICE candidates
@@ -321,6 +331,15 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
       setRemoteParticipants(new Map());
       setSessionAudioStream(null);
       
+      // Clean up viewer audio element
+      if (viewerAudioElementRef.current) {
+        viewerAudioElementRef.current.pause();
+        viewerAudioElementRef.current.srcObject = null;
+        viewerAudioElementRef.current.remove();
+        viewerAudioElementRef.current = null;
+        console.log('🎵 Viewer: Cleaned up audio element');
+      }
+      
       if (signalingChannel.current) {
         signalingChannel.current.untrack();
         signalingChannel.current.unsubscribe();
@@ -361,6 +380,15 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
     joinAsViewer();
 
     return () => {
+      // Cleanup viewer audio element on unmount
+      if (viewerAudioElementRef.current) {
+        viewerAudioElementRef.current.pause();
+        viewerAudioElementRef.current.srcObject = null;
+        viewerAudioElementRef.current.remove();
+        viewerAudioElementRef.current = null;
+        console.log('🎵 Viewer: Cleaned up audio element on unmount');
+      }
+      
       if (signalingChannel.current) {
         signalingChannel.current.unsubscribe();
       }
