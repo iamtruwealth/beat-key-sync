@@ -58,6 +58,8 @@ export function useCookModeSession(sessionId?: string) {
   const channelRef = useRef<any>(null);
   const { toast } = useToast();
 
+  const isValidUUID = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+
   // Real-time subscription for session updates
   useEffect(() => {
     // Set up a timeout to prevent indefinite loading
@@ -67,7 +69,7 @@ export function useCookModeSession(sessionId?: string) {
         setIsConnected(true); // Allow the app to continue
       }
     }, 10000); // 10 second timeout
-    if (!sessionId) return;
+    if (!sessionId || !isValidUUID(sessionId)) return;
 
     const setupRealtime = async () => {
       console.log('🔗 Setting up realtime for session:', sessionId);
@@ -218,6 +220,10 @@ export function useCookModeSession(sessionId?: string) {
 
   // Load session data
   const joinSession = useCallback(async (sessionId: string) => {
+    if (!sessionId || !isValidUUID(sessionId)) {
+      console.warn('Skipping joinSession due to invalid sessionId:', sessionId);
+      return;
+    }
     try {
       const { data: sessionData, error: sessionError } = await supabase
         .from('collaboration_projects')

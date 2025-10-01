@@ -17,8 +17,11 @@ export const useCollaborationPermissions = (collaborationId: string | null) => {
   });
   const [loading, setLoading] = useState(true);
 
+  const isValidUUID = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+
   useEffect(() => {
-    if (!collaborationId) {
+    if (!collaborationId || collaborationId.startsWith(':') || !isValidUUID(collaborationId)) {
+      console.warn('Skipping permissions check due to invalid collaborationId:', collaborationId);
       setLoading(false);
       return;
     }
