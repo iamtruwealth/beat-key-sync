@@ -124,6 +124,12 @@ export const useRadioBroadcast = ({ sessionId, currentUserId }: UseRadioBroadcas
       // 4) Create AudioContext (let browser choose supported sample rate)
       const AC: any = (window as any).AudioContext || (window as any).webkitAudioContext;
       const context: AudioContext = new AC();
+      try {
+        await context.resume();
+      } catch (err) {
+        console.warn('[Radio] AudioContext resume failed', err);
+      }
+      console.log('[Radio] AudioContext state:', context.state);
       const effectiveSampleRate = context.sampleRate;
       console.log('[Radio] AudioContext created. sampleRate=', effectiveSampleRate);
 
