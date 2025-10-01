@@ -272,8 +272,7 @@ const CookMode = () => {
     }
   };
 
-  const shareSessionLink = async (options: { usePreview?: boolean; open?: boolean } = {}) => {
-    const { usePreview = false, open = false } = options;
+  const shareSessionLink = async () => {
     try {
       // Enable public access for this session
       const { error } = await supabase.rpc('enable_session_sharing', {
@@ -284,28 +283,12 @@ const CookMode = () => {
         console.error('Error enabling session sharing:', error);
       }
 
-      // Use production URL by default for sharing, unless explicitly testing in preview
-      const isPreviewHost = window.location.hostname.includes('lovableproject.com');
-      const baseUrl = (usePreview || !isPreviewHost)
-        ? window.location.origin
-        : 'https://beatpackz.store';
-
-      const link = `${baseUrl}/cook-mode/${sessionId}`;
-
-      if (open) {
-        window.open(link, '_blank', 'noopener,noreferrer');
-        toast.success('Opening session link in a new tab...');
-      } else {
-        await navigator.clipboard.writeText(link);
-        if (usePreview && isPreviewHost) {
-          toast.success('Preview link copied! Use this to test as a viewer in another tab.');
-        } else {
-          toast.success('Session link copied to clipboard! Anyone with this link can now join the session.');
-        }
-      }
+      const link = `${window.location.origin}/cook-mode/${sessionId}`;
+      await navigator.clipboard.writeText(link);
+      toast.success("Session link copied to clipboard! Anyone with this link can now join the session.");
     } catch (error) {
       console.error('Error sharing session:', error);
-      toast.error('Failed to share session link');
+      toast.error("Failed to share session link");
     }
   };
 
@@ -738,41 +721,15 @@ const CookMode = () => {
             </>
           )}
             
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="border-border/50 hover:border-neon-cyan/50"
-                >
-                  <Share2 className="w-4 h-4 mr-2" />
-                  Share Link
-                  <ChevronDown className="w-3 h-3 ml-1" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => shareSessionLink({ usePreview: false, open: false })}>
-                  <Share2 className="w-4 h-4 mr-2" />
-                  Copy Live Site Link
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => shareSessionLink({ usePreview: false, open: true })}>
-                  <Share2 className="w-4 h-4 mr-2" />
-                  Open Live Site Link
-                </DropdownMenuItem>
-                {window.location.hostname.includes('lovableproject.com') && (
-                  <>
-                    <DropdownMenuItem onClick={() => shareSessionLink({ usePreview: true, open: false })}>
-                      <Share2 className="w-4 h-4 mr-2" />
-                      Copy Preview Link (Testing)
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => shareSessionLink({ usePreview: true, open: true })}>
-                      <Share2 className="w-4 h-4 mr-2" />
-                      Open Preview Link (Testing)
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={shareSessionLink}
+              className="border-border/50 hover:border-neon-cyan/50"
+            >
+              <Share2 className="w-4 h-4 mr-2" />
+              Share Link
+            </Button>
             
             
             {permissions.canEdit && (
