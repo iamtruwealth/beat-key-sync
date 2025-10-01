@@ -649,12 +649,14 @@ const CookMode = () => {
             </DropdownMenu>
           )}
 
-          {/* Radio Stream Controls - visible for all users */}
-          <RadioStreamControls 
-            sessionId={sessionId || ''}
-            isHost={permissions.canEdit}
-            currentUserId={currentUser?.id}
-          />
+          {/* Radio Stream Controls - viewers only */}
+          {!permissions.canEdit && (
+            <RadioStreamControls 
+              sessionId={sessionId || ''}
+              isHost={false}
+              currentUserId={currentUser?.id}
+            />
+          )}
             
             <Button
               variant="outline"
