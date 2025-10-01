@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { BackgroundWebRTCConnector } from '@/components/cookmode/BackgroundWebRTCConnector';
 import { useWebRTCStreaming } from '@/hooks/useWebRTCStreaming';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
+const DEFAULT_TEST_SESSION = '7ec9d14d-82bf-4be8-91aa-a391815a1a72';
+
 export default function ViewerTest() {
   const { sessionId } = useParams<{ sessionId: string }>();
+  const navigate = useNavigate();
   const [currentUserId] = useState(`viewer-${Math.random().toString(36).substr(2, 9)}`);
   const [isConnected, setIsConnected] = useState(false);
   
@@ -15,6 +18,14 @@ export default function ViewerTest() {
     canEdit: false, // Always viewer
     currentUserId
   });
+
+  // Redirect to default test session if no session ID provided
+  useEffect(() => {
+    if (!sessionId) {
+      console.log('🎬 No session ID provided, redirecting to default test session');
+      navigate(`/viewer/${DEFAULT_TEST_SESSION}`, { replace: true });
+    }
+  }, [sessionId, navigate]);
 
   useEffect(() => {
     if (sessionId && !isConnected) {
