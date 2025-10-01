@@ -78,7 +78,6 @@ export const useHostAudioStream = () => {
     externalAudioTrackRef.current = null;
     externalAudioStreamRef.current = null;
     console.log('🛑 Stopped master audio broadcast');
-    toast.success('Stopped video streaming');
   }, [localStream]);
 
   const toggleVideo = useCallback(() => {
