@@ -17,10 +17,11 @@ export const useRadioPlayer = ({ sessionId }: UseRadioPlayerProps) => {
   const audioContextRef = useRef<AudioContext | null>(null);
   const queueRef = useRef<AudioQueue | null>(null);
   const lastSeqRef = useRef<number>(0);
+  const presenceKeyRef = useRef<string>(`viewer-${Math.random().toString(36).slice(2)}`);
 
   const setupChannel = useCallback(() => {
     if (channelRef.current) return channelRef.current;
-    const channel = supabase.channel(`radio-${sessionId}`);
+    const channel = supabase.channel(`radio-${sessionId}`, { config: { broadcast: { self: true }, presence: { key: presenceKeyRef.current } } });
 
     channel
       .on('broadcast', { event: 'radio-start' }, ({ payload }) => {

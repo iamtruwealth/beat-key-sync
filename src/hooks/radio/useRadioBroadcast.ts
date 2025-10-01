@@ -24,7 +24,12 @@ export const useRadioBroadcast = ({ sessionId, currentUserId }: UseRadioBroadcas
 
   const setupChannel = useCallback(() => {
     if (channelRef.current) return channelRef.current;
-    const channel = supabase.channel(`radio-${sessionId}`);
+    const channel = supabase.channel(`radio-${sessionId}`, {
+      config: {
+        broadcast: { self: false },
+        presence: { key: currentUserId || 'host' },
+      },
+    });
 
     channel
       .on('presence', { event: 'sync' }, () => {
@@ -42,7 +47,7 @@ export const useRadioBroadcast = ({ sessionId, currentUserId }: UseRadioBroadcas
 
     channelRef.current = channel;
     return channel;
-  }, [sessionId]);
+  }, [sessionId, currentUserId]);
 
   const startBroadcast = useCallback(async () => {
     if (isBroadcasting) return;
@@ -94,10 +99,26 @@ export const useRadioBroadcast = ({ sessionId, currentUserId }: UseRadioBroadcas
       console.log('[Radio] Getting master stream...');
       const sessionStream = hostMaster.getMasterStream();
       console.log('[Radio] Got stream?', !!sessionStream, 'tracks:', sessionStream?.getTracks().length);
-      if (!sessionStream) {
-        console.error('[Radio] No stream from HostMasterAudio');
-        toast.error('No audio available. Start playback first.');
-        return;
+
+      let stream: MediaStream | null = sessionStream;
+      if (!stream) {
+        console.warn('[Radio] No CookMode stream. Falling back to microphone...');
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+              sampleRate: 24000,
+              channelCount: 1,
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true,
+            },
+          });
+          toast.message('Broadcasting microphone audio');
+        } catch (micErr) {
+          console.error('[Radio] Mic fallback failed', micErr);
+          toast.error('No audio available. Start session playback or allow mic.');
+          return;
+        }
       }
 
       // 4) Create AudioContext (let browser choose supported sample rate)
@@ -106,7 +127,7 @@ export const useRadioBroadcast = ({ sessionId, currentUserId }: UseRadioBroadcas
       const effectiveSampleRate = context.sampleRate;
       console.log('[Radio] AudioContext created. sampleRate=', effectiveSampleRate);
 
-      const source = context.createMediaStreamSource(sessionStream);
+      const source = context.createMediaStreamSource(stream);
       const processor = context.createScriptProcessor(BUFFER_SIZE, 1, 1);
 
       console.log('[Radio] Setting up audio processor...');
