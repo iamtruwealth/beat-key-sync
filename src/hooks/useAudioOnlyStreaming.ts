@@ -16,6 +16,8 @@ interface RemoteParticipant {
 }
 
 export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseAudioOnlyStreamingProps) => {
+  console.log('🎵 useAudioOnlyStreaming initialized:', { sessionId, isHost, currentUserId });
+  
   const [isStreamingAudio, setIsStreamingAudio] = useState(false);
   const [remoteParticipants, setRemoteParticipants] = useState<Map<string, RemoteParticipant>>(new Map());
   const [sessionAudioStream, setSessionAudioStream] = useState<MediaStream | null>(null);
@@ -373,7 +375,20 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
 
   // Auto-join as viewer
   useEffect(() => {
-    if (isHost || !sessionId || !currentUserId) return;
+    console.log('🎵 Viewer effect triggered:', { isHost, sessionId, currentUserId });
+    
+    if (isHost) {
+      console.log('🎵 Skipping viewer join: user is host');
+      return;
+    }
+    if (!sessionId) {
+      console.log('🎵 Skipping viewer join: no sessionId');
+      return;
+    }
+    if (!currentUserId) {
+      console.log('🎵 Skipping viewer join: no currentUserId');
+      return;
+    }
 
     console.log('🎵 Viewer: Starting auto-join for session:', sessionId);
     
