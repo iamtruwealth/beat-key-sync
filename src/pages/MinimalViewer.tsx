@@ -17,6 +17,7 @@ export default function MinimalViewer() {
   const audioElementRef = useRef<HTMLAudioElement | null>(null);
   const channelRef = useRef<any>(null);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
+  const [currentUserId] = useState(`viewer-${Math.random().toString(36).substr(2, 9)}`);
   const currentStreamIdRef = useRef<string | null>(null);
 
   const log = (message: string) => {
@@ -46,22 +47,28 @@ export default function MinimalViewer() {
   const setupViewer = async () => {
     log(`🎬 Setting up viewer for session: ${sessionId}`);
     
-    // Setup Supabase channel
-    const channel = supabase.channel(`audio-stream-${sessionId}`);
+    // Setup Supabase channel - MUST match host's channel name
+    const channel = supabase.channel(`audio-only-${sessionId}`);
     channelRef.current = channel;
 
     channel
-      .on('broadcast', { event: 'webrtc-offer' }, async ({ payload }) => {
-        log(`📥 Received WebRTC offer from: ${payload.from}`);
-        await handleOffer(payload.from, payload.offer);
+      .on('broadcast', { event: 'audio-offer' }, async ({ payload }) => {
+        log(`📥 Received audio offer from: ${payload.from}`);
+        if (payload.from !== currentUserId) {
+          await handleOffer(payload.from, payload.offer);
+        }
       })
-      .on('broadcast', { event: 'webrtc-answer' }, async ({ payload }) => {
-        log(`📥 Received WebRTC answer from: ${payload.from}`);
-        await handleAnswer(payload.answer);
+      .on('broadcast', { event: 'audio-answer' }, async ({ payload }) => {
+        log(`📥 Received audio answer from: ${payload.from}`);
+        if (payload.from !== currentUserId) {
+          await handleAnswer(payload.answer);
+        }
       })
-      .on('broadcast', { event: 'webrtc-ice' }, async ({ payload }) => {
+      .on('broadcast', { event: 'audio-ice-candidate' }, async ({ payload }) => {
         log(`📥 Received ICE candidate from: ${payload.from}`);
-        await handleIceCandidate(payload.candidate);
+        if (payload.from !== currentUserId) {
+          await handleIceCandidate(payload.candidate);
+        }
       })
       .on('presence', { event: 'sync' }, () => {
         const state = channel.presenceState();
@@ -75,17 +82,17 @@ export default function MinimalViewer() {
       });
 
     await channel.subscribe();
-    log('✅ Subscribed to channel');
+    log('✅ Subscribed to audio-only channel');
 
     // Track presence as viewer
     const { data: { user } } = await supabase.auth.getUser();
     await channel.track({
-      user_id: user?.id || 'anonymous',
-      username: 'Test Viewer',
+      user_id: user?.id || `viewer-${Date.now()}`,
+      username: 'Minimal Test Viewer',
       role: 'viewer',
       online_at: new Date().toISOString()
     });
-    log('✅ Presence tracked');
+    log('✅ Presence tracked as viewer');
 
     setIsConnected(true);
   };
@@ -99,18 +106,17 @@ export default function MinimalViewer() {
     peerConnectionRef.current = pc;
 
     pc.onicecandidate = (event) => {
-      if (event.candidate && channelRef.current) {
-        log('📤 Sending ICE candidate');
-        channelRef.current.send({
-          type: 'broadcast',
-          event: 'webrtc-ice',
-          payload: {
-            from: 'viewer',
-            to: fromUserId,
-            candidate: event.candidate
-          }
-        });
-      }
+    if (channelRef.current) {
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'audio-ice',
+        payload: {
+          from: 'viewer',
+          to: fromUserId,
+          candidate: event.candidate
+        }
+      });
+    }
     };
 
     pc.ontrack = (event) => {
@@ -144,14 +150,14 @@ export default function MinimalViewer() {
     if (channelRef.current) {
       channelRef.current.send({
         type: 'broadcast',
-        event: 'webrtc-answer',
+        event: 'audio-answer',
         payload: {
-          from: 'viewer',
+          from: currentUserId,
           to: fromUserId,
           answer
         }
       });
-      log('📤 Sent answer');
+      log('📤 Sent audio answer');
     }
   };
 
