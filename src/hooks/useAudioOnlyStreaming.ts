@@ -126,16 +126,9 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
 
   const handleOffer = useCallback(async (fromUserId: string, offer: RTCSessionDescriptionInit) => {
     try {
-      let participant = remoteParticipants.get(fromUserId);
-      let peerConnection = participant?.peerConnection;
-
-      if (!peerConnection) {
-        const presenceState = signalingChannel.current?.presenceState() || {};
-        const fromPresence = Object.values(presenceState).flat().find((p: any) => p.user_id === fromUserId) as any;
-        if (fromPresence) {
-          peerConnection = await createPeerConnection(fromUserId, fromPresence.username, false);
-        }
-      }
+      // The peer connection should already exist from the 'sync' or 'join' event.
+      const participant = remoteParticipants.get(fromUserId);
+      const peerConnection = participant?.peerConnection;
 
       if (peerConnection) {
         await peerConnection.setRemoteDescription(offer);
@@ -151,11 +144,13 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
             answer: answer
           }
         });
+      } else {
+        console.error('❌ Viewer: Received an offer but have no peer connection for user', fromUserId);
       }
     } catch (error) {
       console.error('Error handling audio offer:', error);
     }
-  }, [remoteParticipants, createPeerConnection, currentUserId]);
+  }, [remoteParticipants, currentUserId]);
 
   const handleAnswer = useCallback(async (fromUserId: string, answer: RTCSessionDescriptionInit) => {
     try {
@@ -255,9 +250,19 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
         console.log('🎵 Audio presence sync:', presenceState);
         updateParticipantsList(presenceState);
 
-        // If I am the host with an audio stream, create connections for everyone already here
+        const allParticipants = (Object.values(presenceState).flat() as any[]);
+
+        // VIEWER LOGIC: If I'm a viewer, find the host and create a peer connection in preparation for an offer.
+        if (!isHost) {
+          const hostPresence = allParticipants.find((p: any) => p.streaming === true);
+          if (hostPresence && !remoteParticipants.has(hostPresence.user_id)) {
+            console.log('🎵 Viewer (on sync): Detected host, creating peer connection.');
+            createPeerConnection(hostPresence.user_id, hostPresence.username, false);
+          }
+        }
+
+        // HOST LOGIC: If I am the host with an audio stream, create connections for everyone already here
         if (isHost && sessionAudioStreamRef.current) {
-          const allParticipants = (Object.values(presenceState).flat() as any[]);
           allParticipants.forEach((presence: any) => {
             if (presence.user_id !== currentUserId) {
               console.log('🎵 Host (on sync): Creating peer connection for existing viewer:', presence.username);
@@ -269,7 +274,13 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
       .on('presence', { event: 'join' }, ({ newPresences }) => {
         console.log('🎵 User joined audio session:', newPresences);
         newPresences.forEach((presence: any) => {
-          // Host creates connection for new viewers, but only if streaming
+          // VIEWER LOGIC: If the host is the one who just joined, create a peer connection.
+          if (!isHost && presence.streaming === true && !remoteParticipants.has(presence.user_id)) {
+            console.log('🎵 Viewer (on join): Host has arrived, creating peer connection.');
+            createPeerConnection(presence.user_id, presence.username, false);
+          }
+          
+          // HOST LOGIC: Create connection for new viewers, but only if streaming
           if (isHost && sessionAudioStreamRef.current && presence.user_id !== currentUserId) {
             console.log('🎵 Host: Creating peer connection for new viewer:', presence.username);
             createPeerConnection(presence.user_id, presence.username, true);
