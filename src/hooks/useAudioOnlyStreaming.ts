@@ -254,11 +254,23 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
         const presenceState = channel.presenceState();
         console.log('🎵 Audio presence sync:', presenceState);
         updateParticipantsList(presenceState);
+
+        // If I am the host with an audio stream, create connections for everyone already here
+        if (isHost && sessionAudioStreamRef.current) {
+          const allParticipants = (Object.values(presenceState).flat() as any[]);
+          allParticipants.forEach((presence: any) => {
+            if (presence.user_id !== currentUserId) {
+              console.log('🎵 Host (on sync): Creating peer connection for existing viewer:', presence.username);
+              createPeerConnection(presence.user_id, presence.username, true);
+            }
+          });
+        }
       })
       .on('presence', { event: 'join' }, ({ newPresences }) => {
-        console.log('🎵 Viewer joined audio session:', newPresences);
+        console.log('🎵 User joined audio session:', newPresences);
         newPresences.forEach((presence: any) => {
-          if (presence.user_id !== currentUserId && sessionAudioStreamRef.current && isHost) {
+          // Host creates connection for new viewers, but only if streaming
+          if (isHost && sessionAudioStreamRef.current && presence.user_id !== currentUserId) {
             console.log('🎵 Host: Creating peer connection for new viewer:', presence.username);
             createPeerConnection(presence.user_id, presence.username, true);
           }
@@ -333,14 +345,9 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
           streaming: true
         });
 
-        // Create peer connections for existing viewers
-        const presenceState = channel.presenceState?.() || {};
-        const others = (Object.values(presenceState).flat() as any[]);
-        for (const presence of others) {
-          if (presence.user_id && presence.user_id !== user?.id) {
-            await createPeerConnection(presence.user_id, presence.username || 'Viewer', true);
-          }
-        }
+        console.log('🎵 Host: Announced streaming presence. Offers will be sent via sync/join events.');
+        // DO NOT create offers here - let the 'sync' and 'join' events handle it
+        // This prevents race conditions where viewers aren't ready to receive offers
       };
 
       if (channelSubscribedRef.current) {
