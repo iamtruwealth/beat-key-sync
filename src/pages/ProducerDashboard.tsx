@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BeatUploadForm } from "@/components/beats/BeatUploadForm";
+import RadioStreamControls from "@/components/radio/RadioStreamControls";
 import { RevenueTracker } from "@/components/beats/RevenueTracker";
 import { PayoutRequestForm } from "@/components/beats/PayoutRequestForm";
 import { BeatSalesTracker } from "@/components/beats/BeatSalesTracker";
@@ -239,6 +240,13 @@ export default function ProducerDashboard() {
         <div>
           <h1 className="text-3xl font-bold">Producer Marketplace</h1>
           <p className="text-muted-foreground">Upload beats, track sales, and manage your music business.</p>
+        </div>
+        <div>
+          <RadioStreamControls 
+            sessionId={`radio-${currentUser?.id || 'guest'}`}
+            isHost={true}
+            currentUserId={currentUser?.id}
+          />
         </div>
       </div>
 
