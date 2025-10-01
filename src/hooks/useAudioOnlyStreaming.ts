@@ -471,7 +471,7 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
         signalingChannel.current.unsubscribe();
       }
     };
-  }, [sessionId, currentUserId, isHost]);
+  }, [sessionId, currentUserId, isHost, stopAudioPlayback, handleOffer, handleAnswer, handleIceCandidate, updateParticipantsList, removePeerConnection]);
 
   return {
     isStreamingAudio,
