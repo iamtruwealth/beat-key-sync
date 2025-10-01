@@ -25,8 +25,11 @@ export const useRadioPlayer = ({ sessionId }: UseRadioPlayerProps) => {
 
     channel
       .on('broadcast', { event: 'radio-start' }, ({ payload }) => {
-        console.log('Radio: start', payload);
+        console.log('[Radio][viewer] start event', payload);
         if (!audioContextRef.current) audioContextRef.current = new AudioContext();
+        if (audioContextRef.current.state !== 'running') {
+          audioContextRef.current.resume().catch((e) => console.warn('[Radio][viewer] resume failed on start', e));
+        }
         if (!queueRef.current) queueRef.current = new AudioQueue(audioContextRef.current);
         setHostOnline(true);
       })
@@ -34,6 +37,9 @@ export const useRadioPlayer = ({ sessionId }: UseRadioPlayerProps) => {
         try {
           const { audio, seq, sampleRate } = payload;
           if (!audioContextRef.current) audioContextRef.current = new AudioContext();
+          if (audioContextRef.current.state !== 'running') {
+            await audioContextRef.current.resume().catch((e) => console.warn('[Radio][viewer] resume failed on chunk', e));
+          }
           if (!queueRef.current) queueRef.current = new AudioQueue(audioContextRef.current);
 
           // simple out-of-order protection
@@ -41,6 +47,7 @@ export const useRadioPlayer = ({ sessionId }: UseRadioPlayerProps) => {
           lastSeqRef.current = seq || lastSeqRef.current;
 
           const bytes = base64ToUint8(audio);
+          console.log(`[Radio][viewer] chunk seq=${seq} sr=${sampleRate} bytes=${bytes.length}`);
           await queueRef.current.addToQueue(bytes, sampleRate || 24000);
         } catch (err) {
           console.error('Radio: chunk error', err);

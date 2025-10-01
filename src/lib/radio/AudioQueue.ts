@@ -20,6 +20,7 @@ export class AudioQueue {
   }
 
   async addToQueue(data: Uint8Array, sampleRate: number) {
+    console.log(`[AudioQueue] enqueue bytes=${data.length} sr=${sampleRate} qlen=${this.queue.length}`);
     this.queue.push({ data, sampleRate });
     if (!this.isPlaying) await this.playNext();
   }
@@ -35,7 +36,9 @@ export class AudioQueue {
 
     try {
       const wav = createWavFromPCMBytes(data, sampleRate, 1);
+      console.log(`[AudioQueue] decoding wav bytes=${wav.byteLength} sr=${sampleRate}`);
       const audioBuffer = await this.context.decodeAudioData(wav.buffer.slice(0));
+      console.log(`[AudioQueue] decoded duration=${audioBuffer.duration.toFixed(3)}s`);
       const source = this.context.createBufferSource();
       source.buffer = audioBuffer;
       source.connect(this.context.destination);
