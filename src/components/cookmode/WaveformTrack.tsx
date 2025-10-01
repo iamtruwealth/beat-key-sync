@@ -237,16 +237,38 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
     };
   }, []);
 
-  // Debug: observe DOM changes that could hide canvases
+  // Debug: observe DOM changes that could hide canvases and auto-correct them
   useEffect(() => {
     const cont = containerRef.current;
     if (!cont) return;
     const logPrefix = `[WaveformTrack][${track.name}]`;
+
+    const fixVisibility = (el: HTMLElement) => {
+      const isProgress = el.className?.toString().toLowerCase().includes('progress');
+      if (isProgress) {
+        el.style.display = 'none';
+        return;
+      }
+      if (el.tagName === 'CANVAS') {
+        const canvas = el as HTMLCanvasElement;
+        canvas.style.display = 'block';
+        canvas.style.opacity = '1';
+        canvas.style.visibility = 'visible';
+        canvas.style.clipPath = 'none';
+        // @ts-ignore - webkitClipPath not in TS types
+        canvas.style.webkitClipPath = 'none';
+      }
+    };
+
     try {
+      // Initial pass
+      cont.querySelectorAll('*').forEach((n) => fixVisibility(n as HTMLElement));
+
       const observer = new MutationObserver((mutations) => {
         for (const m of mutations) {
           if (m.type === 'attributes') {
             const target = m.target as HTMLElement;
+            fixVisibility(target);
             const cs = window.getComputedStyle(target);
             console.log(`${logPrefix} mutation`, {
               node: target.tagName,
@@ -258,9 +280,12 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
               visibility: cs.visibility,
             });
           }
+          if (m.type === 'childList') {
+            m.addedNodes.forEach((n) => n instanceof HTMLElement && fixVisibility(n));
+          }
         }
       });
-      observer.observe(cont, { attributes: true, attributeFilter: ['style', 'class'], subtree: true });
+      observer.observe(cont, { attributes: true, attributeFilter: ['style', 'class'], childList: true, subtree: true });
       return () => observer.disconnect();
     } catch (e) {
       console.warn(`${logPrefix} mutation observer failed`, e);
