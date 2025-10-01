@@ -1,7 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { sessionLoopEngine } from '@/lib/sessionLoopEngine';
 
 interface UseAudioOnlyStreamingProps {
   sessionId: string;
