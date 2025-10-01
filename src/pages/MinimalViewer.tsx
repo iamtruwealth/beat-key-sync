@@ -36,6 +36,8 @@ export default function MinimalViewer() {
       }
       log(`✅ Audio enabled, state: ${ctx.state}`);
       setAudioEnabled(true);
+      // Immediately setup viewer after enabling audio
+      await setupViewer();
     } catch (err) {
       log(`❌ Audio enable failed: ${err}`);
     }
@@ -192,10 +194,6 @@ export default function MinimalViewer() {
   };
 
   useEffect(() => {
-    if (audioEnabled && isConnected) {
-      setupViewer();
-    }
-
     return () => {
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
@@ -208,7 +206,7 @@ export default function MinimalViewer() {
         audioElementRef.current.srcObject = null;
       }
     };
-  }, [audioEnabled, isConnected]);
+  }, []);
 
   return (
     <div className="min-h-screen bg-background p-6">
