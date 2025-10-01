@@ -617,46 +617,44 @@ const CookMode = () => {
             )}
             
             {permissions.canEdit && (
-              <>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="border-border/50 hover:border-neon-cyan/50 flex items-center gap-2"
-                    >
-                      <Piano className="w-4 h-4" />
-                      MIDI
-                      <ChevronDown className="w-3 h-3" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-64 bg-background/95 backdrop-blur-sm border border-border/50">
-                    <div className="p-2">
-                      <div className="text-sm font-medium mb-2">MIDI Controllers</div>
-                      {midiDevices && midiDevices.length > 0 ? (
-                        <>
-                          {midiDevices.map((device) => (
-                            <DropdownMenuItem key={device.id} className="flex items-center gap-2">
-                              <div className={`w-2 h-2 rounded-full ${device.connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                              <span className="text-sm">{device.name}</span>
-                            </DropdownMenuItem>
-                          ))}
-                        </>
-                      ) : (
-                        <div className="text-xs text-muted-foreground">No MIDI controllers detected</div>
-                      )}
-                    </div>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              {/* Radio Stream Controls */}
-              <RadioStreamControls 
-                sessionId={sessionId || ''}
-                isHost={permissions.canEdit}
-                currentUserId={currentUser?.id}
-              />
-            </>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-border/50 hover:border-neon-cyan/50 flex items-center gap-2"
+                  >
+                    <Piano className="w-4 h-4" />
+                    MIDI
+                    <ChevronDown className="w-3 h-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-64 bg-background/95 backdrop-blur-sm border border-border/50">
+                  <div className="p-2">
+                    <div className="text-sm font-medium mb-2">MIDI Controllers</div>
+                    {midiDevices && midiDevices.length > 0 ? (
+                      <>
+                        {midiDevices.map((device) => (
+                          <DropdownMenuItem key={device.id} className="flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full ${device.connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                            <span className="text-sm">{device.name}</span>
+                          </DropdownMenuItem>
+                        ))}
+                      </>
+                    ) : (
+                      <div className="text-xs text-muted-foreground">No MIDI controllers detected</div>
+                    )}
+                  </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
+
+          {/* Radio Stream Controls - visible for all users */}
+          <RadioStreamControls 
+            sessionId={sessionId || ''}
+            isHost={permissions.canEdit}
+            currentUserId={currentUser?.id}
+          />
             
             <Button
               variant="outline"
