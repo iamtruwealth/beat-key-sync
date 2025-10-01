@@ -21,6 +21,7 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
   const [sessionAudioStream, setSessionAudioStream] = useState<MediaStream | null>(null);
   
   const signalingChannel = useRef<any>(null);
+  const sessionAudioStreamRef = useRef<MediaStream | null>(null);
   const { playRemoteStream, stopAudioPlayback } = useViewerAudioStream();
   const iceServers = [
     { urls: 'stun:stun.l.google.com:19302' },
@@ -55,7 +56,8 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
       .on('presence', { event: 'join' }, ({ newPresences }) => {
         console.log('🎵 Viewer joined audio session:', newPresences);
         newPresences.forEach((presence: any) => {
-          if (presence.user_id !== currentUserId && sessionAudioStream && isHost) {
+          if (presence.user_id !== currentUserId && sessionAudioStreamRef.current && isHost) {
+            console.log('🎵 Host: Creating peer connection for new viewer:', presence.username);
             createPeerConnection(presence.user_id, presence.username, true);
           }
         });
@@ -77,11 +79,13 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
       const peerConnection = new RTCPeerConnection({ iceServers });
       
       // Add session audio tracks if we're the host
-      if (sessionAudioStream && isHost) {
-        sessionAudioStream.getTracks().forEach(track => {
-          peerConnection.addTrack(track, sessionAudioStream);
+      if (sessionAudioStreamRef.current && isHost) {
+        const tracks = sessionAudioStreamRef.current.getTracks();
+        console.log('🎵 Host: Adding', tracks.length, 'audio tracks for', username);
+        tracks.forEach(track => {
+          peerConnection.addTrack(track, sessionAudioStreamRef.current!);
+          console.log('🎵 Added track:', track.kind, track.id);
         });
-        console.log('🎵 Added session audio tracks for', username);
       }
 
       // Handle incoming audio (for viewers)
@@ -271,6 +275,8 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
       }
 
       setSessionAudioStream(sessionAudio);
+      sessionAudioStreamRef.current = sessionAudio;
+      console.log('🎵 Host: Session audio stream set, tracks:', sessionAudio.getTracks().length);
       setupSignaling();
 
       // Join presence
@@ -318,6 +324,7 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
 
       setRemoteParticipants(new Map());
       setSessionAudioStream(null);
+      sessionAudioStreamRef.current = null;
       
       // Clean up viewer audio
       stopAudioPlayback();
