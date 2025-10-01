@@ -163,6 +163,21 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
             
             // Force immediate update to prevent loading state persistence
             waveSurfer.pause(); // Ensure it never plays
+
+            // Hide any progress overlay/canvas and remove clipping so waveform never disappears
+            const contEl = containerRef.current as HTMLElement | null;
+            if (contEl) {
+              const canvases = contEl.querySelectorAll('canvas');
+              canvases.forEach((c, i) => {
+                const canvasEl = c as HTMLCanvasElement;
+                canvasEl.style.clipPath = 'none';
+                // @ts-ignore - webkitClipPath isn't in TS types
+                canvasEl.style.webkitClipPath = 'none';
+                if (i > 0) canvasEl.style.display = 'none'; // hide progress canvas
+              });
+              const progressEl = contEl.querySelector('[class*="progress"], .wavesurfer__progress') as HTMLElement | null;
+              if (progressEl) progressEl.style.display = 'none';
+            }
           }
         }).catch((err) => {
           if (waveSurferRef.current === waveSurfer) { // Check if this is still the current instance
@@ -177,6 +192,19 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
         waveSurfer.on('ready', () => {
           if (waveSurferRef.current === waveSurfer) {
             waveSurfer.pause(); // Ensure it never plays
+            const contEl = containerRef.current as HTMLElement | null;
+            if (contEl) {
+              const canvases = contEl.querySelectorAll('canvas');
+              canvases.forEach((c, i) => {
+                const canvasEl = c as HTMLCanvasElement;
+                canvasEl.style.clipPath = 'none';
+                // @ts-ignore - webkitClipPath isn't in TS types
+                canvasEl.style.webkitClipPath = 'none';
+                if (i > 0) canvasEl.style.display = 'none';
+              });
+              const progressEl = contEl.querySelector('[class*="progress"], .wavesurfer__progress') as HTMLElement | null;
+              if (progressEl) progressEl.style.display = 'none';
+            }
           }
         });
       } catch (err) {
@@ -213,6 +241,9 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
   useEffect(() => {
     if (!waveSurferRef.current || !isLoaded) return;
 
+    // Keep waveform static during playback to avoid any clipping/progress effects
+    if (isPlaying) return;
+
     try {
       const fullDuration = clip.fullDuration || clip.originalTrack.analyzed_duration || clip.originalTrack.duration || clipDuration;
       const startOffset = Math.max(0, clip.trimStart ?? 0);
@@ -239,7 +270,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
     } catch (err) {
       console.error('Error updating WaveSurfer playhead:', err);
     }
-  }, [currentTime, clip.startTime, clip.endTime, clipDuration, isLoaded, clip.fullDuration, clip.trimStart, clip.trimEnd]);
+  }, [currentTime, isPlaying, clip.startTime, clip.endTime, clipDuration, isLoaded, clip.fullDuration, clip.trimStart, clip.trimEnd]);
 
   // Update visual opacity based on mute state
   useEffect(() => {
@@ -252,7 +283,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
       try {
         waveSurferRef.current.setOptions({
           waveColor: getTrackWaveColor(trackIndex, isMuted),
-          progressColor: getTrackProgressColor(trackIndex, isMuted)
+          progressColor: 'transparent'
         });
       } catch (err) {
         console.error('Error updating waveform colors:', err);
