@@ -255,9 +255,15 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
         // VIEWER LOGIC: If I'm a viewer, find the host and create a peer connection in preparation for an offer.
         if (!isHost) {
           const hostPresence = allParticipants.find((p: any) => p.streaming === true);
-          if (hostPresence && !remoteParticipants.has(hostPresence.user_id)) {
-            console.log('🎵 Viewer (on sync): Detected host, creating peer connection.');
-            createPeerConnection(hostPresence.user_id, hostPresence.username, false);
+          if (hostPresence) {
+            setRemoteParticipants(prev => {
+              // Use the freshest state (prev) for the check
+              if (!prev.has(hostPresence.user_id)) {
+                console.log('🎵 Viewer (on sync): Detected host, creating peer connection.');
+                createPeerConnection(hostPresence.user_id, hostPresence.username, false);
+              }
+              return prev; // Return previous state since createPeerConnection handles the update
+            });
           }
         }
 
@@ -275,9 +281,15 @@ export const useAudioOnlyStreaming = ({ sessionId, isHost, currentUserId }: UseA
         console.log('🎵 User joined audio session:', newPresences);
         newPresences.forEach((presence: any) => {
           // VIEWER LOGIC: If the host is the one who just joined, create a peer connection.
-          if (!isHost && presence.streaming === true && !remoteParticipants.has(presence.user_id)) {
-            console.log('🎵 Viewer (on join): Host has arrived, creating peer connection.');
-            createPeerConnection(presence.user_id, presence.username, false);
+          if (!isHost && presence.streaming === true) {
+            setRemoteParticipants(prev => {
+              // Use the freshest state (prev) for the check
+              if (!prev.has(presence.user_id)) {
+                console.log('🎵 Viewer (on join): Host has arrived, creating peer connection.');
+                createPeerConnection(presence.user_id, presence.username, false);
+              }
+              return prev; // Return previous state since createPeerConnection handles the update
+            });
           }
           
           // HOST LOGIC: Create connection for new viewers, but only if streaming
