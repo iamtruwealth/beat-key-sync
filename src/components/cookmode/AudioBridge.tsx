@@ -31,6 +31,7 @@ interface AudioBridgeProps {
   isPlaying: boolean;
   currentTime: number;
   minBars?: number;
+  isHost?: boolean; // Only initialize loop engine for hosts
   onTick: (seconds: number) => void;
   onPlayPause: () => void;
   onSeek: (seconds: number) => void;
@@ -43,6 +44,7 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
   isPlaying,
   currentTime,
   minBars = 8,
+  isHost = true, // Default to true for backward compatibility
   onTick,
   onPlayPause,
   onSeek
@@ -120,6 +122,14 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
 
   // Initialize engine once
   useEffect(() => {
+    // Viewers don't need the loop engine - they only hear WebRTC audio
+    if (!isHost) {
+      console.log('AudioBridge: Viewer mode - skipping loop engine initialization');
+      isInitialized.current = true;
+      return;
+    }
+
+    console.log('AudioBridge: Initializing session loop engine (once) for HOST...');
     const initEngine = async () => {
       try {
         await sessionLoopEngine.initialize();
@@ -149,30 +159,34 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
     initEngine();
 
     return () => {
-      sessionLoopEngine.dispose();
+      if (isHost) {
+        sessionLoopEngine.dispose();
+      }
     };
-  }, []);
+  }, [isHost]);
 
   // Keep tick handler updated without re-initializing the engine
   useEffect(() => {
+    if (!isHost) return;
     sessionLoopEngine.onTick = (seconds: number) => {
       lastTickRef.current = seconds;
       onTick(seconds);
     };
-  }, [onTick]);
+  }, [onTick, isHost]);
 
   // Handle BPM changes
   useEffect(() => {
+    if (!isHost) return;
     if (isInitialized.current && bpm !== previousBPM.current) {
       console.log(`AudioBridge: BPM changed from ${previousBPM.current} to ${bpm}`);
       sessionLoopEngine.setBpm(bpm);
       previousBPM.current = bpm;
     }
-  }, [bpm]);
+  }, [bpm, isHost]);
 
   // Single effect to handle all clip updates - prevents multiple overlapping audio instances
   useEffect(() => {
-    if (!isInitialized.current) return;
+    if (!isHost || !isInitialized.current) return;
     
     let engineClips: Clip[] = [];
     
@@ -213,11 +227,11 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
       previousClipsSignature.current = signature;
       sessionLoopEngine.setClips(engineClips, minBars);
     }
-  }, [clips, tracks, bpm, minBars, createClipsFromTimeline, createClipsFromTracks]);
+  }, [clips, tracks, bpm, minBars, createClipsFromTimeline, createClipsFromTracks, isHost]);
 
   // Handle track property updates (volume, mute, solo)
   useEffect(() => {
-    if (!isInitialized.current) return;
+    if (!isHost || !isInitialized.current) return;
 
     if (Array.isArray(clips) && clips.length > 0) {
       // Update per-clip using associated track state
@@ -244,29 +258,29 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
         sessionLoopEngine.updateClipGain(track.id, track.volume || 1);
       });
     }
-  }, [tracks, clips]);
+  }, [tracks, clips, isHost]);
 
   // Handle playback state changes
   useEffect(() => {
-    if (!isInitialized.current) return;
+    if (!isHost || !isInitialized.current) return;
 
     if (isPlaying && !sessionLoopEngine.isPlaying) {
       sessionLoopEngine.start();
     } else if (!isPlaying && sessionLoopEngine.isPlaying) {
       sessionLoopEngine.pause();
     }
-  }, [isPlaying]);
+  }, [isPlaying, isHost]);
 
   // Provide seek functionality
   const handleSeek = useCallback((seconds: number) => {
-    if (isInitialized.current) {
+    if (isHost && isInitialized.current) {
       sessionLoopEngine.seek(seconds);
     }
-  }, []);
+  }, [isHost]);
 
   // Keep engine in sync with parent time
   useEffect(() => {
-    if (!isInitialized.current) return;
+    if (!isHost || !isInitialized.current) return;
 
     if (!isPlaying) {
       // Always sync when paused/stopped
@@ -279,7 +293,7 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
     if (delta > 0.25) {
       sessionLoopEngine.seek(currentTime);
     }
-  }, [currentTime, isPlaying]);
+  }, [currentTime, isPlaying, isHost]);
 
   // AudioBridge is a logic-only component, no UI
   return null;

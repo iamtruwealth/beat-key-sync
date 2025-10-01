@@ -48,6 +48,7 @@ interface TimelineViewProps {
   bpm: number;
   metronomeEnabled?: boolean;
   minBars?: number;
+  readOnly?: boolean; // If true, viewer mode (no loop engine)
   onPlayPause: () => void;
   onSeek: (time: number) => void;
   onTracksUpdate?: (tracks: Track[]) => void;
@@ -65,6 +66,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   bpm,
   metronomeEnabled = false,
   minBars = 8,
+  readOnly = false,
   onPlayPause,
   onSeek,
   onTracksUpdate,
@@ -792,6 +794,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         isPlaying={isPlaying}
         currentTime={currentTime}
         minBars={minBars}
+        isHost={!readOnly} // Viewers don't run the loop engine
         onTick={handleTick}
         onPlayPause={onPlayPause}
         onSeek={onSeek}

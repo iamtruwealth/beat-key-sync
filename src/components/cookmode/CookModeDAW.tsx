@@ -430,6 +430,7 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
                 bpm={bpm}
                 metronomeEnabled={metronomeEnabled}
                 minBars={minBars}
+                readOnly={readOnly}
                 onPlayPause={onTogglePlayback}
                 onSeek={onSeek}
                 onTracksUpdate={handleTracksUpdateFromTimeline}
