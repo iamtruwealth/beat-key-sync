@@ -24,6 +24,7 @@ import { BackgroundWebRTCConnector } from '@/components/cookmode/BackgroundWebRT
 import { useWebRTCStreaming } from '@/hooks/useWebRTCStreaming';
 import { useAudioOnlyStreaming } from '@/hooks/useAudioOnlyStreaming';
 import { SessionParticipants } from '@/components/cookmode/SessionParticipants';
+import RadioStreamControls from '@/components/radio/RadioStreamControls';
 import { SessionControls } from '@/components/cookmode/SessionControls';
 import { CookModeAudioControls } from '@/components/cookmode/CookModeAudioControls';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -676,27 +677,12 @@ const CookMode = () => {
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              {/* Start/Stop Audio Stream Button (session music only) */}
-              {!isStreamingAudio ? (
-                <Button
-                  onClick={startAudioStreaming}
-                  className="bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:opacity-90"
-                  size="sm"
-                >
-                  <Volume2 className="w-4 h-4 mr-2" />
-                  Start Audio Stream
-                </Button>
-              ) : (
-                <Button
-                  onClick={stopAudioStreaming}
-                  variant="outline"
-                  size="sm"
-                  className="border-green-500 text-green-500"
-                >
-                  <Volume2 className="w-4 h-4 mr-2" />
-                  Stop Audio Stream
-                </Button>
-              )}
+              {/* Radio Stream Controls */}
+              <RadioStreamControls 
+                sessionId={sessionId || ''}
+                isHost={permissions.canEdit}
+                currentUserId={currentUser?.id}
+              />
 
               {/* Optional: Start/Stop Video Stream Button (camera + mic) */}
               {!isStreaming ? (
