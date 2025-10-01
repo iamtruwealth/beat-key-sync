@@ -1,15 +1,11 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { sessionLoopEngine } from '@/lib/sessionLoopEngine';
 import { HostMasterAudio } from '@/lib/HostMasterAudio';
-
-interface Participant {
-  user_id: string;
-  username: string;
-  stream?: MediaStream;
-  peerConnection?: RTCPeerConnection;
-}
+import { useWebRTCConnection, Participant } from './webrtc/useWebRTCConnection';
+import { useWebRTCSignaling } from './webrtc/useWebRTCSignaling';
+import { useHostAudioStream } from './webrtc/useHostAudioStream';
+import { useViewerAudioStream } from './webrtc/useViewerAudioStream';
 
 interface UseWebRTCStreamingProps {
   sessionId: string;
@@ -18,584 +14,252 @@ interface UseWebRTCStreamingProps {
 }
 
 export const useWebRTCStreaming = ({ sessionId, canEdit, currentUserId }: UseWebRTCStreamingProps) => {
-  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
-  const [participants, setParticipants] = useState<Map<string, Participant>>(new Map());
-  const [isStreaming, setIsStreaming] = useState(false);
-  const [streamEnabled, setStreamEnabled] = useState({ video: true, audio: true });
-  
-  const signalingChannel = useRef<any>(null);
-  const localVideoRef = useRef<HTMLVideoElement>(null);
-  const externalAudioTrackRef = useRef<MediaStreamTrack | null>(null);
-  const externalAudioStreamRef = useRef<MediaStream | null>(null);
+  const {
+    participants,
+    participantsMap,
+    createPeerConnection,
+    addTrackToPeer,
+    updateParticipantStream,
+    removePeerConnection,
+    closeAllConnections,
+    masterTrackIdRef
+  } = useWebRTCConnection();
 
-  // ICE servers configuration
-  const iceServers = [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' }
-  ];
+  const {
+    isStreaming,
+    streamEnabled,
+    localStream,
+    localVideoRef,
+    startStreaming: startHostStreaming,
+    stopStreaming: stopHostStreaming,
+    toggleVideo,
+    toggleAudio,
+    getMasterAudioTrack,
+    getMasterAudioStream
+  } = useHostAudioStream();
 
-  // Setup signaling channel for WebRTC
-  const setupSignaling = useCallback(() => {
-    const channel = supabase.channel(`webrtc-${sessionId}`, {
-      config: { presence: { key: sessionId } }
-    });
+  const {
+    playRemoteStream
+  } = useViewerAudioStream();
 
-    channel
-      .on('broadcast', { event: 'webrtc-offer' }, async ({ payload }) => {
-        if (payload.to === currentUserId && payload.from !== currentUserId) {
-          await handleOffer(payload.from, payload.offer);
-        }
-      })
-      .on('broadcast', { event: 'webrtc-answer' }, async ({ payload }) => {
-        if (payload.to === currentUserId && payload.from !== currentUserId) {
-          await handleAnswer(payload.from, payload.answer);
-        }
-      })
-      .on('broadcast', { event: 'webrtc-ice-candidate' }, async ({ payload }) => {
-        if (payload.to === currentUserId && payload.from !== currentUserId) {
-          await handleIceCandidate(payload.from, payload.candidate);
-        }
-      })
-      .on('broadcast', { event: 'sync-request' }, async ({ payload }) => {
-        // Host responds to sync requests from late joiners
-        if (canEdit && payload.from !== currentUserId) {
-          const hostMaster = HostMasterAudio.getInstance();
-          if (hostMaster.isInitialized) {
-            const syncData = {
-              currentTime: hostMaster.getCurrentPlaybackTime(),
-              loopDuration: hostMaster.getLoopDuration(),
-              isPlaying: hostMaster.hasPlayer
-            };
-            
-            channel.send({
-              type: 'broadcast',
-              event: 'sync-response',
-              payload: {
-                from: currentUserId,
-                to: payload.from,
-                syncData
-              }
-            });
-          }
-        }
-      })
-      .on('broadcast', { event: 'sync-response' }, ({ payload }) => {
-        // Late joiner receives sync data
-        if (payload.to === currentUserId && !canEdit) {
-          console.log('📻 Received sync data for late join:', payload.syncData);
-          // This would be used by the audio element to sync if needed
-        }
-      })
-      .on('presence', { event: 'sync' }, () => {
-        const presenceState = channel.presenceState();
-        console.log('📹 WebRTC presence sync:', presenceState);
-        updateParticipantsList(presenceState);
-      })
-      .on('presence', { event: 'join' }, ({ newPresences }) => {
-        console.log('📹 User joined video session:', newPresences);
-        newPresences.forEach((presence: any) => {
-          if (presence.user_id !== currentUserId) {
-            createPeerConnection(presence.user_id, presence.username, true);
-            
-            // If we're the host and someone joined, they might be a late joiner
-            if (canEdit) {
-              console.log('📻 Host: New viewer joined, they will auto-sync to master stream');
-            }
-          }
-        });
-      })
-      .on('presence', { event: 'leave' }, ({ leftPresences }) => {
-        console.log('📹 User left video session:', leftPresences);
-        leftPresences.forEach((presence: any) => {
-          removePeerConnection(presence.user_id);
-        });
-      })
-      .subscribe();
+  // Handle incoming track from peer
+  const handleIncomingTrack = useCallback((userId: string, stream: MediaStream) => {
+    updateParticipantStream(userId, stream);
+    
+    // If we're a viewer, play the audio
+    if (!canEdit && stream.getAudioTracks().length > 0) {
+      console.log('👀 Viewer received audio stream, starting playback');
+      playRemoteStream(stream).catch(error => {
+        console.error('Failed to play remote stream:', error);
+        toast.error('Failed to play audio stream');
+      });
+    }
+  }, [canEdit, updateParticipantStream, playRemoteStream]);
 
-    signalingChannel.current = channel;
-  }, [sessionId, currentUserId, canEdit]);
+  // Signaling callbacks
+  const handleOffer = useCallback(async (fromUserId: string, offer: RTCSessionDescriptionInit, getPresenceState: () => any) => {
+    let peerConnection = participantsMap.get(fromUserId)?.peerConnection;
 
-  // Create peer connection for a participant
-  const createPeerConnection = async (userId: string, username: string, isInitiator: boolean) => {
-    try {
-      const peerConnection = new RTCPeerConnection({ iceServers });
+    if (!peerConnection) {
+      const presenceState = getPresenceState();
+      const fromPresence = Object.values(presenceState).flat().find((p: any) => p.user_id === fromUserId) as any;
       
-      // Add local stream tracks
-      if (localStream) {
-        localStream.getTracks().forEach(track => {
-          peerConnection.addTrack(track, localStream);
-        });
+      if (fromPresence) {
+        peerConnection = createPeerConnection(
+          fromUserId,
+          fromPresence.username,
+          (stream) => handleIncomingTrack(fromUserId, stream),
+          (candidate) => signalingRef.current?.sendIceCandidate(fromUserId, candidate)
+        );
       }
-      // Also add external mixed audio track if provided
-      if (externalAudioTrackRef.current && externalAudioStreamRef.current) {
-        peerConnection.addTrack(externalAudioTrackRef.current, externalAudioStreamRef.current);
-      }
-
-      // Handle incoming track(s) - merge into a single combined stream per participant
-      peerConnection.ontrack = (event) => {
-        const [incomingStream] = event.streams;
-        setParticipants(prev => {
-          const updated = new Map(prev);
-          const existing = updated.get(userId) || { user_id: userId, username } as any;
-
-          // Create or reuse a combined MediaStream
-          if (!(existing as any).combinedStream) {
-            (existing as any).combinedStream = new MediaStream();
-          }
-          const combined: MediaStream = (existing as any).combinedStream;
-
-          // Add new tracks if not already present
-          incomingStream.getTracks().forEach(track => {
-            const already = combined.getTracks().some(t => t.id === track.id);
-            if (!already) combined.addTrack(track);
-          });
-
-          existing.stream = combined;
-          existing.peerConnection = peerConnection;
-          updated.set(userId, existing);
-          return updated;
-        });
-      };
-
-      // Handle ICE candidates
-      peerConnection.onicecandidate = (event) => {
-        if (event.candidate && signalingChannel.current) {
-          signalingChannel.current.send({
-            type: 'broadcast',
-            event: 'webrtc-ice-candidate',
-            payload: {
-              from: currentUserId,
-              to: userId,
-              candidate: event.candidate
-            }
-          });
-        }
-      };
-
-      // Connection state logging
-      peerConnection.onconnectionstatechange = () => {
-        console.log(`📹 Connection with ${username}:`, peerConnection.connectionState);
-      };
-
-      // Ensure master audio sender is attached exactly once (no dupes)
-      const ensureMasterAudioSender = () => {
-        if (!externalAudioTrackRef.current || !externalAudioStreamRef.current) return;
-        const masterTrack = externalAudioTrackRef.current;
-        const audioSenders = peerConnection.getSenders().filter(s => s.track && s.track.kind === 'audio');
-
-        // Remove any non-master audio senders to prevent double audio
-        audioSenders.forEach((s) => {
-          if (s.track && s.track.id !== masterTrack.id) {
-            console.log('🧹 Removing extra audio sender', s.track.id);
-            try { peerConnection.removeTrack(s); } catch {}
-          }
-        });
-
-        const existingSender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'audio');
-        if (existingSender) {
-          if (existingSender.track?.id !== masterTrack.id) {
-            console.log('🔁 Replacing audio sender track with master track');
-            existingSender.replaceTrack(masterTrack).catch((e) => console.warn('replaceTrack failed', e));
-          }
-        } else {
-          console.log('➕ Adding master audio track to peer connection');
-          peerConnection.addTrack(masterTrack, externalAudioStreamRef.current);
-        }
-      };
-      ensureMasterAudioSender();
-
-      // Renegotiate when new tracks are added (especially after adding master audio)
-      peerConnection.onnegotiationneeded = async () => {
-        try {
-          if (!signalingChannel.current) return;
-          console.log('🌀 onnegotiationneeded - creating offer');
-          const offer = await peerConnection.createOffer();
-          await peerConnection.setLocalDescription(offer);
-          signalingChannel.current.send({
-            type: 'broadcast',
-            event: 'webrtc-offer',
-            payload: { from: currentUserId, to: userId, offer }
-          });
-        } catch (e) {
-          console.warn('Negotiation failed:', e);
-        }
-      };
-
-      setParticipants(prev => {
-        const updated = new Map(prev);
-        updated.set(userId, { 
-          user_id: userId, 
-          username, 
-          peerConnection 
-        });
-        return updated;
-      });
-
-      // If initiator, create offer
-      if (isInitiator) {
-        const offer = await peerConnection.createOffer();
-        await peerConnection.setLocalDescription(offer);
-        
-        signalingChannel.current?.send({
-          type: 'broadcast',
-          event: 'webrtc-offer',
-          payload: {
-            from: currentUserId,
-            to: userId,
-            offer: offer
-          }
-        });
-      }
-
-      return peerConnection;
-    } catch (error) {
-      console.error('Error creating peer connection:', error);
-      toast.error('Failed to connect to participant');
     }
-  };
 
-  // Handle incoming offer
-  const handleOffer = async (fromUserId: string, offer: RTCSessionDescriptionInit) => {
-    try {
-      const participant = participants.get(fromUserId);
-      let peerConnection = participant?.peerConnection;
-
-      if (!peerConnection) {
-        // Create new peer connection if it doesn't exist
-        const presenceState = signalingChannel.current?.presenceState() || {};
-        const fromPresence = Object.values(presenceState).flat().find((p: any) => p.user_id === fromUserId) as any;
-        if (fromPresence) {
-          peerConnection = await createPeerConnection(fromUserId, fromPresence.username, false);
-        }
-      }
-
-      if (peerConnection) {
-        await peerConnection.setRemoteDescription(offer);
-        const answer = await peerConnection.createAnswer();
-        await peerConnection.setLocalDescription(answer);
-
-        signalingChannel.current?.send({
-          type: 'broadcast',
-          event: 'webrtc-answer',
-          payload: {
-            from: currentUserId,
-            to: fromUserId,
-            answer: answer
-          }
-        });
-      }
-    } catch (error) {
-      console.error('Error handling offer:', error);
+    if (peerConnection) {
+      await peerConnection.setRemoteDescription(offer);
+      const answer = await peerConnection.createAnswer();
+      await peerConnection.setLocalDescription(answer);
+      signalingRef.current?.sendAnswer(fromUserId, answer);
     }
-  };
+  }, [participantsMap, createPeerConnection, handleIncomingTrack]);
 
-  // Handle incoming answer
-  const handleAnswer = async (fromUserId: string, answer: RTCSessionDescriptionInit) => {
-    try {
-      const participant = participants.get(fromUserId);
-      if (participant?.peerConnection) {
-        await participant.peerConnection.setRemoteDescription(answer);
-      }
-    } catch (error) {
-      console.error('Error handling answer:', error);
+  const handleAnswer = useCallback(async (fromUserId: string, answer: RTCSessionDescriptionInit) => {
+    const participant = participantsMap.get(fromUserId);
+    if (participant?.peerConnection) {
+      await participant.peerConnection.setRemoteDescription(answer);
     }
-  };
+  }, [participantsMap]);
 
-  // Handle ICE candidate
-  const handleIceCandidate = async (fromUserId: string, candidate: RTCIceCandidateInit) => {
-    try {
-      const participant = participants.get(fromUserId);
-      if (participant?.peerConnection) {
-        await participant.peerConnection.addIceCandidate(candidate);
-      }
-    } catch (error) {
-      console.error('Error handling ICE candidate:', error);
+  const handleIceCandidate = useCallback(async (fromUserId: string, candidate: RTCIceCandidateInit) => {
+    const participant = participantsMap.get(fromUserId);
+    if (participant?.peerConnection) {
+      await participant.peerConnection.addIceCandidate(candidate);
     }
-  };
+  }, [participantsMap]);
 
-  // Remove peer connection
-  const removePeerConnection = (userId: string) => {
-    setParticipants(prev => {
-      const updated = new Map(prev);
-      const participant = updated.get(userId);
-      if (participant?.peerConnection) {
-        participant.peerConnection.close();
+  const handleUserJoined = useCallback(async (userId: string, username: string) => {
+    console.log(`👤 User joined: ${username}`);
+    
+    const pc = createPeerConnection(
+      userId,
+      username,
+      (stream) => handleIncomingTrack(userId, stream),
+      (candidate) => signalingRef.current?.sendIceCandidate(userId, candidate),
+      async () => {
+        if (!pc) return;
+        console.log('🌀 Creating offer for', username);
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        signalingRef.current?.sendOffer(userId, offer);
       }
-      updated.delete(userId);
-      return updated;
-    });
-  };
+    );
 
-  // Update participants list from presence
-  const updateParticipantsList = (presenceState: any) => {
-    setParticipants(prev => {
-      const updated = new Map(prev);
-      const currentParticipants = new Set();
+    // If we're the host and have a master audio track, add it to this new peer
+    if (canEdit && getMasterAudioTrack() && getMasterAudioStream()) {
+      const track = getMasterAudioTrack()!;
+      const stream = getMasterAudioStream()!;
+      addTrackToPeer(userId, track, stream);
+    }
 
-      Object.keys(presenceState).forEach(key => {
-        const presences = presenceState[key] as any[];
-        presences.forEach(presence => {
-          if (presence.user_id !== currentUserId) {
-            currentParticipants.add(presence.user_id);
-            if (!updated.has(presence.user_id)) {
-              updated.set(presence.user_id, {
-                user_id: presence.user_id,
-                username: presence.username
-              });
-            }
-          }
-        });
-      });
-
-      // Remove participants who left
-      Array.from(updated.keys()).forEach(userId => {
-        if (!currentParticipants.has(userId)) {
-          const participant = updated.get(userId);
-          if (participant?.peerConnection) {
-            participant.peerConnection.close();
-          }
-          updated.delete(userId);
+    // Add local video track if available
+    if (localStream) {
+      localStream.getTracks().forEach(track => {
+        if (track.kind === 'video') {
+          addTrackToPeer(userId, track, localStream);
         }
       });
+    }
+  }, [canEdit, localStream, createPeerConnection, addTrackToPeer, handleIncomingTrack, getMasterAudioTrack, getMasterAudioStream]);
 
-      return updated;
-    });
-  };
+  const handleUserLeft = useCallback((userId: string) => {
+    console.log(`👤 User left: ${userId}`);
+    removePeerConnection(userId);
+  }, [removePeerConnection]);
 
-  // Start master audio broadcasting (host only)
-  const startStreaming = async () => {
-    try {
-      console.log('📻 Starting master audio broadcast');
-      
-      // Initialize HostMasterAudio first
-      const hostMaster = HostMasterAudio.getInstance();
-      if (!hostMaster.isInitialized) {
-        await hostMaster.initialize();
-        hostMaster.connectToCookModeEngine();
-      }
+  const handleSyncRequest = useCallback((fromUserId: string) => {
+    if (!canEdit) return;
+    
+    const hostMaster = HostMasterAudio.getInstance();
+    if (hostMaster.isInitialized) {
+      const syncData = {
+        currentTime: hostMaster.getCurrentPlaybackTime(),
+        loopDuration: hostMaster.getLoopDuration(),
+        isPlaying: hostMaster.hasPlayer
+      };
+      signalingRef.current?.sendSyncResponse(fromUserId, syncData);
+    }
+  }, [canEdit]);
 
-      // Get the master audio stream for broadcasting
-      const masterAudioStream = hostMaster.getMasterStream();
-      if (!masterAudioStream) {
-        throw new Error('No master audio stream available');
-      }
-
-      // Create main broadcast stream (audio + optional video)
-      const stream = streamEnabled.video 
-        ? await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-        : new MediaStream();
-
-      // Add master audio track to the broadcast stream
-      const audioTrack = masterAudioStream.getAudioTracks()[0];
-      if (audioTrack) {
-        console.log('📻 Adding master audio track to broadcast stream');
-        stream.addTrack(audioTrack);
-        externalAudioTrackRef.current = audioTrack;
-        externalAudioStreamRef.current = masterAudioStream;
-      }
-
-      setLocalStream(stream);
-      setIsStreaming(true);
-
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
-      }
-
-      // Join WebRTC presence as host
-      if (signalingChannel.current) {
-        const { data: { user } } = await supabase.auth.getUser();
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('producer_name, first_name, last_name')
-          .eq('id', user?.id)
-          .single();
-
-        const username = profile?.producer_name || 
-                        `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || 
-                        'Host';
-
-        await signalingChannel.current.track({
-          user_id: user?.id,
-          username,
-          streaming: true,
-          role: 'host'
-        });
-
-        // Connect to all existing participants
-        const presenceState = signalingChannel.current.presenceState?.() || {};
-        const others = (Object.values(presenceState).flat() as any[]);
-        for (const presence of others) {
-          if (presence.user_id && presence.user_id !== user?.id) {
-            await createPeerConnection(presence.user_id, presence.username || 'Viewer', true);
-          }
-        }
-      }
+  // Use ref to avoid circular dependency
+  const signalingRef = { current: null as ReturnType<typeof useWebRTCSignaling> | null };
   
-      toast.success('📻 Master audio broadcast started - streaming to all viewers');
-    } catch (error) {
-      console.error('Error starting master audio broadcast:', error);
-      toast.error('Failed to start audio broadcast');
-    }
-  };
+  const signaling = useWebRTCSignaling(sessionId, currentUserId, canEdit, {
+    onOffer: (from, offer) => handleOffer(from, offer, () => signalingRef.current?.getPresenceState() || {}),
+    onAnswer: handleAnswer,
+    onIceCandidate: handleIceCandidate,
+    onUserJoined: handleUserJoined,
+    onUserLeft: handleUserLeft,
+    onSyncRequest: handleSyncRequest
+  });
+  
+  signalingRef.current = signaling;
 
-  // Start as viewer (receive master audio stream)
+  // Start streaming as host
+  const startStreaming = useCallback(async () => {
+    if (!canEdit) return;
+
+    await startHostStreaming((track, stream) => {
+      // Add master audio track to all existing peers
+      participantsMap.forEach((participant, userId) => {
+        if (masterTrackIdRef.current !== track.id) {
+          addTrackToPeer(userId, track, stream);
+        }
+      });
+      masterTrackIdRef.current = track.id;
+    });
+
+    // Get user info and track presence
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('producer_name, first_name, last_name')
+      .eq('id', user?.id)
+      .single();
+
+    const username = profile?.producer_name || 
+                    `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || 
+                    'Host';
+
+    await signaling.trackPresence(username, true, 'host');
+
+    // Connect to existing participants
+    const presenceState = signaling.getPresenceState();
+    const others = Object.values(presenceState).flat() as any[];
+    for (const presence of others) {
+      if (presence.user_id && presence.user_id !== user?.id) {
+        await handleUserJoined(presence.user_id, presence.username || 'Viewer');
+      }
+    }
+  }, [canEdit, startHostStreaming, signaling, participantsMap, addTrackToPeer, handleUserJoined, masterTrackIdRef]);
+
+  // Start as viewer
   const startAsViewer = useCallback(async () => {
-    try {
-      console.log('👀 Starting as viewer - ready to receive master audio stream');
-      
-      // Join WebRTC presence as viewer
-      if (signalingChannel.current) {
-        const { data: { user } } = await supabase.auth.getUser();
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('producer_name, first_name, last_name')
-          .eq('id', user?.id)
-          .single();
+    if (canEdit) return;
 
-        const username = profile?.producer_name || 
-                        `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || 
-                        'Viewer';
+    console.log('👀 Starting as viewer');
+    
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('producer_name, first_name, last_name')
+      .eq('id', user?.id)
+      .single();
 
-        await signalingChannel.current.track({
-          user_id: user?.id,
-          username,
-          streaming: false,
-          role: 'viewer'
-        });
+    const username = profile?.producer_name || 
+                    `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || 
+                    'Viewer';
 
-        // Request sync from host for late joining
-        signalingChannel.current.send({
-          type: 'broadcast',
-          event: 'sync-request',
-          payload: {
-            from: user?.id,
-            message: 'Late joiner requesting sync'
-          }
-        });
-      }
-
-      setIsStreaming(false); // Viewers don't stream
-      console.log('✅ Viewer connected - will receive master audio stream');
-    } catch (error) {
-      console.error('Error starting as viewer:', error);
-    }
-  }, [currentUserId]);
+    await signaling.trackPresence(username, false, 'viewer');
+    signaling.sendSyncRequest();
+    
+    console.log('✅ Viewer connected');
+  }, [canEdit, signaling]);
 
   // Stop streaming
-  const stopStreaming = () => {
-    if (localStream) {
-      localStream.getTracks().forEach(track => track.stop());
-      setLocalStream(null);
-    }
+  const stopStreaming = useCallback(() => {
+    stopHostStreaming();
+    closeAllConnections();
+    signaling.untrackPresence();
+  }, [stopHostStreaming, closeAllConnections, signaling]);
 
-    // Close all peer connections
-    participants.forEach(participant => {
-      if (participant.peerConnection) {
-        participant.peerConnection.close();
-      }
-    });
-
-    setParticipants(new Map());
-    setIsStreaming(false);
-
-    if (signalingChannel.current) {
-      signalingChannel.current.untrack();
-    }
-
-    toast.success('Stopped video streaming');
-  };
-
-  // Toggle video/audio
-  const toggleVideo = () => {
-    if (localStream) {
-      const videoTrack = localStream.getVideoTracks()[0];
-      if (videoTrack) {
-        videoTrack.enabled = !videoTrack.enabled;
-        setStreamEnabled(prev => ({ ...prev, video: videoTrack.enabled }));
-      }
-    }
-  };
-
-  const toggleAudio = () => {
-    if (localStream) {
-      const audioTrack = localStream.getAudioTracks()[0];
-      if (audioTrack) {
-        audioTrack.enabled = !audioTrack.enabled;
-        setStreamEnabled(prev => ({ ...prev, audio: audioTrack.enabled }));
-      }
-    }
-  };
-
-  // Master audio attachment for hosts (HostMasterAudio)
-  const masterTrackIdRef = useRef<string | null>(null);
-  const attachHostMasterAudio = useCallback(() => {
-    try {
-      const hostMaster = HostMasterAudio.getInstance();
-      const masterStream = hostMaster.getMasterStream();
-      if (!masterStream) return;
-      const track = masterStream.getAudioTracks()[0];
-      if (!track) return;
-
-      externalAudioTrackRef.current = track;
-      externalAudioStreamRef.current = masterStream;
-
-      // Avoid re-adding the same track repeatedly
-      if (masterTrackIdRef.current === track.id) return;
-      masterTrackIdRef.current = track.id;
-
-      participants.forEach(p => {
-        const pc = p.peerConnection;
-        if (!pc) return;
-        const already = pc.getSenders().some(s => s.track && s.track.id === track.id);
-        if (!already) {
-          pc.addTrack(track, masterStream);
-        }
-      });
-      console.log('🔊 Master audio attached to all peer connections');
-    } catch (e) {
-      console.warn('Failed to attach master audio:', e);
-    }
-  }, [participants]);
-
-  useEffect(() => {
-    if (canEdit) {
-      attachHostMasterAudio();
-    }
-  }, [canEdit, participants, attachHostMasterAudio]);
-
-  // Setup signaling on mount and auto-connect guests
+  // Setup and cleanup
   useEffect(() => {
     if (!sessionId || !currentUserId) return;
 
     console.log('🎬 Setting up WebRTC for session:', sessionId, 'canEdit:', canEdit);
-    setupSignaling();
+    signaling.setupSignaling();
     
     // Auto-start as viewer for guests
     if (!canEdit) {
       const timer = setTimeout(() => {
         console.log('🎬 Auto-starting viewer mode for guest');
         startAsViewer();
-      }, 1500); // Small delay to ensure signaling is ready
+      }, 1500);
       
       return () => {
         clearTimeout(timer);
-        if (signalingChannel.current) {
-          signalingChannel.current.unsubscribe();
-        }
+        signaling.cleanup();
       };
     }
 
     return () => {
-      if (signalingChannel.current) {
-        signalingChannel.current.unsubscribe();
-      }
+      signaling.cleanup();
       stopStreaming();
     };
-  }, [sessionId, currentUserId, canEdit, setupSignaling, startAsViewer]);
+  }, [sessionId, currentUserId, canEdit, signaling, startAsViewer, stopStreaming]);
 
   return {
     localStream,
-    participants: Array.from(participants.values()),
+    participants,
     isStreaming,
     streamEnabled,
     localVideoRef,
@@ -606,3 +270,6 @@ export const useWebRTCStreaming = ({ sessionId, canEdit, currentUserId }: UseWeb
     toggleAudio
   };
 };
+
+// Re-export Participant type for backward compatibility
+export type { Participant };
