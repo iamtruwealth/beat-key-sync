@@ -12,6 +12,7 @@ export class HostMasterAudio {
   private isRouted: boolean = false;
   private continuousOscillator: OscillatorNode | null = null;
   private streamBus: GainNode | null = null;
+  private audioWorkletNode: AudioWorkletNode | null = null;
  
    private constructor() {}
 
@@ -24,16 +25,17 @@ export class HostMasterAudio {
 
   async initialize(): Promise<void> {
     try {
-      // Create AudioContext with balanced latency to prevent buffer underruns
-      const context = new AudioContext({
-        latencyHint: 'balanced', // Larger buffer to prevent stuttering
-        sampleRate: 44100
-      });
-      await Tone.setContext(context);
       await Tone.start();
-      
       this.audioContext = Tone.getContext().rawContext as AudioContext;
-      console.log('🎧 AudioContext initialized - Sample Rate:', this.audioContext.sampleRate, 'Base Latency:', this.audioContext.baseLatency);
+      console.log('🎧 AudioContext sampleRate:', this.audioContext.sampleRate);
+      
+      // Load AudioWorklet for high-priority audio thread processing
+      try {
+        await this.audioContext.audioWorklet.addModule('/audio-stream-processor.js');
+        console.log('✅ AudioWorklet loaded successfully');
+      } catch (error) {
+        console.warn('⚠️ AudioWorklet not available, falling back to main thread:', error);
+      }
       
       // Create master gain node - this is the central hub for all audio
       this.masterGain = this.audioContext.createGain();
@@ -42,15 +44,27 @@ export class HostMasterAudio {
       // Create MediaStreamAudioDestinationNode for broadcasting
       this.mediaStreamDestination = this.audioContext.createMediaStreamDestination();
       
+      // Create AudioWorklet node for buffer-safe processing
+      if (this.audioContext.audioWorklet) {
+        this.audioWorkletNode = new AudioWorkletNode(this.audioContext, 'audio-stream-processor');
+        
+        // Route: streamBus -> AudioWorklet -> masterGain -> [speakers + stream]
+        this.streamBus = this.audioContext.createGain();
+        this.streamBus.gain.value = 1.0;
+        this.streamBus.connect(this.audioWorkletNode);
+        this.audioWorkletNode.connect(this.masterGain);
+        
+        console.log('🎵 Audio processing moved to AudioWorklet (high-priority thread)');
+      } else {
+        // Fallback without worklet
+        this.streamBus = this.audioContext.createGain();
+        this.streamBus.gain.value = 1.0;
+        this.streamBus.connect(this.masterGain);
+      }
+      
       // Connect master gain to BOTH speakers and stream destination
-      // This ensures all audio going through masterGain is heard locally AND broadcast
       this.masterGain.connect(this.audioContext.destination); // For local speakers
       this.masterGain.connect(this.mediaStreamDestination);  // For broadcasting
-      
-      // Create stream bus (input to master gain)
-      this.streamBus = this.audioContext.createGain();
-      this.streamBus.gain.value = 1.0;
-      this.streamBus.connect(this.masterGain);
       
       // Create a continuous silent tone to keep the stream alive
       this.continuousOscillator = this.audioContext.createOscillator();
@@ -61,7 +75,7 @@ export class HostMasterAudio {
       silentGain.connect(this.masterGain);
       this.continuousOscillator.start();
       
-      console.log('🎵 HostMasterAudio initialized with unified audio routing');
+      console.log('🎵 HostMasterAudio initialized with AudioWorklet processing');
     } catch (error) {
       console.error('Failed to initialize HostMasterAudio:', error);
       throw error;
@@ -195,6 +209,12 @@ export class HostMasterAudio {
   }
 
   dispose(): void {
+    if (this.audioWorkletNode) {
+      this.audioWorkletNode.port.postMessage({ type: 'stop' });
+      this.audioWorkletNode.disconnect();
+      this.audioWorkletNode = null;
+    }
+    
     if (this.continuousOscillator) {
       this.continuousOscillator.stop();
       this.continuousOscillator.disconnect();
