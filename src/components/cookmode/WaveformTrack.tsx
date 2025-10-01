@@ -237,6 +237,35 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
     };
   }, []);
 
+  // Debug: observe DOM changes that could hide canvases
+  useEffect(() => {
+    const cont = containerRef.current;
+    if (!cont) return;
+    const logPrefix = `[WaveformTrack][${track.name}]`;
+    try {
+      const observer = new MutationObserver((mutations) => {
+        for (const m of mutations) {
+          if (m.type === 'attributes') {
+            const target = m.target as HTMLElement;
+            const cs = window.getComputedStyle(target);
+            console.log(`${logPrefix} mutation`, {
+              node: target.tagName,
+              className: target.className,
+              style: target.getAttribute('style') || '',
+              display: cs.display,
+              clipPath: cs.clipPath,
+              opacity: cs.opacity,
+              visibility: cs.visibility,
+            });
+          }
+        }
+      });
+      observer.observe(cont, { attributes: true, attributeFilter: ['style', 'class'], subtree: true });
+      return () => observer.disconnect();
+    } catch (e) {
+      console.warn(`${logPrefix} mutation observer failed`, e);
+    }
+  }, [containerId, track.name]);
   // Update playhead position based on timeline time and clip trims
   useEffect(() => {
     if (!waveSurferRef.current || !isLoaded) return;
@@ -290,6 +319,54 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
       }
     }
   }, [isMuted, opacity, trackIndex, isLoaded]);
+
+  // Debug: log when playback state changes and canvas visibility/styles
+  useEffect(() => {
+    const cont = containerRef.current;
+    const ws = waveSurferRef.current;
+    const logPrefix = `[WaveformTrack][${track.name}]`;
+    try {
+      console.log(`${logPrefix} isPlaying changed`, { isPlaying, isLoaded, hasWS: !!ws });
+      if (cont) {
+        const canvases = cont.querySelectorAll('canvas');
+        const info = Array.from(canvases).map((c, i) => {
+          const el = c as HTMLCanvasElement;
+          const cs = window.getComputedStyle(el);
+          // @ts-ignore webkitClipPath
+          const webkitClipPath = (el.style as any).webkitClipPath;
+          return {
+            i,
+            width: el.width,
+            height: el.height,
+            styleDisplay: el.style.display,
+            computedDisplay: cs.display,
+            styleClipPath: el.style.clipPath || webkitClipPath || 'none',
+            computedClipPath: cs.clipPath,
+            styleOpacity: el.style.opacity,
+            computedOpacity: cs.opacity,
+            zIndex: cs.zIndex,
+            visibility: cs.visibility,
+          };
+        });
+        const contCS = window.getComputedStyle(cont);
+        // @ts-ignore webkitClipPath
+        const contWebkitClip = (cont.style as any).webkitClipPath;
+        const contStyles = {
+          clientWidth: cont.clientWidth,
+          clientHeight: cont.clientHeight,
+          styleDisplay: cont.style.display,
+          computedDisplay: contCS.display,
+          styleClipPath: cont.style.clipPath || contWebkitClip || 'none',
+          computedClipPath: contCS.clipPath,
+          styleOpacity: cont.style.opacity,
+          computedOpacity: contCS.opacity,
+        };
+        console.log(`${logPrefix} container/canvases`, { contStyles, canvases: info });
+      }
+    } catch (e) {
+      console.warn(`${logPrefix} debug logging failed`, e);
+    }
+  }, [isPlaying]);
 
   // Handle click events
   const handleClick = (event: React.MouseEvent) => {

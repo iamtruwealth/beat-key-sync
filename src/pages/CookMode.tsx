@@ -267,9 +267,12 @@ const CookMode = () => {
 
   // Wrap playback controls to broadcast to other users
   const handleTogglePlayback = () => {
+    const next = !isPlaying;
+    console.log('[CookMode] togglePlayback', { from: isPlaying, to: next });
     togglePlayback();
     if (broadcastPlaybackToggle) {
-      broadcastPlaybackToggle(!isPlaying);
+      console.log('[CookMode] broadcastPlaybackToggle', { to: next });
+      broadcastPlaybackToggle(next);
     }
   };
 
@@ -279,6 +282,10 @@ const CookMode = () => {
       broadcastPlaybackSeek(time);
     }
   };
+
+  React.useEffect(() => {
+    console.log('[CookMode] isPlaying changed', isPlaying);
+  }, [isPlaying]);
 
   // Session Creation Screen
   if (!sessionId) {
