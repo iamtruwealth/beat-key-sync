@@ -29,22 +29,24 @@ export class HostMasterAudio {
       this.audioContext = Tone.getContext().rawContext as AudioContext;
       console.log('🎧 AudioContext sampleRate:', this.audioContext.sampleRate);
       
-      // Create master gain node
+      // Create master gain node - this is the central hub for all audio
       this.masterGain = this.audioContext.createGain();
       this.masterGain.gain.value = 0.8;
       
       // Create MediaStreamAudioDestinationNode for broadcasting
       this.mediaStreamDestination = this.audioContext.createMediaStreamDestination();
       
-      // Connect master gain to stream destination (for broadcasting)
-      this.masterGain.connect(this.mediaStreamDestination);
-
-      // Create stream bus (tap point for broadcasting)
+      // Connect master gain to BOTH speakers and stream destination
+      // This ensures all audio going through masterGain is heard locally AND broadcast
+      this.masterGain.connect(this.audioContext.destination); // For local speakers
+      this.masterGain.connect(this.mediaStreamDestination);  // For broadcasting
+      
+      // Create stream bus (input to master gain)
       this.streamBus = this.audioContext.createGain();
       this.streamBus.gain.value = 1.0;
       this.streamBus.connect(this.masterGain);
       
-      // Create a continuous silent tone to keep the stream alive (radio approach)
+      // Create a continuous silent tone to keep the stream alive
       this.continuousOscillator = this.audioContext.createOscillator();
       const silentGain = this.audioContext.createGain();
       silentGain.gain.value = 0.001; // Nearly silent but keeps stream active
@@ -53,15 +55,39 @@ export class HostMasterAudio {
       silentGain.connect(this.masterGain);
       this.continuousOscillator.start();
       
-      console.log('🎵 HostMasterAudio initialized: destination tracks', this.mediaStreamDestination.stream.getAudioTracks().map(t => t.id));
+      console.log('🎵 HostMasterAudio initialized with unified audio routing');
     } catch (error) {
       console.error('Failed to initialize HostMasterAudio:', error);
       throw error;
     }
   }
 
+  async setMasterTrack(url: string): Promise<void> {
+    if (!this.streamBus) {
+      throw new Error('Stream bus is not initialized. Call initialize() first.');
+    }
+    
+    return new Promise((resolve, reject) => {
+      this.masterPlayer = new Tone.Player({
+        url: url,
+        loop: true,
+        onload: () => {
+          if (this.masterPlayer && this.masterPlayer.buffer) {
+            this.loopDuration = this.masterPlayer.buffer.duration;
+            console.log(`🎵 Master track loaded. Duration: ${this.loopDuration}s`);
+            resolve();
+          }
+        },
+        onerror: (err) => {
+          console.error('Failed to load master track:', err);
+          reject(err);
+        }
+      }).connect(this.streamBus); // Connect player to streamBus, which flows through masterGain
+    });
+  }
+
   connectToCookModeEngine(): void {
-    if (!this.audioContext || !this.masterGain) {
+    if (!this.audioContext || !this.streamBus) {
       throw new Error('HostMasterAudio not initialized');
     }
 
@@ -71,18 +97,13 @@ export class HostMasterAudio {
     }
 
     try {
-      // Fork Tone.js output (Destination) to the MediaStream destination so
-      // everything the host hears is also sent to the broadcast stream.
-      if (!this.mediaStreamDestination) {
-        throw new Error('MediaStreamDestination not initialized');
-      }
-
-      const toneDestination = Tone.getContext().destination as any; // Tone.Destination
-      // Connect Tone's master output directly to the stream destination
-      toneDestination.connect(this.mediaStreamDestination);
+      // Connect Tone.js Destination to our streamBus so all Tone.js audio
+      // flows through our masterGain for proper volume control
+      const toneDestination = Tone.getContext().destination as any;
+      toneDestination.connect(this.streamBus);
 
       this.isRouted = true;
-      console.log('🎵 Routed Tone.Destination to MediaStream for broadcast');
+      console.log('🎵 Routed Tone.Destination through streamBus -> masterGain');
     } catch (error) {
       console.error('Failed to connect CookModeEngine:', error);
       throw error;
