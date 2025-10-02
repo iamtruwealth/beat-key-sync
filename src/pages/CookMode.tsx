@@ -111,13 +111,32 @@ const CookMode = () => {
   const [mixedAudioStream, setMixedAudioStream] = React.useState<MediaStream | null>(null);
 
   React.useEffect(() => {
+    let intervalId: number | undefined;
     if (permissions?.canEdit && isPlaying) {
-      // Get the stream from the engine when playing
-      const stream = sessionLoopEngine.getMixedAudioStream();
-      setMixedAudioStream(stream);
+      const tryGet = () => {
+        const stream = sessionLoopEngine.getMixedAudioStream();
+        if (stream) {
+          console.log('[CookMode] Mixed audio stream ready');
+          setMixedAudioStream(stream);
+          if (intervalId) {
+            window.clearInterval(intervalId);
+            intervalId = undefined;
+          }
+        } else {
+          console.log('[CookMode] Mixed audio stream not ready yet, retrying...');
+        }
+      };
+      // Try immediately, then poll briefly until available (engine init race fix)
+      tryGet();
+      if (!sessionLoopEngine.getMixedAudioStream()) {
+        intervalId = window.setInterval(tryGet, 300);
+      }
     } else {
       setMixedAudioStream(null);
     }
+    return () => {
+      if (intervalId) window.clearInterval(intervalId);
+    };
   }, [permissions?.canEdit, isPlaying]);
 
   // Ghost UI broadcast for hosts (always enabled)
