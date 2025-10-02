@@ -23,6 +23,8 @@ import { SessionParticipants } from '@/components/cookmode/SessionParticipants';
 import { SessionControls } from '@/components/cookmode/SessionControls';
 import { GhostUI } from '@/components/cookmode/GhostUI';
 import { useGhostUIBroadcast } from '@/hooks/useGhostUIBroadcast';
+import { useAudioBroadcast } from '@/hooks/useAudioBroadcast';
+import { sessionLoopEngine } from '@/lib/sessionLoopEngine';
 // import { useWebRTCAudioStream } from '@/hooks/useWebRTCAudioStream'; // Disabled until HLS server deployed
 import { AudioStreamIndicator } from '@/components/cookmode/AudioStreamIndicator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -105,11 +107,32 @@ const CookMode = () => {
   
   const { midiDevices, setActiveTrack, tracks: audioTracks, createTrack, loadSample, setTrackTrim, masterDestination } = useCookModeAudio(permissions?.canEdit || false);
 
+  // Get the mixed audio stream for broadcasting
+  const [mixedAudioStream, setMixedAudioStream] = React.useState<MediaStream | null>(null);
+
+  React.useEffect(() => {
+    if (permissions?.canEdit && isPlaying) {
+      // Get the stream from the engine when playing
+      const stream = sessionLoopEngine.getMixedAudioStream();
+      setMixedAudioStream(stream);
+    } else {
+      setMixedAudioStream(null);
+    }
+  }, [permissions?.canEdit, isPlaying]);
+
   // Ghost UI broadcast for hosts (always enabled)
   const { broadcastState, broadcastClipTrigger, broadcastPadPress } = useGhostUIBroadcast({
     sessionId: sessionId || '',
     isHost: permissions?.canEdit || false,
     enabled: true,
+  });
+
+  // Audio broadcast for hosts (broadcasts audio to Ghost UI viewers)
+  const { isActive: audioIsActive } = useAudioBroadcast({
+    sessionId: sessionId || '',
+    isHost: permissions?.canEdit || false,
+    audioStream: mixedAudioStream,
+    enabled: isPlaying && !!mixedAudioStream,
   });
 
   // Audio streaming temporarily disabled until HLS server is deployed
