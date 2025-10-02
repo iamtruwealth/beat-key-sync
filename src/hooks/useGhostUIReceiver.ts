@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { GhostUIState } from './useGhostUIBroadcast';
+import { createChannelName } from '@/lib/realtimeChannels';
 
 interface UseGhostUIReceiverProps {
   sessionId: string;
@@ -82,9 +83,10 @@ export const useGhostUIReceiver = ({ sessionId, isViewer, enabled = true }: UseG
   useEffect(() => {
     if (!isViewer || !enabled || !sessionId) return;
 
-    console.log('[GhostUI] Initializing receiver for session:', sessionId);
+    const channelName = createChannelName(`ghost-ui-${sessionId}`);
+    console.log('[GhostUI] Initializing receiver for session:', sessionId, 'channel:', channelName);
 
-    const channel = supabase.channel(`ghost-ui-${sessionId}`, {
+    const channel = supabase.channel(channelName, {
       config: {
         broadcast: { self: false },
       },

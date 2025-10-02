@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { createChannelName } from '@/lib/realtimeChannels';
 
 interface UseWebRTCAudioStreamProps {
   sessionId: string;
@@ -190,7 +191,8 @@ export const useWebRTCAudioStream = ({ sessionId, isHost, enabled }: UseWebRTCAu
     };
 
     // Subscribe to audio channel
-    const channel = supabase.channel(`audio-stream-${sessionId}`, {
+    const channelName = createChannelName(`audio-stream-${sessionId}`);
+    const channel = supabase.channel(channelName, {
       config: { broadcast: { self: false } }
     });
 
@@ -228,7 +230,8 @@ export const useWebRTCAudioStream = ({ sessionId, isHost, enabled }: UseWebRTCAu
 
     console.log('[WebRTC Audio] Setting up host broadcast channel...');
 
-    const channel = supabase.channel(`audio-stream-${sessionId}`, {
+    const channelName = createChannelName(`audio-stream-${sessionId}`);
+    const channel = supabase.channel(channelName, {
       config: { broadcast: { self: false } }
     });
 

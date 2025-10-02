@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { RealtimeChannel } from '@supabase/supabase-js';
+import { createChannelName } from '@/lib/realtimeChannels';
 
 export interface GhostUIState {
   playheadPosition: number; // In beats or seconds
@@ -56,10 +57,11 @@ export const useGhostUIBroadcast = ({ sessionId, isHost, enabled = true }: UseGh
   useEffect(() => {
     if (!isHost || !enabled || !sessionId) return;
 
-    console.log('[GhostUI] Initializing broadcast for session:', sessionId);
+    const channelName = createChannelName(`ghost-ui-${sessionId}`);
+    console.log('[GhostUI] Initializing broadcast for session:', sessionId, 'channel:', channelName);
 
     // Create channel for broadcasting
-    const channel = supabase.channel(`ghost-ui-${sessionId}`, {
+    const channel = supabase.channel(channelName, {
       config: {
         broadcast: { self: false },
       },
