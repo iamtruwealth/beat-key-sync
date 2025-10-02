@@ -15,9 +15,6 @@ primary_region = "dfw"  # Dallas, change if needed
 [experimental]
   auto_rollback = true
 
-[deploy]
-  release_command = "npm run build"
-
 [[services]]
   internal_port = 4173  # Vite production preview port
   protocol = "tcp"
@@ -32,5 +29,5 @@ primary_region = "dfw"  # Dallas, change if needed
 
   [services.concurrency]
     type = "connections"
-    hard_limit = 25
-    soft_limit = 20
+    hard_limit = 100
+    soft_limit = 80
