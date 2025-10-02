@@ -156,7 +156,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
 
   // Update playhead position based on timeline time
   useEffect(() => {
-    if (!waveSurferRef.current || !isLoaded || isPlaying) return;
+    if (!waveSurferRef.current || !isLoaded) return;
 
     try {
       const fullDuration = clip.fullDuration || clip.originalTrack.analyzed_duration || clip.originalTrack.duration || clipDuration;
