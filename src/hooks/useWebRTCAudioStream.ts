@@ -27,32 +27,28 @@ export const useWebRTCAudioStream = ({ sessionId, isHost, enabled }: UseWebRTCAu
         throw new Error('Master audio destination not provided');
       }
 
-      // Use the audio context from the master destination
-      const audioContext = masterAudioDestination.context as AudioContext;
-      if (!audioContext) {
-        throw new Error('Audio context not available from master destination');
+      // Get Tone.js's raw AudioContext (not the wrapped one)
+      const toneContext = (window as any).Tone?.context;
+      if (!toneContext) {
+        throw new Error('Tone.js not initialized');
       }
 
-      console.log('[WebRTC Audio] Using audio context from DAW');
+      // Access the raw Web Audio API context
+      const audioContext = toneContext.rawContext._nativeAudioContext as AudioContext;
+      if (!audioContext) {
+        throw new Error('Could not access raw AudioContext');
+      }
+
+      console.log('[WebRTC Audio] Using raw AudioContext from Tone.js');
       audioContextRef.current = audioContext;
 
       // Create a MediaStreamDestination to capture Tone's output
       const destination = audioContext.createMediaStreamDestination();
       
-      // Connect the master audio destination to our stream destination
-      // This captures everything playing in the DAW
-      const sourceNode = audioContext.createMediaStreamSource(
-        audioContext.createMediaStreamDestination().stream
-      );
-      
-      // Connect the actual Tone master to our destination
-      if ((window as any).Tone?.getDestination) {
-        const toneDest = (window as any).Tone.getDestination();
-        toneDest.connect(destination);
-        console.log('[WebRTC Audio] Connected Tone master to stream destination');
-      } else {
-        console.warn('[WebRTC Audio] Tone not available, using direct audio context');
-      }
+      // Connect Tone's master output directly to our stream destination
+      const toneDest = (window as any).Tone.getDestination();
+      toneDest.connect(destination);
+      console.log('[WebRTC Audio] Connected Tone master to stream destination');
       
       // Set up audio processing for broadcasting
       const source = audioContext.createMediaStreamSource(destination.stream);
