@@ -1,10 +1,9 @@
 # fly.toml - Beat Key Sync Fly.io deployment configuration
 
 app = "beat-key-sync"
-primary_region = "dfw" # Dallas, change if you prefer another valid region
+primary_region = "dfw"
 
 [build]
-  # Use the Dockerfile in your repo root
   dockerfile = "Dockerfile"
 
 [env]
@@ -18,15 +17,14 @@ primary_region = "dfw" # Dallas, change if you prefer another valid region
 [deploy]
   release_command = "npm run build"
 
-[services]
-  [[services]]
-    internal_port = 3000
-    protocol = "tcp"
+[[services]]
+  internal_port = 3000
+  protocol = "tcp"
 
-    [[services.ports]]
-      port = 80
-      handlers = ["http"]
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
 
-    [[services.ports]]
-      port = 443
-      handlers = ["tls", "http"]
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
