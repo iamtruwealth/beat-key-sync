@@ -519,7 +519,6 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
             id={containerId}
             className="w-full h-full relative"
           />
-        </>
 
           {/* Trim overlays: dim hidden (trimmed) parts so only visible segment pops */}
           {(() => {
