@@ -422,12 +422,14 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
           <Badge 
             variant="outline" 
             className={`${
-              isPlaying 
+              isRecording
+                ? 'text-red-400 border-red-400/30 bg-red-400/10'
+                : isPlaying 
                 ? 'text-green-400 border-green-400/30 bg-green-400/10' 
                 : 'text-muted-foreground border-border/50'
             }`}
           >
-            {isPlaying ? 'Recording' : 'Stopped'}
+            {isRecording ? 'Recording' : isPlaying ? 'Playing' : 'Stopped'}
           </Badge>
 
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
