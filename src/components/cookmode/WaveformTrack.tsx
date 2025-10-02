@@ -173,7 +173,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
                 canvasEl.style.clipPath = 'none';
                 // @ts-ignore - webkitClipPath isn't in TS types
                 canvasEl.style.webkitClipPath = 'none';
-                if (i > 0) canvasEl.style.display = 'none'; // hide progress canvas
+                if (i > 0) canvasEl.style.display = 'block'; // ensure progress canvas is visible
               });
               const progressEl = contEl.querySelector('[class*="progress"], .wavesurfer__progress') as HTMLElement | null;
               if (progressEl) progressEl.style.display = 'none';
@@ -200,7 +200,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
                 canvasEl.style.clipPath = 'none';
                 // @ts-ignore - webkitClipPath isn't in TS types
                 canvasEl.style.webkitClipPath = 'none';
-                if (i > 0) canvasEl.style.display = 'none';
+                if (i > 0) canvasEl.style.display = 'block';
               });
               const progressEl = contEl.querySelector('[class*="progress"], .wavesurfer__progress') as HTMLElement | null;
               if (progressEl) progressEl.style.display = 'none';
@@ -245,10 +245,11 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
 
     const fixVisibility = (el: HTMLElement) => {
       const isProgress = el.className?.toString().toLowerCase().includes('progress');
-      if (isProgress) {
-        el.style.display = 'none';
-        return;
-      }
+        if (isProgress) {
+          el.style.display = 'block';
+          el.style.opacity = '1';
+          el.style.visibility = 'visible';
+        }
       if (el.tagName === 'CANVAS') {
         const canvas = el as HTMLCanvasElement;
         canvas.style.display = 'block';
@@ -357,8 +358,13 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
         cont.querySelectorAll('*').forEach((n) => {
           const el = n as HTMLElement;
           const cls = (el.className || '').toString().toLowerCase();
-          if (cls.includes('progress') || cls.includes('cursor')) {
+          if (cls.includes('cursor')) {
             el.style.display = 'none';
+          }
+          if (cls.includes('progress')) {
+            el.style.display = 'block';
+            el.style.opacity = '1';
+            el.style.visibility = 'visible';
           }
           if (el.tagName === 'CANVAS') {
             const c = el as HTMLCanvasElement;
@@ -508,7 +514,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
           <style
             dangerouslySetInnerHTML={{
               __html: `#${containerId} * { clip-path: none !important; -webkit-clip-path: none !important; }
-                #${containerId} .wavesurfer__progress, #${containerId} [class*='progress'] { display: none !important; width: auto !important; }
+                #${containerId} .wavesurfer__progress, #${containerId} [class*='progress'] { display: block !important; width: auto !important; opacity: 1 !important; visibility: visible !important; }
                 #${containerId} canvas { display: block !important; opacity: 1 !important; visibility: visible !important; }
                 #${containerId} .wavesurfer__cursor { display: none !important; }`
             }}
