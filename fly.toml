@@ -1,5 +1,3 @@
-# fly.toml - Beat Key Sync Fly.io deployment configuration
-
 app = "beat-key-sync"
 primary_region = "dfw"
 
@@ -9,16 +7,10 @@ primary_region = "dfw"
 [env]
   NODE_ENV = "production"
   VITE_SUPABASE_URL = "https://lascsucrozzhbvlsddxg.supabase.co"
-  VITE_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxhc2NzdWNyb3p6aGJ2bHNkZHhnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgxNTk5MDcsImV4cCI6MjA3MzczNTkwN30.DBNHTepFB_xFlBXBTSDZKh58d4dG1inM6mbXnfyuwlY"
-
-[experimental]
-  auto_rollback = true
-
-[deploy]
-  release_command = "npm run build"
+  VITE_SUPABASE_ANON_KEY = "<YOUR_SUPABASE_ANON_KEY>"
 
 [[services]]
-  internal_port = 3000
+  internal_port = 80
   protocol = "tcp"
 
   [[services.ports]]
