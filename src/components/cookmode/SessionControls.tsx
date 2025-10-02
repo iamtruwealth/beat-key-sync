@@ -22,13 +22,15 @@ import {
   Mic,
   Upload,
   FileAudio,
-  Grid
+  Grid,
+  ChevronDown
 } from 'lucide-react';
 import { undoManager } from '@/lib/UndoManager';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useCookModeAudio } from '@/hooks/useCookModeAudio';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 interface SessionControlsProps {
   isPlaying: boolean;
@@ -71,13 +73,14 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
   onAddTrack,
   canEdit = true
 }) => {
-  const { createTrack, isRecording, startAudioRecording, stopAudioRecording, tracks: audioTracks, loadSample, setActiveTrack } = useCookModeAudio(canEdit);
+  const { createTrack, isRecording, startAudioRecording, stopAudioRecording, startRecording, stopRecording, tracks: audioTracks, loadSample, setActiveTrack, engine } = useCookModeAudio(canEdit);
   const { toast } = useToast();
   const [masterVolume, setMasterVolume] = useState(75);
   const [sessionDuration, setSessionDuration] = useState(0);
   const [isEditingBpm, setIsEditingBpm] = useState(false);
   const [tempBpm, setTempBpm] = useState(bpm.toString());
   const [currentRecordingTrackId, setCurrentRecordingTrackId] = useState<string | null>(null);
+  const [recordingMode, setRecordingMode] = useState<'audio' | 'midi' | null>(null);
 
   // Calculate session duration
   useEffect(() => {
@@ -209,61 +212,108 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
               <Square className="w-4 h-4" />
             </Button>
 
-            <Button
-              variant={isRecording ? "destructive" : "ghost"}
-              size="sm"
-              className={`p-2 gap-1 transition-all duration-200 ${
-                isRecording 
-                  ? 'bg-red-500 text-white animate-pulse' 
-                  : 'hover:bg-accent hover:text-accent-foreground'
-              }`}
-              onClick={async () => {
-                if (isRecording) {
-                  // Stop recording
-                  try {
-                    await stopAudioRecording();
-                    setCurrentRecordingTrackId(null);
-                    toast({
-                      title: "Recording Stopped",
-                      description: "Audio recording complete",
-                    });
-                  } catch (error) {
-                    console.error('Failed to stop recording:', error);
-                  }
-                } else {
-                  // Start recording
-                  let trackId = currentRecordingTrackId;
-                  
-                  if (!trackId) {
-                    // Create a new track if none exist
-                    const trackName = `Recording ${Date.now()}`;
-                    trackId = createTrack(trackName);
-                    setCurrentRecordingTrackId(trackId);
-                    await onCreateEmptyTrack?.(trackName);
-                  }
-                  
-                  try {
-                    await startAudioRecording(trackId);
-                  } catch (error) {
-                    console.error('Failed to start recording:', error);
-                    setCurrentRecordingTrackId(null);
-                  }
-                }
-              }}
-              title={isRecording ? "Stop Recording Audio" : "Start Recording Audio"}
-            >
-              {isRecording ? (
-                <>
-                  <Square className="w-4 h-4" />
-                  <span className="text-xs">REC</span>
-                </>
-              ) : (
-                <>
-                  <Circle className="w-4 h-4" />
-                  <span className="text-xs">REC</span>
-                </>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant={isRecording ? "destructive" : "ghost"}
+                  size="sm"
+                  className={`p-2 gap-1 transition-all duration-200 ${
+                    isRecording 
+                      ? 'bg-red-500 text-white animate-pulse' 
+                      : 'hover:bg-accent hover:text-accent-foreground'
+                  }`}
+                  title={isRecording ? "Stop Recording" : "Start Recording"}
+                >
+                  {isRecording ? (
+                    <>
+                      <Square className="w-4 h-4" />
+                      <span className="text-xs">REC</span>
+                    </>
+                  ) : (
+                    <>
+                      <Circle className="w-4 h-4" />
+                      <span className="text-xs">REC</span>
+                      <ChevronDown className="w-3 h-3" />
+                    </>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              {!isRecording && (
+                <DropdownMenuContent align="start" className="bg-background border-border">
+                  <DropdownMenuItem
+                    onClick={async () => {
+                      // Start audio recording
+                      let trackId = currentRecordingTrackId;
+                      
+                      if (!trackId) {
+                        const trackName = `Recording ${Date.now()}`;
+                        trackId = createTrack(trackName);
+                        setCurrentRecordingTrackId(trackId);
+                        await onCreateEmptyTrack?.(trackName);
+                      }
+                      
+                      try {
+                        await startAudioRecording(trackId);
+                        setRecordingMode('audio');
+                      } catch (error) {
+                        console.error('Failed to start audio recording:', error);
+                        setCurrentRecordingTrackId(null);
+                      }
+                    }}
+                  >
+                    <Mic className="w-4 h-4 mr-2" />
+                    Record Audio
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      // Start MIDI recording on selected track
+                      if (audioTracks.length === 0) {
+                        toast({
+                          title: "No Tracks Available",
+                          description: "Please create a track first",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+                      
+                      startRecording();
+                      setRecordingMode('midi');
+                    }}
+                  >
+                    <Activity className="w-4 h-4 mr-2" />
+                    Record MIDI
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
               )}
-            </Button>
+            </DropdownMenu>
+            
+            {isRecording && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="p-2"
+                onClick={async () => {
+                  if (recordingMode === 'audio') {
+                    try {
+                      await stopAudioRecording();
+                      setCurrentRecordingTrackId(null);
+                      toast({
+                        title: "Recording Stopped",
+                        description: "Audio recording complete",
+                      });
+                    } catch (error) {
+                      console.error('Failed to stop audio recording:', error);
+                    }
+                  } else if (recordingMode === 'midi') {
+                    stopRecording();
+                  }
+                  setRecordingMode(null);
+                }}
+                title="Stop Recording"
+              >
+                <Square className="w-4 h-4" />
+              </Button>
+            )}
 
             <Button
               variant={metronomeEnabled ? "default" : "ghost"}
