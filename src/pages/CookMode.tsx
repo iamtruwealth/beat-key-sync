@@ -320,6 +320,10 @@ const CookMode = () => {
       Tone.Transport.cancel();
       Tone.Transport.position = 0;
       
+      // Restore loop settings after cancel clears them
+      Tone.Transport.loop = true;
+      Tone.Transport.loopStart = 0;
+      
       // Stop all HTML audio elements
       document.querySelectorAll('audio').forEach(audio => {
         audio.pause();
