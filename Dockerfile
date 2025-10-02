@@ -2,7 +2,7 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-ARG CACHEBUST=2
+ARG CACHEBUST=3
 
 # Install build dependencies for native modules, print debug info about python binaries and symlinks
 RUN apk add --no-cache python3 make g++ && \
