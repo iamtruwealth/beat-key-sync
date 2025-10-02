@@ -14,10 +14,10 @@ const GhostViewer = () => {
   
   const {
     session,
-    tracks,
-    isPlaying,
-    currentTime,
-  } = useCookModeSession(sessionId);
+    tracks = [],
+    isPlaying = false,
+    currentTime = 0,
+  } = useCookModeSession(sessionId) || {};
 
   if (!sessionId) {
     return (
@@ -86,23 +86,39 @@ const GhostViewer = () => {
         {/* Main Content */}
         <main className="h-[calc(100vh-80px)]">
           <GhostUI sessionId={sessionId || ''}>
-            <CookModeDAW
-              tracks={tracks}
-              isPlaying={isPlaying}
-              currentTime={currentTime}
-              bpm={session?.target_bpm || 120}
-              metronomeEnabled={false}
-              minBars={8}
-              onAddTrack={undefined}
-              onRemoveTrack={undefined}
-              onUpdateTrack={undefined}
-              onTogglePlayback={undefined}
-              onSeek={undefined}
-              onTrimTrack={undefined}
-              activeView={activeView}
-              onViewChange={setActiveView}
-              readOnly={true}
-            />
+            {tracks.length > 0 ? (
+              <CookModeDAW
+                tracks={tracks}
+                isPlaying={isPlaying}
+                currentTime={currentTime}
+                bpm={session?.target_bpm || 120}
+                metronomeEnabled={false}
+                minBars={8}
+                onAddTrack={async () => {}}
+                onRemoveTrack={async () => {}}
+                onUpdateTrack={() => {}}
+                onTogglePlayback={() => {}}
+                onSeek={() => {}}
+                onTrimTrack={() => {}}
+                activeView={activeView}
+                onViewChange={setActiveView}
+                readOnly={true}
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <Card className="max-w-md">
+                  <CardContent className="pt-6">
+                    <div className="text-center space-y-2">
+                      <Headphones className="w-12 h-12 mx-auto text-muted-foreground" />
+                      <p className="text-lg font-medium">Waiting for session data...</p>
+                      <p className="text-sm text-muted-foreground">
+                        The host hasn't started the session yet or there are no tracks loaded.
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </GhostUI>
         </main>
       </div>
