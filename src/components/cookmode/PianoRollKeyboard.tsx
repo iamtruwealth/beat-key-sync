@@ -6,6 +6,7 @@ interface PianoRollKeyboardProps {
   endNote?: number;
   noteHeight?: number;
   onKeyClick?: (pitch: number) => void;
+  onKeyRightClick?: (pitch: number) => void;
   highlightedKeys?: number[];
   sampleMappings?: Record<number, string>; // pitch -> sample name
 }
@@ -28,6 +29,7 @@ export const PianoRollKeyboard: React.FC<PianoRollKeyboardProps> = ({
   endNote = 127,
   noteHeight = 20,
   onKeyClick,
+  onKeyRightClick,
   highlightedKeys = [],
   sampleMappings = {},
 }) => {
@@ -53,6 +55,11 @@ export const PianoRollKeyboard: React.FC<PianoRollKeyboardProps> = ({
             )}
             style={{ height: `${noteHeight}px` }}
             onClick={() => onKeyClick?.(pitch)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              onKeyRightClick?.(pitch);
+            }}
+            title={hasSample ? `${getNoteName(pitch)} - ${sampleMappings[pitch]}` : `${getNoteName(pitch)} - Right-click to load sample`}
           >
             <span className={cn("text-xs font-mono", isC && "font-bold")}>
               {getNoteName(pitch)}
