@@ -26,7 +26,16 @@ const GhostViewer = () => {
     participants = [],
     tracks = [],
     isConnected: sessionConnected,
+    joinSession,
   } = useCookModeSession(sessionId) || {} as any;
+
+  // Join session to load tracks from database
+  useEffect(() => {
+    if (sessionId && joinSession && !session) {
+      console.log('[GhostViewer] Joining session to load tracks:', sessionId);
+      joinSession(sessionId);
+    }
+  }, [sessionId, joinSession, session]);
 
   // Get synced UI state from Ghost UI broadcast
   const { ghostState, isConnected: ghostConnected } = useGhostUIReceiver({
