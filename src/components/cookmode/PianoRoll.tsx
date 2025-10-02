@@ -14,6 +14,7 @@ interface PianoRollProps {
   trackId: string;
   trackName: string;
   trackMode: TrackMode;
+  trackSampleUrl?: string;
   sessionBpm?: number;
   onSave?: (trackId: string, data: any) => void;
 }
@@ -24,6 +25,7 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
   trackId,
   trackName,
   trackMode,
+  trackSampleUrl,
   sessionBpm = 120,
   onSave,
 }) => {
@@ -31,24 +33,79 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
   const synthRef = useRef<Tone.PolySynth | null>(null);
   const samplersRef = useRef<Map<number, Tone.Player>>(new Map());
   
-  // Initialize Tone.js instruments
+  // Initialize Tone.js instruments and load track sample
   useEffect(() => {
     if (!isOpen) return;
     
-    if (trackMode === 'midi') {
-      if (!synthRef.current) {
-        synthRef.current = new Tone.PolySynth(Tone.Synth, {
-          oscillator: { type: 'triangle' },
-          envelope: {
-            attack: 0.005,
-            decay: 0.1,
-            sustain: 0.3,
-            release: 1
+    const loadTrackSample = async () => {
+      if (trackMode === 'sample' && trackSampleUrl) {
+        try {
+          console.log('🎵 Loading track sample:', trackSampleUrl);
+          
+          // Start audio context if needed
+          if (Tone.getContext().state !== 'running') {
+            await Tone.start();
           }
-        }).toDestination();
-        synthRef.current.volume.value = -10;
+
+          // Fetch and decode the sample
+          const response = await fetch(trackSampleUrl);
+          const arrayBuffer = await response.arrayBuffer();
+          const audioBuffer = await Tone.getContext().decodeAudioData(arrayBuffer);
+          
+          // Map to all keys (can be customized later)
+          const startPitch = 24; // C1
+          const endPitch = 96; // C7
+          
+          // Clear existing samples
+          samplersRef.current.forEach(player => player.dispose());
+          samplersRef.current.clear();
+          
+          // Create player for each key with pitch shifting
+          for (let pitch = startPitch; pitch <= endPitch; pitch++) {
+            const player = new Tone.Player(audioBuffer).toDestination();
+            // Calculate pitch shift relative to middle C (60)
+            const semitoneShift = pitch - 60;
+            player.playbackRate = Math.pow(2, semitoneShift / 12);
+            samplersRef.current.set(pitch, player);
+            
+            // Add to sample mappings
+            addSampleMapping(trackId, {
+              pitch,
+              sampleId: trackName,
+              sampleName: trackName,
+              audioBuffer,
+            });
+          }
+          
+          toast({
+            title: "Sample Loaded",
+            description: `${trackName} loaded and mapped to all keys`,
+          });
+        } catch (error) {
+          console.error('Failed to load track sample:', error);
+          toast({
+            title: "Error",
+            description: "Failed to load track sample",
+            variant: "destructive",
+          });
+        }
+      } else if (trackMode === 'midi') {
+        if (!synthRef.current) {
+          synthRef.current = new Tone.PolySynth(Tone.Synth, {
+            oscillator: { type: 'triangle' },
+            envelope: {
+              attack: 0.005,
+              decay: 0.1,
+              sustain: 0.3,
+              release: 1
+            }
+          }).toDestination();
+          synthRef.current.volume.value = -10;
+        }
       }
-    }
+    };
+    
+    loadTrackSample();
     
     return () => {
       if (synthRef.current) {
@@ -58,7 +115,7 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
       samplersRef.current.forEach(player => player.dispose());
       samplersRef.current.clear();
     };
-  }, [trackMode, isOpen]);
+  }, [trackMode, isOpen, trackSampleUrl, trackName, trackId, toast]);
   
   const {
     state,

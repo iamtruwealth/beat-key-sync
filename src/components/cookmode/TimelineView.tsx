@@ -91,7 +91,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const [selectedTrack, setSelectedTrack] = useState<string | null>(null);
   const [armedTracks, setArmedTracks] = useState<Set<string>>(new Set());
   const [pianoRollOpen, setPianoRollOpen] = useState(false);
-  const [pianoRollTrack, setPianoRollTrack] = useState<{ id: string; name: string; mode: TrackMode } | null>(null);
+  const [pianoRollTrack, setPianoRollTrack] = useState<{ id: string; name: string; mode: TrackMode; sampleUrl?: string } | null>(null);
   const { toast } = useToast();
 
   // Calculate timing constants with precise BPM
@@ -911,7 +911,8 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                           setPianoRollTrack({
                             id: track.id,
                             name: track.name,
-                            mode: track.mode || 'sample'
+                            mode: track.mode || 'sample',
+                            sampleUrl: track.file_url
                           });
                           setPianoRollOpen(true);
                         }}
@@ -1131,6 +1132,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           trackId={pianoRollTrack.id}
           trackName={pianoRollTrack.name}
           trackMode={pianoRollTrack.mode}
+          trackSampleUrl={pianoRollTrack.sampleUrl}
           sessionBpm={bpm}
           onSave={(trackId, data) => {
             console.log('Saving piano roll data for track:', trackId, data);
