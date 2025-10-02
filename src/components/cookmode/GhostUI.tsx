@@ -210,13 +210,13 @@ export const GhostUI: React.FC<GhostUIProps> = ({ sessionId, className, hlsStrea
         </Card>
       )}
 
-      {/* OBS Instructions */}
-      <Card className="border-dashed">
+      {/* Audio Info */}
+      <Card className="border-dashed bg-neon-cyan/5">
         <CardContent className="pt-6">
           <div className="text-sm text-muted-foreground space-y-2">
-            <p className="font-medium">Audio from OBS/HLS stream</p>
+            <p className="font-medium text-neon-cyan">🎧 Audio Streaming</p>
             <p className="text-xs">
-              This is a visual-only representation. Audio is handled by the host's OBS broadcast.
+              You're receiving live audio directly from the host's browser. No setup required!
             </p>
           </div>
         </CardContent>

@@ -23,6 +23,8 @@ import { SessionParticipants } from '@/components/cookmode/SessionParticipants';
 import { SessionControls } from '@/components/cookmode/SessionControls';
 import { GhostUI } from '@/components/cookmode/GhostUI';
 import { useGhostUIBroadcast } from '@/hooks/useGhostUIBroadcast';
+import { useWebRTCAudioStream } from '@/hooks/useWebRTCAudioStream';
+import { AudioStreamIndicator } from '@/components/cookmode/AudioStreamIndicator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { CookModeAudioControls } from '@/components/cookmode/CookModeAudioControls';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -97,6 +99,13 @@ const CookMode = () => {
 
   // Ghost UI broadcast for hosts (always enabled)
   const { broadcastState, broadcastClipTrigger, broadcastPadPress } = useGhostUIBroadcast({
+    sessionId: sessionId || '',
+    isHost: permissions?.canEdit || false,
+    enabled: true,
+  });
+
+  // WebRTC Audio Stream (automatic, built-in)
+  const { isStreaming, audioLevel, startStreaming, stopStreaming } = useWebRTCAudioStream({
     sessionId: sessionId || '',
     isHost: permissions?.canEdit || false,
     enabled: true,
@@ -708,6 +717,13 @@ const CookMode = () => {
             </DropdownMenu>
           )}
             
+            <AudioStreamIndicator
+              isHost={permissions.canEdit}
+              isStreaming={isStreaming}
+              audioLevel={audioLevel}
+              onToggleStream={permissions.canEdit ? (isStreaming ? stopStreaming : startStreaming) : undefined}
+            />
+
             <Button
               variant="outline"
               size="sm"
@@ -798,7 +814,7 @@ const CookMode = () => {
               <div className="h-full p-4 overflow-auto">
                 <GhostUI 
                   sessionId={sessionId || ''} 
-                  hlsStreamUrl={`https://stream.beatpackz.com/live/${sessionId}.m3u8`}
+                  hlsStreamUrl=""
                 />
               </div>
             ) : (

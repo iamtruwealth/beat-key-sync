@@ -1,22 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useParams } from 'react-router-dom';
 import { GhostUI } from '@/components/cookmode/GhostUI';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Radio, ArrowLeft, ExternalLink } from 'lucide-react';
+import { Radio, ArrowLeft, ExternalLink, Headphones } from 'lucide-react';
 import { MetaTags } from '@/components/MetaTags';
 
 const GhostViewer = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
-  const [hlsStreamUrl, setHlsStreamUrl] = useState('');
-
-  useEffect(() => {
-    if (sessionId) {
-      // Auto-generate HLS stream URL based on session ID
-      // Host needs to configure OBS to stream to this endpoint
-      setHlsStreamUrl(`https://stream.beatpackz.com/live/${sessionId}.m3u8`);
-    }
-  }, [sessionId]);
 
   if (!sessionId) {
     return (
@@ -56,11 +47,15 @@ const GhostViewer = () => {
                   Back
                 </Button>
                 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                   <Radio className="w-5 h-5 text-neon-cyan animate-pulse" />
                   <h1 className="text-xl font-bold bg-gradient-to-r from-neon-cyan to-electric-blue bg-clip-text text-transparent">
                     Ghost UI Viewer
                   </h1>
+                  <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-neon-cyan/10 border border-neon-cyan/30">
+                    <Headphones className="w-4 h-4 text-neon-cyan" />
+                    <span className="text-xs font-medium text-neon-cyan">Live Audio</span>
+                  </div>
                 </div>
               </div>
 
@@ -80,10 +75,25 @@ const GhostViewer = () => {
 
         {/* Main Content */}
         <main className="container mx-auto px-4 py-8">
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-4xl mx-auto space-y-4">
+            {/* Info Banner */}
+            <Card className="bg-gradient-to-r from-neon-cyan/10 to-electric-blue/10 border-neon-cyan/30">
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3">
+                  <Headphones className="w-5 h-5 text-neon-cyan mt-0.5" />
+                  <div>
+                    <h3 className="font-semibold text-foreground mb-1">Live Audio Stream Active</h3>
+                    <p className="text-sm text-muted-foreground">
+                      You're receiving synchronized visuals and real-time audio directly from the host. No setup needed - just sit back and enjoy!
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             <GhostUI 
               sessionId={sessionId} 
-              hlsStreamUrl={hlsStreamUrl}
+              hlsStreamUrl=""
             />
           </div>
         </main>
