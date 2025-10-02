@@ -309,12 +309,10 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
           {/* Right trim handle - hide when trimming start */}
           {isTrimming !== 'start' && (
             <div
-              className="trim-handle absolute right-0 top-0 w-4 h-full bg-primary/10 hover:bg-primary/30 cursor-ew-resize opacity-0 group-hover:opacity-100 transition-opacity"
+              className="trim-handle absolute right-0 top-0 w-4 h-full cursor-ew-resize"
               onMouseDown={(e) => handleTrimMouseDown(e, 'end')}
               style={{ zIndex: 1001, pointerEvents: 'auto' }}
-            >
-              <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-4 bg-primary rounded-l" />
-            </div>
+            />
           )}
         </>
       )}
