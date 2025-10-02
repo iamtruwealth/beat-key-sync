@@ -172,7 +172,9 @@ export const PianoRollGrid: React.FC<PianoRollGridProps> = ({
     } else if (resizingNoteId) {
       const deltaX = e.clientX - dragStartPos.x;
       const deltaTime = deltaX / beatWidth;
-      const newDuration = Math.max(0.25, resizeStartWidth + deltaTime);
+      const rawDuration = resizeStartWidth + deltaTime;
+      const snappedDuration = snapToGrid(rawDuration);
+      const newDuration = Math.max(getSnapAmount() || 0.25, snappedDuration);
       
       onUpdateNote?.(resizingNoteId, {
         duration: newDuration,
@@ -218,6 +220,34 @@ export const PianoRollGrid: React.FC<PianoRollGridProps> = ({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
+
+  // Get snap amount in beats based on snap grid setting
+  const getSnapAmount = useCallback((): number => {
+    switch (snapGrid) {
+      case 'none': return 0;
+      case 'line': return 0.01;
+      case 'cell': return 0.25;
+      case '1/6-step': return 1/24;
+      case '1/4-step': return 1/16;
+      case '1/3-step': return 1/12;
+      case '1/2-step': return 1/8;
+      case '1-step': return 0.25;
+      case '1/6-beat': return 1/6;
+      case '1/4-beat': return 0.25;
+      case '1/3-beat': return 1/3;
+      case '1/2-beat': return 0.5;
+      case '1-beat': return 1;
+      case '1-bar': return beatsPerBar;
+      default: return 0.25;
+    }
+  }, [snapGrid, beatsPerBar]);
+
+  // Snap a time value to the current grid
+  const snapToGrid = useCallback((time: number): number => {
+    const snapAmount = getSnapAmount();
+    if (snapAmount === 0) return time;
+    return Math.round(time / snapAmount) * snapAmount;
+  }, [getSnapAmount]);
 
   // Get subdivision amount based on snap grid
   const getSubdivision = useCallback((): number => {
