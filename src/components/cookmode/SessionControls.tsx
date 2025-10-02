@@ -169,17 +169,8 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
             </Button>
             
             <Button
-              onClick={async () => {
-                try {
-                  await Tone.start();
-                  const ctx = Tone.getContext();
-                  if (ctx.state === 'suspended') {
-                    await ctx.resume();
-                  }
-                  console.log('🔊 Audio unlocked via Play button');
-                } catch (e) {
-                  console.warn('Tone.start() failed:', e);
-                }
+              onClick={() => {
+                console.log('🎵 Play button CLICKED');
                 onTogglePlayback();
               }}
               className={`p-3 ${
