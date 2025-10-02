@@ -131,9 +131,10 @@ export const useAudioReceiver = ({ sessionId, isViewer, enabled }: UseAudioRecei
   }, [sessionId, isViewer, enabled]);
 
   const unlockAudio = async () => {
-    if (!audioContextRef.current) return;
-    
     try {
+      if (!audioContextRef.current) {
+        audioContextRef.current = new AudioContext({ sampleRate: 24000 });
+      }
       if (audioContextRef.current.state === 'suspended') {
         await audioContextRef.current.resume();
         console.log('[AudioReceiver] Audio unlocked by user interaction');

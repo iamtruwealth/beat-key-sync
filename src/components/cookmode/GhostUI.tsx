@@ -1,5 +1,6 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Radio, Volume2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useGhostUIReceiver } from '@/hooks/useGhostUIReceiver';
@@ -26,9 +27,10 @@ export const GhostUI: React.FC<GhostUIProps> = ({ sessionId, className, children
 
   const timeSinceLastUpdate = Date.now() - lastUpdateTime;
   const isStale = timeSinceLastUpdate > 3000;
+  const overlayActive = !audioUnlocked;
 
   return (
-    <div className={cn("flex flex-col h-full", className)}>
+    <div className={cn("flex flex-col h-full relative", className)}>
       {/* Ghost UI Banner */}
       <div className="bg-gradient-to-r from-neon-cyan/20 to-electric-blue/20 border-b border-neon-cyan/30 p-2">
         <div className="flex items-center justify-between">
@@ -50,25 +52,28 @@ export const GhostUI: React.FC<GhostUIProps> = ({ sessionId, className, children
 
       {/* Audio Unlock Overlay */}
       {!audioUnlocked && (
-        <div className="absolute inset-0 z-50 bg-background/95 backdrop-blur-sm flex items-center justify-center">
-          <div className="max-w-md p-8 bg-card border border-border rounded-lg shadow-lg text-center space-y-4">
+        <div
+          className="absolute inset-0 z-50 bg-background/95 backdrop-blur-sm flex items-center justify-center pointer-events-auto"
+          onClick={() => unlockAudio?.()}
+        >
+          <div className="max-w-md p-8 bg-card border border-border rounded-lg shadow-lg text-center space-y-4" onClick={(e) => e.stopPropagation()}>
             <Volume2 className="w-16 h-16 mx-auto text-primary animate-pulse" />
             <h2 className="text-2xl font-bold">Enable Audio</h2>
             <p className="text-muted-foreground">
               Click the button below to unlock audio streaming for this session.
             </p>
-            <button
+            <Button
               onClick={unlockAudio}
-              className="w-full px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
+              className="w-full"
             >
               🔊 Enable Audio
-            </button>
+            </Button>
           </div>
         </div>
       )}
 
       {/* Full Cook Mode UI (read-only) */}
-      <div className="flex-1 overflow-hidden">
+      <div className={cn("flex-1 overflow-hidden", overlayActive ? "pointer-events-none select-none" : "")}>
         {children}
       </div>
     </div>
