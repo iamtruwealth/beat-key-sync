@@ -27,10 +27,26 @@ export const useAudioReceiver = ({ sessionId, isViewer, enabled }: UseAudioRecei
     console.log('[AudioReceiver] Initializing audio receiver for session:', sessionId);
 
     // Create audio context
-    const audioContext = new AudioContext({ sampleRate: 24000 });
-    audioContextRef.current = audioContext;
-
-    // Play next audio chunk from queue
+     const audioContext = new AudioContext({ sampleRate: 24000 });
+     audioContextRef.current = audioContext;
+ 
+     // Ensure AudioContext is running (autoplay policies)
+     const resumeIfNeeded = async () => {
+       try {
+         if (audioContextRef.current?.state === 'suspended') {
+           await audioContextRef.current.resume();
+           console.log('[AudioReceiver] AudioContext resumed');
+         }
+       } catch (e) {
+         console.warn('[AudioReceiver] Failed to resume AudioContext:', e);
+       }
+     };
+     // Try immediately and on first user interaction
+     resumeIfNeeded();
+     const onInteract = () => resumeIfNeeded();
+     window.addEventListener('click', onInteract, { once: true });
+     window.addEventListener('touchstart', onInteract, { once: true });
+     window.addEventListener('keydown', onInteract, { once: true });
     const playNextChunk = () => {
       if (isPlayingRef.current || audioQueueRef.current.length === 0) return;
       
@@ -116,10 +132,15 @@ export const useAudioReceiver = ({ sessionId, isViewer, enabled }: UseAudioRecei
         channelRef.current = null;
       }
       
-      audioQueueRef.current = [];
-      isPlayingRef.current = false;
-      setIsConnected(false);
-      setIsPlaying(false);
+       audioQueueRef.current = [];
+       isPlayingRef.current = false;
+       setIsConnected(false);
+       setIsPlaying(false);
+ 
+       // Clean interaction listeners
+       window.removeEventListener('click', onInteract as any);
+       window.removeEventListener('touchstart', onInteract as any);
+       window.removeEventListener('keydown', onInteract as any);
     };
   }, [sessionId, isViewer, enabled]);
 

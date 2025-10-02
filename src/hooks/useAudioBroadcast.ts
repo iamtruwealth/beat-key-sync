@@ -52,7 +52,7 @@ export const useAudioBroadcast = ({ sessionId, isHost, audioStream, enabled }: U
         sourceRef.current = source;
 
         // Create script processor for capturing audio chunks
-        const processor = audioContext.createScriptProcessor(4096, 1, 1);
+        const processor = audioContext.createScriptProcessor(8192, 1, 1);
         processorRef.current = processor;
 
         processor.onaudioprocess = (e) => {

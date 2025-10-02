@@ -32,6 +32,16 @@ export class SessionLoopEngine {
       // Create a MediaStreamDestination to mirror the session mix for viewers
       const raw = Tone.getContext().rawContext as AudioContext;
       this.mediaStreamDest = raw.createMediaStreamDestination();
+      try {
+        const toneDest: any = (Tone as any).getDestination?.();
+        if (toneDest && this.mediaStreamDest) {
+          // Connect master output to MediaStreamDestination so the full mix is captured
+          // @ts-ignore Tone Destination can connect to native AudioNode
+          toneDest.connect(this.mediaStreamDest);
+        }
+      } catch (e) {
+        console.warn('Could not mirror Tone Destination to MediaStreamDestination:', e);
+      }
       this.isInitialized = true;
       console.log('SessionLoopEngine initialized successfully');
     } catch (error) {
