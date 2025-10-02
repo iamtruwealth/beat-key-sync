@@ -125,7 +125,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
         const waveSurfer = WaveSurfer.create({
           container: containerRef.current,
           waveColor: getTrackWaveColor(trackIndex, isMuted),
-          progressColor: 'transparent', // Disable progress visualization to prevent clipping
+          progressColor: getTrackProgressColor(trackIndex, isMuted), // Match wave color so nothing disappears
           cursorColor: 'transparent', // Hide cursor
           barWidth: 2,
           barGap: 1,
@@ -337,7 +337,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
       try {
         waveSurferRef.current.setOptions({
           waveColor: getTrackWaveColor(trackIndex, isMuted),
-          progressColor: 'transparent'
+          progressColor: getTrackProgressColor(trackIndex, isMuted)
         });
       } catch (err) {
         console.error('Error updating waveform colors:', err);
