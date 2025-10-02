@@ -97,7 +97,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
       const waveSurfer = WaveSurfer.create({
         container: containerRef.current,
         waveColor: getTrackWaveColor(trackIndex, isMuted),
-        progressColor: getTrackWaveColor(trackIndex, isMuted), // Same color to prevent disappearing
+        progressColor: getTrackProgressColor(trackIndex, isMuted),
         cursorColor: 'transparent',
         barWidth: 2,
         barGap: 1,
@@ -206,7 +206,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
       try {
         waveSurferRef.current.setOptions({
           waveColor: getTrackWaveColor(trackIndex, isMuted),
-          progressColor: getTrackWaveColor(trackIndex, isMuted)
+          progressColor: getTrackProgressColor(trackIndex, isMuted)
         });
       } catch (err) {
         console.error('Error updating waveform colors:', err);
@@ -343,4 +343,10 @@ function getTrackWaveColor(trackIndex: number, isMuted: boolean): string {
   const baseColor = baseColors[colorIndex];
   
   return isMuted ? baseColor.replace('0.8', '0.3') : baseColor;
+}
+
+function getTrackProgressColor(trackIndex: number, isMuted: boolean): string {
+  const base = getTrackWaveColor(trackIndex, isMuted);
+  // increase opacity slightly so progress doesn't overwrite wave
+  return base.replace('0.8', '1.0').replace('0.3', '0.6');
 }
