@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { GhostUI } from '@/components/cookmode/GhostUI';
+import { CookModeDAW } from '@/components/cookmode/CookModeDAW';
+import { useCookModeSession } from '@/hooks/useCookModeSession';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Radio, ArrowLeft, ExternalLink, Headphones } from 'lucide-react';
@@ -8,6 +10,14 @@ import { MetaTags } from '@/components/MetaTags';
 
 const GhostViewer = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
+  const [activeView, setActiveView] = useState<'timeline' | 'mixer'>('timeline');
+  
+  const {
+    session,
+    tracks,
+    isPlaying,
+    currentTime,
+  } = useCookModeSession(sessionId);
 
   if (!sessionId) {
     return (
@@ -74,28 +84,26 @@ const GhostViewer = () => {
         </header>
 
         {/* Main Content */}
-        <main className="container mx-auto px-4 py-8">
-          <div className="max-w-4xl mx-auto space-y-4">
-            {/* Info Banner */}
-            <Card className="bg-gradient-to-r from-neon-cyan/10 to-electric-blue/10 border-neon-cyan/30">
-              <CardContent className="p-4">
-                <div className="flex items-start gap-3">
-                  <Headphones className="w-5 h-5 text-neon-cyan mt-0.5" />
-                  <div>
-                    <h3 className="font-semibold text-foreground mb-1">Live Audio Stream Active</h3>
-                    <p className="text-sm text-muted-foreground">
-                      You're receiving synchronized visuals and real-time audio directly from the host. No setup needed - just sit back and enjoy!
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <GhostUI 
-              sessionId={sessionId} 
-              hlsStreamUrl=""
+        <main className="h-[calc(100vh-80px)]">
+          <GhostUI sessionId={sessionId || ''}>
+            <CookModeDAW
+              tracks={tracks}
+              isPlaying={isPlaying}
+              currentTime={currentTime}
+              bpm={session?.target_bpm || 120}
+              metronomeEnabled={false}
+              minBars={8}
+              onAddTrack={undefined}
+              onRemoveTrack={undefined}
+              onUpdateTrack={undefined}
+              onTogglePlayback={undefined}
+              onSeek={undefined}
+              onTrimTrack={undefined}
+              activeView={activeView}
+              onViewChange={setActiveView}
+              readOnly={true}
             />
-          </div>
+          </GhostUI>
         </main>
       </div>
     </>

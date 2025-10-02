@@ -95,7 +95,7 @@ const CookMode = () => {
   // Check collaboration permissions
   const { permissions, loading: permissionsLoading } = useCollaborationPermissions(sessionId);
   
-  const { midiDevices, setActiveTrack, tracks: audioTracks, createTrack, loadSample, setTrackTrim } = useCookModeAudio(permissions?.canEdit || false);
+  const { midiDevices, setActiveTrack, tracks: audioTracks, createTrack, loadSample, setTrackTrim, masterDestination } = useCookModeAudio(permissions?.canEdit || false);
 
   // Ghost UI broadcast for hosts (always enabled)
   const { broadcastState, broadcastClipTrigger, broadcastPadPress } = useGhostUIBroadcast({
@@ -110,6 +110,13 @@ const CookMode = () => {
     isHost: permissions?.canEdit || false,
     enabled: true,
   });
+
+  // Auto-start streaming when master destination is available
+  React.useEffect(() => {
+    if (permissions?.canEdit && masterDestination && !isStreaming) {
+      startStreaming(masterDestination as AudioDestinationNode);
+    }
+  }, [permissions?.canEdit, masterDestination, isStreaming, startStreaming]);
 
   // Real-time collaboration
   const { 
@@ -721,7 +728,7 @@ const CookMode = () => {
               isHost={permissions.canEdit}
               isStreaming={isStreaming}
               audioLevel={audioLevel}
-              onToggleStream={permissions.canEdit ? (isStreaming ? stopStreaming : startStreaming) : undefined}
+              onToggleStream={permissions.canEdit ? (isStreaming ? stopStreaming : () => startStreaming(masterDestination as AudioDestinationNode)) : undefined}
             />
 
             <Button
@@ -809,14 +816,27 @@ const CookMode = () => {
           <Separator className="border-border/50" />
 
           <div className="flex-1 overflow-hidden">
-            {/* Show Ghost UI for viewers, full DAW for editors */}
+            {/* Show full DAW UI for everyone, but read-only for viewers */}
             {!permissions.canEdit ? (
-              <div className="h-full p-4 overflow-auto">
-                <GhostUI 
-                  sessionId={sessionId || ''} 
-                  hlsStreamUrl=""
+              <GhostUI sessionId={sessionId || ''}>
+                <CookModeDAW
+                  tracks={tracks}
+                  isPlaying={isPlaying}
+                  currentTime={currentTime}
+                  bpm={session.target_bpm || 120}
+                  metronomeEnabled={metronomeEnabled}
+                  minBars={minBars}
+                  onAddTrack={undefined}
+                  onRemoveTrack={undefined}
+                  onUpdateTrack={undefined}
+                  onTogglePlayback={undefined}
+                  onSeek={undefined}
+                  onTrimTrack={undefined}
+                  activeView={activeView}
+                  onViewChange={setActiveView}
+                  readOnly={true}
                 />
-              </div>
+              </GhostUI>
             ) : (
               <CookModeDAW
                 tracks={tracks}

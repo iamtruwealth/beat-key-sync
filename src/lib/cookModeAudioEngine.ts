@@ -82,6 +82,17 @@ export class CookModeAudioEngine {
     this.initializeMidi();
   }
 
+  // Get audio context for external use (e.g. streaming)
+  public getAudioContext(): AudioContext | null {
+    return this.audioContext;
+  }
+
+  // Get Tone.js master destination for streaming
+  public getMasterDestination(): AudioNode | null {
+    if (!Tone.getDestination()) return null;
+    return Tone.getDestination() as unknown as AudioNode;
+  }
+
   // Initialize Tone.js and Web Audio API
   private async initializeAudio(): Promise<void> {
     try {

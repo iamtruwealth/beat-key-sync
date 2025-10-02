@@ -19,6 +19,8 @@ let sharedEngine: CookModeAudioEngine | null = null;
 export interface UseCookModeAudioReturn {
   // Audio Engine
   engine: CookModeAudioEngine | null;
+  audioContext: AudioContext | null;
+  masterDestination: AudioNode | null;
   
   // State
   tracks: AudioTrack[];
@@ -338,6 +340,8 @@ export function useCookModeAudio(isHost: boolean = true): UseCookModeAudioReturn
 
   return {
     engine: engineRef.current,
+    audioContext: engineRef.current?.getAudioContext() ?? null,
+    masterDestination: engineRef.current?.getMasterDestination() ?? null,
     tracks,
     midiDevices,
     isRecording,

@@ -16,29 +16,36 @@ export const useWebRTCAudioStream = ({ sessionId, isHost, enabled }: UseWebRTCAu
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const audioElementRef = useRef<HTMLAudioElement | null>(null);
 
-  // Host: Start streaming audio
-  const startStreaming = async () => {
+  // Host: Start streaming master audio output
+  const startStreaming = async (masterAudioDestination?: AudioDestinationNode) => {
     if (!isHost || !enabled) return;
 
     try {
-      console.log('[WebRTC Audio] Starting audio stream...');
+      console.log('[WebRTC Audio] Starting master audio stream...');
       
-      // Get user's microphone/system audio
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        }
-      });
+      if (!masterAudioDestination) {
+        throw new Error('Master audio destination not provided');
+      }
 
-      streamRef.current = stream;
+      // Use Tone.js's audio context (same context as the DAW)
+      const toneContext = (window as any).Tone?.getContext();
+      if (!toneContext) {
+        throw new Error('Tone.js context not available');
+      }
 
-      // Set up audio processing
-      const audioContext = new AudioContext({ sampleRate: 24000 });
+      const audioContext = toneContext.rawContext as AudioContext;
       audioContextRef.current = audioContext;
 
-      const source = audioContext.createMediaStreamSource(stream);
+      // Create a MediaStreamDestination to capture Tone's output
+      const destination = audioContext.createMediaStreamDestination();
+      
+      // Connect Tone's master output to our stream destination
+      // This captures everything playing in the DAW
+      const toneDest = (window as any).Tone.getDestination();
+      toneDest.connect(destination);
+      
+      // Set up audio processing for broadcasting
+      const source = audioContext.createMediaStreamSource(destination.stream);
       const processor = audioContext.createScriptProcessor(4096, 1, 1);
       processorRef.current = processor;
 
@@ -64,8 +71,9 @@ export const useWebRTCAudioStream = ({ sessionId, isHost, enabled }: UseWebRTCAu
       source.connect(processor);
       processor.connect(audioContext.destination);
 
+      streamRef.current = destination.stream;
       setIsStreaming(true);
-      console.log('[WebRTC Audio] Stream started');
+      console.log('[WebRTC Audio] Master audio stream started - capturing DAW output');
     } catch (error) {
       console.error('[WebRTC Audio] Error starting stream:', error);
       throw error;
@@ -189,7 +197,7 @@ export const useWebRTCAudioStream = ({ sessionId, isHost, enabled }: UseWebRTCAu
   return {
     isStreaming,
     audioLevel,
-    startStreaming,
+    startStreaming: (masterDest?: AudioDestinationNode) => startStreaming(masterDest),
     stopStreaming
   };
 };
