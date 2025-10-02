@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { PianoRollToolbar } from './PianoRollToolbar';
 import { PianoRollGrid } from './PianoRollGrid';
@@ -7,6 +7,7 @@ import { usePianoRoll } from '@/hooks/usePianoRoll';
 import { TrackMode } from '@/types/pianoRoll';
 import { useToast } from '@/hooks/use-toast';
 import { useCookModeAudio } from '@/hooks/useCookModeAudio';
+import * as Tone from 'tone';
 
 interface PianoRollProps {
   isOpen: boolean;
@@ -29,6 +30,30 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
 }) => {
   const { toast } = useToast();
   const { triggerSample } = useCookModeAudio(true);
+  const synthRef = useRef<Tone.PolySynth | null>(null);
+  
+  // Initialize Tone.js synth for MIDI playback
+  useEffect(() => {
+    if (trackMode === 'midi' && !synthRef.current) {
+      synthRef.current = new Tone.PolySynth(Tone.Synth, {
+        oscillator: { type: 'triangle' },
+        envelope: {
+          attack: 0.005,
+          decay: 0.1,
+          sustain: 0.3,
+          release: 1
+        }
+      }).toDestination();
+      synthRef.current.volume.value = -10;
+    }
+    
+    return () => {
+      if (synthRef.current) {
+        synthRef.current.dispose();
+        synthRef.current = null;
+      }
+    };
+  }, [trackMode]);
   
   const {
     state,
@@ -82,16 +107,23 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
     }
   };
 
-  const handleKeyClick = (pitch: number) => {
+  const handleKeyClick = async (pitch: number) => {
+    // Start audio context if needed
+    if (Tone.getContext().state !== 'running') {
+      await Tone.start();
+    }
+    
     if (trackMode === 'sample') {
       // Preview sample
+      console.log(`🎵 Triggering sample on track ${trackId}, pitch ${pitch}`);
       triggerSample(trackId, pitch, 100);
     } else {
-      // Play MIDI note preview (could be implemented with Tone.js)
-      toast({
-        title: "MIDI Preview",
-        description: `Note: ${pitch}`,
-      });
+      // Play MIDI note with Tone.js
+      if (synthRef.current) {
+        const noteName = Tone.Frequency(pitch, "midi").toNote();
+        console.log(`🎹 Playing MIDI note: ${noteName} (${pitch})`);
+        synthRef.current.triggerAttackRelease(noteName, "8n");
+      }
     }
   };
 
