@@ -27,55 +27,101 @@ export const useWebRTCAudioStream = ({ sessionId, isHost, enabled }: UseWebRTCAu
         throw new Error('Master audio destination not provided');
       }
 
-      // Get Tone.js's raw AudioContext (not the wrapped one)
-      const toneContext = (window as any).Tone?.context;
-      if (!toneContext) {
-        throw new Error('Tone.js not initialized');
-      }
-
-      // Access the raw Web Audio API context
-      const audioContext = toneContext.rawContext._nativeAudioContext as AudioContext;
+      // Use the audio context from the master destination
+      const audioContext = (masterAudioDestination as any).context as AudioContext;
       if (!audioContext) {
-        throw new Error('Could not access raw AudioContext');
+        throw new Error('Audio context not available from master destination');
       }
 
-      console.log('[WebRTC Audio] Using raw AudioContext from Tone.js');
+      console.log('[WebRTC Audio] Using audio context from DAW');
       audioContextRef.current = audioContext;
 
       // Create a MediaStreamDestination to capture Tone's output
       const destination = audioContext.createMediaStreamDestination();
       
       // Connect Tone's master output directly to our stream destination
-      const toneDest = (window as any).Tone.getDestination();
-      toneDest.connect(destination);
-      console.log('[WebRTC Audio] Connected Tone master to stream destination');
+      if ((window as any).Tone?.getDestination) {
+        const toneDest = (window as any).Tone.getDestination();
+        toneDest.connect(destination);
+      } else if (masterAudioDestination && (masterAudioDestination as any).connect) {
+        (masterAudioDestination as any).connect(destination);
+      }
+      console.log('[WebRTC Audio] Connected master to stream destination');
       
-      // Set up audio processing for broadcasting
+      // Set up audio processing for broadcasting (AudioWorklet preferred)
       const source = audioContext.createMediaStreamSource(destination.stream);
-      const processor = audioContext.createScriptProcessor(4096, 1, 1);
-      processorRef.current = processor;
 
-      processor.onaudioprocess = (e) => {
-        const inputData = e.inputBuffer.getChannelData(0);
-        
-        // Calculate audio level for visual feedback
-        const sum = inputData.reduce((a, b) => a + Math.abs(b), 0);
-        const level = (sum / inputData.length) * 100;
-        setAudioLevel(level);
-
-        // Convert to base64 and broadcast
-        if (channelRef.current) {
-          const base64Audio = encodeAudioChunk(inputData);
-          channelRef.current.send({
-            type: 'broadcast',
-            event: 'audio-chunk',
-            payload: { audio: base64Audio, timestamp: Date.now() }
+      let workletSupported = !!(audioContext as any).audioWorklet;
+      if (workletSupported) {
+        try {
+          await (audioContext as any).audioWorklet.addModule('/pcm-audio-worklet.js');
+          const node: any = new (window as any).AudioWorkletNode(audioContext, 'pcm-audio-processor', {
+            numberOfInputs: 1,
+            numberOfOutputs: 0,
+            channelCount: 1,
           });
-        }
-      };
+          // Reuse ref to manage lifecycle
+          processorRef.current = node as unknown as ScriptProcessorNode;
 
-      source.connect(processor);
-      processor.connect(audioContext.destination);
+          node.port.onmessage = (event: MessageEvent) => {
+            const inputData = event.data as Float32Array;
+
+            // Calculate audio level for visual feedback
+            let sum = 0;
+            for (let i = 0; i < inputData.length; i++) sum += Math.abs(inputData[i]);
+            const level = (sum / inputData.length) * 100;
+            setAudioLevel(level);
+
+            // Convert to base64 and broadcast
+            if (channelRef.current) {
+              const base64Audio = encodeAudioChunk(inputData);
+              channelRef.current.send({
+                type: 'broadcast',
+                event: 'audio-chunk',
+                payload: { audio: base64Audio, timestamp: Date.now(), sampleRate: audioContext.sampleRate }
+              });
+            }
+          };
+
+          source.connect(node);
+          console.log('[WebRTC Audio] Master audio stream started via AudioWorklet');
+        } catch (e) {
+          console.warn('[WebRTC Audio] AudioWorklet init failed, falling back to ScriptProcessor', e);
+          workletSupported = false;
+        }
+      }
+
+      if (!workletSupported) {
+        const processor = (audioContext as any).createScriptProcessor?.(4096, 1, 1);
+        if (!processor) {
+          throw new Error('No supported audio processing node available');
+        }
+        processorRef.current = processor;
+
+        processor.onaudioprocess = (e: AudioProcessingEvent) => {
+          const inputData = e.inputBuffer.getChannelData(0);
+
+          // Calculate audio level for visual feedback
+          let sum = 0;
+          for (let i = 0; i < inputData.length; i++) sum += Math.abs(inputData[i]);
+          const level = (sum / inputData.length) * 100;
+          setAudioLevel(level);
+
+          // Convert to base64 and broadcast
+          if (channelRef.current) {
+            const base64Audio = encodeAudioChunk(inputData);
+            channelRef.current.send({
+              type: 'broadcast',
+              event: 'audio-chunk',
+              payload: { audio: base64Audio, timestamp: Date.now(), sampleRate: audioContext.sampleRate }
+            });
+          }
+        };
+
+        source.connect(processor);
+        processor.connect(audioContext.destination);
+        console.log('[WebRTC Audio] Master audio stream started via ScriptProcessor');
+      }
 
       streamRef.current = destination.stream;
       setIsStreaming(true);
@@ -100,10 +146,8 @@ export const useWebRTCAudioStream = ({ sessionId, isHost, enabled }: UseWebRTCAu
       streamRef.current = null;
     }
 
-    if (audioContextRef.current) {
-      audioContextRef.current.close();
-      audioContextRef.current = null;
-    }
+    // Do not close the DAW's main AudioContext here
+    audioContextRef.current = null;
 
     setIsStreaming(false);
     setAudioLevel(0);
@@ -120,7 +164,7 @@ export const useWebRTCAudioStream = ({ sessionId, isHost, enabled }: UseWebRTCAu
     audioElement.autoplay = true;
     audioElementRef.current = audioElement;
 
-    const audioContext = new AudioContext({ sampleRate: 24000 });
+    const audioContext = new AudioContext();
     audioContextRef.current = audioContext;
 
     // Audio queue for smooth playback
@@ -155,7 +199,8 @@ export const useWebRTCAudioStream = ({ sessionId, isHost, enabled }: UseWebRTCAu
         try {
           // Decode and queue audio
           const audioData = decodeAudioChunk(payload.audio);
-          const audioBuffer = audioContext.createBuffer(1, audioData.length, 24000);
+          const sampleRate = payload?.sampleRate || audioContext.sampleRate;
+          const audioBuffer = audioContext.createBuffer(1, audioData.length, sampleRate);
           audioBuffer.copyToChannel(audioData, 0);
           
           audioQueue.push(audioBuffer);
