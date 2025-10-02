@@ -316,27 +316,38 @@ const CookMode = () => {
 
   // Ensure audio is ready on user interaction (fixes autoplay policies)
   const ensureAudioReady = () => {
+    console.log('[CookMode] ensureAudioReady called');
     try {
       void Tone.start();
       const ctx = Tone.getContext();
+      console.log('[CookMode] Audio context state:', ctx.state);
       if (ctx.state === 'suspended') {
         void ctx.resume();
+        console.log('[CookMode] Audio context resumed');
       }
       console.log('[CookMode] Audio context ensured on interaction');
     } catch (e) {
-      console.warn('[CookMode] Failed to ensure audio context', e);
+      console.error('[CookMode] Failed to ensure audio context', e);
     }
   };
 
   // Wrap playback controls to broadcast to other users
   const handleTogglePlayback = () => {
+    console.log('[CookMode] handleTogglePlayback called - START');
     const next = !isPlaying;
-    console.log('[CookMode] togglePlayback', { from: isPlaying, to: next });
-    if (next) ensureAudioReady();
+    console.log('[CookMode] togglePlayback', { from: isPlaying, to: next, hasToggleFunction: !!togglePlayback });
+    if (next) {
+      console.log('[CookMode] Will ensure audio ready');
+      ensureAudioReady();
+    }
+    console.log('[CookMode] Calling togglePlayback()');
     togglePlayback();
+    console.log('[CookMode] togglePlayback() returned');
     if (broadcastPlaybackToggle) {
+      console.log('[CookMode] Broadcasting playback toggle');
       broadcastPlaybackToggle(next);
     }
+    console.log('[CookMode] handleTogglePlayback called - END');
   };
   const handleSeekTo = (seconds: number) => {
     console.log('[CookMode] seekTo', seconds);

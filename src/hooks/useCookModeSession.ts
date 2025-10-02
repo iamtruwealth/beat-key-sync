@@ -379,10 +379,14 @@ export function useCookModeSession(sessionId?: string) {
   }, [isPlaying]);
 
   const togglePlayback = useCallback(() => {
+    console.log('[useCookModeSession] togglePlayback called - START');
     const newIsPlaying = !isPlaying;
+    console.log('[useCookModeSession] Toggling from', isPlaying, 'to', newIsPlaying);
     setIsPlaying(newIsPlaying);
+    console.log('[useCookModeSession] State set to', newIsPlaying);
     
     if (channelRef.current) {
+      console.log('[useCookModeSession] Broadcasting to channel');
       channelRef.current.send({
         type: 'broadcast',
         event: 'playback-control',
@@ -391,7 +395,10 @@ export function useCookModeSession(sessionId?: string) {
           currentTime: currentTime
         }
       });
+    } else {
+      console.warn('[useCookModeSession] No channel to broadcast to');
     }
+    console.log('[useCookModeSession] togglePlayback called - END');
   }, [isPlaying, currentTime]);
 
   const seekTo = useCallback((time: number) => {

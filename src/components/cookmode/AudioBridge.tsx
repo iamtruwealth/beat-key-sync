@@ -262,12 +262,20 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
 
   // Handle playback state changes
   useEffect(() => {
-    if (!isHost || !isInitialized.current) return;
+    console.log('[AudioBridge] Playback state effect triggered', { isHost, isInitialized: isInitialized.current, isPlaying, engineIsPlaying: sessionLoopEngine.isPlaying });
+    if (!isHost || !isInitialized.current) {
+      console.log('[AudioBridge] Skipping playback control - not host or not initialized');
+      return;
+    }
 
     if (isPlaying && !sessionLoopEngine.isPlaying) {
+      console.log('[AudioBridge] Starting sessionLoopEngine');
       sessionLoopEngine.start();
     } else if (!isPlaying && sessionLoopEngine.isPlaying) {
+      console.log('[AudioBridge] Pausing sessionLoopEngine');
       sessionLoopEngine.pause();
+    } else {
+      console.log('[AudioBridge] No state change needed - already in correct state');
     }
   }, [isPlaying, isHost]);
 

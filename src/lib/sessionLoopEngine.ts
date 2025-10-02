@@ -185,18 +185,25 @@ export class SessionLoopEngine {
   }
 
   async start() {
+    console.log('[SessionLoopEngine] start() called - BEGIN');
     await this.initialize();
+    console.log('[SessionLoopEngine] Initialized, current Transport state:', Tone.Transport.state);
     
     try {
       // If resuming from pause, keep current position; otherwise start from beginning
       if (Tone.Transport.state !== 'paused') {
+        console.log('[SessionLoopEngine] Not paused, resetting to position 0');
         Tone.Transport.position = 0;
+      } else {
+        console.log('[SessionLoopEngine] Resuming from pause at position:', Tone.Transport.position);
       }
+      console.log('[SessionLoopEngine] About to call Transport.start');
       Tone.Transport.start("+0.05");
+      console.log('[SessionLoopEngine] Transport.start called, new state:', Tone.Transport.state);
       this.startTransportTicker();
-      console.log('Session playback started');
+      console.log('[SessionLoopEngine] Session playback started successfully');
     } catch (error) {
-      console.error('Failed to start session playback:', error);
+      console.error('[SessionLoopEngine] Failed to start session playback:', error);
       throw error;
     }
   }
