@@ -20,7 +20,6 @@ import { LiveSessionIndicator } from '@/components/cookmode/LiveSessionIndicator
 import { AccessLevelNotification } from '@/components/cookmode/AccessLevelNotification';
 import { CookModeChat } from '@/components/cookmode/CookModeChat';
 import { SessionParticipants } from '@/components/cookmode/SessionParticipants';
-import RadioStreamControls from '@/components/radio/RadioStreamControls';
 import { SessionControls } from '@/components/cookmode/SessionControls';
 import { CookModeAudioControls } from '@/components/cookmode/CookModeAudioControls';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -654,15 +653,6 @@ const CookMode = () => {
                   </div>
               </DropdownMenuContent>
             </DropdownMenu>
-          )}
-
-          {/* Radio Stream Controls - viewers only */}
-          {!permissions.canEdit && (
-            <RadioStreamControls 
-              sessionId={sessionId || ''}
-              isHost={false}
-              currentUserId={currentUser?.id}
-            />
           )}
             
             <Button
