@@ -152,6 +152,8 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
   const handleAddNote = (pitch: number, startTime: number) => {
     if (!trackId) return;
     
+    console.log('🎹 handleAddNote called', { trackMode, pitch, startTime });
+    
     if (trackMode === 'midi') {
       addNote(trackId, {
         pitch,

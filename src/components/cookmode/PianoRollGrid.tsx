@@ -81,9 +81,14 @@ export const PianoRollGrid: React.FC<PianoRollGridProps> = ({
 
   // Handle grid click to add note/trigger (left click)
   const handleGridClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    console.log('🎹 Grid clicked', { mode, target: e.target });
+    
     const target = e.target as HTMLElement;
     // Ignore if clicking on a note/trigger or resize handle
-    if (target?.dataset?.role === 'note' || target?.dataset?.role === 'resize') return;
+    if (target?.dataset?.role === 'note' || target?.dataset?.role === 'resize') {
+      console.log('🎹 Clicked on note or resize handle, ignoring');
+      return;
+    }
 
     const rect = gridRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -92,6 +97,8 @@ export const PianoRollGrid: React.FC<PianoRollGridProps> = ({
     const y = e.clientY - rect.top;
     const time = pixelToTime(x);
     const pitch = pixelToPitch(y);
+
+    console.log('🎹 Adding note/trigger', { mode, pitch, time });
 
     if (mode === 'midi' && onAddNote) {
       onAddNote(pitch, time);
