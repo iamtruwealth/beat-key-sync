@@ -1,11 +1,11 @@
-# fly.toml - Beat Key Sync Fly.io deployment configuration
+# fly.toml - Beat Key Sync Fly.io deployment
 
 app = "beat-key-sync"
-primary_region = "dfw" # Dallas, valid region
+primary_region = "dfw"  # Dallas, change if needed
 
 [build]
-  # Uses your local Dockerfile
-  image = "registry.fly.io/beat-key-sync:latest"
+  # Use your existing Dockerfile
+  dockerfile = "Dockerfile"
 
 [env]
   NODE_ENV = "production"
@@ -18,14 +18,8 @@ primary_region = "dfw" # Dallas, valid region
 [deploy]
   release_command = "npm run build"
 
-[mounts]
-  # Only needed if your app writes to disk, otherwise remove
-  # source="data", destination="/app/data"
-
-# Services must be an array table
 [[services]]
-  http_checks = []
-  internal_port = 3000 # The port your app listens on
+  internal_port = 4173  # Vite production preview port
   protocol = "tcp"
 
   [[services.ports]]
@@ -36,8 +30,7 @@ primary_region = "dfw" # Dallas, valid region
     port = 443
     handlers = ["tls", "http"]
 
-  [[services.tcp_checks]]
-    interval = 10000
-    timeout = 2000
-    grace_period = "5s"
-    restart_limit = 0
+  [services.concurrency]
+    type = "connections"
+    hard_limit = 25
+    soft_limit = 20
