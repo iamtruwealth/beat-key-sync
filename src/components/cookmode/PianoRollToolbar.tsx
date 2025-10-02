@@ -1,18 +1,20 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Play, Pause, Square, ZoomIn, ZoomOut, Grid } from 'lucide-react';
+import { Play, Pause, Square, ZoomIn, ZoomOut, Grid, Pencil, MousePointer } from 'lucide-react';
 import { SnapGridValue } from '@/types/pianoRoll';
 
 interface PianoRollToolbarProps {
   isPlaying: boolean;
   snapGrid: SnapGridValue;
   zoom: number;
+  toolMode: 'draw' | 'select';
   onTogglePlayback: () => void;
   onStop: () => void;
   onSnapGridChange: (value: SnapGridValue) => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
+  onToolModeChange: (mode: 'draw' | 'select') => void;
 }
 
 const SNAP_GRID_OPTIONS: { value: SnapGridValue; label: string; group: string }[] = [
@@ -48,11 +50,13 @@ export const PianoRollToolbar: React.FC<PianoRollToolbarProps> = ({
   isPlaying,
   snapGrid,
   zoom,
+  toolMode,
   onTogglePlayback,
   onStop,
   onSnapGridChange,
   onZoomIn,
   onZoomOut,
+  onToolModeChange,
 }) => {
   return (
     <div className="flex items-center gap-4 p-2 border-b border-border bg-card/50">
@@ -71,6 +75,28 @@ export const PianoRollToolbar: React.FC<PianoRollToolbarProps> = ({
           onClick={onStop}
         >
           <Square className="w-4 h-4" />
+        </Button>
+      </div>
+
+      <div className="h-6 w-px bg-border" />
+
+      {/* Tools */}
+      <div className="flex items-center gap-2">
+        <Button
+          size="sm"
+          variant={toolMode === 'draw' ? 'default' : 'outline'}
+          onClick={() => onToolModeChange('draw')}
+          title="Draw (add notes)"
+        >
+          <Pencil className="w-4 h-4" />
+        </Button>
+        <Button
+          size="sm"
+          variant={toolMode === 'select' ? 'default' : 'outline'}
+          onClick={() => onToolModeChange('select')}
+          title="Select/Move"
+        >
+          <MousePointer className="w-4 h-4" />
         </Button>
       </div>
 

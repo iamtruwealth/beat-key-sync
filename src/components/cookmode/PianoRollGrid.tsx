@@ -22,6 +22,7 @@ interface PianoRollGridProps {
   onUpdateNote?: (noteId: string, updates: Partial<PianoRollNote>) => void;
   onSelectNotes?: (noteIds: string[]) => void;
   onClearSelection?: () => void;
+  toolMode?: 'draw' | 'select';
 }
 
 export const PianoRollGrid: React.FC<PianoRollGridProps> = ({
@@ -44,6 +45,7 @@ export const PianoRollGrid: React.FC<PianoRollGridProps> = ({
   onUpdateNote,
   onSelectNotes,
   onClearSelection,
+  toolMode = 'draw',
 }) => {
   const gridRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -81,13 +83,12 @@ export const PianoRollGrid: React.FC<PianoRollGridProps> = ({
 
   // Handle grid click to add note/trigger (left click) - SVG-based
   const handleSvgMouseDown = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
-    // Left click only
+    if (toolMode !== 'draw') return; // Only in draw mode
     if (e.button !== 0) return;
 
     const target = e.target as HTMLElement;
     const role = (target as HTMLElement)?.dataset?.role;
     if (role === 'note' || role === 'resize') {
-      // Clicking on existing note/handle: dragging/resizing handled elsewhere
       return;
     }
 
@@ -107,7 +108,7 @@ export const PianoRollGrid: React.FC<PianoRollGridProps> = ({
     }
 
     onClearSelection?.();
-  }, [mode, pixelToTime, pixelToPitch, onAddNote, onAddTrigger, onClearSelection]);
+  }, [toolMode, mode, pixelToTime, pixelToPitch, onAddNote, onAddTrigger, onClearSelection]);
 
   // Handle note right-click (delete)
   const handleNoteRightClick = useCallback((e: React.MouseEvent, noteId: string) => {
@@ -348,7 +349,7 @@ export const PianoRollGrid: React.FC<PianoRollGridProps> = ({
             strokeWidth={2}
             rx={2}
             data-role="note"
-            onMouseDown={(e) => handleNoteDragStart(e, note.id, note)}
+            onMouseDown={(e) => toolMode === 'select' && handleNoteDragStart(e, note.id, note)}
             onContextMenu={(e) => handleNoteRightClick(e, note.id)}
             style={{ pointerEvents: 'all' }}
           />
@@ -361,7 +362,7 @@ export const PianoRollGrid: React.FC<PianoRollGridProps> = ({
             className="fill-primary-foreground cursor-ew-resize"
             opacity={isSelected ? 0.7 : 0.3}
             data-role="resize"
-            onMouseDown={(e) => handleResizeStart(e, note.id, note.duration)}
+            onMouseDown={(e) => toolMode === 'select' && handleResizeStart(e, note.id, note.duration)}
             style={{ pointerEvents: 'all' }}
           />
         </g>
@@ -394,7 +395,7 @@ export const PianoRollGrid: React.FC<PianoRollGridProps> = ({
             strokeWidth={2}
             rx={2}
             data-role="note"
-            onMouseDown={(e) => handleNoteDragStart(e, trigger.id, trigger)}
+            onMouseDown={(e) => toolMode === 'select' && handleNoteDragStart(e, trigger.id, trigger)}
             onContextMenu={(e) => handleNoteRightClick(e, trigger.id)}
             style={{ pointerEvents: 'all' }}
           />
@@ -407,7 +408,7 @@ export const PianoRollGrid: React.FC<PianoRollGridProps> = ({
             className="fill-primary-foreground cursor-ew-resize"
             opacity={isSelected ? 0.7 : 0.3}
             data-role="resize"
-            onMouseDown={(e) => handleResizeStart(e, trigger.id, duration)}
+            onMouseDown={(e) => toolMode === 'select' && handleResizeStart(e, trigger.id, duration)}
             style={{ pointerEvents: 'all' }}
           />
         </g>
@@ -441,10 +442,11 @@ export const PianoRollGrid: React.FC<PianoRollGridProps> = ({
         <svg
           width={gridWidth}
           height={gridHeight}
-          className="absolute inset-0"
+          className="absolute inset-0 pointer-events-auto"
           onMouseDown={handleSvgMouseDown}
+          style={{ pointerEvents: 'auto' }}
         >
-          <rect x={0} y={0} width={gridWidth} height={gridHeight} fill="transparent" data-role="bg" />
+          <rect x={0} y={0} width={gridWidth} height={gridHeight} fill="transparent" data-role="bg" pointerEvents="all" />
           {renderGridLines()}
           {mode === 'midi' ? renderNotes() : renderTriggers()}
           {renderPlayhead()}

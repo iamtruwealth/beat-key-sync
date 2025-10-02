@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { PianoRollToolbar } from './PianoRollToolbar';
 import { PianoRollGrid } from './PianoRollGrid';
@@ -146,6 +146,8 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
       setActiveTrack(trackId);
     }
   }, [isOpen, trackId, trackName, trackMode, state.tracks, createTrack, setActiveTrack]);
+
+  const [toolMode, setToolMode] = useState<'draw' | 'select'>('draw');
 
   const activeTrack = state.tracks[trackId];
 
@@ -298,11 +300,13 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
             isPlaying={state.isPlaying}
             snapGrid={state.snapGrid}
             zoom={state.zoom}
+            toolMode={toolMode}
             onTogglePlayback={togglePlayback}
             onStop={stopPlayback}
             onSnapGridChange={setSnapGrid}
             onZoomIn={handleZoomIn}
             onZoomOut={handleZoomOut}
+            onToolModeChange={setToolMode}
           />
           
           <div className="flex flex-1 overflow-hidden">
@@ -335,6 +339,7 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
               onUpdateNote={(id, updates) => updateNote(trackId, id, updates)}
               onSelectNotes={selectNotes}
               onClearSelection={clearSelection}
+              toolMode={toolMode}
             />
           </div>
         </div>
