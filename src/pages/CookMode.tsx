@@ -286,7 +286,7 @@ const CookMode = () => {
     }
     
     // Broadcast Ghost UI state
-    if (permissions.canEdit && ghostUIEnabled) {
+    if (permissions.canEdit && ghostUIEnabled && session) {
       broadcastState({
         playheadPosition: currentTime,
         isPlaying: next,
@@ -303,7 +303,7 @@ const CookMode = () => {
     }
     
     // Broadcast Ghost UI state
-    if (permissions.canEdit && ghostUIEnabled) {
+    if (permissions.canEdit && ghostUIEnabled && session) {
       broadcastState({
         playheadPosition: time,
         isPlaying: isPlaying,
@@ -319,7 +319,7 @@ const CookMode = () => {
 
   // Periodically broadcast Ghost UI state while playing
   React.useEffect(() => {
-    if (!permissions.canEdit || !ghostUIEnabled || !isPlaying) return;
+    if (!permissions.canEdit || !ghostUIEnabled || !isPlaying || !session) return;
 
     const intervalId = setInterval(() => {
       broadcastState({
@@ -336,7 +336,7 @@ const CookMode = () => {
     }, 200); // Broadcast every 200ms while playing
 
     return () => clearInterval(intervalId);
-  }, [isPlaying, currentTime, permissions.canEdit, ghostUIEnabled, session.target_bpm, minBars, broadcastState]);
+  }, [isPlaying, currentTime, permissions.canEdit, ghostUIEnabled, session, minBars, broadcastState]);
 
   // Session Creation Screen
   if (!sessionId) {
