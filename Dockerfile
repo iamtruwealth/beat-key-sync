@@ -1,18 +1,15 @@
-FROM ubuntu:22.04
+# Step 1: Build the app
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build
 
-# Install dependencies
-RUN apt-get update && apt-get install -y ffmpeg curl
-
-# Create folder for HLS output
-RUN mkdir -p /hls
-WORKDIR /hls
-
-# Expose port for HTTP serving
-EXPOSE 8080
-
-# Start a simple FFmpeg HLS server
-# Replace `input.mp3` with your audio source or OBS RTMP input
-CMD ffmpeg -re -i input.mp3 \
-    -c:a aac -b:a 128k \
-    -f hls -hls_time 2 -hls_list_size 5 -hls_flags delete_segments \
-    /hls/out.m3u8
+# Step 2: Serve the build
+FROM node:20-alpine
+WORKDIR /app
+RUN npm install -g serve
+COPY --from=builder /app/dist ./dist
+EXPOSE 3000
+CMD ["serve", "-s", "dist", "-l", "3000"]
