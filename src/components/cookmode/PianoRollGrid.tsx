@@ -1,11 +1,12 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
-import { PianoRollNote, SampleTrigger, TrackMode } from '@/types/pianoRoll';
+import { PianoRollNote, SampleTrigger, TrackMode, SnapGridValue } from '@/types/pianoRoll';
 import { cn } from '@/lib/utils';
 
 interface PianoRollGridProps {
   mode: TrackMode;
   notes: PianoRollNote[];
   triggers: SampleTrigger[];
+  snapGrid: SnapGridValue;
   startNote?: number;
   endNote?: number;
   noteHeight?: number;
@@ -27,6 +28,7 @@ export const PianoRollGrid: React.FC<PianoRollGridProps> = ({
   mode,
   notes,
   triggers,
+  snapGrid,
   startNote = 0,
   endNote = 127,
   noteHeight = 20,
@@ -132,26 +134,89 @@ export const PianoRollGrid: React.FC<PianoRollGridProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
+  // Get subdivision amount based on snap grid
+  const getSubdivision = useCallback((): number => {
+    switch (snapGrid) {
+      case 'none': return 1; // Show beat lines only
+      case 'line': return 0.01; // Very fine
+      case 'cell': return 0.25; // Quarter beat
+      case '1/6-step': return 1/24; // 1/6 of 1/4 beat
+      case '1/4-step': return 1/16;
+      case '1/3-step': return 1/12;
+      case '1/2-step': return 1/8;
+      case '1-step': return 0.25;
+      case '1/6-beat': return 1/6;
+      case '1/4-beat': return 0.25;
+      case '1/3-beat': return 1/3;
+      case '1/2-beat': return 0.5;
+      case '1-beat': return 1;
+      case '1-bar': return beatsPerBar;
+      default: return 0.25;
+    }
+  }, [snapGrid, beatsPerBar]);
+
   // Render grid lines
   const renderGridLines = () => {
     const lines = [];
+    const subdivision = getSubdivision();
 
-    // Vertical lines (beats)
-    for (let i = 0; i <= totalBeats; i++) {
-      const x = i * beatWidth;
-      const isBarLine = i % beatsPerBar === 0;
-      lines.push(
-        <line
-          key={`v-${i}`}
-          x1={x}
-          y1={0}
-          x2={x}
-          y2={gridHeight}
-          stroke="currentColor"
-          strokeWidth={isBarLine ? 2 : 1}
-          className={isBarLine ? "text-border" : "text-border/30"}
-        />
-      );
+    // Vertical lines based on snap grid
+    if (snapGrid === 'none') {
+      // Only show bar lines
+      for (let i = 0; i <= barsVisible; i++) {
+        const x = i * beatsPerBar * beatWidth;
+        lines.push(
+          <line
+            key={`v-bar-${i}`}
+            x1={x}
+            y1={0}
+            x2={x}
+            y2={gridHeight}
+            stroke="currentColor"
+            strokeWidth={2}
+            className="text-border"
+          />
+        );
+      }
+    } else {
+      // Calculate number of subdivisions
+      const totalSubdivisions = Math.ceil(totalBeats / subdivision);
+      
+      for (let i = 0; i <= totalSubdivisions; i++) {
+        const beatPosition = i * subdivision;
+        const x = beatPosition * beatWidth;
+        
+        // Determine line importance
+        const isBarLine = Math.abs(beatPosition % beatsPerBar) < 0.001;
+        const isBeatLine = Math.abs(beatPosition % 1) < 0.001;
+        const isQuarterBeat = Math.abs(beatPosition % 0.25) < 0.001;
+        
+        let strokeWidth = 1;
+        let opacity = "text-border/20";
+        
+        if (isBarLine) {
+          strokeWidth = 2;
+          opacity = "text-border";
+        } else if (isBeatLine) {
+          strokeWidth = 1.5;
+          opacity = "text-border/60";
+        } else if (isQuarterBeat) {
+          opacity = "text-border/40";
+        }
+        
+        lines.push(
+          <line
+            key={`v-${i}`}
+            x1={x}
+            y1={0}
+            x2={x}
+            y2={gridHeight}
+            stroke="currentColor"
+            strokeWidth={strokeWidth}
+            className={opacity}
+          />
+        );
+      }
     }
 
     // Horizontal lines (notes)

@@ -157,6 +157,7 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
               mode={trackMode}
               notes={activeTrack?.notes || []}
               triggers={activeTrack?.triggers || []}
+              snapGrid={state.snapGrid}
               startNote={24}
               endNote={96}
               noteHeight={20}
