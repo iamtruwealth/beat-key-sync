@@ -23,7 +23,7 @@ import { SessionParticipants } from '@/components/cookmode/SessionParticipants';
 import { SessionControls } from '@/components/cookmode/SessionControls';
 import { GhostUI } from '@/components/cookmode/GhostUI';
 import { useGhostUIBroadcast } from '@/hooks/useGhostUIBroadcast';
-import { useWebRTCAudioStream } from '@/hooks/useWebRTCAudioStream';
+// import { useWebRTCAudioStream } from '@/hooks/useWebRTCAudioStream'; // Disabled until HLS server deployed
 import { AudioStreamIndicator } from '@/components/cookmode/AudioStreamIndicator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { CookModeAudioControls } from '@/components/cookmode/CookModeAudioControls';
@@ -112,12 +112,12 @@ const CookMode = () => {
     enabled: true,
   });
 
-  // WebRTC Audio Stream (automatic, built-in)
-  const { isStreaming, audioLevel, startStreaming, stopStreaming } = useWebRTCAudioStream({
-    sessionId: sessionId || '',
-    isHost: permissions?.canEdit || false,
-    enabled: true,
-  });
+  // Audio streaming temporarily disabled until HLS server is deployed
+  // TODO: Replace with useHLSAudioStream once streaming server is ready
+  const isStreaming = false;
+  const audioLevel = 0;
+  const startStreaming = (dest?: AudioDestinationNode) => {};
+  const stopStreaming = () => {};
 
   // Auto-start streaming when master destination is available
   React.useEffect(() => {
