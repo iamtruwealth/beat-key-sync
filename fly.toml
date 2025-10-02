@@ -10,8 +10,8 @@ primary_region = "dfw" # Dallas, replace if you prefer another valid region
 [env]
   # Add any environment variables your app needs here
   NODE_ENV = "production"
-  VITE_SUPABASE_URL = "<YOUR_SUPABASE_URL>"
-  VITE_SUPABASE_ANON_KEY = "<YOUR_SUPABASE_ANON_KEY>"
+  VITE_SUPABASE_URL = "https://lascsucrozzhbvlsddxg.supabase.co"
+  VITE_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxhc2NzdWNyb3p6aGJ2bHNkZHhnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgxNTk5MDcsImV4cCI6MjA3MzczNTkwN30.DBNHTepFB_xFlBXBTSDZKh58d4dG1inM6mbXnfyuwlY"
 
 [experimental]
   auto_rollback = true
