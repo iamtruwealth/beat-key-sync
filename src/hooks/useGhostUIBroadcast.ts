@@ -7,6 +7,7 @@ export interface GhostUIState {
   isPlaying: boolean;
   bpm: number;
   timestamp: number;
+  activeView?: 'timeline' | 'mixer';
   clipTriggers?: {
     trackId: string;
     clipId: string;

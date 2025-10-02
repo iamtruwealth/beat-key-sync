@@ -361,9 +361,10 @@ const CookMode = () => {
     const intervalId = setInterval(() => {
       broadcastState({
         playheadPosition: currentTime,
-        isPlaying: true,
+        isPlaying: isPlaying,
         bpm: session.target_bpm || 120,
         timestamp: Date.now(),
+        activeView,
         loopRegion: minBars ? {
           start: 0,
           end: minBars * 4, // Convert bars to beats (4 beats per bar)
@@ -373,7 +374,19 @@ const CookMode = () => {
     }, 200); // Broadcast every 200ms while playing
 
     return () => clearInterval(intervalId);
-  }, [isPlaying, currentTime, permissions.canEdit, session, minBars, broadcastState]);
+  }, [isPlaying, currentTime, permissions.canEdit, session, minBars, activeView, broadcastState]);
+
+  // Also broadcast key UI changes (like view switches) even when not playing
+  React.useEffect(() => {
+    if (!permissions.canEdit || !session) return;
+    broadcastState({
+      playheadPosition: currentTime,
+      isPlaying: isPlaying,
+      bpm: session.target_bpm || 120,
+      timestamp: Date.now(),
+      activeView,
+    });
+  }, [activeView]);
 
   // Session Creation Screen
   if (!sessionId) {
