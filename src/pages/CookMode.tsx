@@ -21,6 +21,8 @@ import { AccessLevelNotification } from '@/components/cookmode/AccessLevelNotifi
 import { CookModeChat } from '@/components/cookmode/CookModeChat';
 import { SessionParticipants } from '@/components/cookmode/SessionParticipants';
 import { SessionControls } from '@/components/cookmode/SessionControls';
+import { GhostUI } from '@/components/cookmode/GhostUI';
+import { useGhostUIBroadcast } from '@/hooks/useGhostUIBroadcast';
 import { CookModeAudioControls } from '@/components/cookmode/CookModeAudioControls';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { 
@@ -47,7 +49,8 @@ import {
   ChevronDown,
   Piano,
   MessageSquare,
-  UserPlus
+  UserPlus,
+  Radio
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -61,6 +64,7 @@ const CookMode = () => {
   const [minBars, setMinBars] = useState(8);
   const [authLoading, setAuthLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [ghostUIEnabled, setGhostUIEnabled] = useState(true); // Ghost UI enabled by default for viewers
   const [sessionConfig, setSessionConfig] = useState({
     bpm: 120,
     key: 'C',
@@ -90,6 +94,13 @@ const CookMode = () => {
   const { permissions, loading: permissionsLoading } = useCollaborationPermissions(sessionId);
   
   const { midiDevices, setActiveTrack, tracks: audioTracks, createTrack, loadSample, setTrackTrim } = useCookModeAudio(permissions?.canEdit || false);
+
+  // Ghost UI broadcast for hosts
+  const { broadcastState, broadcastClipTrigger, broadcastPadPress } = useGhostUIBroadcast({
+    sessionId: sessionId || '',
+    isHost: permissions?.canEdit || false,
+    enabled: ghostUIEnabled,
+  });
 
   // Real-time collaboration
   const { 
@@ -273,6 +284,16 @@ const CookMode = () => {
       console.log('[CookMode] broadcastPlaybackToggle', { to: next });
       broadcastPlaybackToggle(next);
     }
+    
+    // Broadcast Ghost UI state
+    if (permissions.canEdit && ghostUIEnabled) {
+      broadcastState({
+        playheadPosition: currentTime,
+        isPlaying: next,
+        bpm: session.target_bpm || 120,
+        timestamp: Date.now(),
+      });
+    }
   };
 
   const handleSeekTo = (time: number) => {
@@ -280,11 +301,42 @@ const CookMode = () => {
     if (broadcastPlaybackSeek) {
       broadcastPlaybackSeek(time);
     }
+    
+    // Broadcast Ghost UI state
+    if (permissions.canEdit && ghostUIEnabled) {
+      broadcastState({
+        playheadPosition: time,
+        isPlaying: isPlaying,
+        bpm: session.target_bpm || 120,
+        timestamp: Date.now(),
+      });
+    }
   };
 
   React.useEffect(() => {
     console.log('[CookMode] isPlaying changed', isPlaying);
   }, [isPlaying]);
+
+  // Periodically broadcast Ghost UI state while playing
+  React.useEffect(() => {
+    if (!permissions.canEdit || !ghostUIEnabled || !isPlaying) return;
+
+    const intervalId = setInterval(() => {
+      broadcastState({
+        playheadPosition: currentTime,
+        isPlaying: true,
+        bpm: session.target_bpm || 120,
+        timestamp: Date.now(),
+        loopRegion: minBars ? {
+          start: 0,
+          end: minBars * 4, // Convert bars to beats (4 beats per bar)
+          enabled: true,
+        } : undefined,
+      });
+    }, 200); // Broadcast every 200ms while playing
+
+    return () => clearInterval(intervalId);
+  }, [isPlaying, currentTime, permissions.canEdit, ghostUIEnabled, session.target_bpm, minBars, broadcastState]);
 
   // Session Creation Screen
   if (!sessionId) {
@@ -665,6 +717,17 @@ const CookMode = () => {
               Share Link
             </Button>
             
+            {permissions.canEdit && (
+              <Button
+                variant={ghostUIEnabled ? "default" : "outline"}
+                size="sm"
+                onClick={() => setGhostUIEnabled(!ghostUIEnabled)}
+                className="border-border/50 hover:border-neon-cyan/50"
+              >
+                <Radio className="w-4 h-4 mr-2" />
+                Ghost UI {ghostUIEnabled ? 'ON' : 'OFF'}
+              </Button>
+            )}
             
             {permissions.canEdit && (
               <DropdownMenu>
@@ -741,26 +804,33 @@ const CookMode = () => {
           <Separator className="border-border/50" />
 
           <div className="flex-1 overflow-hidden">
-            <CookModeDAW
-              tracks={tracks}
-              isPlaying={isPlaying}
-              currentTime={currentTime}
-              bpm={session.target_bpm || 120}
-              metronomeEnabled={metronomeEnabled}
-              minBars={minBars}
-              onAddTrack={permissions.canEdit ? addTrack : undefined}
-              onRemoveTrack={permissions.canEdit ? removeTrack : undefined}
-              onUpdateTrack={permissions.canEdit ? updateTrack : undefined}
-              onTogglePlayback={permissions.canEdit ? handleTogglePlayback : undefined}
-              onSeek={permissions.canEdit ? handleSeekTo : undefined}
-              onTrimTrack={permissions.canEdit ? trimTrack : undefined}
-              activeView={activeView}
-              onViewChange={setActiveView}
-              readOnly={!permissions.canEdit}
-              setActiveTrack={setActiveTrack}
-              createTrack={createTrack}
-              loadSample={loadSample}
-            />
+            {/* Show Ghost UI for viewers, full DAW for editors */}
+            {!permissions.canEdit && ghostUIEnabled ? (
+              <div className="h-full p-4 overflow-auto">
+                <GhostUI sessionId={sessionId || ''} />
+              </div>
+            ) : (
+              <CookModeDAW
+                tracks={tracks}
+                isPlaying={isPlaying}
+                currentTime={currentTime}
+                bpm={session.target_bpm || 120}
+                metronomeEnabled={metronomeEnabled}
+                minBars={minBars}
+                onAddTrack={permissions.canEdit ? addTrack : undefined}
+                onRemoveTrack={permissions.canEdit ? removeTrack : undefined}
+                onUpdateTrack={permissions.canEdit ? updateTrack : undefined}
+                onTogglePlayback={permissions.canEdit ? handleTogglePlayback : undefined}
+                onSeek={permissions.canEdit ? handleSeekTo : undefined}
+                onTrimTrack={permissions.canEdit ? trimTrack : undefined}
+                activeView={activeView}
+                onViewChange={setActiveView}
+                readOnly={!permissions.canEdit}
+                setActiveTrack={setActiveTrack}
+                createTrack={createTrack}
+                loadSample={loadSample}
+              />
+            )}
           </div>
         </div>
 
