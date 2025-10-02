@@ -36,7 +36,7 @@ export const PianoRollKeyboard: React.FC<PianoRollKeyboardProps> = ({
   const notes = Array.from({ length: endNote - startNote + 1 }, (_, i) => startNote + i).reverse();
 
   return (
-    <div className="w-20 border-r border-border bg-background flex flex-col">
+    <div className="w-20 border-r border-border bg-background flex flex-col overflow-y-auto">
       {notes.map((pitch) => {
         const isBlack = isBlackKey(pitch);
         const isHighlighted = highlightedKeys.includes(pitch);

@@ -33,6 +33,24 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
   const synthRef = useRef<Tone.PolySynth | null>(null);
   const samplersRef = useRef<Map<number, Tone.Player>>(new Map());
   
+  const {
+    state,
+    createTrack,
+    setActiveTrack,
+    addNote,
+    addTrigger,
+    deleteNote,
+    deleteTrigger,
+    updateNote,
+    addSampleMapping,
+    setSnapGrid,
+    setZoom,
+    togglePlayback,
+    stopPlayback,
+    selectNotes,
+    clearSelection,
+  } = usePianoRoll(sessionBpm);
+  
   // Initialize Tone.js instruments and load track sample
   useEffect(() => {
     if (!isOpen) return;
@@ -52,19 +70,20 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
           const arrayBuffer = await response.arrayBuffer();
           const audioBuffer = await Tone.getContext().decodeAudioData(arrayBuffer);
           
-          // Map to all keys (can be customized later)
-          const startPitch = 24; // C1
-          const endPitch = 96; // C7
+          // Root note is D#4 (MIDI 63) - sample plays at normal pitch here
+          const rootPitch = 63; // D#4
+          const startPitch = 39; // D#2 (2 octaves below)
+          const endPitch = 87; // D#6 (2 octaves above)
           
           // Clear existing samples
           samplersRef.current.forEach(player => player.dispose());
           samplersRef.current.clear();
           
-          // Create player for each key with pitch shifting
+          // Create player for each key with pitch shifting relative to D#4
           for (let pitch = startPitch; pitch <= endPitch; pitch++) {
             const player = new Tone.Player(audioBuffer).toDestination();
-            // Calculate pitch shift relative to middle C (60)
-            const semitoneShift = pitch - 60;
+            // Calculate pitch shift relative to D#4 (63)
+            const semitoneShift = pitch - rootPitch;
             player.playbackRate = Math.pow(2, semitoneShift / 12);
             samplersRef.current.set(pitch, player);
             
@@ -72,14 +91,14 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
             addSampleMapping(trackId, {
               pitch,
               sampleId: trackName,
-              sampleName: trackName,
+              sampleName: pitch === rootPitch ? `${trackName} (Root)` : trackName,
               audioBuffer,
             });
           }
           
           toast({
             title: "Sample Loaded",
-            description: `${trackName} loaded and mapped to all keys`,
+            description: `${trackName} loaded - D#4 is root note`,
           });
         } catch (error) {
           console.error('Failed to load track sample:', error);
@@ -115,25 +134,7 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
       samplersRef.current.forEach(player => player.dispose());
       samplersRef.current.clear();
     };
-  }, [trackMode, isOpen, trackSampleUrl, trackName, trackId, toast]);
-  
-  const {
-    state,
-    createTrack,
-    setActiveTrack,
-    addNote,
-    addTrigger,
-    deleteNote,
-    deleteTrigger,
-    updateNote,
-    addSampleMapping,
-    setSnapGrid,
-    setZoom,
-    togglePlayback,
-    stopPlayback,
-    selectNotes,
-    clearSelection,
-  } = usePianoRoll(sessionBpm);
+  }, [trackMode, isOpen, trackSampleUrl, trackName, trackId, toast, addSampleMapping]);
 
   // Initialize track on open
   useEffect(() => {
@@ -303,8 +304,8 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
           
           <div className="flex flex-1 overflow-hidden">
             <PianoRollKeyboard
-              startNote={24}
-              endNote={96}
+              startNote={39}
+              endNote={87}
               noteHeight={20}
               onKeyClick={handleKeyClick}
               onKeyRightClick={handleLoadSample}
@@ -316,8 +317,8 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
               notes={activeTrack?.notes || []}
               triggers={activeTrack?.triggers || []}
               snapGrid={state.snapGrid}
-              startNote={24}
-              endNote={96}
+              startNote={39}
+              endNote={87}
               noteHeight={20}
               beatsPerBar={4}
               barsVisible={16}
