@@ -1,12 +1,12 @@
-FROM node:20-alpine AS builder
+# Step 1: Build the app
+FROM node:20-bullseye AS builder
 WORKDIR /app
 
-# Install build dependencies for native modules, force Python symlink, and set env
-RUN apk add --no-cache python3 make g++ \
-    && ln -sf /usr/bin/python3 /usr/bin/python \
-    && export PYTHON=/usr/bin/python3 \
-    && echo "PYTHON SYMLINK:" && ls -l /usr/bin/python* && python3 --version && python --version \
-    && exit 1
+# Install build dependencies for native modules
+RUN apt-get update && \
+    apt-get install -y python3 make g++ && \
+    ln -sf /usr/bin/python3 /usr/bin/python && \
+    python3 --version && python --version
 
 COPY package*.json ./
 RUN npm install
@@ -14,7 +14,7 @@ COPY . .
 RUN npm run build
 
 # Step 2: Serve the build
-FROM node:20-alpine
+FROM node:20-bullseye
 WORKDIR /app
 RUN npm install -g serve
 COPY --from=builder /app/dist ./dist
