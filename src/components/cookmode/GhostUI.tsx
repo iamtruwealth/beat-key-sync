@@ -18,7 +18,7 @@ export const GhostUI: React.FC<GhostUIProps> = ({ sessionId, className, children
     enabled: true,
   });
 
-  const { isConnected: audioConnected, isPlaying: audioPlaying } = useAudioReceiver({
+  const { isConnected: audioConnected, isPlaying: audioPlaying, audioUnlocked, unlockAudio } = useAudioReceiver({
     sessionId,
     isViewer: true,
     enabled: true,
@@ -47,6 +47,25 @@ export const GhostUI: React.FC<GhostUIProps> = ({ sessionId, className, children
           </div>
         </div>
       </div>
+
+      {/* Audio Unlock Overlay */}
+      {!audioUnlocked && (
+        <div className="absolute inset-0 z-50 bg-background/95 backdrop-blur-sm flex items-center justify-center">
+          <div className="max-w-md p-8 bg-card border border-border rounded-lg shadow-lg text-center space-y-4">
+            <Volume2 className="w-16 h-16 mx-auto text-primary animate-pulse" />
+            <h2 className="text-2xl font-bold">Enable Audio</h2>
+            <p className="text-muted-foreground">
+              Click the button below to unlock audio streaming for this session.
+            </p>
+            <button
+              onClick={unlockAudio}
+              className="w-full px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
+            >
+              🔊 Enable Audio
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Full Cook Mode UI (read-only) */}
       <div className="flex-1 overflow-hidden">

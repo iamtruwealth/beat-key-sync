@@ -16,6 +16,7 @@ interface UseAudioReceiverProps {
 export const useAudioReceiver = ({ sessionId, isViewer, enabled }: UseAudioReceiverProps) => {
   const [isConnected, setIsConnected] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [audioUnlocked, setAudioUnlocked] = useState(false);
   const channelRef = useRef<RealtimeChannel | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioQueueRef = useRef<AudioBuffer[]>([]);
@@ -27,26 +28,15 @@ export const useAudioReceiver = ({ sessionId, isViewer, enabled }: UseAudioRecei
     console.log('[AudioReceiver] Initializing audio receiver for session:', sessionId);
 
     // Create audio context
-     const audioContext = new AudioContext({ sampleRate: 24000 });
-     audioContextRef.current = audioContext;
- 
-     // Ensure AudioContext is running (autoplay policies)
-     const resumeIfNeeded = async () => {
-       try {
-         if (audioContextRef.current?.state === 'suspended') {
-           await audioContextRef.current.resume();
-           console.log('[AudioReceiver] AudioContext resumed');
-         }
-       } catch (e) {
-         console.warn('[AudioReceiver] Failed to resume AudioContext:', e);
-       }
-     };
-     // Try immediately and on first user interaction
-     resumeIfNeeded();
-     const onInteract = () => resumeIfNeeded();
-     window.addEventListener('click', onInteract, { once: true });
-     window.addEventListener('touchstart', onInteract, { once: true });
-     window.addEventListener('keydown', onInteract, { once: true });
+    const audioContext = new AudioContext({ sampleRate: 24000 });
+    audioContextRef.current = audioContext;
+
+    // Check if audio is unlocked
+    if (audioContext.state === 'running') {
+      setAudioUnlocked(true);
+    } else {
+      setAudioUnlocked(false);
+    }
     const playNextChunk = () => {
       if (isPlayingRef.current || audioQueueRef.current.length === 0) return;
       
@@ -132,20 +122,32 @@ export const useAudioReceiver = ({ sessionId, isViewer, enabled }: UseAudioRecei
         channelRef.current = null;
       }
       
-       audioQueueRef.current = [];
-       isPlayingRef.current = false;
-       setIsConnected(false);
-       setIsPlaying(false);
- 
-       // Clean interaction listeners
-       window.removeEventListener('click', onInteract as any);
-       window.removeEventListener('touchstart', onInteract as any);
-       window.removeEventListener('keydown', onInteract as any);
+      audioQueueRef.current = [];
+      isPlayingRef.current = false;
+      setIsConnected(false);
+      setIsPlaying(false);
+      setAudioUnlocked(false);
     };
   }, [sessionId, isViewer, enabled]);
+
+  const unlockAudio = async () => {
+    if (!audioContextRef.current) return;
+    
+    try {
+      if (audioContextRef.current.state === 'suspended') {
+        await audioContextRef.current.resume();
+        console.log('[AudioReceiver] Audio unlocked by user interaction');
+      }
+      setAudioUnlocked(true);
+    } catch (error) {
+      console.error('[AudioReceiver] Failed to unlock audio:', error);
+    }
+  };
 
   return {
     isConnected,
     isPlaying,
+    audioUnlocked,
+    unlockAudio,
   };
 };
