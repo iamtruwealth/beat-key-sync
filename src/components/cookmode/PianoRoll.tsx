@@ -19,6 +19,8 @@ interface PianoRollProps {
   sessionIsPlaying?: boolean;
   sessionCurrentTime?: number;
   onToggleSessionPlayback?: () => void;
+  onStopSession?: () => void;
+  onHardStop?: () => void;
   onSave?: (trackId: string, data: any) => void;
 }
 
@@ -33,6 +35,8 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
   sessionIsPlaying = false,
   sessionCurrentTime = 0,
   onToggleSessionPlayback,
+  onStopSession,
+  onHardStop,
   onSave,
 }) => {
   const { toast } = useToast();
@@ -369,7 +373,8 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
             zoom={state.zoom}
             toolMode={toolMode}
             onTogglePlayback={onToggleSessionPlayback || togglePlayback}
-            onStop={stopPlayback}
+            onStop={onStopSession || stopPlayback}
+            onHardStop={onHardStop}
             onSnapGridChange={setSnapGrid}
             onZoomIn={handleZoomIn}
             onZoomOut={handleZoomOut}

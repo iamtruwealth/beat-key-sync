@@ -57,6 +57,7 @@ interface TimelineViewProps {
   onSeek: (time: number) => void;
   onTracksUpdate?: (tracks: Track[]) => void;
   onTrimTrack?: (trackId: string, trimStart: number, trimEnd: number) => void;
+  onHardStop?: () => void;
   setActiveTrack?: (trackId: string) => void;
   activeTrackId?: string;
   createTrack?: (name: string) => string;
@@ -75,6 +76,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   onSeek,
   onTracksUpdate,
   onTrimTrack,
+  onHardStop,
   setActiveTrack,
   activeTrackId,
   createTrack,
@@ -1137,6 +1139,8 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           sessionIsPlaying={isPlaying}
           sessionCurrentTime={currentTime}
           onToggleSessionPlayback={onPlayPause}
+          onStopSession={() => onSeek(0)}
+          onHardStop={onHardStop}
           onSave={(trackId, data) => {
             console.log('Saving piano roll data for track:', trackId, data);
             toast({

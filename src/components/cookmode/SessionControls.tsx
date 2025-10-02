@@ -50,6 +50,7 @@ interface SessionControlsProps {
   onUpdateMinBars?: (bars: number) => void;
   onCreateEmptyTrack?: (name: string) => Promise<void> | void;
   onAddTrack?: (file: File, trackName: string, stemType: string) => Promise<void>;
+  onHardStop?: () => void;
   canEdit?: boolean;
 }
 
@@ -71,6 +72,7 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
   onUpdateMinBars,
   onCreateEmptyTrack,
   onAddTrack,
+  onHardStop,
   canEdit = true
 }) => {
   const { createTrack, isRecording, startAudioRecording, stopAudioRecording, startRecording, stopRecording, tracks: audioTracks, loadSample, setActiveTrack, engine } = useCookModeAudio(canEdit);
@@ -81,6 +83,7 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
   const [tempBpm, setTempBpm] = useState(bpm.toString());
   const [currentRecordingTrackId, setCurrentRecordingTrackId] = useState<string | null>(null);
   const [recordingMode, setRecordingMode] = useState<'audio' | 'midi' | null>(null);
+  const lastStopClickRef = React.useRef<number>(0);
 
   // Calculate session duration
   useEffect(() => {
@@ -202,12 +205,28 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
               size="sm"
               className="p-2"
               onClick={() => {
-                onSeek(0);
-                // Stop playback if playing
-                if (isPlaying) {
-                  onTogglePlayback();
+                const now = Date.now();
+                const timeSinceLastClick = now - lastStopClickRef.current;
+                
+                // Double-click detection (within 300ms)
+                if (timeSinceLastClick < 300) {
+                  console.log('🛑 HARD STOP - Killing all audio');
+                  onHardStop?.();
+                  toast({
+                    title: "Hard Stop",
+                    description: "All audio stopped",
+                  });
+                } else {
+                  // Single click - normal stop
+                  onSeek(0);
+                  if (isPlaying) {
+                    onTogglePlayback();
+                  }
                 }
+                
+                lastStopClickRef.current = now;
               }}
+              title="Click to stop, double-click to hard stop all audio"
             >
               <Square className="w-4 h-4" />
             </Button>

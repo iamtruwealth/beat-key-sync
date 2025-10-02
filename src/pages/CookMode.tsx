@@ -298,35 +298,51 @@ const CookMode = () => {
     console.log('[CookMode] togglePlayback', { from: isPlaying, to: next });
     togglePlayback();
     if (broadcastPlaybackToggle) {
-      console.log('[CookMode] broadcastPlaybackToggle', { to: next });
       broadcastPlaybackToggle(next);
-    }
-    
-    // Broadcast Ghost UI state
-    if (permissions.canEdit && session) {
-      broadcastState({
-        playheadPosition: currentTime,
-        isPlaying: next,
-        bpm: session.target_bpm || 120,
-        timestamp: Date.now(),
-      });
     }
   };
 
-  const handleSeekTo = (time: number) => {
-    seekTo(time);
+  const handleSeekTo = (seconds: number) => {
+    console.log('[CookMode] seekTo', seconds);
+    seekTo(seconds);
     if (broadcastPlaybackSeek) {
-      broadcastPlaybackSeek(time);
+      broadcastPlaybackSeek(seconds);
     }
+  };
+
+  // Hard stop - kills ALL audio immediately
+  const handleHardStop = () => {
+    console.log('🛑 HARD STOP - Killing all audio');
     
-    // Broadcast Ghost UI state
-    if (permissions.canEdit && session) {
-      broadcastState({
-        playheadPosition: time,
-        isPlaying: isPlaying,
-        bpm: session.target_bpm || 120,
-        timestamp: Date.now(),
+    try {
+      // Stop and clear Tone.js Transport
+      Tone.Transport.stop();
+      Tone.Transport.cancel();
+      Tone.Transport.position = 0;
+      
+      // Stop all HTML audio elements
+      document.querySelectorAll('audio').forEach(audio => {
+        audio.pause();
+        audio.currentTime = 0;
+        audio.src = '';
       });
+      
+      // Stop all media streams
+      document.querySelectorAll('video').forEach(video => {
+        video.pause();
+        video.currentTime = 0;
+        video.src = '';
+      });
+      
+      // Reset playback state
+      if (isPlaying) {
+        togglePlayback();
+      }
+      seekTo(0);
+      
+      console.log('✅ Hard stop complete');
+    } catch (error) {
+      console.error('❌ Error during hard stop:', error);
     }
   };
 
@@ -810,6 +826,7 @@ const CookMode = () => {
               }}
               onCreateEmptyTrack={async (name) => { await addEmptyTrack(name); }}
               onAddTrack={addTrack}
+              onHardStop={handleHardStop}
             />
           )}
 
@@ -850,6 +867,7 @@ const CookMode = () => {
                 onUpdateTrack={permissions.canEdit ? updateTrack : undefined}
                 onTogglePlayback={permissions.canEdit ? handleTogglePlayback : undefined}
                 onSeek={permissions.canEdit ? handleSeekTo : undefined}
+                onHardStop={permissions.canEdit ? handleHardStop : undefined}
                 onTrimTrack={permissions.canEdit ? trimTrack : undefined}
                 activeView={activeView}
                 onViewChange={setActiveView}

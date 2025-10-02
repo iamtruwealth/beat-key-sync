@@ -51,6 +51,7 @@ interface CookModeDAWProps {
   onTrimTrack?: (trackId: string, trimStart: number, trimEnd: number) => void;
   onTogglePlayback?: () => void;
   onSeek?: (time: number) => void;
+  onHardStop?: () => void;
   activeView?: 'timeline' | 'mixer';
   onViewChange?: (view: 'timeline' | 'mixer') => void;
   readOnly?: boolean;
@@ -73,6 +74,7 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
   onTrimTrack,
   onTogglePlayback,
   onSeek,
+  onHardStop,
   activeView: externalActiveView,
   onViewChange,
   readOnly = false,
@@ -433,6 +435,7 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
                 readOnly={readOnly}
                 onPlayPause={onTogglePlayback}
                 onSeek={onSeek}
+                onHardStop={onHardStop}
                 onTracksUpdate={handleTracksUpdateFromTimeline}
                 onTrimTrack={onTrimTrack}
                 setActiveTrack={setActiveTrack}
