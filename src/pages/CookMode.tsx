@@ -314,16 +314,30 @@ const CookMode = () => {
     }
   };
 
+  // Ensure audio is ready on user interaction (fixes autoplay policies)
+  const ensureAudioReady = () => {
+    try {
+      void Tone.start();
+      const ctx = Tone.getContext();
+      if (ctx.state === 'suspended') {
+        void ctx.resume();
+      }
+      console.log('[CookMode] Audio context ensured on interaction');
+    } catch (e) {
+      console.warn('[CookMode] Failed to ensure audio context', e);
+    }
+  };
+
   // Wrap playback controls to broadcast to other users
   const handleTogglePlayback = () => {
     const next = !isPlaying;
     console.log('[CookMode] togglePlayback', { from: isPlaying, to: next });
+    if (next) ensureAudioReady();
     togglePlayback();
     if (broadcastPlaybackToggle) {
       broadcastPlaybackToggle(next);
     }
   };
-
   const handleSeekTo = (seconds: number) => {
     console.log('[CookMode] seekTo', seconds);
     seekTo(seconds);
