@@ -2,11 +2,20 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Install build dependencies for native modules
+# Install build dependencies for native modules, print debug info about python binaries and symlinks
 RUN apk add --no-cache python3 make g++ && \
+    echo "=== PYTHON BINARIES ===" && \
+    ls -l /usr/bin/python* && \
+    echo "=== WHICH python3 ===" && \
+    which python3 && \
+    echo "=== WHICH python ===" && \
+    which python || true && \
+    echo "=== PYTHON3 VERSION ===" && \
+    python3 --version && \
     PY3=$(find /usr/bin -name 'python3*' | sort | head -n1) && \
     ln -sf $PY3 /usr/bin/python && \
-    ls -l /usr/bin/python*
+    echo "=== FINAL PYTHON SYMLINK ===" && \
+    ls -l /usr/bin/python
 
 COPY package*.json ./
 RUN npm install
