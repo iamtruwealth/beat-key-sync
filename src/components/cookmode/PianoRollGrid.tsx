@@ -79,26 +79,26 @@ export const PianoRollGrid: React.FC<PianoRollGridProps> = ({
     return (endNote - pitch) * noteHeight;
   }, [endNote, noteHeight]);
 
-  // Handle grid click to add note/trigger (left click)
-  const handleGridClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    console.log('🎹 Grid clicked', { mode, target: e.target });
-    
+  // Handle grid click to add note/trigger (left click) - SVG-based
+  const handleSvgMouseDown = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
+    // Left click only
+    if (e.button !== 0) return;
+
     const target = e.target as HTMLElement;
-    // Ignore if clicking on a note/trigger or resize handle
-    if (target?.dataset?.role === 'note' || target?.dataset?.role === 'resize') {
-      console.log('🎹 Clicked on note or resize handle, ignoring');
+    const role = (target as HTMLElement)?.dataset?.role;
+    if (role === 'note' || role === 'resize') {
+      // Clicking on existing note/handle: dragging/resizing handled elsewhere
       return;
     }
 
-    const rect = gridRef.current?.getBoundingClientRect();
-    if (!rect) return;
-
+    const svg = e.currentTarget;
+    const rect = svg.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     const time = pixelToTime(x);
     const pitch = pixelToPitch(y);
 
-    console.log('🎹 Adding note/trigger', { mode, pitch, time });
+    console.log('🎹 add via svg mousedown', { mode, pitch, time });
 
     if (mode === 'midi' && onAddNote) {
       onAddNote(pitch, time);
@@ -437,13 +437,14 @@ export const PianoRollGrid: React.FC<PianoRollGridProps> = ({
         ref={gridRef}
         className="relative cursor-crosshair min-h-full"
         style={{ width: `${gridWidth}px`, minHeight: `${gridHeight}px` }}
-        onClick={handleGridClick}
       >
         <svg
           width={gridWidth}
           height={gridHeight}
           className="absolute inset-0"
+          onMouseDown={handleSvgMouseDown}
         >
+          <rect x={0} y={0} width={gridWidth} height={gridHeight} fill="transparent" data-role="bg" />
           {renderGridLines()}
           {mode === 'midi' ? renderNotes() : renderTriggers()}
           {renderPlayhead()}
