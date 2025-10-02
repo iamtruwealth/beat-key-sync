@@ -6,7 +6,6 @@ import { PianoRollKeyboard } from './PianoRollKeyboard';
 import { usePianoRoll } from '@/hooks/usePianoRoll';
 import { TrackMode } from '@/types/pianoRoll';
 import { useToast } from '@/hooks/use-toast';
-import { useCookModeAudio } from '@/hooks/useCookModeAudio';
 import * as Tone from 'tone';
 
 interface PianoRollProps {
@@ -29,22 +28,26 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
   onSave,
 }) => {
   const { toast } = useToast();
-  const { triggerSample } = useCookModeAudio(true);
   const synthRef = useRef<Tone.PolySynth | null>(null);
+  const samplersRef = useRef<Map<number, Tone.Player>>(new Map());
   
-  // Initialize Tone.js synth for MIDI playback
+  // Initialize Tone.js instruments
   useEffect(() => {
-    if (trackMode === 'midi' && !synthRef.current) {
-      synthRef.current = new Tone.PolySynth(Tone.Synth, {
-        oscillator: { type: 'triangle' },
-        envelope: {
-          attack: 0.005,
-          decay: 0.1,
-          sustain: 0.3,
-          release: 1
-        }
-      }).toDestination();
-      synthRef.current.volume.value = -10;
+    if (!isOpen) return;
+    
+    if (trackMode === 'midi') {
+      if (!synthRef.current) {
+        synthRef.current = new Tone.PolySynth(Tone.Synth, {
+          oscillator: { type: 'triangle' },
+          envelope: {
+            attack: 0.005,
+            decay: 0.1,
+            sustain: 0.3,
+            release: 1
+          }
+        }).toDestination();
+        synthRef.current.volume.value = -10;
+      }
     }
     
     return () => {
@@ -52,8 +55,10 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
         synthRef.current.dispose();
         synthRef.current = null;
       }
+      samplersRef.current.forEach(player => player.dispose());
+      samplersRef.current.clear();
     };
-  }, [trackMode]);
+  }, [trackMode, isOpen]);
   
   const {
     state,
@@ -101,9 +106,6 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
         startTime,
         velocity: 100,
       });
-      
-      // Trigger sample preview
-      triggerSample(trackId, pitch, 100);
     }
   };
 
@@ -114,9 +116,19 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
     }
     
     if (trackMode === 'sample') {
-      // Preview sample
-      console.log(`🎵 Triggering sample on track ${trackId}, pitch ${pitch}`);
-      triggerSample(trackId, pitch, 100);
+      // Check if we have a sample loaded for this pitch
+      const sampler = samplersRef.current.get(pitch);
+      if (sampler) {
+        console.log(`🎵 Playing sample for pitch ${pitch}`);
+        sampler.start();
+      } else {
+        console.log(`⚠️ No sample loaded for pitch ${pitch}`);
+        toast({
+          title: "No Sample",
+          description: `No sample mapped to key ${pitch}. Load a sample first.`,
+          variant: "default",
+        });
+      }
     } else {
       // Play MIDI note with Tone.js
       if (synthRef.current) {
