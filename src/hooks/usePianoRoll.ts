@@ -51,9 +51,9 @@ export const usePianoRoll = (initialBpm: number = 120) => {
     return Math.round(time / snapAmount) * snapAmount;
   }, [state.snapGrid, getSnapAmount]);
 
-  // Create new track
-  const createTrack = useCallback((name: string, mode: TrackMode): string => {
-    const id = `track-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  // Create new track (optionally specify id)
+  const createTrack = useCallback((name: string, mode: TrackMode, idOverride?: string): string => {
+    const id = idOverride ?? `track-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const newTrack: PianoRollTrack = {
       id,
       name,

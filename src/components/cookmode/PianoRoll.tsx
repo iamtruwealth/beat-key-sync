@@ -139,9 +139,9 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
   // Initialize track on open
   useEffect(() => {
     if (isOpen) {
-      // Check if track exists, if not create it
+      // Check if track exists, if not create it bound to external trackId
       if (!state.tracks[trackId]) {
-        createTrack(trackName, trackMode);
+        createTrack(trackName, trackMode, trackId);
       }
       setActiveTrack(trackId);
     }
