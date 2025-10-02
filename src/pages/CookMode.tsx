@@ -65,9 +65,6 @@ const CookMode = () => {
   const [minBars, setMinBars] = useState(8);
   const [authLoading, setAuthLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [ghostUIEnabled, setGhostUIEnabled] = useState(true); // Ghost UI enabled by default for viewers
-  const [hlsStreamUrl, setHlsStreamUrl] = useState('');
-  const [showHlsDialog, setShowHlsDialog] = useState(false);
   const [sessionConfig, setSessionConfig] = useState({
     bpm: 120,
     key: 'C',
@@ -98,11 +95,11 @@ const CookMode = () => {
   
   const { midiDevices, setActiveTrack, tracks: audioTracks, createTrack, loadSample, setTrackTrim } = useCookModeAudio(permissions?.canEdit || false);
 
-  // Ghost UI broadcast for hosts
+  // Ghost UI broadcast for hosts (always enabled)
   const { broadcastState, broadcastClipTrigger, broadcastPadPress } = useGhostUIBroadcast({
     sessionId: sessionId || '',
     isHost: permissions?.canEdit || false,
-    enabled: ghostUIEnabled,
+    enabled: true,
   });
 
   // Real-time collaboration
@@ -269,9 +266,10 @@ const CookMode = () => {
         console.error('Error enabling session sharing:', error);
       }
 
-      const link = `${window.location.origin}/cook-mode/${sessionId}`;
+      // Share the Ghost UI viewer link instead of full cook-mode link
+      const link = `${window.location.origin}/ghost/${sessionId}`;
       await navigator.clipboard.writeText(link);
-      toast.success("Session link copied to clipboard! Anyone with this link can now join the session.");
+      toast.success("Ghost UI viewer link copied! Viewers will see synchronized visuals and hear your audio stream.");
     } catch (error) {
       console.error('Error sharing session:', error);
       toast.error("Failed to share session link");
@@ -289,7 +287,7 @@ const CookMode = () => {
     }
     
     // Broadcast Ghost UI state
-    if (permissions.canEdit && ghostUIEnabled && session) {
+    if (permissions.canEdit && session) {
       broadcastState({
         playheadPosition: currentTime,
         isPlaying: next,
@@ -306,7 +304,7 @@ const CookMode = () => {
     }
     
     // Broadcast Ghost UI state
-    if (permissions.canEdit && ghostUIEnabled && session) {
+    if (permissions.canEdit && session) {
       broadcastState({
         playheadPosition: time,
         isPlaying: isPlaying,
@@ -320,16 +318,9 @@ const CookMode = () => {
     console.log('[CookMode] isPlaying changed', isPlaying);
   }, [isPlaying]);
 
-  // Load HLS stream URL from session
-  React.useEffect(() => {
-    if (session?.hls_stream_url) {
-      setHlsStreamUrl(session.hls_stream_url);
-    }
-  }, [session?.hls_stream_url]);
-
   // Periodically broadcast Ghost UI state while playing
   React.useEffect(() => {
-    if (!permissions.canEdit || !ghostUIEnabled || !isPlaying || !session) return;
+    if (!permissions.canEdit || !isPlaying || !session) return;
 
     const intervalId = setInterval(() => {
       broadcastState({
@@ -346,7 +337,7 @@ const CookMode = () => {
     }, 200); // Broadcast every 200ms while playing
 
     return () => clearInterval(intervalId);
-  }, [isPlaying, currentTime, permissions.canEdit, ghostUIEnabled, session, minBars, broadcastState]);
+  }, [isPlaying, currentTime, permissions.canEdit, session, minBars, broadcastState]);
 
   // Session Creation Screen
   if (!sessionId) {
@@ -724,32 +715,8 @@ const CookMode = () => {
               className="border-border/50 hover:border-neon-cyan/50"
             >
               <Share2 className="w-4 h-4 mr-2" />
-              Share Link
+              Share Ghost UI Link
             </Button>
-            
-            {permissions.canEdit && (
-              <>
-                <Button
-                  variant={ghostUIEnabled ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setGhostUIEnabled(!ghostUIEnabled)}
-                  className="border-border/50 hover:border-neon-cyan/50"
-                >
-                  <Radio className="w-4 h-4 mr-2" />
-                  Ghost UI {ghostUIEnabled ? 'ON' : 'OFF'}
-                </Button>
-                
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowHlsDialog(true)}
-                  className="border-border/50 hover:border-neon-cyan/50"
-                >
-                  <Activity className="w-4 h-4 mr-2" />
-                  Set Stream URL
-                </Button>
-              </>
-            )}
             
             {permissions.canEdit && (
               <DropdownMenu>
@@ -827,11 +794,11 @@ const CookMode = () => {
 
           <div className="flex-1 overflow-hidden">
             {/* Show Ghost UI for viewers, full DAW for editors */}
-            {!permissions.canEdit && ghostUIEnabled ? (
+            {!permissions.canEdit ? (
               <div className="h-full p-4 overflow-auto">
                 <GhostUI 
                   sessionId={sessionId || ''} 
-                  hlsStreamUrl={session?.hls_stream_url || hlsStreamUrl}
+                  hlsStreamUrl={`https://stream.beatpackz.com/live/${sessionId}.m3u8`}
                 />
               </div>
             ) : (
@@ -919,45 +886,6 @@ const CookMode = () => {
           </div>
         </div>
       </div>
-      
-      {/* HLS Stream URL Dialog */}
-      <Dialog open={showHlsDialog} onOpenChange={setShowHlsDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Set HLS Stream URL</DialogTitle>
-            <DialogDescription>
-              Enter your OBS HLS stream URL so viewers can hear your audio.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="hlsUrl">HLS Stream URL</Label>
-              <Input
-                id="hlsUrl"
-                placeholder="https://your-stream-url.m3u8"
-                value={hlsStreamUrl}
-                onChange={(e) => setHlsStreamUrl(e.target.value)}
-                className="bg-background/50 border-border/50"
-              />
-              <p className="text-xs text-muted-foreground">
-                Typically ends with .m3u8 (HLS manifest)
-              </p>
-            </div>
-            <Button 
-              onClick={() => {
-                if (hlsStreamUrl) {
-                  updateSessionSettings({ hls_stream_url: hlsStreamUrl });
-                  toast.success('Stream URL saved! Viewers can now hear your audio.');
-                  setShowHlsDialog(false);
-                }
-              }}
-              className="w-full"
-            >
-              Save Stream URL
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

@@ -41,6 +41,7 @@ import UserProfile from "./pages/UserProfile";
 import Onboarding from "./pages/Onboarding";
 import Collaborate from "./pages/Collaborate";
 import CookMode from "./pages/CookMode";
+import GhostViewer from "./pages/GhostViewer";
 import MinimalViewer from "./pages/MinimalViewer";
 
 import { FuturisticWaveformPlayer } from "./components/player/FuturisticWaveformPlayer";
@@ -326,6 +327,13 @@ const App = () => (
             } />
             <Route path="/cook-mode" element={<CookMode />} />
             <Route path="/cook-mode/:sessionId" element={<CookMode />} />
+            
+            {/* Public Ghost UI viewer - no auth required, auto-connected */}
+            <Route path="/ghost/:sessionId" element={
+              <AudioProvider>
+                <GhostViewer />
+              </AudioProvider>
+            } />
             
             {/* Public minimal viewer - no auth required */}
             <Route path="/minimal-viewer" element={<MinimalViewer />} />
