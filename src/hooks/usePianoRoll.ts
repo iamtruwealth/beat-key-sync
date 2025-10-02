@@ -114,6 +114,7 @@ export const usePianoRoll = (initialBpm: number = 120) => {
       ...trigger,
       id: triggerId,
       startTime: snapToGrid(trigger.startTime),
+      duration: trigger.duration || 1, // Default 1 beat duration
     };
 
     setState(prev => {
@@ -179,21 +180,36 @@ export const usePianoRoll = (initialBpm: number = 120) => {
       const track = prev.tracks[trackId];
       if (!track) return prev;
 
+      // Update in notes array
+      const updatedNotes = track.notes.map(n => 
+        n.id === noteId 
+          ? { 
+              ...n, 
+              ...updates,
+              startTime: updates.startTime !== undefined ? snapToGrid(updates.startTime) : n.startTime,
+            }
+          : n
+      );
+
+      // Also check triggers array for sample mode
+      const updatedTriggers = track.triggers.map(t => 
+        t.id === noteId 
+          ? { 
+              ...t, 
+              ...updates,
+              startTime: updates.startTime !== undefined ? snapToGrid(updates.startTime) : t.startTime,
+            }
+          : t
+      );
+
       return {
         ...prev,
         tracks: {
           ...prev.tracks,
           [trackId]: {
             ...track,
-            notes: track.notes.map(n => 
-              n.id === noteId 
-                ? { 
-                    ...n, 
-                    ...updates,
-                    startTime: updates.startTime !== undefined ? snapToGrid(updates.startTime) : n.startTime,
-                  }
-                : n
-            ),
+            notes: updatedNotes,
+            triggers: updatedTriggers,
           },
         },
       };

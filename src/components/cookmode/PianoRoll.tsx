@@ -164,6 +164,7 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
         pitch,
         startTime,
         velocity: 100,
+        duration: 1, // Default 1 beat duration
       });
     }
   };

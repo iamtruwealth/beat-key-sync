@@ -48,8 +48,9 @@ export const PianoRollGrid: React.FC<PianoRollGridProps> = ({
   const gridRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [draggedNoteId, setDraggedNoteId] = useState<string | null>(null);
-  const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0 });
+  const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0, noteStartTime: 0, notePitch: 0 });
   const [resizingNoteId, setResizingNoteId] = useState<string | null>(null);
+  const [resizeStartWidth, setResizeStartWidth] = useState(0);
 
   const totalNotes = endNote - startNote + 1;
   const totalBeats = barsVisible * beatsPerBar;
@@ -99,21 +100,92 @@ export const PianoRollGrid: React.FC<PianoRollGridProps> = ({
     onClearSelection?.();
   }, [mode, pixelToTime, pixelToPitch, onAddNote, onAddTrigger, onClearSelection]);
 
-  // Handle note click
-  const handleNoteClick = useCallback((e: React.MouseEvent, noteId: string) => {
+  // Handle note right-click (delete)
+  const handleNoteRightClick = useCallback((e: React.MouseEvent, noteId: string) => {
+    e.preventDefault();
     e.stopPropagation();
     
-    if (e.shiftKey) {
-      // Multi-select
-      const newSelection = selectedNotes.includes(noteId)
-        ? selectedNotes.filter(id => id !== noteId)
-        : [...selectedNotes, noteId];
-      onSelectNotes?.(newSelection);
+    if (mode === 'midi') {
+      onDeleteNote?.(noteId);
     } else {
-      // Single select
-      onSelectNotes?.([noteId]);
+      onDeleteTrigger?.(noteId);
     }
-  }, [selectedNotes, onSelectNotes]);
+  }, [mode, onDeleteNote, onDeleteTrigger]);
+
+  // Handle note drag start
+  const handleNoteDragStart = useCallback((e: React.MouseEvent, noteId: string, note: PianoRollNote | SampleTrigger) => {
+    e.stopPropagation();
+    setIsDragging(true);
+    setDraggedNoteId(noteId);
+    
+    const rect = gridRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    
+    setDragStartPos({
+      x: e.clientX,
+      y: e.clientY,
+      noteStartTime: note.startTime,
+      notePitch: note.pitch,
+    });
+  }, []);
+
+  // Handle resize start
+  const handleResizeStart = useCallback((e: React.MouseEvent, noteId: string, currentWidth: number) => {
+    e.stopPropagation();
+    setResizingNoteId(noteId);
+    setResizeStartWidth(currentWidth);
+    setDragStartPos({ x: e.clientX, y: e.clientY, noteStartTime: 0, notePitch: 0 });
+  }, []);
+
+  // Handle mouse move
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!gridRef.current) return;
+    const rect = gridRef.current.getBoundingClientRect();
+    
+    if (isDragging && draggedNoteId) {
+      const deltaX = e.clientX - dragStartPos.x;
+      const deltaY = e.clientY - dragStartPos.y;
+      
+      const deltaTime = deltaX / beatWidth;
+      const deltaPitch = -Math.round(deltaY / noteHeight);
+      
+      const newStartTime = Math.max(0, dragStartPos.noteStartTime + deltaTime);
+      const newPitch = Math.max(startNote, Math.min(endNote, dragStartPos.notePitch + deltaPitch));
+      
+      onUpdateNote?.(draggedNoteId, {
+        startTime: newStartTime,
+        pitch: newPitch,
+      });
+    } else if (resizingNoteId) {
+      const deltaX = e.clientX - dragStartPos.x;
+      const deltaTime = deltaX / beatWidth;
+      const newDuration = Math.max(0.25, resizeStartWidth + deltaTime);
+      
+      onUpdateNote?.(resizingNoteId, {
+        duration: newDuration,
+      });
+    }
+  }, [isDragging, draggedNoteId, resizingNoteId, dragStartPos, beatWidth, noteHeight, startNote, endNote, resizeStartWidth, onUpdateNote]);
+
+  // Handle mouse up
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+    setDraggedNoteId(null);
+    setResizingNoteId(null);
+  }, []);
+
+  // Add/remove mouse event listeners
+  useEffect(() => {
+    if (isDragging || resizingNoteId) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      
+      return () => {
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isDragging, resizingNoteId, handleMouseMove, handleMouseUp]);
 
   // Handle note deletion
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -263,7 +335,9 @@ export const PianoRollGrid: React.FC<PianoRollGridProps> = ({
             )}
             strokeWidth={2}
             rx={2}
-            onClick={(e) => handleNoteClick(e, note.id)}
+            onMouseDown={(e) => handleNoteDragStart(e, note.id, note)}
+            onContextMenu={(e) => handleNoteRightClick(e, note.id)}
+            style={{ pointerEvents: 'all' }}
           />
           {/* Resize handle */}
           {isSelected && (
@@ -274,6 +348,8 @@ export const PianoRollGrid: React.FC<PianoRollGridProps> = ({
               height={noteHeight - 2}
               className="fill-primary-foreground cursor-ew-resize"
               opacity={0.5}
+              onMouseDown={(e) => handleResizeStart(e, note.id, note.duration)}
+              style={{ pointerEvents: 'all' }}
             />
           )}
         </g>
@@ -281,19 +357,22 @@ export const PianoRollGrid: React.FC<PianoRollGridProps> = ({
     });
   };
 
-  // Render triggers for sample mode
+  // Render triggers for sample mode (now with duration like notes)
   const renderTriggers = () => {
     return triggers.map(trigger => {
       const x = timeToPixel(trigger.startTime);
       const y = pitchToPixel(trigger.pitch);
+      // For sample mode, we'll treat triggers like notes with a default duration if not set
+      const duration = 'duration' in trigger ? trigger.duration : 1;
+      const width = timeToPixel(duration);
       const isSelected = selectedNotes.includes(trigger.id);
 
       return (
         <g key={trigger.id}>
           <rect
-            x={x - 4}
+            x={x}
             y={y}
-            width={8}
+            width={width}
             height={noteHeight - 2}
             className={cn(
               "cursor-move transition-colors",
@@ -302,18 +381,23 @@ export const PianoRollGrid: React.FC<PianoRollGridProps> = ({
             )}
             strokeWidth={2}
             rx={2}
-            onClick={(e) => handleNoteClick(e, trigger.id)}
+            onMouseDown={(e) => handleNoteDragStart(e, trigger.id, trigger)}
+            onContextMenu={(e) => handleNoteRightClick(e, trigger.id)}
+            style={{ pointerEvents: 'all' }}
           />
-          {/* Visual indicator */}
-          <line
-            x1={x}
-            y1={y}
-            x2={x + 20}
-            y2={y + noteHeight / 2}
-            stroke="currentColor"
-            strokeWidth={2}
-            className="text-orange-500 opacity-50 pointer-events-none"
-          />
+          {/* Resize handle */}
+          {isSelected && (
+            <rect
+              x={x + width - 4}
+              y={y}
+              width={8}
+              height={noteHeight - 2}
+              className="fill-primary-foreground cursor-ew-resize"
+              opacity={0.5}
+              onMouseDown={(e) => handleResizeStart(e, trigger.id, duration)}
+              style={{ pointerEvents: 'all' }}
+            />
+          )}
         </g>
       );
     });

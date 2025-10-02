@@ -29,6 +29,7 @@ export interface SampleTrigger {
   pitch: number; // Key mapping (0-127)
   startTime: number; // In beats
   velocity: number; // 0-127
+  duration?: number; // In beats - how long the sample plays
   sampleId?: string; // Reference to loaded sample
 }
 
