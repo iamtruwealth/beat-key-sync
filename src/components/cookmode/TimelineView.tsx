@@ -12,6 +12,9 @@ import { WaveformTrack } from './WaveformTrack';
 import { DraggableClip } from './DraggableClip';
 import { TrackMidiController } from './TrackMidiController';
 import { undoManager, ActionType, createMoveAction } from '@/lib/UndoManager';
+import { PianoRoll } from './PianoRoll';
+import { TrackMode } from '@/types/pianoRoll';
+import { Music } from 'lucide-react';
 
 interface Track {
   id: string;
@@ -27,6 +30,7 @@ interface Track {
   analyzed_duration?: number; // Actual audio duration from analysis
   trimStart?: number;
   trimEnd?: number;
+  mode?: TrackMode; // 'midi' or 'sample'
 }
 
 interface AudioClip {
@@ -86,6 +90,8 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const [copiedClip, setCopiedClip] = useState<AudioClip | null>(null);
   const [selectedTrack, setSelectedTrack] = useState<string | null>(null);
   const [armedTracks, setArmedTracks] = useState<Set<string>>(new Set());
+  const [pianoRollOpen, setPianoRollOpen] = useState(false);
+  const [pianoRollTrack, setPianoRollTrack] = useState<{ id: string; name: string; mode: TrackMode } | null>(null);
   const { toast } = useToast();
 
   // Calculate timing constants with precise BPM
@@ -894,6 +900,26 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                         <Circle className={`w-3 h-3 ${armedTracks.has(track.id) ? 'fill-current' : ''}`} />
                       </button>
                       
+                      {/* Edit Notes Button */}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-6 w-6 p-0"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setPianoRollTrack({
+                            id: track.id,
+                            name: track.name,
+                            mode: track.mode || 'sample'
+                          });
+                          setPianoRollOpen(true);
+                        }}
+                        title="Edit Notes (Piano Roll)"
+                      >
+                        <Music className="h-3 w-3" />
+                      </Button>
+                      
                       <Button
                         size="sm"
                         variant={track.isMuted ? "destructive" : "outline"}
@@ -1093,6 +1119,28 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           console.log(`🔴 MIDI recording: ${isRecording ? 'started' : 'stopped'}`);
         }}
       />
+
+      {/* Piano Roll Editor */}
+      {pianoRollTrack && (
+        <PianoRoll
+          isOpen={pianoRollOpen}
+          onClose={() => {
+            setPianoRollOpen(false);
+            setPianoRollTrack(null);
+          }}
+          trackId={pianoRollTrack.id}
+          trackName={pianoRollTrack.name}
+          trackMode={pianoRollTrack.mode}
+          sessionBpm={bpm}
+          onSave={(trackId, data) => {
+            console.log('Saving piano roll data for track:', trackId, data);
+            toast({
+              title: "Piano Roll Saved",
+              description: `Changes saved for ${pianoRollTrack.name}`,
+            });
+          }}
+        />
+      )}
     </>
   );
 };
