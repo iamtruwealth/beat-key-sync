@@ -67,6 +67,8 @@ export class CookModeAudioEngine {
   private recordedChunks: Blob[] = [];
   private midiInputActive = false;
   private activeTrackId: string | null = null;
+  private audioStream: MediaStream | null = null;
+  private currentRecordingTrackId: string | null = null;
 
   // Event callbacks
   private onMidiDeviceChange?: (devices: MidiDevice[]) => void;
@@ -400,6 +402,121 @@ export class CookModeAudioEngine {
     
     if (this.onRecordingStateChange) {
       this.onRecordingStateChange(false);
+    }
+  }
+
+  // Start continuous audio recording
+  public async startAudioRecording(trackId: string): Promise<void> {
+    try {
+      if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+        console.warn('⚠️ Already recording audio');
+        return;
+      }
+
+      console.log(`🎤 Starting continuous audio recording for track ${trackId}`);
+      this.currentRecordingTrackId = trackId;
+      
+      // Request microphone access
+      this.audioStream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          sampleRate: 44100,
+          channelCount: 2,
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      });
+
+      this.recordedChunks = [];
+      
+      // Create MediaRecorder
+      const options = { mimeType: 'audio/webm' };
+      this.mediaRecorder = new MediaRecorder(this.audioStream, options);
+      
+      // Handle data available
+      this.mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          this.recordedChunks.push(event.data);
+        }
+      };
+
+      // Start recording
+      this.mediaRecorder.start();
+      this.isRecording = true;
+      
+      if (this.onRecordingStateChange) {
+        this.onRecordingStateChange(true);
+      }
+      
+      console.log('✅ Audio recording started');
+      
+    } catch (error) {
+      console.error(`❌ Failed to start audio recording:`, error);
+      throw error;
+    }
+  }
+
+  // Stop continuous audio recording and return the audio blob
+  public async stopAudioRecording(): Promise<Blob | null> {
+    try {
+      if (!this.mediaRecorder || this.mediaRecorder.state !== 'recording') {
+        console.warn('⚠️ Not currently recording audio');
+        return null;
+      }
+
+      console.log('⏹️ Stopping audio recording...');
+
+      const recordingPromise = new Promise<Blob>((resolve, reject) => {
+        this.mediaRecorder!.onstop = () => {
+          const audioBlob = new Blob(this.recordedChunks, { type: 'audio/webm' });
+          
+          // Stop all tracks to release microphone
+          if (this.audioStream) {
+            this.audioStream.getTracks().forEach(track => track.stop());
+            this.audioStream = null;
+          }
+          
+          console.log(`✅ Audio recording stopped, size: ${audioBlob.size} bytes`);
+          resolve(audioBlob);
+        };
+
+        this.mediaRecorder!.onerror = (event) => {
+          console.error('❌ MediaRecorder error:', event);
+          if (this.audioStream) {
+            this.audioStream.getTracks().forEach(track => track.stop());
+            this.audioStream = null;
+          }
+          reject(new Error('Recording failed'));
+        };
+      });
+
+      // Stop recording
+      this.mediaRecorder.stop();
+      this.isRecording = false;
+      
+      if (this.onRecordingStateChange) {
+        this.onRecordingStateChange(false);
+      }
+
+      const audioBlob = await recordingPromise;
+      
+      // Convert to WAV and add to track
+      if (this.currentRecordingTrackId) {
+        const wavBlob = await this.convertToWav(audioBlob);
+        await this.addRecordedAudioToTrack(this.currentRecordingTrackId, wavBlob);
+        this.currentRecordingTrackId = null;
+        return wavBlob;
+      }
+      
+      return audioBlob;
+      
+    } catch (error) {
+      console.error(`❌ Failed to stop audio recording:`, error);
+      this.isRecording = false;
+      if (this.onRecordingStateChange) {
+        this.onRecordingStateChange(false);
+      }
+      throw error;
     }
   }
 

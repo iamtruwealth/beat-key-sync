@@ -71,12 +71,13 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
   onAddTrack,
   canEdit = true
 }) => {
-  const { createTrack, isRecording, startRecording, stopRecording, tracks: audioTracks, loadSample, setActiveTrack } = useCookModeAudio(canEdit);
+  const { createTrack, isRecording, startAudioRecording, stopAudioRecording, tracks: audioTracks, loadSample, setActiveTrack } = useCookModeAudio(canEdit);
   const { toast } = useToast();
   const [masterVolume, setMasterVolume] = useState(75);
   const [sessionDuration, setSessionDuration] = useState(0);
   const [isEditingBpm, setIsEditingBpm] = useState(false);
   const [tempBpm, setTempBpm] = useState(bpm.toString());
+  const [currentRecordingTrackId, setCurrentRecordingTrackId] = useState<string | null>(null);
 
   // Calculate session duration
   useEffect(() => {
@@ -219,28 +220,37 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
               onClick={async () => {
                 if (isRecording) {
                   // Stop recording
-                  await stopRecording();
-                  toast({
-                    title: "Recording Stopped",
-                    description: "MIDI and audio recording stopped",
-                  });
+                  try {
+                    await stopAudioRecording();
+                    setCurrentRecordingTrackId(null);
+                    toast({
+                      title: "Recording Stopped",
+                      description: "Audio recording complete",
+                    });
+                  } catch (error) {
+                    console.error('Failed to stop recording:', error);
+                  }
                 } else {
                   // Start recording
-                  if (audioTracks.length === 0) {
+                  let trackId = currentRecordingTrackId;
+                  
+                  if (!trackId) {
                     // Create a new track if none exist
                     const trackName = `Recording ${Date.now()}`;
-                    createTrack(trackName);
+                    trackId = createTrack(trackName);
+                    setCurrentRecordingTrackId(trackId);
                     await onCreateEmptyTrack?.(trackName);
                   }
                   
-                  await startRecording();
-                  toast({
-                    title: "Recording Started",
-                    description: "Recording MIDI notes and audio input",
-                  });
+                  try {
+                    await startAudioRecording(trackId);
+                  } catch (error) {
+                    console.error('Failed to start recording:', error);
+                    setCurrentRecordingTrackId(null);
+                  }
                 }
               }}
-              title={isRecording ? "Stop Recording (MIDI + Audio)" : "Start Recording (MIDI + Audio)"}
+              title={isRecording ? "Stop Recording Audio" : "Start Recording Audio"}
             >
               {isRecording ? (
                 <>

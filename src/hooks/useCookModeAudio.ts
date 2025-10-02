@@ -33,6 +33,8 @@ export interface UseCookModeAudioReturn {
   setActiveTrack: (trackId: string) => void;
   startRecording: () => void;
   stopRecording: () => void;
+  startAudioRecording: (trackId: string) => Promise<void>;
+  stopAudioRecording: () => Promise<Blob | null>;
   playbackRecording: () => void;
   recordAudioInput: (trackId: string, durationMs?: number) => Promise<Blob>;
   setTrackTrim: (trackId: string, trimStart: number, trimEnd: number) => void;
@@ -276,6 +278,60 @@ export function useCookModeAudio(isHost: boolean = true): UseCookModeAudioReturn
     }
   }, [toast]);
 
+  // Start continuous audio recording
+  const startAudioRecording = useCallback(async (trackId: string): Promise<void> => {
+    if (!engineRef.current) {
+      throw new Error('Audio engine not initialized');
+    }
+
+    try {
+      await engineRef.current.startAudioRecording(trackId);
+      
+      toast({
+        title: "Audio Recording Started",
+        description: "Recording audio from your microphone...",
+      });
+      
+    } catch (error) {
+      console.error('❌ Failed to start audio recording:', error);
+      toast({
+        title: "Audio Recording Failed",
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: "destructive",
+      });
+      throw error;
+    }
+  }, [toast]);
+
+  // Stop continuous audio recording
+  const stopAudioRecording = useCallback(async (): Promise<Blob | null> => {
+    if (!engineRef.current) {
+      throw new Error('Audio engine not initialized');
+    }
+
+    try {
+      const audioBlob = await engineRef.current.stopAudioRecording();
+      
+      if (audioBlob) {
+        toast({
+          title: "Audio Recording Complete",
+          description: "Audio has been recorded and added to the track",
+        });
+      }
+
+      return audioBlob;
+      
+    } catch (error) {
+      console.error('❌ Failed to stop audio recording:', error);
+      toast({
+        title: "Audio Recording Failed",
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: "destructive",
+      });
+      throw error;
+    }
+  }, [toast]);
+
   // Computed properties
   const hasMidiDevices = midiDevices.some(device => device.connected);
   const isAudioRecordingSupported = engineRef.current?.isAudioRecordingSupported() ?? false;
@@ -292,6 +348,8 @@ export function useCookModeAudio(isHost: boolean = true): UseCookModeAudioReturn
     setActiveTrack,
     startRecording,
     stopRecording,
+    startAudioRecording,
+    stopAudioRecording,
     playbackRecording,
     recordAudioInput,
     setTrackTrim,
