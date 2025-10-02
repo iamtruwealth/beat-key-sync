@@ -79,9 +79,11 @@ export const PianoRollGrid: React.FC<PianoRollGridProps> = ({
     return (endNote - pitch) * noteHeight;
   }, [endNote, noteHeight]);
 
-  // Handle grid click to add note/trigger
+  // Handle grid click to add note/trigger (left click)
   const handleGridClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target !== gridRef.current) return; // Only handle clicks on grid background
+    const target = e.target as HTMLElement;
+    // Ignore if clicking on a note/trigger or resize handle
+    if (target?.dataset?.role === 'note' || target?.dataset?.role === 'resize') return;
 
     const rect = gridRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -117,25 +119,28 @@ export const PianoRollGrid: React.FC<PianoRollGridProps> = ({
     e.stopPropagation();
     setIsDragging(true);
     setDraggedNoteId(noteId);
-    
-    const rect = gridRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    
+
+    // Select the note when dragging starts
+    onSelectNotes?.([noteId]);
+
     setDragStartPos({
       x: e.clientX,
       y: e.clientY,
       noteStartTime: note.startTime,
       notePitch: note.pitch,
     });
-  }, []);
+  }, [onSelectNotes]);
 
   // Handle resize start
-  const handleResizeStart = useCallback((e: React.MouseEvent, noteId: string, currentWidth: number) => {
+  const handleResizeStart = useCallback((e: React.MouseEvent, noteId: string, currentDuration: number) => {
     e.stopPropagation();
     setResizingNoteId(noteId);
-    setResizeStartWidth(currentWidth);
+    setResizeStartWidth(currentDuration);
     setDragStartPos({ x: e.clientX, y: e.clientY, noteStartTime: 0, notePitch: 0 });
-  }, []);
+
+    // Select note when resize starts
+    onSelectNotes?.([noteId]);
+  }, [onSelectNotes]);
 
   // Handle mouse move
   const handleMouseMove = useCallback((e: MouseEvent) => {
@@ -335,23 +340,23 @@ export const PianoRollGrid: React.FC<PianoRollGridProps> = ({
             )}
             strokeWidth={2}
             rx={2}
+            data-role="note"
             onMouseDown={(e) => handleNoteDragStart(e, note.id, note)}
             onContextMenu={(e) => handleNoteRightClick(e, note.id)}
             style={{ pointerEvents: 'all' }}
           />
           {/* Resize handle */}
-          {isSelected && (
-            <rect
-              x={x + width - 4}
-              y={y}
-              width={8}
-              height={noteHeight - 2}
-              className="fill-primary-foreground cursor-ew-resize"
-              opacity={0.5}
-              onMouseDown={(e) => handleResizeStart(e, note.id, note.duration)}
-              style={{ pointerEvents: 'all' }}
-            />
-          )}
+          <rect
+            x={x + width - 4}
+            y={y}
+            width={8}
+            height={noteHeight - 2}
+            className="fill-primary-foreground cursor-ew-resize"
+            opacity={isSelected ? 0.7 : 0.3}
+            data-role="resize"
+            onMouseDown={(e) => handleResizeStart(e, note.id, note.duration)}
+            style={{ pointerEvents: 'all' }}
+          />
         </g>
       );
     });
@@ -381,23 +386,23 @@ export const PianoRollGrid: React.FC<PianoRollGridProps> = ({
             )}
             strokeWidth={2}
             rx={2}
+            data-role="note"
             onMouseDown={(e) => handleNoteDragStart(e, trigger.id, trigger)}
             onContextMenu={(e) => handleNoteRightClick(e, trigger.id)}
             style={{ pointerEvents: 'all' }}
           />
           {/* Resize handle */}
-          {isSelected && (
-            <rect
-              x={x + width - 4}
-              y={y}
-              width={8}
-              height={noteHeight - 2}
-              className="fill-primary-foreground cursor-ew-resize"
-              opacity={0.5}
-              onMouseDown={(e) => handleResizeStart(e, trigger.id, duration)}
-              style={{ pointerEvents: 'all' }}
-            />
-          )}
+          <rect
+            x={x + width - 4}
+            y={y}
+            width={8}
+            height={noteHeight - 2}
+            className="fill-primary-foreground cursor-ew-resize"
+            opacity={isSelected ? 0.7 : 0.3}
+            data-role="resize"
+            onMouseDown={(e) => handleResizeStart(e, trigger.id, duration)}
+            style={{ pointerEvents: 'all' }}
+          />
         </g>
       );
     });
@@ -430,7 +435,7 @@ export const PianoRollGrid: React.FC<PianoRollGridProps> = ({
         <svg
           width={gridWidth}
           height={gridHeight}
-          className="absolute inset-0 pointer-events-none"
+          className="absolute inset-0"
         >
           {renderGridLines()}
           {mode === 'midi' ? renderNotes() : renderTriggers()}
