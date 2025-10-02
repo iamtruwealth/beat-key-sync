@@ -215,10 +215,25 @@ export class SessionLoopEngine {
   }
 
   seek(seconds: number) {
-    const loopLenSec = Tone.Time(Tone.Transport.loopEnd).toSeconds();
-    const clampedSeconds = Math.min(Math.max(seconds, 0), loopLenSec - 0.0001);
-    Tone.Transport.seconds = clampedSeconds;
-    console.log(`Seeked to ${clampedSeconds} seconds`);
+    if (!this.isInitialized) {
+      console.warn('Cannot seek: SessionLoopEngine not initialized');
+      return;
+    }
+
+    try {
+      // Ensure Transport is ready
+      if (!Tone.Transport || Tone.Transport.state === 'stopped' && !Tone.Transport.loopEnd) {
+        console.warn('Transport not ready for seek operation');
+        return;
+      }
+
+      const loopLenSec = Tone.Time(Tone.Transport.loopEnd).toSeconds();
+      const clampedSeconds = Math.min(Math.max(seconds, 0), loopLenSec - 0.0001);
+      Tone.Transport.seconds = clampedSeconds;
+      console.log(`Seeked to ${clampedSeconds} seconds`);
+    } catch (error) {
+      console.error('Error during seek:', error);
+    }
   }
 
   updateClipGain(clipId: string, gain: number) {
