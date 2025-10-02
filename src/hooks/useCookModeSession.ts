@@ -39,6 +39,7 @@ interface Session {
   created_by: string;
   status: string;
   workspace_type: string;
+  hls_stream_url?: string;
 }
 
 interface CreateSessionData {
@@ -614,7 +615,7 @@ export function useCookModeSession(sessionId?: string) {
     updateTrack(trackId, updates);
   }, [updateTrack]);
 
-  const updateSessionSettings = useCallback(async (updates: { bpm?: number; key?: string }) => {
+  const updateSessionSettings = useCallback(async (updates: { bpm?: number; key?: string; hls_stream_url?: string }) => {
     try {
       if (!session) throw new Error('No active session');
 
@@ -623,6 +624,7 @@ export function useCookModeSession(sessionId?: string) {
         .update({ 
           ...(updates.bpm && { target_bpm: updates.bpm }),
           ...(updates.key && { target_genre: updates.key }),
+          ...(updates.hls_stream_url !== undefined && { hls_stream_url: updates.hls_stream_url }),
           updated_at: new Date().toISOString()
         })
         .eq('id', session.id);

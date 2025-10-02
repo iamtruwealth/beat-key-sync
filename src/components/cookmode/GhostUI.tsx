@@ -5,13 +5,15 @@ import { Separator } from '@/components/ui/separator';
 import { Activity, Play, Pause, Radio, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useGhostUIReceiver } from '@/hooks/useGhostUIReceiver';
+import { HLSPlayer } from './HLSPlayer';
 
 interface GhostUIProps {
   sessionId: string;
   className?: string;
+  hlsStreamUrl?: string;
 }
 
-export const GhostUI: React.FC<GhostUIProps> = ({ sessionId, className }) => {
+export const GhostUI: React.FC<GhostUIProps> = ({ sessionId, className, hlsStreamUrl }) => {
   const { ghostState, clipTriggers, padPresses, isConnected, lastUpdateTime } = useGhostUIReceiver({
     sessionId,
     isViewer: true,
@@ -23,6 +25,11 @@ export const GhostUI: React.FC<GhostUIProps> = ({ sessionId, className }) => {
 
   return (
     <div className={cn("flex flex-col gap-4", className)}>
+      {/* HLS Audio Player */}
+      {hlsStreamUrl && (
+        <HLSPlayer streamUrl={hlsStreamUrl} />
+      )}
+
       {/* Connection Status */}
       <Card>
         <CardHeader className="pb-3">

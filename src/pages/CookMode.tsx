@@ -23,6 +23,7 @@ import { SessionParticipants } from '@/components/cookmode/SessionParticipants';
 import { SessionControls } from '@/components/cookmode/SessionControls';
 import { GhostUI } from '@/components/cookmode/GhostUI';
 import { useGhostUIBroadcast } from '@/hooks/useGhostUIBroadcast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { CookModeAudioControls } from '@/components/cookmode/CookModeAudioControls';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { 
@@ -65,6 +66,8 @@ const CookMode = () => {
   const [authLoading, setAuthLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [ghostUIEnabled, setGhostUIEnabled] = useState(true); // Ghost UI enabled by default for viewers
+  const [hlsStreamUrl, setHlsStreamUrl] = useState('');
+  const [showHlsDialog, setShowHlsDialog] = useState(false);
   const [sessionConfig, setSessionConfig] = useState({
     bpm: 120,
     key: 'C',
@@ -316,6 +319,13 @@ const CookMode = () => {
   React.useEffect(() => {
     console.log('[CookMode] isPlaying changed', isPlaying);
   }, [isPlaying]);
+
+  // Load HLS stream URL from session
+  React.useEffect(() => {
+    if (session?.hls_stream_url) {
+      setHlsStreamUrl(session.hls_stream_url);
+    }
+  }, [session?.hls_stream_url]);
 
   // Periodically broadcast Ghost UI state while playing
   React.useEffect(() => {
@@ -718,15 +728,27 @@ const CookMode = () => {
             </Button>
             
             {permissions.canEdit && (
-              <Button
-                variant={ghostUIEnabled ? "default" : "outline"}
-                size="sm"
-                onClick={() => setGhostUIEnabled(!ghostUIEnabled)}
-                className="border-border/50 hover:border-neon-cyan/50"
-              >
-                <Radio className="w-4 h-4 mr-2" />
-                Ghost UI {ghostUIEnabled ? 'ON' : 'OFF'}
-              </Button>
+              <>
+                <Button
+                  variant={ghostUIEnabled ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setGhostUIEnabled(!ghostUIEnabled)}
+                  className="border-border/50 hover:border-neon-cyan/50"
+                >
+                  <Radio className="w-4 h-4 mr-2" />
+                  Ghost UI {ghostUIEnabled ? 'ON' : 'OFF'}
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowHlsDialog(true)}
+                  className="border-border/50 hover:border-neon-cyan/50"
+                >
+                  <Activity className="w-4 h-4 mr-2" />
+                  Set Stream URL
+                </Button>
+              </>
             )}
             
             {permissions.canEdit && (
@@ -807,7 +829,10 @@ const CookMode = () => {
             {/* Show Ghost UI for viewers, full DAW for editors */}
             {!permissions.canEdit && ghostUIEnabled ? (
               <div className="h-full p-4 overflow-auto">
-                <GhostUI sessionId={sessionId || ''} />
+                <GhostUI 
+                  sessionId={sessionId || ''} 
+                  hlsStreamUrl={session?.hls_stream_url || hlsStreamUrl}
+                />
               </div>
             ) : (
               <CookModeDAW
@@ -894,6 +919,45 @@ const CookMode = () => {
           </div>
         </div>
       </div>
+      
+      {/* HLS Stream URL Dialog */}
+      <Dialog open={showHlsDialog} onOpenChange={setShowHlsDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Set HLS Stream URL</DialogTitle>
+            <DialogDescription>
+              Enter your OBS HLS stream URL so viewers can hear your audio.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="hlsUrl">HLS Stream URL</Label>
+              <Input
+                id="hlsUrl"
+                placeholder="https://your-stream-url.m3u8"
+                value={hlsStreamUrl}
+                onChange={(e) => setHlsStreamUrl(e.target.value)}
+                className="bg-background/50 border-border/50"
+              />
+              <p className="text-xs text-muted-foreground">
+                Typically ends with .m3u8 (HLS manifest)
+              </p>
+            </div>
+            <Button 
+              onClick={() => {
+                if (hlsStreamUrl) {
+                  updateSessionSettings({ hls_stream_url: hlsStreamUrl });
+                  toast.success('Stream URL saved! Viewers can now hear your audio.');
+                  setShowHlsDialog(false);
+                }
+              }}
+              className="w-full"
+            >
+              Save Stream URL
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
