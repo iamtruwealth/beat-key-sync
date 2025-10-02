@@ -1134,6 +1134,9 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           trackMode={pianoRollTrack.mode}
           trackSampleUrl={pianoRollTrack.sampleUrl}
           sessionBpm={bpm}
+          sessionIsPlaying={isPlaying}
+          sessionCurrentTime={currentTime}
+          onToggleSessionPlayback={onPlayPause}
           onSave={(trackId, data) => {
             console.log('Saving piano roll data for track:', trackId, data);
             toast({
