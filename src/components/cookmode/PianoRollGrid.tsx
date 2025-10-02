@@ -336,11 +336,11 @@ export const PianoRollGrid: React.FC<PianoRollGridProps> = ({
   };
 
   return (
-    <div className="relative overflow-auto bg-background" style={{ height: '400px' }}>
+    <div className="relative overflow-auto bg-background flex-1">
       <div
         ref={gridRef}
-        className="relative cursor-crosshair"
-        style={{ width: `${gridWidth}px`, height: `${gridHeight}px` }}
+        className="relative cursor-crosshair min-h-full"
+        style={{ width: `${gridWidth}px`, minHeight: `${gridHeight}px` }}
         onClick={handleGridClick}
       >
         <svg
