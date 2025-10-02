@@ -25,7 +25,7 @@ import { GhostUI } from '@/components/cookmode/GhostUI';
 import { useGhostUIBroadcast } from '@/hooks/useGhostUIBroadcast';
 import { useAudioBroadcast } from '@/hooks/useAudioBroadcast';
 import { sessionLoopEngine } from '@/lib/sessionLoopEngine';
-// import { useWebRTCAudioStream } from '@/hooks/useWebRTCAudioStream'; // Disabled until HLS server deployed
+import { useMuxAudioStream } from '@/hooks/useMuxAudioStream';
 import { AudioStreamIndicator } from '@/components/cookmode/AudioStreamIndicator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { CookModeAudioControls } from '@/components/cookmode/CookModeAudioControls';
@@ -154,19 +154,37 @@ const CookMode = () => {
     enabled: isPlaying && !!mixedAudioStream,
   });
 
-  // Audio streaming temporarily disabled until HLS server is deployed
-  // TODO: Replace with useHLSAudioStream once streaming server is ready
-  const isStreaming = false;
-  const audioLevel = 0;
-  const startStreaming = (dest?: AudioDestinationNode) => {};
-  const stopStreaming = () => {};
+  // Mux audio relay streaming for hosts
+  const { 
+    isStreaming, 
+    audioLevel, 
+    startStreaming, 
+    stopStreaming 
+  } = useMuxAudioStream({
+    mediaStream: mixedAudioStream,
+    enabled: false, // Manual control via button
+    onConnect: () => {
+      console.log('[CookMode] Audio relay streaming connected');
+      toast.success('Audio streaming started');
+    },
+    onDisconnect: () => {
+      console.log('[CookMode] Audio relay streaming disconnected');
+      toast.info('Audio streaming stopped');
+    },
+    onError: (error) => {
+      console.error('[CookMode] Audio relay streaming error:', error);
+      toast.error('Audio streaming error');
+    },
+  });
 
-  // Auto-start streaming when master destination is available
-  React.useEffect(() => {
-    if (permissions?.canEdit && masterDestination && !isStreaming) {
-      startStreaming(masterDestination as AudioDestinationNode);
+  // Toggle streaming function for the UI
+  const toggleStreaming = () => {
+    if (isStreaming) {
+      stopStreaming();
+    } else {
+      startStreaming();
     }
-  }, [permissions?.canEdit, masterDestination, isStreaming, startStreaming]);
+  };
 
   // Real-time collaboration
   const { 
@@ -881,7 +899,7 @@ const CookMode = () => {
               isHost={permissions.canEdit}
               isStreaming={isStreaming}
               audioLevel={audioLevel}
-              onToggleStream={permissions.canEdit ? (isStreaming ? stopStreaming : () => startStreaming(masterDestination as AudioDestinationNode)) : undefined}
+              onToggleStream={permissions.canEdit ? toggleStreaming : undefined}
             />
 
             <Button
