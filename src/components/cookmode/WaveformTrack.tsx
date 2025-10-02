@@ -36,13 +36,12 @@ interface WaveformTrackProps {
   isPlaying: boolean;
   pixelsPerSecond: number;
   trackHeight: number;
-  trackIndex: number; // New prop for index-based coloring
+  trackIndex: number;
   onClipClick?: (clipId: string, event: React.MouseEvent) => void;
   onClipDoubleClick?: (clipId: string) => void;
   onDuplicateClip?: (clipId: string) => void;
   onDeleteClip?: (clipId: string) => void;
   className?: string;
-  // New props for selection and record arming
   isSelected?: boolean;
   isRecordArmed?: boolean;
   onTrackSelect?: (trackId: string) => void;
@@ -71,10 +70,6 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
   const waveSurferRef = useRef<WaveSurfer | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const loadedUrlRef = useRef<string | null>(null);
-  const initTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const track = clip.originalTrack;
   const clipDuration = clip.endTime - clip.startTime;
@@ -83,217 +78,85 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
   // Calculate visual properties
   const isMuted = track.isMuted || false;
   const opacity = isMuted ? 0.3 : 1;
-  
-  // Initialize WaveSurfer with better error handling and debouncing
-  useEffect(() => {
-    // Clear any pending timeout
-    if (initTimeoutRef.current) {
-      clearTimeout(initTimeoutRef.current);
-    }
 
-    // Skip if no valid file URL (empty tracks), already loaded for this URL, currently loading, or no container
-    if (!containerRef.current || !track.file_url || track.file_url.trim() === '' || isLoading || loadedUrlRef.current === track.file_url) {
+  // Initialize WaveSurfer
+  useEffect(() => {
+    if (!containerRef.current || !track.file_url || track.file_url.trim() === '') {
       return;
     }
 
-    // Clean up existing instance before creating new one
+    // Clean up existing instance
     if (waveSurferRef.current) {
       waveSurferRef.current.destroy();
       waveSurferRef.current = null;
     }
 
-    // Debounce initialization to prevent rapid re-creation
-    initTimeoutRef.current = setTimeout(() => {
-      if (!containerRef.current) return;
+    try {
+      console.log(`Loading WaveSurfer for track: ${track.name} (${track.file_url})`);
+      
+      const waveSurfer = WaveSurfer.create({
+        container: containerRef.current,
+        waveColor: getTrackWaveColor(trackIndex, isMuted),
+        progressColor: getTrackWaveColor(trackIndex, isMuted), // Same color to prevent disappearing
+        cursorColor: 'transparent',
+        barWidth: 2,
+        barGap: 1,
+        height: trackHeight - 16,
+        normalize: true,
+        interact: false,
+        hideScrollbar: true,
+        minPxPerSec: pixelsPerSecond,
+        fillParent: false,
+        mediaControls: false,
+        autoplay: false,
+        backend: 'WebAudio'
+      });
 
-      try {
-        console.log(`Loading WaveSurfer for track: ${track.name} (${track.file_url})`);
-        setIsLoading(true);
-        setError(null);
+      waveSurferRef.current = waveSurfer;
 
-        // Start a safety timeout so the UI doesn't spin forever
-        if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
-        loadingTimeoutRef.current = setTimeout(() => {
-          if (!isLoaded) {
-            console.warn(`Waveform load timeout for track: ${track.name}`);
-            setError('Waveform took too long to load');
-            setIsLoading(false);
-            setIsLoaded(false);
-          }
-        }, 8000);
+      waveSurfer.on('error', (e: any) => {
+        console.error(`WaveSurfer error for track ${track.name}:`, e);
+        setError('Failed to load waveform');
+        setIsLoaded(false);
+      });
 
-        const waveSurfer = WaveSurfer.create({
-          container: containerRef.current,
-          waveColor: getTrackWaveColor(trackIndex, isMuted),
-          progressColor: getTrackWaveColor(trackIndex, isMuted), // Keep progress same as wave to avoid disappearance
-          cursorColor: 'transparent', // Hide cursor
-          barWidth: 2,
-          barGap: 1,
-          height: trackHeight - 16,
-          normalize: true,
-          interact: false, // Disable WaveSurfer controls since Tone.js handles playback
-          hideScrollbar: true,
-          minPxPerSec: pixelsPerSecond,
-          fillParent: false,
-          mediaControls: false,
-          autoplay: false, // Critical: Never autoplay
-          backend: 'WebAudio'
-        });
-
-        waveSurferRef.current = waveSurfer;
-
-        // Surface internal errors from wavesurfer
-        waveSurfer.on('error', (e: any) => {
-          console.error(`WaveSurfer error for track ${track.name}:`, e);
-          if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
+      waveSurfer.load(track.file_url).then(() => {
+        if (waveSurferRef.current === waveSurfer) {
+          setIsLoaded(true);
+          setError(null);
+          console.log(`WaveSurfer loaded for track: ${track.name}`);
+          waveSurfer.pause(); // Never play audio
+        }
+      }).catch((err) => {
+        if (waveSurferRef.current === waveSurfer) {
+          console.error(`Failed to load waveform for track ${track.name}:`, err);
           setError('Failed to load waveform');
           setIsLoaded(false);
-          setIsLoading(false);
-        });
+        }
+      });
 
-        // Load the audio file
-        waveSurfer.load(track.file_url).then(() => {
-          if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
-          if (waveSurferRef.current === waveSurfer) { // Check if this is still the current instance
-            setIsLoaded(true);
-            setError(null);
-            setIsLoading(false);
-            loadedUrlRef.current = track.file_url;
-            console.log(`WaveSurfer loaded for track: ${track.name}`);
-            
-            // Force immediate update to prevent loading state persistence
-            waveSurfer.pause(); // Ensure it never plays
+      waveSurfer.on('ready', () => {
+        if (waveSurferRef.current === waveSurfer) {
+          waveSurfer.pause();
+        }
+      });
 
-            // Hide any progress overlay/canvas and remove clipping so waveform never disappears
-            const contEl = containerRef.current as HTMLElement | null;
-            if (contEl) {
-              const canvases = contEl.querySelectorAll('canvas');
-              canvases.forEach((c, i) => {
-                const canvasEl = c as HTMLCanvasElement;
-                canvasEl.style.clipPath = 'none';
-                // @ts-ignore - webkitClipPath isn't in TS types
-                canvasEl.style.webkitClipPath = 'none';
-                if (i > 0) canvasEl.style.display = 'block'; // ensure progress canvas is visible
-              });
-            }
-          }
-        }).catch((err) => {
-          if (waveSurferRef.current === waveSurfer) { // Check if this is still the current instance
-            console.error(`Failed to load waveform for track ${track.name}:`, err);
-            setError('Failed to load waveform');
-            setIsLoaded(false);
-            setIsLoading(false);
-          }
-        });
-
-        // Prevent WaveSurfer from playing audio
-        waveSurfer.on('ready', () => {
-          if (waveSurferRef.current === waveSurfer) {
-            waveSurfer.pause(); // Ensure it never plays
-            const contEl = containerRef.current as HTMLElement | null;
-            if (contEl) {
-              const canvases = contEl.querySelectorAll('canvas');
-              canvases.forEach((c, i) => {
-                const canvasEl = c as HTMLCanvasElement;
-                canvasEl.style.clipPath = 'none';
-                // @ts-ignore - webkitClipPath isn't in TS types
-                canvasEl.style.webkitClipPath = 'none';
-                if (i > 0) canvasEl.style.display = 'block';
-              });
-            }
-          }
-        });
-      } catch (err) {
-        console.error('Error creating WaveSurfer:', err);
-        setError('Failed to create waveform');
-        setIsLoading(false);
-      }
-    }, 100); // 100ms debounce
+    } catch (err) {
+      console.error('Error creating WaveSurfer:', err);
+      setError('Failed to create waveform');
+    }
 
     return () => {
-      if (initTimeoutRef.current) {
-        clearTimeout(initTimeoutRef.current);
-      }
-    };
-  }, [track.id, track.file_url, trackHeight, trackIndex]); // Removed isMuted from dependencies to prevent re-initialization
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (initTimeoutRef.current) {
-        clearTimeout(initTimeoutRef.current);
-      }
       if (waveSurferRef.current) {
         waveSurferRef.current.destroy();
         waveSurferRef.current = null;
       }
-      setIsLoading(false);
-      setIsLoaded(false);
-      loadedUrlRef.current = null;
     };
-  }, []);
+  }, [track.id, track.file_url, trackHeight, trackIndex, pixelsPerSecond]);
 
-  // Debug: observe DOM changes that could hide canvases and auto-correct them
+  // Update playhead position based on timeline time
   useEffect(() => {
-    const cont = containerRef.current;
-    if (!cont) return;
-    const logPrefix = `[WaveformTrack][${track.name}]`;
-
-    const fixVisibility = (el: HTMLElement) => {
-      const isProgress = el.className?.toString().toLowerCase().includes('progress');
-        if (isProgress) {
-          el.style.display = 'block';
-          el.style.opacity = '1';
-          el.style.visibility = 'visible';
-        }
-      if (el.tagName === 'CANVAS') {
-        const canvas = el as HTMLCanvasElement;
-        canvas.style.display = 'block';
-        canvas.style.opacity = '1';
-        canvas.style.visibility = 'visible';
-        canvas.style.clipPath = 'none';
-        // @ts-ignore - webkitClipPath not in TS types
-        canvas.style.webkitClipPath = 'none';
-      }
-    };
-
-    try {
-      // Initial pass
-      cont.querySelectorAll('*').forEach((n) => fixVisibility(n as HTMLElement));
-
-      const observer = new MutationObserver((mutations) => {
-        for (const m of mutations) {
-          if (m.type === 'attributes') {
-            const target = m.target as HTMLElement;
-            fixVisibility(target);
-            const cs = window.getComputedStyle(target);
-            console.log(`${logPrefix} mutation`, {
-              node: target.tagName,
-              className: target.className,
-              style: target.getAttribute('style') || '',
-              display: cs.display,
-              clipPath: cs.clipPath,
-              opacity: cs.opacity,
-              visibility: cs.visibility,
-            });
-          }
-          if (m.type === 'childList') {
-            m.addedNodes.forEach((n) => n instanceof HTMLElement && fixVisibility(n));
-          }
-        }
-      });
-      observer.observe(cont, { attributes: true, attributeFilter: ['style', 'class'], childList: true, subtree: true });
-      return () => observer.disconnect();
-    } catch (e) {
-      console.warn(`${logPrefix} mutation observer failed`, e);
-    }
-  }, [containerId, track.name]);
-  // Update playhead position based on timeline time and clip trims
-  useEffect(() => {
-    if (!waveSurferRef.current || !isLoaded) return;
-
-    // Keep waveform static during playback to avoid any clipping/progress effects
-    if (isPlaying) return;
+    if (!waveSurferRef.current || !isLoaded || isPlaying) return;
 
     try {
       const fullDuration = clip.fullDuration || clip.originalTrack.analyzed_duration || clip.originalTrack.duration || clipDuration;
@@ -301,15 +164,12 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
       const endOffset = Math.min(fullDuration, clip.trimEnd ?? fullDuration);
       const trimmedDuration = Math.max(0.01, endOffset - startOffset);
 
-      // Calculate relative position within this clip container
       const relativeTime = currentTime - clip.startTime;
       
       if (relativeTime >= 0 && relativeTime <= clipDuration) {
-        // Map the relative time to the trimmed audio portion in the source
         const progress = relativeTime / clipDuration;
         const audioTime = startOffset + (progress * trimmedDuration);
         const audioProgress = Math.max(0, Math.min(1, audioTime / fullDuration));
-        
         waveSurferRef.current.seekTo(audioProgress);
       } else if (currentTime < clip.startTime) {
         const audioProgress = Math.max(0, Math.min(1, startOffset / fullDuration));
@@ -323,13 +183,12 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
     }
   }, [currentTime, isPlaying, clip.startTime, clip.endTime, clipDuration, isLoaded, clip.fullDuration, clip.trimStart, clip.trimEnd]);
 
-  // Update visual opacity based on mute state
+  // Update visual opacity and colors based on mute state
   useEffect(() => {
     if (!containerRef.current) return;
     
     containerRef.current.style.opacity = opacity.toString();
     
-    // Update waveform colors if needed
     if (waveSurferRef.current && isLoaded) {
       try {
         waveSurferRef.current.setOptions({
@@ -342,59 +201,9 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
     }
   }, [isMuted, opacity, trackIndex, isLoaded]);
 
-
-  // Debug: log when playback state changes and canvas visibility/styles
-  useEffect(() => {
-    const cont = containerRef.current;
-    const ws = waveSurferRef.current;
-    const logPrefix = `[WaveformTrack][${track.name}]`;
-    try {
-      console.log(`${logPrefix} isPlaying changed`, { isPlaying, isLoaded, hasWS: !!ws });
-      if (cont) {
-        const canvases = cont.querySelectorAll('canvas');
-        const info = Array.from(canvases).map((c, i) => {
-          const el = c as HTMLCanvasElement;
-          const cs = window.getComputedStyle(el);
-          // @ts-ignore webkitClipPath
-          const webkitClipPath = (el.style as any).webkitClipPath;
-          return {
-            i,
-            width: el.width,
-            height: el.height,
-            styleDisplay: el.style.display,
-            computedDisplay: cs.display,
-            styleClipPath: el.style.clipPath || webkitClipPath || 'none',
-            computedClipPath: cs.clipPath,
-            styleOpacity: el.style.opacity,
-            computedOpacity: cs.opacity,
-            zIndex: cs.zIndex,
-            visibility: cs.visibility,
-          };
-        });
-        const contCS = window.getComputedStyle(cont);
-        // @ts-ignore webkitClipPath
-        const contWebkitClip = (cont.style as any).webkitClipPath;
-        const contStyles = {
-          clientWidth: cont.clientWidth,
-          clientHeight: cont.clientHeight,
-          styleDisplay: cont.style.display,
-          computedDisplay: contCS.display,
-          styleClipPath: cont.style.clipPath || contWebkitClip || 'none',
-          computedClipPath: contCS.clipPath,
-          styleOpacity: cont.style.opacity,
-          computedOpacity: contCS.opacity,
-        };
-        console.log(`${logPrefix} container/canvases`, { contStyles, canvases: info });
-      }
-    } catch (e) {
-      console.warn(`${logPrefix} debug logging failed`, e);
-    }
-  }, [isPlaying]);
-
   // Handle click events
   const handleClick = (event: React.MouseEvent) => {
     event.stopPropagation();
-    // Handle track selection
     if (onTrackSelect) {
       onTrackSelect(track.id);
     }
@@ -410,16 +219,6 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
     }
   };
 
-  // Handle record arm toggle
-  const handleRecordArmClick = (event: React.MouseEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
-    if (onRecordArmToggle) {
-      onRecordArmToggle(track.id, event.shiftKey);
-    }
-  };
-
-  // Dynamic styling for selection and record arm states
   const containerClassName = `relative cursor-pointer overflow-hidden ${className}`;
 
   return (
@@ -428,7 +227,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
       style={{
         width: clipWidth,
         height: trackHeight - 8,
-        minWidth: 100 // Minimum width for visibility
+        minWidth: 100
       }}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
@@ -438,7 +237,6 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
           <span className="text-xs text-red-400">Failed to load</span>
         </div>
       ) : !track.file_url || track.file_url.trim() === '' ? (
-        // Empty track - ready for recording or MIDI input
         <div className="flex items-center justify-center h-full bg-purple-500/10 border-purple-500/30 border-dashed">
           <div className="text-center">
             <Circle className="w-4 h-4 mx-auto mb-1 text-purple-400" />
@@ -446,7 +244,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
           </div>
         </div>
       ) : (
-        <> 
+        <>
           {/* WaveSurfer container */}
           <div
             ref={containerRef}
@@ -454,7 +252,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
             className="w-full h-full relative"
           />
 
-          {/* Trim overlays: dim hidden (trimmed) parts so only visible segment pops */}
+          {/* Trim overlays */}
           {(() => {
             const total = clip.fullDuration || clip.originalTrack.analyzed_duration || clip.originalTrack.duration || clipDuration;
             if (!total || total <= 0) return null;
@@ -480,7 +278,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
             );
           })()}
            
-           {/* Clip action buttons */}
+          {/* Clip action buttons */}
           <div className="absolute bottom-1 right-1 z-20 flex gap-1">
             <button
               type="button"
@@ -532,37 +330,4 @@ function getTrackWaveColor(trackIndex: number, isMuted: boolean): string {
   const baseColor = baseColors[colorIndex];
   
   return isMuted ? baseColor.replace('0.8', '0.3') : baseColor;
-}
-
-function getTrackProgressColor(trackIndex: number, isMuted: boolean): string {
-  const baseColors = [
-    'rgba(34, 197, 94, 1)',     // green
-    'rgba(59, 130, 246, 1)',    // blue  
-    'rgba(168, 85, 247, 1)',    // purple
-    'rgba(245, 101, 101, 1)',   // red
-    'rgba(251, 191, 36, 1)',    // yellow
-    'rgba(14, 165, 233, 1)',    // sky
-    'rgba(139, 92, 246, 1)',    // violet
-    'rgba(236, 72, 153, 1)',    // pink
-  ];
-  
-  const colorIndex = trackIndex % baseColors.length;
-  const baseColor = baseColors[colorIndex];
-  
-  return isMuted ? baseColor.replace('1)', '0.5)') : baseColor;
-}
-
-function getTrackBorderColor(trackIndex: number): string {
-  const borderColors = [
-    'rgb(34, 197, 94)',   // green
-    'rgb(59, 130, 246)',  // blue
-    'rgb(168, 85, 247)',  // purple
-    'rgb(245, 101, 101)', // red
-    'rgb(251, 191, 36)',  // yellow
-    'rgb(14, 165, 233)',  // sky
-    'rgb(139, 92, 246)',  // violet
-    'rgb(236, 72, 153)',  // pink
-  ];
-  
-  return borderColors[trackIndex % borderColors.length];
 }
