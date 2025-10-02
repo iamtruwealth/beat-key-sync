@@ -125,7 +125,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
         const waveSurfer = WaveSurfer.create({
           container: containerRef.current,
           waveColor: getTrackWaveColor(trackIndex, isMuted),
-          progressColor: getTrackProgressColor(trackIndex, isMuted), // Match wave color so nothing disappears
+          progressColor: getTrackWaveColor(trackIndex, isMuted), // Keep progress same as wave to avoid disappearance
           cursorColor: 'transparent', // Hide cursor
           barWidth: 2,
           barGap: 1,
@@ -175,8 +175,6 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
                 canvasEl.style.webkitClipPath = 'none';
                 if (i > 0) canvasEl.style.display = 'block'; // ensure progress canvas is visible
               });
-              const progressEl = contEl.querySelector('[class*="progress"], .wavesurfer__progress') as HTMLElement | null;
-              if (progressEl) progressEl.style.display = 'none';
             }
           }
         }).catch((err) => {
@@ -202,8 +200,6 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
                 canvasEl.style.webkitClipPath = 'none';
                 if (i > 0) canvasEl.style.display = 'block';
               });
-              const progressEl = contEl.querySelector('[class*="progress"], .wavesurfer__progress') as HTMLElement | null;
-              if (progressEl) progressEl.style.display = 'none';
             }
           }
         });
@@ -338,7 +334,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
       try {
         waveSurferRef.current.setOptions({
           waveColor: getTrackWaveColor(trackIndex, isMuted),
-          progressColor: getTrackProgressColor(trackIndex, isMuted)
+          progressColor: getTrackWaveColor(trackIndex, isMuted)
         });
       } catch (err) {
         console.error('Error updating waveform colors:', err);
@@ -346,66 +342,6 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
     }
   }, [isMuted, opacity, trackIndex, isLoaded]);
 
-  // Persistently enforce visibility (especially during playback)
-  useEffect(() => {
-    const cont = containerRef.current;
-    if (!cont) return;
-    const logPrefix = `[WaveformTrack][${track.name}]`;
-
-    const enforce = () => {
-      try {
-        // Hide progress/cursor layers and remove any clipping/transform/zero-width that could hide canvases
-        cont.querySelectorAll('*').forEach((n) => {
-          const el = n as HTMLElement;
-          const cls = (el.className || '').toString().toLowerCase();
-          if (cls.includes('cursor')) {
-            el.style.display = 'none';
-          }
-          if (cls.includes('progress')) {
-            el.style.display = 'block';
-            el.style.opacity = '1';
-            el.style.visibility = 'visible';
-          }
-          if (el.tagName === 'CANVAS') {
-            const c = el as HTMLCanvasElement;
-            c.style.display = 'block';
-            c.style.opacity = '1';
-            c.style.visibility = 'visible';
-          }
-          // Remove clipping and transforms
-          el.style.clipPath = 'none';
-          // @ts-ignore webkitClipPath
-          el.style.webkitClipPath = 'none';
-          el.style.transform = 'none';
-          // Fix accidental width:0%/height:0
-          const sw = el.style.width?.trim();
-          if (sw && sw.endsWith('%') && parseFloat(sw) === 0) {
-            el.style.width = '100%';
-          }
-          if (el.style.height === '0px') {
-            el.style.height = '';
-          }
-        });
-      } catch (e) {
-        console.warn(`${logPrefix} enforce failed`, e);
-      }
-    };
-
-    enforce();
-
-    let rafId = 0;
-    if (isPlaying) {
-      const loop = () => {
-        enforce();
-        rafId = requestAnimationFrame(loop);
-      };
-      rafId = requestAnimationFrame(loop);
-    }
-
-    return () => {
-      if (rafId) cancelAnimationFrame(rafId);
-    };
-  }, [isPlaying, containerId, track.name]);
 
   // Debug: log when playback state changes and canvas visibility/styles
   useEffect(() => {
@@ -511,14 +447,6 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
         </div>
       ) : (
         <> 
-          <style
-            dangerouslySetInnerHTML={{
-              __html: `#${containerId} * { clip-path: none !important; -webkit-clip-path: none !important; }
-                #${containerId} .wavesurfer__progress, #${containerId} [class*='progress'] { display: block !important; width: auto !important; opacity: 1 !important; visibility: visible !important; }
-                #${containerId} canvas { display: block !important; opacity: 1 !important; visibility: visible !important; }
-                #${containerId} .wavesurfer__cursor { display: none !important; }`
-            }}
-          />
           {/* WaveSurfer container */}
           <div
             ref={containerRef}
