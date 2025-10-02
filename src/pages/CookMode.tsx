@@ -170,6 +170,20 @@ const CookMode = () => {
     };
   }, []);
 
+  // Safety: ensure playhead is paused on mount
+  React.useEffect(() => {
+    if (isPlaying) {
+      console.log('[CookMode] Safety pause on mount');
+      togglePlayback();
+    }
+    if (currentTime !== 0) {
+      seekTo(0);
+    }
+    // Run once
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+
   // Get current user for video streaming
   const [currentUser, setCurrentUser] = useState<any>(null);
   
