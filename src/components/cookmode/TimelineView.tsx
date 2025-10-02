@@ -96,6 +96,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const [pianoRollTrack, setPianoRollTrack] = useState<{ id: string; name: string; mode: TrackMode; sampleUrl?: string } | null>(null);
   const { toast } = useToast();
 
+
   // Calculate timing constants with precise BPM
   const secondsPerBeat = 60 / bpm; // Precise: 60 seconds / beats per minute
   const beatsPerBar = 4;

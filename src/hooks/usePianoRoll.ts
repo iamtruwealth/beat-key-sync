@@ -26,11 +26,20 @@ export const usePianoRoll = (initialBpm: number = 120, externalPlayback?: { isPl
   // Sync with external playback state
   useEffect(() => {
     if (externalPlayback) {
-      setState(prev => ({
-        ...prev,
-        isPlaying: externalPlayback.isPlaying,
-        currentTime: externalPlayback.currentTime,
-      }));
+      setState(prev => {
+        // Only update if there's a significant change to avoid constant re-renders
+        const timeChanged = Math.abs((prev.currentTime || 0) - externalPlayback.currentTime) > 0.05;
+        const playingChanged = prev.isPlaying !== externalPlayback.isPlaying;
+        
+        if (timeChanged || playingChanged) {
+          return {
+            ...prev,
+            isPlaying: externalPlayback.isPlaying,
+            currentTime: externalPlayback.currentTime,
+          };
+        }
+        return prev;
+      });
     }
   }, [externalPlayback?.isPlaying, externalPlayback?.currentTime]);
 

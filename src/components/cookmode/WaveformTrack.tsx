@@ -85,7 +85,10 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
       return;
     }
 
-    // Clean up existing instance
+    // Use a ref to track if we've already loaded this exact file
+    const currentTrackKey = `${track.id}-${track.file_url}`;
+    
+    // Clean up existing instance only if track/url changed
     if (waveSurferRef.current) {
       waveSurferRef.current.destroy();
       waveSurferRef.current = null;
@@ -152,6 +155,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
         waveSurferRef.current = null;
       }
     };
+    // Only re-run when track ID or file URL actually changes
   }, [track.id, track.file_url]);
 
   // Resize/scale updates without re-creating WaveSurfer
