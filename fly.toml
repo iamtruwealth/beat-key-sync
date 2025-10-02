@@ -1,0 +1,44 @@
+# fly.toml - Beat Key Sync Fly.io deployment configuration
+
+app = "beat-key-sync"
+primary_region = "dfw" # Dallas, replace if you prefer another valid region
+
+[build]
+  # Uses your local Dockerfile
+  image = "registry.fly.io/beat-key-sync:latest"
+
+[env]
+  # Add any environment variables your app needs here
+  NODE_ENV = "production"
+  VITE_SUPABASE_URL = "<YOUR_SUPABASE_URL>"
+  VITE_SUPABASE_ANON_KEY = "<YOUR_SUPABASE_ANON_KEY>"
+
+[experimental]
+  auto_rollback = true
+
+[deploy]
+  release_command = "npm run build"
+
+[mounts]
+  # Only needed if your app writes to disk, otherwise remove
+  # source="data", destination="/app/data"
+
+[services]
+  [[services]]
+    http_checks = []
+    internal_port = 3000 # The port your app listens on
+    protocol = "tcp"
+
+    [[services.ports]]
+      port = 80
+      handlers = ["http"]
+
+    [[services.ports]]
+      port = 443
+      handlers = ["tls", "http"]
+
+    [[services.tcp_checks]]
+      interval = 10000
+      timeout = 2000
+      grace_period = "5s"
+      restart_limit = 0
