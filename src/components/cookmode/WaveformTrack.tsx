@@ -152,9 +152,22 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
         waveSurferRef.current = null;
       }
     };
-  }, [track.id, track.file_url, trackHeight, trackIndex, pixelsPerSecond]);
+  }, [track.id, track.file_url]);
 
-  // Update playhead position based on timeline time
+  // Resize/scale updates without re-creating WaveSurfer
+  useEffect(() => {
+    if (!waveSurferRef.current || !isLoaded) return;
+    try {
+      waveSurferRef.current.setOptions({
+        height: trackHeight - 16,
+        minPxPerSec: pixelsPerSecond,
+        fillParent: false,
+        hideScrollbar: true,
+      });
+    } catch (e) {
+      console.warn('WaveSurfer setOptions (size) failed', e);
+    }
+  }, [trackHeight, pixelsPerSecond, isLoaded]);
   useEffect(() => {
     if (!waveSurferRef.current || !isLoaded) return;
 
