@@ -37,7 +37,7 @@ export const AudioStreamIndicator: React.FC<AudioStreamIndicatorProps> = ({
                 ) : (
                   <>
                     <MicOff className="w-4 h-4 mr-2" />
-                    Start Audio Stream
+                    Go Live
                   </>
                 )}
               </Button>
@@ -48,7 +48,6 @@ export const AudioStreamIndicator: React.FC<AudioStreamIndicatorProps> = ({
                     <Radio className="w-3 h-3 animate-pulse" />
                     LIVE
                   </Badge>
-                  
                   {/* Audio Level Meter */}
                   <div className="flex-1 max-w-32">
                     <div className="h-2 bg-background/50 rounded-full overflow-hidden">
