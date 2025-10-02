@@ -8,6 +8,18 @@ export interface GhostUIState {
   bpm: number;
   timestamp: number;
   activeView?: 'timeline' | 'mixer';
+  mousePosition?: {
+    x: number;
+    y: number;
+    isMoving: boolean;
+  };
+  pianoRoll?: {
+    isOpen: boolean;
+    trackId?: string;
+    trackName?: string;
+    mode?: 'midi' | 'sample';
+    sampleUrl?: string;
+  };
   clipTriggers?: {
     trackId: string;
     clipId: string;

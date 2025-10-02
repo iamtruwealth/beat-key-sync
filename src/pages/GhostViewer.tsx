@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { GhostUI } from '@/components/cookmode/GhostUI';
+import { GhostCursor } from '@/components/cookmode/GhostCursor';
 import { CookModeDAW } from '@/components/cookmode/CookModeDAW';
+import { PianoRoll } from '@/components/cookmode/PianoRoll';
 import { useCookModeSession } from '@/hooks/useCookModeSession';
 import { useGhostUIReceiver } from '@/hooks/useGhostUIReceiver';
 import { Button } from '@/components/ui/button';
@@ -13,6 +15,7 @@ import { SessionParticipants } from '@/components/cookmode/SessionParticipants';
 import { CookModeChat } from '@/components/cookmode/CookModeChat';
 import { Radio, ArrowLeft, ExternalLink, Headphones, Layers, Clock, Zap, Users } from 'lucide-react';
 import { MetaTags } from '@/components/MetaTags';
+import { TrackMode } from '@/types/pianoRoll';
 
 const GhostViewer = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -137,27 +140,55 @@ const GhostViewer = () => {
         {/* Main Interface (clone layout) */}
         <div className="flex h-[calc(100vh-80px)]">
           {/* DAW Area */}
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 overflow-hidden relative">
+            {/* Ghost Cursor - shows host's mouse movements */}
+            {ghostState?.mousePosition && (
+              <GhostCursor
+                x={ghostState.mousePosition.x}
+                y={ghostState.mousePosition.y}
+                isMoving={ghostState.mousePosition.isMoving}
+              />
+            )}
+
             <GhostUI sessionId={sessionId || ''}>
               {tracks.length > 0 ? (
-                <CookModeDAW
-                  tracks={tracks}
-                  isPlaying={!!ghostState?.isPlaying}
-                  currentTime={ghostState?.playheadPosition || 0}
-                  bpm={ghostState?.bpm || session?.target_bpm || 120}
-                  metronomeEnabled={false}
-                  minBars={8}
-                  onAddTrack={undefined}
-                  onRemoveTrack={undefined}
-                  onUpdateTrack={undefined}
-                  onTogglePlayback={undefined}
-                  onSeek={undefined}
-                  onTrimTrack={undefined}
-                  onHardStop={undefined}
-                  activeView={activeView}
-                  onViewChange={setActiveView}
-                  readOnly={true}
-                />
+                <>
+                  <CookModeDAW
+                    tracks={tracks}
+                    isPlaying={!!ghostState?.isPlaying}
+                    currentTime={ghostState?.playheadPosition || 0}
+                    bpm={ghostState?.bpm || session?.target_bpm || 120}
+                    metronomeEnabled={false}
+                    minBars={8}
+                    onAddTrack={undefined}
+                    onRemoveTrack={undefined}
+                    onUpdateTrack={undefined}
+                    onTogglePlayback={undefined}
+                    onSeek={undefined}
+                    onTrimTrack={undefined}
+                    onHardStop={undefined}
+                    activeView={activeView}
+                    onViewChange={setActiveView}
+                    readOnly={true}
+                  />
+
+                  {/* Mirror Piano Roll when host opens it */}
+                  {ghostState?.pianoRoll?.isOpen && ghostState.pianoRoll.trackId && (
+                    <PianoRoll
+                      isOpen={true}
+                      onClose={() => {}} // Read-only, can't close
+                      trackId={ghostState.pianoRoll.trackId}
+                      trackName={ghostState.pianoRoll.trackName || 'Track'}
+                      trackMode={(ghostState.pianoRoll.mode || 'sample') as TrackMode}
+                      trackSampleUrl={ghostState.pianoRoll.sampleUrl}
+                      sessionBpm={ghostState.bpm || 120}
+                      sessionIsPlaying={!!ghostState.isPlaying}
+                      sessionCurrentTime={ghostState.playheadPosition || 0}
+                      onToggleSessionPlayback={() => {}} // Read-only
+                      onSave={() => {}} // Read-only
+                    />
+                  )}
+                </>
               ) : (
                 <div className="flex items-center justify-center h-full">
                   <Card className="max-w-md">

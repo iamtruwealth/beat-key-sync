@@ -67,6 +67,14 @@ const CookMode = () => {
   const [minBars, setMinBars] = useState(8);
   const [authLoading, setAuthLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [pianoRollState, setPianoRollState] = useState<{
+    isOpen: boolean;
+    trackId?: string;
+    trackName?: string;
+    mode?: 'midi' | 'sample';
+    sampleUrl?: string;
+  }>({ isOpen: false });
   const [sessionConfig, setSessionConfig] = useState({
     bpm: 120,
     key: 'C',
@@ -350,13 +358,32 @@ const CookMode = () => {
     }
   };
 
+  // Track mouse movements for Ghost UI mirroring
+  React.useEffect(() => {
+    if (!permissions.canEdit) return;
+
+    let lastBroadcast = 0;
+    const MOUSE_THROTTLE = 50; // Broadcast mouse position every 50ms max
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const now = Date.now();
+      if (now - lastBroadcast < MOUSE_THROTTLE) return;
+      
+      lastBroadcast = now;
+      setMousePosition({ x: e.clientX, y: e.clientY });
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, [permissions.canEdit]);
+
   React.useEffect(() => {
     console.log('[CookMode] isPlaying changed', isPlaying);
   }, [isPlaying]);
 
-  // Periodically broadcast Ghost UI state while playing
+  // Periodically broadcast Ghost UI state (playback + mouse + piano roll + view)
   React.useEffect(() => {
-    if (!permissions.canEdit || !isPlaying || !session) return;
+    if (!permissions.canEdit || !session) return;
 
     const intervalId = setInterval(() => {
       broadcastState({
@@ -365,18 +392,24 @@ const CookMode = () => {
         bpm: session.target_bpm || 120,
         timestamp: Date.now(),
         activeView,
+        mousePosition: {
+          x: mousePosition.x,
+          y: mousePosition.y,
+          isMoving: true,
+        },
+        pianoRoll: pianoRollState,
         loopRegion: minBars ? {
           start: 0,
-          end: minBars * 4, // Convert bars to beats (4 beats per bar)
+          end: minBars * 4,
           enabled: true,
         } : undefined,
       });
-    }, 200); // Broadcast every 200ms while playing
+    }, isPlaying ? 100 : 200); // Faster updates when playing
 
     return () => clearInterval(intervalId);
-  }, [isPlaying, currentTime, permissions.canEdit, session, minBars, activeView, broadcastState]);
+  }, [isPlaying, currentTime, permissions.canEdit, session, minBars, activeView, mousePosition, pianoRollState, broadcastState]);
 
-  // Also broadcast key UI changes (like view switches) even when not playing
+  // Broadcast immediate UI changes (view switches, piano roll open/close)
   React.useEffect(() => {
     if (!permissions.canEdit || !session) return;
     broadcastState({
@@ -385,8 +418,14 @@ const CookMode = () => {
       bpm: session.target_bpm || 120,
       timestamp: Date.now(),
       activeView,
+      pianoRoll: pianoRollState,
+      mousePosition: {
+        x: mousePosition.x,
+        y: mousePosition.y,
+        isMoving: false,
+      },
     });
-  }, [activeView]);
+  }, [activeView, pianoRollState.isOpen]);
 
   // Session Creation Screen
   if (!sessionId) {
@@ -892,6 +931,7 @@ const CookMode = () => {
                 setActiveTrack={setActiveTrack}
                 createTrack={createTrack}
                 loadSample={loadSample}
+                onPianoRollStateChange={setPianoRollState}
               />
             )}
           </div>

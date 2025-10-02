@@ -59,6 +59,7 @@ interface CookModeDAWProps {
   setActiveTrack?: (trackId: string) => void;
   createTrack?: (name: string) => string;
   loadSample?: (trackId: string, file: File) => Promise<void>;
+  onPianoRollStateChange?: (state: { isOpen: boolean; trackId?: string; trackName?: string; mode?: 'midi' | 'sample'; sampleUrl?: string }) => void;
 }
 
 export const CookModeDAW: React.FC<CookModeDAWProps> = ({
@@ -80,7 +81,8 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
   readOnly = false,
   setActiveTrack,
   createTrack,
-  loadSample
+  loadSample,
+  onPianoRollStateChange
 }) => {
   const [isAddingTrack, setIsAddingTrack] = useState(false);
   const [activeView, setActiveView] = useState<'timeline' | 'mixer'>('timeline');
@@ -441,6 +443,7 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
                 setActiveTrack={setActiveTrack}
                 createTrack={createTrack}
                 loadSample={loadSample}
+                onPianoRollStateChange={onPianoRollStateChange}
               />
             )}
           </TabsContent>

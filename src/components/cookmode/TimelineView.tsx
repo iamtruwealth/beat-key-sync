@@ -62,6 +62,7 @@ interface TimelineViewProps {
   activeTrackId?: string;
   createTrack?: (name: string) => string;
   loadSample?: (trackId: string, file: File) => Promise<void>;
+  onPianoRollStateChange?: (state: { isOpen: boolean; trackId?: string; trackName?: string; mode?: 'midi' | 'sample'; sampleUrl?: string }) => void;
 }
 
 export const TimelineView: React.FC<TimelineViewProps> = ({
@@ -80,7 +81,8 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   setActiveTrack,
   activeTrackId,
   createTrack,
-  loadSample
+  loadSample,
+  onPianoRollStateChange
  }) => {
   const [activeMidiTrackId, setActiveMidiTrackId] = useState<string | null>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
@@ -95,6 +97,17 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const [pianoRollOpen, setPianoRollOpen] = useState(false);
   const [pianoRollTrack, setPianoRollTrack] = useState<{ id: string; name: string; mode: TrackMode; sampleUrl?: string } | null>(null);
   const { toast } = useToast();
+
+  // Broadcast piano roll state changes
+  React.useEffect(() => {
+    onPianoRollStateChange?.({
+      isOpen: pianoRollOpen,
+      trackId: pianoRollTrack?.id,
+      trackName: pianoRollTrack?.name,
+      mode: pianoRollTrack?.mode,
+      sampleUrl: pianoRollTrack?.sampleUrl,
+    });
+  }, [pianoRollOpen, pianoRollTrack, onPianoRollStateChange]);
 
 
   // Calculate timing constants with precise BPM
