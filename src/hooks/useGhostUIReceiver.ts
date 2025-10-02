@@ -24,10 +24,14 @@ export const useGhostUIReceiver = ({ sessionId, isViewer, enabled = true }: UseG
   
   const channelRef = useRef<RealtimeChannel | null>(null);
   const animationFrameRef = useRef<number>();
+  const STALE_MS = 2000;
 
   // Animate playhead when playing
   useEffect(() => {
-    if (!ghostState.isPlaying) {
+    const shouldAnimate =
+      ghostState.isPlaying && isConnected && (Date.now() - lastUpdateTime) <= STALE_MS;
+
+    if (!shouldAnimate) {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
@@ -40,14 +44,28 @@ export const useGhostUIReceiver = ({ sessionId, isViewer, enabled = true }: UseG
       const deltaSeconds = (now - lastTime) / 1000;
       lastTime = now;
 
+      // Stop if stale or disconnected mid-flight
+      const stale = (Date.now() - lastUpdateTime) > STALE_MS || !isConnected;
+      if (stale) {
+        if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+        setGhostState(prev => ({ ...prev, isPlaying: false }));
+        return;
+      }
+
       // Calculate beats per second
       const beatsPerSecond = ghostState.bpm / 60;
       const deltaBeats = deltaSeconds * beatsPerSecond;
 
-      setGhostState(prev => ({
-        ...prev,
-        playheadPosition: prev.playheadPosition + deltaBeats,
-      }));
+      setGhostState(prev => {
+        let newPos = prev.playheadPosition + deltaBeats;
+        // Wrap inside loop region if enabled
+        if (prev.loopRegion?.enabled && prev.loopRegion.end > prev.loopRegion.start) {
+          const len = prev.loopRegion.end - prev.loopRegion.start;
+          const rel = newPos - prev.loopRegion.start;
+          newPos = prev.loopRegion.start + (((rel % len) + len) % len);
+        }
+        return { ...prev, playheadPosition: newPos };
+      });
 
       animationFrameRef.current = requestAnimationFrame(animate);
     };
@@ -59,7 +77,7 @@ export const useGhostUIReceiver = ({ sessionId, isViewer, enabled = true }: UseG
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [ghostState.isPlaying, ghostState.bpm]);
+  }, [ghostState.isPlaying, ghostState.bpm, lastUpdateTime, isConnected]);
 
   useEffect(() => {
     if (!isViewer || !enabled || !sessionId) return;
@@ -75,7 +93,18 @@ export const useGhostUIReceiver = ({ sessionId, isViewer, enabled = true }: UseG
     channel
       .on('broadcast', { event: 'ghost-ui-state' }, ({ payload }) => {
         console.log('[GhostUI] Received state update:', payload);
-        setGhostState(payload as GhostUIState);
+        const incoming = payload as GhostUIState;
+        // Ensure playhead stays within loop if host provided one
+        const wrappedPlayhead = (() => {
+          if (incoming.loopRegion?.enabled && incoming.loopRegion.end > incoming.loopRegion.start) {
+            const len = incoming.loopRegion.end - incoming.loopRegion.start;
+            const rel = incoming.playheadPosition - incoming.loopRegion.start;
+            return incoming.loopRegion.start + (((rel % len) + len) % len);
+          }
+          return incoming.playheadPosition;
+        })();
+
+        setGhostState(prev => ({ ...prev, ...incoming, playheadPosition: wrappedPlayhead }));
         setLastUpdateTime(Date.now());
       })
       .on('broadcast', { event: 'clip-trigger' }, ({ payload }) => {
@@ -108,6 +137,15 @@ export const useGhostUIReceiver = ({ sessionId, isViewer, enabled = true }: UseG
       }
     };
   }, [sessionId, isViewer, enabled]);
+
+  // Auto-pause animation when connection is stale to prevent runaway playhead
+  useEffect(() => {
+    const now = Date.now();
+    if (isConnected && now - lastUpdateTime > STALE_MS && ghostState.isPlaying) {
+      console.log('[GhostUI] Stale updates detected, auto-pausing playhead animation');
+      setGhostState(prev => ({ ...prev, isPlaying: false }));
+    }
+  }, [isConnected, lastUpdateTime, ghostState.isPlaying]);
 
   // Clean up old triggers/presses
   useEffect(() => {
