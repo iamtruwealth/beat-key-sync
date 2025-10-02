@@ -148,13 +148,58 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
   }, [isOpen, trackId, trackName, trackMode, state.tracks, createTrack, setActiveTrack]);
 
   const [toolMode, setToolMode] = useState<'draw' | 'select'>('draw');
-
   const activeTrack = state.tracks[trackId];
 
-  const handleAddNote = (pitch: number, startTime: number) => {
+  // Schedule notes/triggers for playback
+  useEffect(() => {
+    if (!isOpen || !activeTrack) return;
+    
+    const scheduledEvents: number[] = [];
+    
+    if (trackMode === 'midi' && synthRef.current) {
+      // Schedule MIDI notes
+      activeTrack.notes.forEach(note => {
+        const noteName = Tone.Frequency(note.pitch, "midi").toNote();
+        const startTime = `0:${note.startTime}:0`;
+        const duration = note.duration;
+        
+        const eventId = Tone.Transport.schedule((time) => {
+          synthRef.current?.triggerAttackRelease(noteName, duration * (60 / sessionBpm), time, note.velocity / 127);
+        }, startTime);
+        
+        scheduledEvents.push(eventId);
+      });
+    } else if (trackMode === 'sample') {
+      // Schedule sample triggers
+      activeTrack.triggers.forEach(trigger => {
+        const sampler = samplersRef.current.get(trigger.pitch);
+        if (sampler) {
+          const startTime = `0:${trigger.startTime}:0`;
+          
+          const eventId = Tone.Transport.schedule((time) => {
+            sampler.start(time);
+          }, startTime);
+          
+          scheduledEvents.push(eventId);
+        }
+      });
+    }
+    
+    // Cleanup scheduled events when dependencies change
+    return () => {
+      scheduledEvents.forEach(id => Tone.Transport.clear(id));
+    };
+  }, [isOpen, activeTrack, trackMode, sessionBpm]);
+
+  const handleAddNote = async (pitch: number, startTime: number) => {
     if (!trackId) return;
     
     console.log('🎹 handleAddNote called', { trackMode, pitch, startTime });
+    
+    // Preview the note sound when drawing
+    if (Tone.getContext().state !== 'running') {
+      await Tone.start();
+    }
     
     if (trackMode === 'midi') {
       addNote(trackId, {
@@ -163,6 +208,11 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
         duration: 1, // Default 1 beat duration
         velocity: 100,
       });
+      // Play preview
+      if (synthRef.current) {
+        const noteName = Tone.Frequency(pitch, "midi").toNote();
+        synthRef.current.triggerAttackRelease(noteName, "8n");
+      }
     } else {
       addTrigger(trackId, {
         pitch,
@@ -170,6 +220,11 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
         velocity: 100,
         duration: 1, // Default 1 beat duration
       });
+      // Play preview
+      const sampler = samplersRef.current.get(pitch);
+      if (sampler) {
+        sampler.start();
+      }
     }
   };
 
