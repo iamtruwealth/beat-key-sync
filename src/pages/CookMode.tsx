@@ -26,7 +26,7 @@ import { useGhostUIBroadcast } from '@/hooks/useGhostUIBroadcast';
 import { useAudioBroadcast } from '@/hooks/useAudioBroadcast';
 import { sessionLoopEngine } from '@/lib/sessionLoopEngine';
 // import { useWebRTCAudioStream } from '@/hooks/useWebRTCAudioStream'; // Disabled until HLS server deployed
-import { AudioStreamIndicator } from '@/components/cookmode/AudioStreamIndicator';
+import AudioStreamIndicator from '@/components/cookmode/AudioStreamIndicator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { CookModeAudioControls } from '@/components/cookmode/CookModeAudioControls';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';

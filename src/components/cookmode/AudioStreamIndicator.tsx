@@ -2,11 +2,23 @@
 
 import React from 'react';
 
-const AudioStreamIndicator = () => {
+interface AudioStreamIndicatorProps {
+  isHost: boolean;
+  isStreaming: boolean;
+  audioLevel: number;
+  onToggleStream?: () => void;
+}
+
+const AudioStreamIndicator: React.FC<AudioStreamIndicatorProps> = ({
+  isHost,
+  isStreaming,
+  audioLevel,
+  onToggleStream
+}) => {
     return (
         <div>
-            <button>
-                Stop Live
+            <button onClick={onToggleStream}>
+                {isStreaming ? 'Stop Live' : 'Go Live'}
             </button>
         </div>
     );

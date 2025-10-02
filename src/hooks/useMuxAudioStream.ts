@@ -26,7 +26,9 @@ export function useMuxAudioStream({ mediaStream, wsUrl, onError }: UseMuxAudioSt
       recorderRef.current.start(250); // 250ms chunks
     };
     wsRef.current.onerror = onError || (() => {});
-    recorderRef.current?.onerror = onError || (() => {});
+    if (recorderRef.current) {
+      recorderRef.current.onerror = onError || (() => {});
+    }
 
     return () => {
       recorderRef.current?.stop();
