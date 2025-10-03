@@ -30,24 +30,58 @@ export const useMuxAudioStream = ({
 
   // Start streaming to mux server
   const startStreaming = async () => {
-    if (!isHost || !enabled || !mediaStream) {
-      console.log('[useMuxAudioStream] Cannot start:', { isHost, enabled, hasStream: !!mediaStream });
+    if (!isHost || !enabled) {
+      console.log('[useMuxAudioStream] Cannot start: not host or not enabled', { isHost, enabled });
       return;
     }
 
     try {
       console.log('[useMuxAudioStream] Starting audio stream to mux server...');
 
-      // Create audio context for level monitoring
-      const audioContext = new AudioContext();
-      audioContextRef.current = audioContext;
+      // Determine which MediaStream to send
+      let streamToUse: MediaStream | null = mediaStream;
+
+      // If no mixed stream is available yet, capture directly from Tone master
+      if (!streamToUse) {
+        console.log('[useMuxAudioStream] No mixed stream provided. Attempting Tone master capture fallback...');
+        const tone = (window as any).Tone;
+        const toneDest = tone?.getDestination ? tone.getDestination() : null;
+
+        let captureCtx: AudioContext | null = null;
+        if (toneDest?.context) {
+          captureCtx = toneDest.context as AudioContext;
+        } else {
+          captureCtx = new AudioContext();
+        }
+        const mediaDest = captureCtx.createMediaStreamDestination();
+        try {
+          if (toneDest?.connect) {
+            toneDest.connect(mediaDest);
+            console.log('[useMuxAudioStream] Connected Tone destination to MediaStreamDestination');
+          } else {
+            console.warn('[useMuxAudioStream] Tone destination not available to connect');
+          }
+        } catch (e) {
+          console.error('[useMuxAudioStream] Failed to connect Tone destination:', e);
+        }
+        streamToUse = mediaDest.stream;
+      }
+
+      if (!streamToUse) {
+        console.warn('[useMuxAudioStream] No audio stream available to start streaming');
+        return;
+      }
+
+      // Create audio context for level monitoring (separate from Tone)
+      const analyserCtx = new AudioContext();
+      audioContextRef.current = analyserCtx;
 
       // Set up audio level monitoring
-      const analyser = audioContext.createAnalyser();
+      const analyser = analyserCtx.createAnalyser();
       analyser.fftSize = 256;
       analyserRef.current = analyser;
 
-      const source = audioContext.createMediaStreamSource(mediaStream);
+      const source = analyserCtx.createMediaStreamSource(streamToUse);
       source.connect(analyser);
 
       // Start monitoring audio levels
@@ -56,7 +90,7 @@ export const useMuxAudioStream = ({
         if (!analyserRef.current) return;
 
         analyserRef.current.getByteFrequencyData(dataArray);
-        const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+        const average = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
         setAudioLevel(average);
 
         animationFrameRef.current = requestAnimationFrame(updateLevel);
@@ -78,7 +112,7 @@ export const useMuxAudioStream = ({
           ? 'audio/webm;codecs=opus'
           : 'audio/webm';
 
-        const recorder = new MediaRecorder(mediaStream, {
+        const recorder = new MediaRecorder(streamToUse as MediaStream, {
           mimeType,
           audioBitsPerSecond: 128000 // 128kbps
         });
@@ -91,7 +125,7 @@ export const useMuxAudioStream = ({
             try {
               const arrayBuffer = await event.data.arrayBuffer();
               ws.send(arrayBuffer);
-              console.log('[useMuxAudioStream] Sent chunk:', event.data.size, 'bytes');
+              // console.log('[useMuxAudioStream] Sent chunk:', event.data.size, 'bytes');
             } catch (error) {
               console.error('[useMuxAudioStream] Error sending chunk:', error);
             }
@@ -118,6 +152,7 @@ export const useMuxAudioStream = ({
 
       ws.onerror = (error) => {
         console.error('[useMuxAudioStream] WebSocket error:', error);
+        console.warn('[useMuxAudioStream] If this site is HTTPS, your server must support WSS with a valid certificate:', getMuxServerUrl());
         setIsStreaming(false);
       };
 

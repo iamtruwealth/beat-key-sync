@@ -170,11 +170,22 @@ const CookMode = () => {
 
   // Manual streaming control - users can click "Start Audio Stream"
   const handleToggleStream = () => {
+    if (!permissions?.canEdit) return;
+
     if (isStreaming) {
       stopMuxStream();
-    } else {
-      startMuxStream();
+      toast.message('Audio stream stopped');
+      return;
     }
+
+    // Starting stream
+    ensureAudioReady();
+    if (!mixedAudioStream) {
+      toast.info('Starting stream. Press Play to send audio, otherwise streaming will be silent until playback.');
+    } else {
+      toast.success('Starting live audio stream');
+    }
+    startMuxStream();
   };
 
   // Real-time collaboration
