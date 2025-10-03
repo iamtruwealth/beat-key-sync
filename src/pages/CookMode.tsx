@@ -27,6 +27,7 @@ import { useAudioBroadcast } from '@/hooks/useAudioBroadcast';
 import { sessionLoopEngine } from '@/lib/sessionLoopEngine';
 // import { useWebRTCAudioStream } from '@/hooks/useWebRTCAudioStream'; // Disabled until HLS server deployed
 import { AudioStreamIndicator } from '@/components/cookmode/AudioStreamIndicator';
+import { useMuxAudioStream } from '@/hooks/useMuxAudioStream';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { CookModeAudioControls } from '@/components/cookmode/CookModeAudioControls';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -154,19 +155,27 @@ const CookMode = () => {
     enabled: isPlaying && !!mixedAudioStream,
   });
 
-  // Audio streaming temporarily disabled until HLS server is deployed
-  // TODO: Replace with useHLSAudioStream once streaming server is ready
-  const isStreaming = false;
-  const audioLevel = 0;
-  const startStreaming = (dest?: AudioDestinationNode) => {};
-  const stopStreaming = () => {};
+  // Mux audio streaming to external server
+  const { 
+    isStreaming, 
+    audioLevel, 
+    startStreaming: startMuxStream, 
+    stopStreaming: stopMuxStream 
+  } = useMuxAudioStream({
+    sessionId: sessionId || '',
+    isHost: permissions?.canEdit || false,
+    enabled: true,
+    mediaStream: mixedAudioStream
+  });
 
-  // Auto-start streaming when master destination is available
-  React.useEffect(() => {
-    if (permissions?.canEdit && masterDestination && !isStreaming) {
-      startStreaming(masterDestination as AudioDestinationNode);
+  // Manual streaming control - users can click "Start Audio Stream"
+  const handleToggleStream = () => {
+    if (isStreaming) {
+      stopMuxStream();
+    } else {
+      startMuxStream();
     }
-  }, [permissions?.canEdit, masterDestination, isStreaming, startStreaming]);
+  };
 
   // Real-time collaboration
   const { 
@@ -881,7 +890,7 @@ const CookMode = () => {
               isHost={permissions.canEdit}
               isStreaming={isStreaming}
               audioLevel={audioLevel}
-              onToggleStream={permissions.canEdit ? (isStreaming ? stopStreaming : () => startStreaming(masterDestination as AudioDestinationNode)) : undefined}
+              onToggleStream={permissions.canEdit ? handleToggleStream : undefined}
             />
 
             <Button
