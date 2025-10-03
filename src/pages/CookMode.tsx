@@ -134,7 +134,7 @@ const CookMode = () => {
 
   useMuxAudioStream({
     mediaStream: isStreaming ? mixedAudioStream : null,
-    wsUrl: isStreaming && mixedAudioStream ? 'ws://3.144.154.15:8080' : '',
+    wsUrl: isStreaming && mixedAudioStream ? (window.location.protocol === 'https:' ? 'wss://3.144.154.15:8080' : 'ws://3.144.154.15:8080') : '',
     onError: (err) => {
       console.error('[CookMode] Mux audio stream error', err);
       toast.error("Streaming error: " + (err?.message || err));
@@ -143,7 +143,10 @@ const CookMode = () => {
 
   const audioLevel = 0;
 
-  // TODO: Add complete CookMode render logic here
+  const handleHardStop = () => {
+    try { sessionLoopEngine.stop(); } catch (e) { /* noop */ }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <MetaTags 
@@ -151,33 +154,70 @@ const CookMode = () => {
         description="Real-time collaborative music production workspace"
       />
       
-      <div className="p-4">
-        <h1 className="text-2xl font-bold mb-4">Cook Mode</h1>
-        
-        {permissions?.canEdit && (
-          <AudioStreamIndicator
-            isHost={permissions.canEdit}
-            isStreaming={isStreaming}
-            audioLevel={audioLevel}
-            onToggleStream={() => {
-              setIsStreaming(s => {
-                const next = !s;
-                if (next) {
-                  console.log('[CookMode] Go Live streaming started');
-                  toast.success("Streaming to relay server started!");
-                } else {
-                  console.log('[CookMode] Streaming stopped');
-                  toast("Streaming stopped");
-                }
-                return next;
-              });
-            }}
-          />
-        )}
-        
-        <p className="text-muted-foreground">Session ID: {sessionId}</p>
-        <p className="text-sm">Connected: {isConnected ? 'Yes' : 'No'}</p>
-        <p className="text-sm">Can Edit: {permissions?.canEdit ? 'Yes' : 'No'}</p>
+      <div className="p-4 space-y-4">
+        <div className="flex items-center justify-between gap-4">
+          <h1 className="text-2xl font-bold">Cook Mode</h1>
+          {permissions?.canEdit && (
+            <AudioStreamIndicator
+              isHost={permissions.canEdit}
+              isStreaming={isStreaming}
+              audioLevel={audioLevel}
+              onToggleStream={() => {
+                setIsStreaming(s => {
+                  const next = !s;
+                  if (next) {
+                    console.log('[CookMode] Go Live streaming started');
+                    toast.success("Streaming to relay server started!");
+                  } else {
+                    console.log('[CookMode] Streaming stopped');
+                    toast("Streaming stopped");
+                  }
+                  return next;
+                });
+              }}
+            />
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
+          <section className="xl:col-span-9">
+            <CookModeDAW
+              tracks={tracks}
+              isPlaying={isPlaying}
+              currentTime={currentTime}
+              bpm={sessionConfig.bpm}
+              metronomeEnabled={metronomeEnabled}
+              minBars={minBars}
+              onAddTrack={addTrack}
+              onRemoveTrack={removeTrack}
+              onUpdateTrack={updateTrack}
+              onTrimTrack={trimTrack}
+              onTogglePlayback={togglePlayback}
+              onSeek={seekTo}
+              onHardStop={handleHardStop}
+              activeView={activeView}
+              onViewChange={(v) => setActiveView(v)}
+              readOnly={!permissions?.canEdit}
+              setActiveTrack={setActiveTrack}
+              createTrack={createTrack}
+              loadSample={loadSample}
+              onPianoRollStateChange={setPianoRollState}
+            />
+          </section>
+
+          <aside className="xl:col-span-3 space-y-4">
+            <div className="rounded-md border p-3">
+              <p className="text-sm text-muted-foreground">Session ID</p>
+              <p className="font-medium break-all">{sessionId}</p>
+            </div>
+            <div className="rounded-md border p-3 grid grid-cols-2 gap-2 text-sm">
+              <div>Connected</div>
+              <div className="text-right">{isConnected ? 'Yes' : 'No'}</div>
+              <div>Can Edit</div>
+              <div className="text-right">{permissions?.canEdit ? 'Yes' : 'No'}</div>
+            </div>
+          </aside>
+        </div>
       </div>
     </div>
   )
