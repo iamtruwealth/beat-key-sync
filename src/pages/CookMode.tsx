@@ -77,7 +77,7 @@ const CookMode = () => {
     key: 'C',
     name: ''
   });
-  const [isStreaming, setIsStreaming] = useState(false); // <-- NEW STATE
+  const [isStreaming, setIsStreaming] = useState(false);
   
   const {
     session,
@@ -98,12 +98,10 @@ const CookMode = () => {
     saveSession,
     addEmptyTrack
   } = useCookModeSession(sessionId);
-  // Check collaboration permissions
-  const { permissions, loading: permissionsLoading } = useCollaborationPermissions(sessionId);
   
+  const { permissions, loading: permissionsLoading } = useCollaborationPermissions(sessionId);
   const { midiDevices, setActiveTrack, tracks: audioTracks, createTrack, loadSample, setTrackTrim, masterDestination } = useCookModeAudio(permissions?.canEdit || false);
 
-  // Get the mixed audio stream for broadcasting
   const [mixedAudioStream, setMixedAudioStream] = React.useState<MediaStream | null>(null);
 
   React.useEffect(() => {
@@ -122,7 +120,6 @@ const CookMode = () => {
           console.log('[CookMode] Mixed audio stream not ready yet, retrying...');
         }
       };
-      // Try immediately, then poll briefly until available (engine init race fix)
       tryGet();
       if (!sessionLoopEngine.getMixedAudioStream()) {
         intervalId = window.setInterval(tryGet, 300);
@@ -135,9 +132,6 @@ const CookMode = () => {
     };
   }, [permissions?.canEdit, isPlaying]);
 
-  // ... all other hooks/logic remain ...
-
-  // --- NEW: Stream mixed audio to relay when live ---
   useMuxAudioStream({
     mediaStream: isStreaming ? mixedAudioStream : null,
     wsUrl: isStreaming && mixedAudioStream ? 'ws://3.144.154.15:8080' : '',
@@ -147,58 +141,46 @@ const CookMode = () => {
     }
   });
 
-  // ...
-  // In your render (replace previous isStreaming and onToggleStream logic):
-
-  // ...
-  // Replace this block:
-  // const isStreaming = false;
-  // const audioLevel = 0;
-  // const startStreaming = (dest?: AudioDestinationNode) => {};
-  // const stopStreaming = () => {};
-  // ...
-
-  // ...
-  // Render AudioStreamIndicator:
-  // ...
-  // Replace this block:
-  // <AudioStreamIndicator
-  //   isHost={permissions.canEdit}
-  //   isStreaming={isStreaming}
-  //   audioLevel={audioLevel}
-  //   onToggleStream={permissions.canEdit ? (isStreaming ? stopStreaming : () => startStreaming(masterDestination as AudioDestinationNode)) : undefined}
-  // />
-  // ...
-  // With this:
-  // ...
-  // (in context, not at top level)
-  // ...
-
-  // For audio level (you can implement a real meter, but for now just keep it 0):
   const audioLevel = 0;
 
-  // ...
-  // In render:
-  // ...
-  <AudioStreamIndicator
-    isHost={permissions.canEdit}
-    isStreaming={isStreaming}
-    audioLevel={audioLevel}
-    onToggleStream={permissions.canEdit ? () => {
-      setIsStreaming(s => {
-        const next = !s;
-        if (next) {
-          console.log('[CookMode] Go Live streaming started');
-          toast.success("Streaming to relay server started!");
-        } else {
-          console.log('[CookMode] Streaming stopped');
-          toast("Streaming stopped");
-        }
-        return next;
-      });
-    } : undefined}
-  />
-  // ... rest of CookMode component unchanged
+  // TODO: Add complete CookMode render logic here
+  return (
+    <div className="min-h-screen bg-background">
+      <MetaTags 
+        title="Cook Mode - Collaborative Music Production"
+        description="Real-time collaborative music production workspace"
+      />
+      
+      <div className="p-4">
+        <h1 className="text-2xl font-bold mb-4">Cook Mode</h1>
+        
+        {permissions?.canEdit && (
+          <AudioStreamIndicator
+            isHost={permissions.canEdit}
+            isStreaming={isStreaming}
+            audioLevel={audioLevel}
+            onToggleStream={() => {
+              setIsStreaming(s => {
+                const next = !s;
+                if (next) {
+                  console.log('[CookMode] Go Live streaming started');
+                  toast.success("Streaming to relay server started!");
+                } else {
+                  console.log('[CookMode] Streaming stopped');
+                  toast("Streaming stopped");
+                }
+                return next;
+              });
+            }}
+          />
+        )}
+        
+        <p className="text-muted-foreground">Session ID: {sessionId}</p>
+        <p className="text-sm">Connected: {isConnected ? 'Yes' : 'No'}</p>
+        <p className="text-sm">Can Edit: {permissions?.canEdit ? 'Yes' : 'No'}</p>
+      </div>
+    </div>
+  )
 };
 
 export default CookMode;
