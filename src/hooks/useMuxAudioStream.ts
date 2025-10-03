@@ -37,6 +37,9 @@ export const useMuxAudioStream = ({
 
     try {
       console.log('[useMuxAudioStream] Starting audio stream to mux server...');
+      
+      // Set streaming state immediately for UI feedback
+      setIsStreaming(true);
 
       // Determine which MediaStream to send
       let streamToUse: MediaStream | null = mediaStream;
@@ -69,6 +72,7 @@ export const useMuxAudioStream = ({
 
       if (!streamToUse) {
         console.warn('[useMuxAudioStream] No audio stream available to start streaming');
+        setIsStreaming(false);
         return;
       }
 
@@ -146,14 +150,13 @@ export const useMuxAudioStream = ({
 
         // Start recording with 500ms chunks
         recorder.start(500);
-        setIsStreaming(true);
-        console.log('[useMuxAudioStream] Started capturing audio chunks');
+        console.log('[useMuxAudioStream] MediaRecorder started - now streaming to server');
       };
 
       ws.onerror = (error) => {
         console.error('[useMuxAudioStream] WebSocket error:', error);
         console.warn('[useMuxAudioStream] If this site is HTTPS, your server must support WSS with a valid certificate:', getMuxServerUrl());
-        setIsStreaming(false);
+        stopStreaming();
       };
 
       ws.onclose = () => {
