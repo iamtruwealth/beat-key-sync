@@ -424,27 +424,25 @@ const CookMode = () => {
     console.log('🛑 HARD STOP - Killing all audio');
     
     try {
+      // Save current loop settings before clearing
+      const currentLoopEnd = Tone.Transport.loopEnd;
+      const currentBPM = Tone.Transport.bpm.value;
+      
       // Stop and clear Tone.js Transport
       Tone.Transport.stop();
       Tone.Transport.cancel();
       Tone.Transport.position = 0;
       
-      // Restore loop settings after cancel clears them
+      // Restore loop settings immediately after cancel
       Tone.Transport.loop = true;
       Tone.Transport.loopStart = 0;
+      Tone.Transport.loopEnd = currentLoopEnd;
+      Tone.Transport.bpm.value = currentBPM;
       
       // Stop all HTML audio elements
       document.querySelectorAll('audio').forEach(audio => {
         audio.pause();
         audio.currentTime = 0;
-        audio.src = '';
-      });
-      
-      // Stop all media streams
-      document.querySelectorAll('video').forEach(video => {
-        video.pause();
-        video.currentTime = 0;
-        video.src = '';
       });
       
       // Reset playback state
@@ -453,7 +451,7 @@ const CookMode = () => {
       }
       seekTo(0);
       
-      console.log('✅ Hard stop complete');
+      console.log('✅ Hard stop complete - transport ready for immediate playback');
     } catch (error) {
       console.error('❌ Error during hard stop:', error);
     }
