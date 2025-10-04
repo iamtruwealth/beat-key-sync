@@ -33,6 +33,7 @@ export const StaticWaveform: React.FC<StaticWaveformProps> = ({
     const heightPx = Math.max(1, Math.floor(height * dpr));
 
     if (canvas.width !== widthPx || canvas.height !== heightPx) {
+      console.info('[StaticWaveform] resize', { width, height, dpr, widthPx, heightPx });
       canvas.width = widthPx;
       canvas.height = heightPx;
     }
@@ -46,6 +47,8 @@ export const StaticWaveform: React.FC<StaticWaveformProps> = ({
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !peaks || peaks.length === 0) return;
+
+    console.info('[StaticWaveform] draw', { barsSourceLen: peaks[0]?.length, width, height });
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;

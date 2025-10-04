@@ -66,6 +66,24 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
   const [isTrimming, setIsTrimming] = useState<'start' | 'end' | null>(null);
   const [dragStart, setDragStart] = useState({ x: 0, startTime: 0 });
   const initialTrimRef = useRef<{ leftPx: number; widthPx: number; rightPx: number }>({ leftPx: 0, widthPx: 0, rightPx: 0 });
+  const lastMoveLogRef = useRef<number>(0);
+
+  // Debug mount/unmount and computed styles
+  React.useEffect(() => {
+    const el = clipRef.current;
+    const cs = el ? getComputedStyle(el) : null;
+    console.info('[DraggableClip] mount', {
+      clipId: clip.id,
+      trackId: clip.trackId,
+      startTime: clip.startTime,
+      endTime: clip.endTime,
+      zIndex: cs?.zIndex,
+      pointerEvents: cs?.pointerEvents,
+    });
+    return () => {
+      console.info('[DraggableClip] unmount', { clipId: clip.id });
+    };
+  }, [clip.id, clip.trackId, clip.startTime, clip.endTime]);
 
   // Calculate clip timings
   const fullDuration = clip.fullDuration || clip.originalTrack.analyzed_duration || clip.originalTrack.duration || 0;
@@ -152,6 +170,25 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
     
     const deltaX = e.clientX - dragStart.x;
     const deltaTime = deltaX / pixelsPerSecond;
+    console.info('[DraggableClip] mouseup', {
+      clipId: clip.id,
+      isDragging,
+      isTrimming,
+      deltaX,
+      deltaTime,
+    });
+
+    const now = performance.now();
+    if (!lastMoveLogRef.current || now - lastMoveLogRef.current > 120) {
+      lastMoveLogRef.current = now;
+      console.info('[DraggableClip] mousemove', {
+        clipId: clip.id,
+        isDragging,
+        isTrimming,
+        deltaX,
+        deltaTime,
+      });
+    }
     
     if (isDragging) {
       const newStartTime = Math.max(0, dragStart.startTime + deltaTime);

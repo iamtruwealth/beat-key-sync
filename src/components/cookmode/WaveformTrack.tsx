@@ -108,9 +108,11 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
 
     let mounted = true;
 
+    console.info('[WaveformTrack] getPeaks start', { trackId: track.id, url: track.file_url });
     getPeaks(track.file_url, 100)
       .then(({ peaks: loadedPeaks, duration }) => {
         if (mounted) {
+          console.info('[WaveformTrack] getPeaks success', { trackId: track.id, duration, channels: loadedPeaks?.length });
           setPeaks(loadedPeaks);
           setAudioDuration(duration);
           setIsLoaded(true);
@@ -129,6 +131,33 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
       mounted = false;
     };
   }, [track.id, track.file_url, getPeaks, track.name]);
+
+  // Debug: mount/unmount and key prop changes
+  useEffect(() => {
+    console.info('[WaveformTrack] mount', {
+      clipId: clip.id,
+      trackId: track.id,
+      clipDuration,
+      clipWidth,
+      trackHeight,
+      pixelsPerSecond,
+    });
+    return () => {
+      console.info('[WaveformTrack] unmount', { clipId: clip.id, trackId: track.id });
+    };
+  }, []);
+
+  useEffect(() => {
+    console.info('[WaveformTrack] props update', {
+      clipId: clip.id,
+      currentTime,
+      audioProgress,
+      isPlaying,
+      isMuted,
+      hasPeaks: !!peaks,
+      audioDuration,
+    });
+  }, [currentTime, audioProgress, isPlaying, isMuted, peaks, audioDuration]);
 
   // Handle click events
   const handleClick = (event: React.MouseEvent) => {
