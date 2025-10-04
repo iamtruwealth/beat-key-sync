@@ -176,6 +176,12 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       
       // Get track IDs that are already on the timeline as clips
       const tracksOnTimeline = new Set(audioClips.map(clip => clip.trackId));
+
+      // Ensure any previously-registered piano roll tracks that are now on the
+      // timeline get unregistered to prevent double playback
+      tracksOnTimeline.forEach((tId) => {
+        pianoRollPlaybackEngine.unregisterTrack(tId);
+      });
       
       // Register all tracks with piano roll notes EXCEPT those already on timeline
       trackNotes.forEach((noteData, trackId) => {
@@ -195,9 +201,6 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           pianoRollPlaybackEngine.registerMidiTrack(trackId, noteData.notes);
         } else if (mode === 'sample' && noteData.triggers.length > 0) {
           console.log(`🎹 Registering sample track ${track.name} for piano roll playback`);
-          // For sample mode, we need the samplers map - this will be empty initially
-          // Samplers are loaded in PianoRoll component, so we'll handle this there
-          // For now, just register with empty map - will be updated when piano roll opens
           pianoRollPlaybackEngine.registerSampleTrack(trackId, noteData.triggers, new Map());
         }
       });

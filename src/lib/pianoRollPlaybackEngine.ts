@@ -116,8 +116,12 @@ export class PianoRollPlaybackEngine {
             const startTimeInSeconds = trigger.startTime * secondsPerBeat;
             
             const eventId = Tone.Transport.schedule((time) => {
+              const baseBuffer: any = (sampler as any).buffer;
+              if (!baseBuffer || (typeof baseBuffer.loaded !== 'undefined' && !baseBuffer.loaded)) {
+                return;
+              }
               // Create a new player instance for each trigger to avoid conflicts
-              const tempPlayer = new Tone.Player(sampler.buffer).toDestination();
+              const tempPlayer = new Tone.Player(baseBuffer).toDestination();
               tempPlayer.start(time);
               
               // Dispose after playback

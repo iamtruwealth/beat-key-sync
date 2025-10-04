@@ -198,21 +198,20 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
           const hasNoNotes = trackMode === 'midi' ? (!track?.notes || track.notes.length === 0) : (!track?.triggers || track.triggers.length === 0);
           
           if (hasNoNotes) {
-            // Determine root pitch from track name (e.g., "Am" = A, "C" = C)
-            // Default to C4 (MIDI 60) if no key found
-            let rootPitch = 60; // C4
-            
-            // Try to extract key from track name (look for patterns like _Am, _C, _D#, etc.)
-            const keyMatch = trackName.match(/_([A-G][#b]?)(?:m|min|maj|M)?(?:_|$)/i);
-            if (keyMatch) {
-              const keyName = keyMatch[1].toUpperCase();
-              const noteMap: Record<string, number> = {
-                'C': 60, 'C#': 61, 'DB': 61, 'D': 62, 'D#': 63, 'EB': 63,
-                'E': 64, 'F': 65, 'F#': 66, 'GB': 66, 'G': 67, 'G#': 68, 'AB': 68,
-                'A': 69, 'A#': 70, 'BB': 70, 'B': 71
-              };
-              rootPitch = noteMap[keyName] || 60;
-            }
+          // Default to C5 (MIDI 72) for sample tracks to play at natural pitch
+          let rootPitch = trackMode === 'sample' ? 72 : 60; // C5 for samples, C4 for MIDI default
+          
+          // Try to extract key from track name (look for patterns like _Am, _C, _D#, etc.)
+          const keyMatch = trackName.match(/_([A-G][#b]?)(?:m|min|maj|M)?(?:_|$)/i);
+          if (keyMatch && trackMode !== 'sample') {
+            const keyName = keyMatch[1].toUpperCase();
+            const noteMap: Record<string, number> = {
+              'C': 60, 'C#': 61, 'DB': 61, 'D': 62, 'D#': 63, 'EB': 63,
+              'E': 64, 'F': 65, 'F#': 66, 'GB': 66, 'G': 67, 'G#': 68, 'AB': 68,
+              'A': 69, 'A#': 70, 'BB': 70, 'B': 71
+            };
+            rootPitch = noteMap[keyName] || rootPitch;
+          }
             
             // Calculate trigger duration based on actual track length
             // Get the track from the tracks array to find its actual duration

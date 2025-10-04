@@ -21,7 +21,7 @@ export const usePianoRollPersistence = (trackId: string, sessionId: string) => {
       .from('track_midi_notes')
       .select('*')
       .eq('track_id', trackId)
-      .eq('session_id', sessionId);
+      .eq('project_id', sessionId);
 
     if (error) {
       console.error('Error loading piano roll notes:', error);
@@ -37,7 +37,7 @@ export const usePianoRollPersistence = (trackId: string, sessionId: string) => {
       .from('track_midi_notes')
       .upsert({
         track_id: trackId,
-        session_id: sessionId,
+        project_id: sessionId,
         pitch: note.pitch,
         start_time: note.startTime,
         duration: note.duration,
@@ -45,7 +45,7 @@ export const usePianoRollPersistence = (trackId: string, sessionId: string) => {
         note_type: noteType,
         user_id: (await supabase.auth.getUser()).data.user?.id,
       }, {
-        onConflict: 'track_id,session_id,pitch,start_time',
+        onConflict: 'track_id,project_id,pitch,start_time',
         ignoreDuplicates: false
       });
 
@@ -60,7 +60,7 @@ export const usePianoRollPersistence = (trackId: string, sessionId: string) => {
       .from('track_midi_notes')
       .delete()
       .eq('track_id', trackId)
-      .eq('session_id', sessionId)
+      .eq('project_id', sessionId)
       .eq('pitch', pitch)
       .eq('start_time', startTime);
 
@@ -75,7 +75,7 @@ export const usePianoRollPersistence = (trackId: string, sessionId: string) => {
       .from('track_midi_notes')
       .delete()
       .eq('track_id', trackId)
-      .eq('session_id', sessionId);
+      .eq('project_id', sessionId);
 
     if (error) {
       console.error('Error clearing piano roll notes:', error);
