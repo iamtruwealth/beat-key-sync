@@ -314,6 +314,101 @@ export function EPKModuleDialog({
             </>
           )}
 
+          {moduleType === "press_photos" && (
+            <div className="space-y-4">
+              <div>
+                <Label>Press Photos</Label>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Upload high-quality press photos (recommended: 2000x2000px minimum)
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => document.getElementById('press-photos-upload')?.click()}
+                  className="w-full"
+                >
+                  <Upload className="w-4 h-4 mr-2" />
+                  Upload Photos
+                </Button>
+                <input
+                  id="press-photos-upload"
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={async (e) => {
+                    const files = Array.from(e.target.files || []);
+                    if (files.length === 0) return;
+
+                    const currentPhotos = moduleData.photos || [];
+                    const uploadedUrls: string[] = [];
+
+                    for (const file of files) {
+                      const fileExt = file.name.split('.').pop();
+                      const fileName = `${Math.random()}.${fileExt}`;
+                      const filePath = `press_photos/${fileName}`;
+
+                      const { error: uploadError } = await supabase.storage
+                        .from('artwork')
+                        .upload(filePath, file);
+
+                      if (uploadError) {
+                        toast({
+                          title: "Upload Failed",
+                          description: `Failed to upload ${file.name}`,
+                          variant: "destructive",
+                        });
+                        continue;
+                      }
+
+                      const { data: { publicUrl } } = supabase.storage
+                        .from('artwork')
+                        .getPublicUrl(filePath);
+
+                      uploadedUrls.push(publicUrl);
+                    }
+
+                    setModuleData({ 
+                      ...moduleData, 
+                      photos: [...currentPhotos, ...uploadedUrls] 
+                    });
+
+                    toast({
+                      title: "Photos Uploaded",
+                      description: `${uploadedUrls.length} photo(s) uploaded successfully`,
+                    });
+                  }}
+                />
+              </div>
+
+              {moduleData.photos && moduleData.photos.length > 0 && (
+                <div className="grid grid-cols-3 gap-4">
+                  {moduleData.photos.map((photoUrl: string, index: number) => (
+                    <div key={index} className="relative group">
+                      <img
+                        src={photoUrl}
+                        alt={`Press photo ${index + 1}`}
+                        className="w-full h-32 object-cover rounded-lg"
+                      />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6"
+                        onClick={() => {
+                          const updatedPhotos = moduleData.photos.filter((_: string, i: number) => i !== index);
+                          setModuleData({ ...moduleData, photos: updatedPhotos });
+                        }}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {moduleType === "video" && (
             <>
               <div className="space-y-2">
