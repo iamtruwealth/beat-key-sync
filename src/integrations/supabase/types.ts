@@ -2411,9 +2411,11 @@ export type Database = {
         Returns: {
           bio: string
           genres: string[]
+          hometown: string
           id: string
           producer_logo_url: string
           producer_name: string
+          social_links: Json
           username: string
           verification_status: string
         }[]
