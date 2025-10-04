@@ -323,7 +323,7 @@ export default function ArtistDashboard() {
               <div>
                 <h4 className="font-medium text-blue-900 dark:text-blue-100">Payment Information</h4>
                 <p className="text-sm text-blue-800 dark:text-blue-200 mt-1">
-                  Payments are processed monthly. Request a payout when your balance reaches $50 or more.
+                  Payments are processed monthly. Request a payout when your balance reaches $10 or more.
                   Available payout methods: PayPal, Bank Transfer, Stripe, CashApp, Venmo, Zelle.
                 </p>
               </div>
