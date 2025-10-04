@@ -48,7 +48,7 @@ interface WaveformTrackProps {
   onRecordArmToggle?: (trackId: string, shiftKey: boolean) => void;
 }
 
-export const WaveformTrack: React.FC<WaveformTrackProps> = ({
+const WaveformTrackComponent: React.FC<WaveformTrackProps> = ({
   clip,
   containerId,
   currentTime,
@@ -368,3 +368,5 @@ function getTrackProgressColor(trackIndex: number, isMuted: boolean): string {
   // increase opacity slightly so progress doesn't overwrite wave
   return base.replace('0.8', '1.0').replace('0.3', '0.6');
 }
+
+export const WaveformTrack = React.memo(WaveformTrackComponent);
