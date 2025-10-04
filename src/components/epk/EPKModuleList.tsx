@@ -20,7 +20,7 @@ import {
 } from "@dnd-kit/sortable";
 import { EPKModuleCard } from "./EPKModuleCard";
 import { EPKModuleDialog } from "./EPKModuleDialog";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2, Globe, Eye } from "lucide-react";
 
 interface EPKModuleListProps {
   epkProfileId: string;
@@ -32,6 +32,8 @@ export function EPKModuleList({ epkProfileId }: EPKModuleListProps) {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingModule, setEditingModule] = useState<any>(null);
+  const [epkProfile, setEpkProfile] = useState<any>(null);
+  const [publishing, setPublishing] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -42,7 +44,23 @@ export function EPKModuleList({ epkProfileId }: EPKModuleListProps) {
 
   useEffect(() => {
     loadModules();
+    loadEpkProfile();
   }, [epkProfileId]);
+
+  const loadEpkProfile = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("artist_epk_profiles")
+        .select("*")
+        .eq("id", epkProfileId)
+        .single();
+
+      if (error) throw error;
+      setEpkProfile(data);
+    } catch (error: any) {
+      console.error("Error loading EPK profile:", error);
+    }
+  };
 
   const loadModules = async () => {
     try {
@@ -154,6 +172,36 @@ export function EPKModuleList({ epkProfileId }: EPKModuleListProps) {
     }
   };
 
+  const togglePublish = async () => {
+    if (!epkProfile) return;
+
+    setPublishing(true);
+    try {
+      const { error } = await supabase
+        .from("artist_epk_profiles")
+        .update({ is_published: !epkProfile.is_published })
+        .eq("id", epkProfile.id);
+
+      if (error) throw error;
+
+      setEpkProfile({ ...epkProfile, is_published: !epkProfile.is_published });
+      toast({
+        title: epkProfile.is_published ? "EPK Unpublished" : "EPK Published!",
+        description: epkProfile.is_published
+          ? "Your EPK is now private"
+          : "Your EPK is now live at beatpackz.store/epk/" + epkProfile.slug,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to update EPK status",
+        variant: "destructive",
+      });
+    } finally {
+      setPublishing(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center py-12">
@@ -169,10 +217,38 @@ export function EPKModuleList({ epkProfileId }: EPKModuleListProps) {
           <h2 className="text-2xl font-bold">EPK Modules</h2>
           <p className="text-muted-foreground">Drag to reorder, toggle visibility, or edit content</p>
         </div>
-        <Button onClick={handleAddModule} className="bg-gradient-to-r from-primary to-accent">
-          <Plus className="h-4 w-4 mr-2" />
-          Add Module
-        </Button>
+        <div className="flex gap-2">
+          {epkProfile && (
+            <>
+              <Button 
+                variant="outline" 
+                onClick={() => window.open(`/epk/${epkProfile.slug}`, "_blank")}
+                size="sm"
+              >
+                <Eye className="h-4 w-4 mr-2" />
+                Preview
+              </Button>
+              <Button 
+                onClick={togglePublish} 
+                disabled={publishing}
+                size="sm"
+                variant={epkProfile.is_published ? "secondary" : "default"}
+                className={epkProfile.is_published ? "" : "bg-gradient-to-r from-primary to-accent"}
+              >
+                {publishing ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Globe className="h-4 w-4 mr-2" />
+                )}
+                {epkProfile.is_published ? "Unpublish" : "Publish"}
+              </Button>
+            </>
+          )}
+          <Button onClick={handleAddModule} className="bg-gradient-to-r from-primary to-accent" size="sm">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Module
+          </Button>
+        </div>
       </div>
 
       {modules.length === 0 ? (
