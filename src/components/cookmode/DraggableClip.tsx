@@ -296,13 +296,11 @@ const DraggableClipComponent: React.FC<DraggableClipProps> = ({
       ref={clipRef}
       className={`absolute cursor-move group pointer-events-auto select-none ${className}`}
       style={{
-        left: clipLeft,
+        left: clipLeft + (isDragging ? liveDragOffsetRef.current : 0),
         width: clipWidth,
         height: trackHeight - 8,
         top: 4,
-        zIndex: isDragging || isTrimming ? 80 : 40,
-        transform: isDragging ? `translateX(${liveDragOffsetRef.current}px)` : undefined,
-        willChange: isDragging ? 'transform' as const : undefined
+        zIndex: isDragging || isTrimming ? 80 : 40
       }}
       data-dragging={isDragging ? '1' : '0'}
       draggable={false}
