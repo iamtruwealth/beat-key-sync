@@ -23,6 +23,7 @@ export default function PublicEPK() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [epkProfile, setEpkProfile] = useState<any>(null);
+  const [artistProfile, setArtistProfile] = useState<any>(null);
   const [modules, setModules] = useState<any[]>([]);
   const [subscriptionTiers, setSubscriptionTiers] = useState<any[]>([]);
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -53,6 +54,15 @@ export default function PublicEPK() {
       }
 
       setEpkProfile(profile);
+
+      // Fetch artist profile data
+      const { data: artistData } = await supabase
+        .from("profiles")
+        .select("artist_name, username, producer_name")
+        .eq("id", profile.artist_id)
+        .single();
+
+      setArtistProfile(artistData);
 
       const { data: modulesData } = await supabase
         .from("epk_modules")
@@ -113,9 +123,12 @@ export default function PublicEPK() {
   };
 
   const renderModule = (module: any) => {
+    const artistName = artistProfile?.artist_name || artistProfile?.username || artistProfile?.producer_name || "Artist";
+    
     const commonProps = {
       module,
       themeSettings: epkProfile?.theme_settings,
+      artistName,
     };
 
     switch (module.module_type) {
