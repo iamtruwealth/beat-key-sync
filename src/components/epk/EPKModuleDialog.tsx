@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Music, X, Upload } from "lucide-react";
+import { Loader2, Music, X, Upload, UploadCloud } from "lucide-react";
 
 interface EPKModuleDialogProps {
   open: boolean;
@@ -120,6 +120,109 @@ export function EPKModuleDialog({
         ...moduleData,
         track_ids: [...currentTracks, beatId]
       });
+    }
+  };
+
+  const handleAudioUpload = async (files: File[]) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "You must be logged in to upload files",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSaving(true);
+    const uploadedBeatIds: string[] = [];
+    const errors: string[] = [];
+
+    try {
+      for (const file of files) {
+        // Upload audio file
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random()}.${fileExt}`;
+        const filePath = `${user.id}/audio/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('audio-files')
+          .upload(filePath, file, {
+            cacheControl: '3600',
+            upsert: false
+          });
+
+        if (uploadError) {
+          console.error('Audio upload error:', uploadError);
+          errors.push(`${file.name}: ${uploadError.message}`);
+          continue;
+        }
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('audio-files')
+          .getPublicUrl(filePath);
+
+        // Create beat record
+        const beatTitle = file.name.replace(/\.[^/.]+$/, ""); // Remove extension
+        const { data: beatData, error: beatError } = await supabase
+          .from('beats')
+          .insert({
+            title: beatTitle,
+            producer_id: user.id,
+            file_url: publicUrl,
+            audio_file_url: publicUrl,
+            is_free: true,
+            price_cents: 0,
+          })
+          .select('id')
+          .single();
+
+        if (beatError) {
+          console.error('Beat creation error:', beatError);
+          errors.push(`${file.name}: Failed to create track record`);
+          continue;
+        }
+
+        if (beatData) {
+          uploadedBeatIds.push(beatData.id);
+        }
+      }
+
+      if (uploadedBeatIds.length > 0) {
+        // Add uploaded beats to selected tracks
+        const currentTracks = moduleData.track_ids || [];
+        const newTracks = [...currentTracks, ...uploadedBeatIds].slice(0, 10); // Max 10
+        
+        setModuleData({
+          ...moduleData,
+          track_ids: newTracks
+        });
+
+        // Refresh the beats list
+        await loadUserBeats();
+
+        toast({
+          title: "Upload Complete",
+          description: `${uploadedBeatIds.length} song(s) uploaded successfully`,
+        });
+      }
+
+      if (errors.length > 0) {
+        toast({
+          title: "Some Uploads Failed",
+          description: errors.join('\n'),
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      toast({
+        title: "Upload Failed",
+        description: error.message || "Failed to upload songs",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -541,6 +644,78 @@ export function EPKModuleDialog({
                 <span className="text-sm text-muted-foreground">
                   {(moduleData.track_ids || []).length} / 10 selected
                 </span>
+              </div>
+
+              {/* Upload Section */}
+              <div className="space-y-2">
+                <Label>Upload Songs</Label>
+                <div
+                  className="border-2 border-dashed rounded-lg p-8 text-center hover:border-primary/50 transition-colors cursor-pointer bg-accent/5"
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.currentTarget.classList.add('border-primary', 'bg-accent/20');
+                  }}
+                  onDragLeave={(e) => {
+                    e.currentTarget.classList.remove('border-primary', 'bg-accent/20');
+                  }}
+                  onDrop={async (e) => {
+                    e.preventDefault();
+                    e.currentTarget.classList.remove('border-primary', 'bg-accent/20');
+                    
+                    const files = Array.from(e.dataTransfer.files).filter(file => 
+                      file.type.startsWith('audio/')
+                    );
+                    
+                    if (files.length === 0) {
+                      toast({
+                        title: "Invalid Files",
+                        description: "Please upload audio files only",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+
+                    // Handle upload
+                    await handleAudioUpload(files);
+                  }}
+                  onClick={() => document.getElementById('audio-upload')?.click()}
+                >
+                  <UploadCloud className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-sm font-medium mb-1">
+                    Drag and drop audio files here
+                  </p>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    or click to browse
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Supports MP3, WAV, M4A, OGG
+                  </p>
+                  <input
+                    id="audio-upload"
+                    type="file"
+                    accept="audio/*"
+                    multiple
+                    className="hidden"
+                    onChange={async (e) => {
+                      const files = Array.from(e.target.files || []);
+                      if (files.length > 0) {
+                        await handleAudioUpload(files);
+                        e.target.value = '';
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">
+                    Or select from your library
+                  </span>
+                </div>
               </div>
               
               {loadingBeats ? (
