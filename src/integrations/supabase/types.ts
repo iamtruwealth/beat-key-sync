@@ -2410,7 +2410,9 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: {
           bio: string
+          epk_slug: string
           genres: string[]
+          has_epk: boolean
           hometown: string
           id: string
           producer_logo_url: string
