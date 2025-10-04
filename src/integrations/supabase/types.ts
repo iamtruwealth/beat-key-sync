@@ -1489,6 +1489,154 @@ export type Database = {
           },
         ]
       }
+      producer_subscription_payments: {
+        Row: {
+          amount_cents: number
+          created_at: string | null
+          fan_id: string
+          id: string
+          payment_date: string | null
+          platform_fee_cents: number
+          producer_earnings_cents: number
+          producer_id: string
+          stripe_payment_intent_id: string | null
+          subscription_id: string
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string | null
+          fan_id: string
+          id?: string
+          payment_date?: string | null
+          platform_fee_cents: number
+          producer_earnings_cents: number
+          producer_id: string
+          stripe_payment_intent_id?: string | null
+          subscription_id: string
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string | null
+          fan_id?: string
+          id?: string
+          payment_date?: string | null
+          platform_fee_cents?: number
+          producer_earnings_cents?: number
+          producer_id?: string
+          stripe_payment_intent_id?: string | null
+          subscription_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "producer_subscription_payments_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "producer_subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      producer_subscription_tiers: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          monthly_download_limit: number
+          perks: Json | null
+          price_cents: number
+          producer_id: string
+          stripe_price_id: string | null
+          stripe_product_id: string | null
+          tier_name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          monthly_download_limit?: number
+          perks?: Json | null
+          price_cents: number
+          producer_id: string
+          stripe_price_id?: string | null
+          stripe_product_id?: string | null
+          tier_name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          monthly_download_limit?: number
+          perks?: Json | null
+          price_cents?: number
+          producer_id?: string
+          stripe_price_id?: string | null
+          stripe_product_id?: string | null
+          tier_name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      producer_subscriptions: {
+        Row: {
+          cancel_at: string | null
+          canceled_at: string | null
+          created_at: string | null
+          current_period_end: string | null
+          current_period_start: string | null
+          downloads_used: number | null
+          fan_id: string
+          id: string
+          producer_id: string
+          status: string | null
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          tier_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          cancel_at?: string | null
+          canceled_at?: string | null
+          created_at?: string | null
+          current_period_end?: string | null
+          current_period_start?: string | null
+          downloads_used?: number | null
+          fan_id: string
+          id?: string
+          producer_id: string
+          status?: string | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          tier_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          cancel_at?: string | null
+          canceled_at?: string | null
+          created_at?: string | null
+          current_period_end?: string | null
+          current_period_start?: string | null
+          downloads_used?: number | null
+          fan_id?: string
+          id?: string
+          producer_id?: string
+          status?: string | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          tier_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "producer_subscriptions_tier_id_fkey"
+            columns: ["tier_id"]
+            isOneToOne: false
+            referencedRelation: "producer_subscription_tiers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           available_balance_cents: number | null

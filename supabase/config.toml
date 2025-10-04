@@ -53,3 +53,9 @@ verify_jwt = false
 
 [functions.stripe-fan-subscription-webhook]
 verify_jwt = false
+
+[functions.create-producer-subscription]
+verify_jwt = true
+
+[functions.stripe-producer-subscription-webhook]
+verify_jwt = false

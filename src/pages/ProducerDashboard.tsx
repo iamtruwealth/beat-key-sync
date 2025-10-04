@@ -11,6 +11,7 @@ import { PayoutRequestForm } from "@/components/beats/PayoutRequestForm";
 import { BeatSalesTracker } from "@/components/beats/BeatSalesTracker";
 import { UserVerificationManager } from "@/components/admin/UserVerificationManager";
 import { OnboardingManager } from "@/components/onboarding/OnboardingManager";
+import { ProducerSubscriptionManager } from "@/components/beats/ProducerSubscriptionManager";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { 
@@ -411,7 +412,7 @@ export default function ProducerDashboard() {
 
       {/* Main Content */}
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className={`grid w-full ${isMasterAccount ? 'grid-cols-5' : 'grid-cols-4'}`}>
+        <TabsList className={`grid w-full ${isMasterAccount ? 'grid-cols-6' : 'grid-cols-5'}`}>
           <TabsTrigger value="overview" className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4" />
             Overview
@@ -419,6 +420,10 @@ export default function ProducerDashboard() {
           <TabsTrigger value="upload" className="flex items-center gap-2">
             <Upload className="h-4 w-4" />
             Upload Beats
+          </TabsTrigger>
+          <TabsTrigger value="subscriptions" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Subscriptions
           </TabsTrigger>
           <TabsTrigger value="revenue" className="flex items-center gap-2">
             <DollarSign className="h-4 w-4" />
@@ -521,6 +526,10 @@ export default function ProducerDashboard() {
 
         <TabsContent value="upload">
           <BeatUploadForm onSuccess={loadDashboardData} />
+        </TabsContent>
+
+        <TabsContent value="subscriptions">
+          <ProducerSubscriptionManager />
         </TabsContent>
 
         <TabsContent value="revenue">
