@@ -416,19 +416,15 @@ export default function ProducerDashboard() {
       </div>
 
       {/* Main Content */}
-      <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className={`grid w-full ${isMasterAccount ? 'grid-cols-6' : 'grid-cols-5'}`}>
-          <TabsTrigger value="overview" className="flex items-center gap-2">
-            <BarChart3 className="h-4 w-4" />
-            Overview
+      <Tabs defaultValue="subscriptions" className="space-y-6">
+        <TabsList className={`grid w-full ${isMasterAccount ? 'grid-cols-5' : 'grid-cols-4'}`}>
+          <TabsTrigger value="subscriptions" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Subscriptions
           </TabsTrigger>
           <TabsTrigger value="upload" className="flex items-center gap-2">
             <Upload className="h-4 w-4" />
             Upload Beats
-          </TabsTrigger>
-          <TabsTrigger value="subscriptions" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            Subscriptions
           </TabsTrigger>
           <TabsTrigger value="revenue" className="flex items-center gap-2">
             <DollarSign className="h-4 w-4" />
@@ -452,89 +448,12 @@ export default function ProducerDashboard() {
           )}
         </TabsList>
 
-        <TabsContent value="overview" className="space-y-6">
-          <div className="grid gap-6 md:grid-cols-2">
-            {/* Recent Sales */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <DollarSign className="w-5 h-5" />
-                  Recent Sales
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {recentSales.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-4">No recent sales</p>
-                ) : (
-                  recentSales.map((sale) => (
-                    <div key={sale.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
-                          <ShoppingBag className="w-4 h-4 text-green-600" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-sm">{sale.beats?.title || 'Unknown Beat'}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {new Date(sale.created_at).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold text-green-600">${formatCurrency(sale.amount_received - sale.platform_fee)}</p>
-                        <p className="text-xs text-muted-foreground">${formatCurrency(sale.amount_received)} total</p>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Recent Beats */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Music className="w-5 h-5" />
-                  Recent Beats
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {beats.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-4">No beats uploaded yet</p>
-                ) : (
-                  beats.slice(0, 5).map((beat) => (
-                    <div key={beat.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                          <Music className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-sm">{beat.title}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {new Date(beat.created_at).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        {beat.is_free ? (
-                          <Badge className="bg-green-100 text-green-800">FREE</Badge>
-                        ) : (
-                          <p className="font-medium">${formatCurrency(beat.price_cents)}</p>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-          </div>
+        <TabsContent value="subscriptions">
+          <ProducerSubscriptionManager />
         </TabsContent>
 
         <TabsContent value="upload">
           <BeatUploadForm onSuccess={loadDashboardData} />
-        </TabsContent>
-
-        <TabsContent value="subscriptions">
-          <ProducerSubscriptionManager />
         </TabsContent>
 
         <TabsContent value="revenue">
