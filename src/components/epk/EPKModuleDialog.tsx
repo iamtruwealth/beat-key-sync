@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Music, X } from "lucide-react";
+import { Loader2, Music, X, Upload } from "lucide-react";
 
 interface EPKModuleDialogProps {
   open: boolean;
@@ -252,16 +252,64 @@ export function EPKModuleDialog({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="banner-url">Banner Image URL</Label>
+                <Label htmlFor="banner-url">Banner Image</Label>
                 <Input
                   id="banner-url"
                   placeholder="https://..."
                   value={moduleData.bannerUrl || ""}
                   onChange={(e) => setModuleData({ ...moduleData, bannerUrl: e.target.value })}
                 />
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-muted-foreground mb-2">
                   Recommended size: 1920x400px for optimal display
                 </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => document.getElementById('banner-upload')?.click()}
+                    className="w-full"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Upload Banner
+                  </Button>
+                  <input
+                    id="banner-upload"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+
+                      const fileExt = file.name.split('.').pop();
+                      const fileName = `${Math.random()}.${fileExt}`;
+                      const filePath = `banners/${fileName}`;
+
+                      const { error: uploadError, data } = await supabase.storage
+                        .from('artwork')
+                        .upload(filePath, file);
+
+                      if (uploadError) {
+                        toast({
+                          title: "Upload Failed",
+                          description: uploadError.message,
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+
+                      const { data: { publicUrl } } = supabase.storage
+                        .from('artwork')
+                        .getPublicUrl(filePath);
+
+                      setModuleData({ ...moduleData, bannerUrl: publicUrl });
+                      toast({
+                        title: "Banner Uploaded",
+                        description: "Your banner image has been uploaded successfully",
+                      });
+                    }}
+                  />
+                </div>
               </div>
             </>
           )}
