@@ -202,7 +202,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
     }
   };
 
-  const containerClassName = `relative pointer-events-none ${className}`;
+  const containerClassName = `relative ${className}`;
 
   return (
     <div
@@ -211,8 +211,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
       style={{
         width: clipWidth,
         height: trackHeight - 8,
-        minWidth: 100,
-        pointerEvents: 'none'
+        minWidth: 100
       }}
     >
       {/* Visible WF build badge */}
@@ -242,7 +241,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
               waveColor={getTrackWaveColor(trackIndex, isMuted)}
               progressColor={getTrackProgressColor(trackIndex, isMuted)}
               progress={audioProgress}
-              className="absolute inset-0 z-5"
+              className="absolute inset-0 z-5 pointer-events-none"
             />
           )}
 
