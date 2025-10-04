@@ -410,7 +410,7 @@ export default function ProducerDashboard() {
             size="sm"
             onClick={() => navigate('/browse-artists')}
           >
-            Browse Library
+            Browse Artists
           </Button>
         </div>
       </div>
