@@ -419,39 +419,20 @@ const CookMode = () => {
     }
   };
 
-  // Hard stop - kills ALL audio immediately
+  // Hard stop - stops transport without clearing schedules to enable immediate replay
   const handleHardStop = () => {
-    console.log('🛑 HARD STOP - Killing all audio');
-    
+    console.log('🛑 HARD STOP - Stopping transport without canceling schedules');
     try {
-      // Save current loop settings before clearing
-      const currentLoopEnd = Tone.Transport.loopEnd;
-      const currentBPM = Tone.Transport.bpm.value;
-      
-      // Stop and clear Tone.js Transport
-      Tone.Transport.stop();
-      Tone.Transport.cancel();
-      Tone.Transport.position = 0;
-      
-      // Restore loop settings immediately after cancel
-      Tone.Transport.loop = true;
-      Tone.Transport.loopStart = 0;
-      Tone.Transport.loopEnd = currentLoopEnd;
-      Tone.Transport.bpm.value = currentBPM;
-      
-      // Stop all HTML audio elements
-      document.querySelectorAll('audio').forEach(audio => {
-        audio.pause();
-        audio.currentTime = 0;
-      });
-      
-      // Reset playback state
+      // Use engine stop so scheduled clip sync remains intact
+      sessionLoopEngine.stop();
+
+      // Ensure UI state reflects stopped playback
       if (isPlaying) {
         togglePlayback();
       }
       seekTo(0);
-      
-      console.log('✅ Hard stop complete - transport ready for immediate playback');
+
+      console.log('✅ Hard stop complete - ready to play on first click');
     } catch (error) {
       console.error('❌ Error during hard stop:', error);
     }
