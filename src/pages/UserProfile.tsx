@@ -16,6 +16,7 @@ import { useTrackPlay } from '@/hooks/useTrackPlay';
 import StickyHeader from '@/components/layout/StickyHeader';
 import { MetaTags } from '@/components/MetaTags';
 import verifiedBadge from '@/assets/verified-badge.png';
+import { ProducerSubscriptionTiers } from '@/components/beats/ProducerSubscriptionTiers';
 
 interface Profile {
   id: string;
@@ -313,6 +314,9 @@ export default function UserProfile() {
           </TabsList>
           
           <TabsContent value="beats" className="space-y-12">
+        {/* Subscription Tiers Section */}
+        {profile && <ProducerSubscriptionTiers producerId={profile.id} />}
+        
         {/* Beat Packs Section */}
         {beatPacks.length > 0 && (
           <section>

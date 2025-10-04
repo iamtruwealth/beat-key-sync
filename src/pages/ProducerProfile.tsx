@@ -123,7 +123,7 @@ export default function ProducerProfile() {
 
         if (profileError) throw profileError;
         setProfile(profileData);
-
+        console.log('[ProducerProfile] Loaded profile', profileData);
         // Fetch producer's beat packs with full data
         const { data: beatPacksData, error: beatPacksError } = await supabase
           .from('beat_packs')
