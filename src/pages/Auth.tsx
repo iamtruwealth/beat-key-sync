@@ -262,10 +262,29 @@ export default function AuthPage() {
       }
 
       if (error) {
+        // Surface actionable error messages from the edge function
+        const errAny: any = error;
+        const status = errAny?.context?.status ?? errAny?.status;
+        const serverMsg = errAny?.context?.error || errAny?.context?.body?.error || errAny?.context?.message;
+        let description = serverMsg || errAny?.message;
+
+        // Friendly defaults by status
+        if (!description || description === 'Edge Function returned a non-2xx status code') {
+          if (status === 429) description = 'Too many signup attempts. Please try again in a little while.';
+          else if (status === 403) description = 'Signup limit reached for this IP. Please try again later or contact support.';
+          else if (status === 503) description = 'Signups are temporarily disabled. Please try again later.';
+          else description = 'Signup failed. If this email exists, try signing in or reset your password.';
+        }
+
+        // Special-case duplicate email
+        if (description?.toLowerCase().includes('already been registered') || description?.toLowerCase().includes('email_exists')) {
+          description = 'An account with this email already exists. Please sign in or use “Forgot Password”.';
+        }
+
         toast({
-          title: "Sign up failed",
-          description: error.message,
-          variant: "destructive"
+          title: 'Sign up failed',
+          description,
+          variant: 'destructive'
         });
         setLoading(false);
         return;
