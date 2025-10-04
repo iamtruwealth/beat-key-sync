@@ -45,6 +45,7 @@ export default function ProducerDashboard() {
   const [beats, setBeats] = useState<any[]>([]);
   const [recentSales, setRecentSales] = useState<any[]>([]);
   const [totalEarnings, setTotalEarnings] = useState(0);
+  const [subscriberCount, setSubscriberCount] = useState(0);
   const [isMasterAccount, setIsMasterAccount] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [userRole, setUserRole] = useState<'producer' | 'artist' | null>(null);
@@ -194,6 +195,15 @@ export default function ProducerDashboard() {
     
     setTotalEarnings(profile?.total_earnings_cents || 0);
 
+    // Load fan subscriptions count
+    const { count: subscribersCount } = await supabase
+      .from('fan_subscriptions')
+      .select('*', { count: 'exact', head: true })
+      .eq('artist_id', currentUser.id)
+      .eq('status', 'active');
+    
+    setSubscriberCount(subscribersCount || 0);
+
     // Load production stats
     // Total projects (created or member of)
     const { data: createdProjects } = await supabase
@@ -317,12 +327,12 @@ export default function ProducerDashboard() {
         
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Recent Sales</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Total Fans</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{recentSales.length}</div>
-            <p className="text-xs text-muted-foreground">This month</p>
+            <div className="text-2xl font-bold">{subscriberCount}</div>
+            <p className="text-xs text-muted-foreground">Active subscribers</p>
           </CardContent>
         </Card>
         
