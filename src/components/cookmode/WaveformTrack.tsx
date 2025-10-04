@@ -148,7 +148,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
     }
   };
 
-  const containerClassName = `relative cursor-pointer ${className}`;
+  const containerClassName = `relative pointer-events-none ${className}`;
 
   return (
     <div
@@ -158,8 +158,6 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
         height: trackHeight - 8,
         minWidth: 100
       }}
-      onClick={handleClick}
-      onDoubleClick={handleDoubleClick}
     >
       {error ? (
         <div className="flex items-center justify-center h-full bg-red-500/10 border-red-500">
@@ -215,7 +213,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
           })()}
            
           {/* Clip action buttons */}
-          <div className="absolute bottom-1 right-1 z-20 flex gap-1">
+          <div className="absolute bottom-1 right-1 z-20 flex gap-1 pointer-events-auto">
             <button
               type="button"
               className="inline-flex items-center justify-center h-6 w-6 rounded-md bg-background/80 text-foreground border border-border shadow-sm hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
