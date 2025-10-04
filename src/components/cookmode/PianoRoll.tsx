@@ -10,6 +10,7 @@ import { usePianoRollPersistence } from '@/hooks/usePianoRollPersistence';
 import { TrackMode } from '@/types/pianoRoll';
 import { useToast } from '@/hooks/use-toast';
 import * as Tone from 'tone';
+import { pianoRollPlaybackEngine } from '@/lib/pianoRollPlaybackEngine';
 
 interface PianoRollProps {
   isOpen: boolean;
@@ -265,6 +266,21 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
   const [toolMode, setToolMode] = useState<'draw' | 'select'>('draw');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const activeTrack = state.tracks[trackId];
+
+  // Register samplers with playback engine when they change (moved after activeTrack declaration)
+  React.useEffect(() => {
+    if (!isOpen || trackMode !== 'sample' || !activeTrack) return;
+    
+    // Register the samplers with the playback engine
+    if (samplersRef.current.size > 0 && activeTrack.triggers.length > 0) {
+      pianoRollPlaybackEngine.registerSampleTrack(
+        trackId, 
+        activeTrack.triggers, 
+        samplersRef.current
+      );
+      console.log(`🎹 Registered ${samplersRef.current.size} samplers for track ${trackId}`);
+    }
+  }, [isOpen, trackMode, activeTrack, trackId]);
 
   // Don't schedule notes here - let the session loop engine handle playback
   // Piano roll is just for editing, the timeline visualizer shows the notes

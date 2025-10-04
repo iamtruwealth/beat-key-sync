@@ -22,6 +22,7 @@ import { Music } from 'lucide-react';
 import { sessionLoopEngine } from '@/lib/sessionLoopEngine';
 import { PianoRollNoteVisualizer } from './PianoRollNoteVisualizer';
 import { supabase } from '@/integrations/supabase/client';
+import { pianoRollPlaybackEngine } from '@/lib/pianoRollPlaybackEngine';
 
 interface Track {
   id: string;
@@ -167,6 +168,34 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     }
   }, [tracks]);
 
+  // Initialize piano roll playback engine and register tracks with notes
+  React.useEffect(() => {
+    const initializePlayback = async () => {
+      await pianoRollPlaybackEngine.initialize();
+      
+      // Register all tracks with piano roll notes
+      trackNotes.forEach((noteData, trackId) => {
+        const track = tracks.find(t => t.id === trackId);
+        if (!track) return;
+        
+        const mode = track.mode || 'sample';
+        
+        if (mode === 'midi' && noteData.notes.length > 0) {
+          pianoRollPlaybackEngine.registerMidiTrack(trackId, noteData.notes);
+        } else if (mode === 'sample' && noteData.triggers.length > 0) {
+          // For sample mode, we need the samplers map - this will be empty initially
+          // Samplers are loaded in PianoRoll component, so we'll handle this there
+          // For now, just register with empty map - will be updated when piano roll opens
+          pianoRollPlaybackEngine.registerSampleTrack(trackId, noteData.triggers, new Map());
+        }
+      });
+    };
+    
+    if (trackNotes.size > 0) {
+      initializePlayback();
+    }
+  }, [trackNotes, tracks]);
+
   // Listen for realtime piano roll note changes
   React.useEffect(() => {
     const channel = supabase
@@ -259,12 +288,22 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const pixelsPerBeat = pixelsPerSecond * secondsPerBeat;
   const pixelsPerBar = pixelsPerBeat * beatsPerBar;
 
-  // Handle tick updates from AudioBridge
+  // Handle tick updates from AudioBridge and schedule piano roll notes on playback
   const handleTick = useCallback((seconds: number) => {
     if (Math.abs(seconds - currentTime) > 0.05) {
       onSeek(seconds);
     }
   }, [currentTime, onSeek]);
+
+  // Schedule piano roll notes when playback starts
+  React.useEffect(() => {
+    if (isPlaying && !readOnly) {
+      console.log('🎹 Scheduling piano roll playback');
+      pianoRollPlaybackEngine.schedulePlayback(bpm);
+    } else {
+      pianoRollPlaybackEngine.clearSchedules();
+    }
+  }, [isPlaying, bpm, readOnly]);
 
   // Store track durations as clips are created
   useEffect(() => {
