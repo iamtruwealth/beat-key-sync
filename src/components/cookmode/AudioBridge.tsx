@@ -243,8 +243,13 @@ export const AudioBridge: React.FC<AudioBridgeProps> = ({
         if (hasSoloTracks) {
           shouldMute = !tr.isSolo;
         }
-        sessionLoopEngine.muteClip(tc.id, shouldMute);
-        sessionLoopEngine.updateClipGain(tc.id, tr.volume || 1);
+        // Apply volume and mute coherently: muted wins
+        if (shouldMute) {
+          sessionLoopEngine.muteClip(tc.id, true);
+        } else {
+          sessionLoopEngine.updateClipGain(tc.id, tr.volume || 1);
+          sessionLoopEngine.muteClip(tc.id, false);
+        }
       });
     } else {
       // Fallback: per-track behavior
