@@ -67,6 +67,7 @@ const DraggableClipComponent: React.FC<DraggableClipProps> = ({
   const [dragStart, setDragStart] = useState({ x: 0, startTime: 0 });
   const initialTrimRef = useRef<{ leftPx: number; widthPx: number; rightPx: number }>({ leftPx: 0, widthPx: 0, rightPx: 0 });
   const lastMoveLogRef = useRef<number>(0);
+  const liveDragOffsetRef = useRef<number>(0); // Track live drag offset across renders
 
   // Debug mount/unmount and computed styles
   React.useEffect(() => {
@@ -127,14 +128,9 @@ const DraggableClipComponent: React.FC<DraggableClipProps> = ({
 
     // Begin dragging
     setIsDragging(true);
+    liveDragOffsetRef.current = 0;
     document.body.style.userSelect = 'none';
     setDragStart({ x: (e as React.MouseEvent).clientX, startTime: clip.startTime });
-    if (clipRef.current) {
-      clipRef.current.style.setProperty('--drag-dx', '0px');
-    }
-    // Attach listeners immediately to avoid missing early moves
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
   }, [clip.id, clip.startTime]);
 
   // Handle mouse down for trim handles
@@ -188,9 +184,10 @@ const DraggableClipComponent: React.FC<DraggableClipProps> = ({
     }
     
     if (isDragging) {
-      // Live preview via CSS variable to avoid React overwriting transform
+      liveDragOffsetRef.current = deltaX;
+      // Direct DOM manipulation to avoid React rerender interference
       if (clipRef.current) {
-        clipRef.current.style.setProperty('--drag-dx', `${deltaX}px`);
+        clipRef.current.style.transform = `translateX(${deltaX}px)`;
       }
     } else if (isTrimming && fullDuration > 0) {
       const rawTime = Math.max(0, Math.min(fullDuration, dragStart.startTime + deltaTime));
@@ -231,9 +228,10 @@ const DraggableClipComponent: React.FC<DraggableClipProps> = ({
       setIsDragging(false);
       const newStartTime = Math.max(0, dragStart.startTime + deltaTime);
       const snappedStartTime = snapToGrid(newStartTime);
-      // Clear live transform var
+      // Clear transform after drag completes
+      liveDragOffsetRef.current = 0;
       if (clipRef.current) {
-        clipRef.current.style.setProperty('--drag-dx', '0px');
+        clipRef.current.style.transform = '';
       }
       if (Math.abs(snappedStartTime - clip.startTime) > 0.01) {
         onClipMove(clip.id, snappedStartTime);
@@ -266,10 +264,7 @@ const DraggableClipComponent: React.FC<DraggableClipProps> = ({
       }
       setIsTrimming(null);
     }
-    // Always cleanup listeners
-    document.removeEventListener('mousemove', handleMouseMove);
-    document.removeEventListener('mouseup', handleMouseUp);
-  }, [isDragging, isTrimming, dragStart, pixelsPerSecond, snapToGrid, clip.id, clip.startTime, onClipMove, clip.originalTrack.id, trimStart, trimEnd, fullDuration, onTrimClip]);
+  }, [isDragging, isTrimming, dragStart, pixelsPerSecond, snapToGrid, clip.id, clip.startTime, onClipMove, trimStart, trimEnd, fullDuration, onTrimClip]);
 
   // Add global mouse event listeners
   React.useEffect(() => {
@@ -302,6 +297,13 @@ const DraggableClipComponent: React.FC<DraggableClipProps> = ({
     }
   }, [isDragging, isTrimming, onClipDoubleClick, clip.id]);
 
+  // Preserve live drag transform across rerenders
+  React.useEffect(() => {
+    if (isDragging && clipRef.current && liveDragOffsetRef.current !== 0) {
+      clipRef.current.style.transform = `translateX(${liveDragOffsetRef.current}px)`;
+    }
+  });
+
   return (
     <div
       ref={clipRef}
@@ -312,7 +314,6 @@ const DraggableClipComponent: React.FC<DraggableClipProps> = ({
         height: trackHeight - 8,
         top: 4,
         zIndex: isDragging || isTrimming ? 80 : 40,
-        transform: 'translateX(var(--drag-dx, 0px))',
         willChange: isDragging ? 'transform' as const : undefined
       }}
       data-dragging={isDragging ? '1' : '0'}
