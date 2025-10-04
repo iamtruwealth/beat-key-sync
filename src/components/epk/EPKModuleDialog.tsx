@@ -55,6 +55,7 @@ export function EPKModuleDialog({
   const [moduleData, setModuleData] = useState<any>({});
   const [userBeats, setUserBeats] = useState<any[]>([]);
   const [loadingBeats, setLoadingBeats] = useState(false);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
 
   useEffect(() => {
     if (editingModule) {
@@ -370,10 +371,20 @@ export function EPKModuleDialog({
                     type="button"
                     variant="outline"
                     onClick={() => document.getElementById('banner-upload')?.click()}
+                    disabled={uploadingBanner}
                     className="w-full"
                   >
-                    <Upload className="w-4 h-4 mr-2" />
-                    Upload Banner
+                    {uploadingBanner ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Uploading...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-4 h-4 mr-2" />
+                        Upload Banner
+                      </>
+                    )}
                   </Button>
                   <input
                     id="banner-upload"
@@ -384,43 +395,58 @@ export function EPKModuleDialog({
                       const file = e.target.files?.[0];
                       if (!file) return;
 
-                      const { data: { user } } = await supabase.auth.getUser();
-                      if (!user) {
+                      setUploadingBanner(true);
+                      
+                      try {
+                        const { data: { user } } = await supabase.auth.getUser();
+                        if (!user) {
+                          toast({
+                            title: "Authentication Required",
+                            description: "You must be logged in to upload files",
+                            variant: "destructive",
+                          });
+                          return;
+                        }
+
+                        const fileExt = file.name.split('.').pop();
+                        const fileName = `${Date.now()}-${Math.random()}.${fileExt}`;
+                        const filePath = `${user.id}/banners/${fileName}`;
+
+                        const { error: uploadError } = await supabase.storage
+                          .from('artwork')
+                          .upload(filePath, file);
+
+                        if (uploadError) {
+                          toast({
+                            title: "Upload Failed",
+                            description: uploadError.message,
+                            variant: "destructive",
+                          });
+                          return;
+                        }
+
+                        const { data: { publicUrl } } = supabase.storage
+                          .from('artwork')
+                          .getPublicUrl(filePath);
+
+                        setModuleData({ ...moduleData, bannerUrl: publicUrl });
                         toast({
-                          title: "Authentication Required",
-                          description: "You must be logged in to upload files",
+                          title: "Banner Uploaded",
+                          description: "Your banner image has been uploaded successfully",
+                        });
+                        
+                        // Reset file input
+                        e.target.value = '';
+                      } catch (error: any) {
+                        console.error('Banner upload error:', error);
+                        toast({
+                          title: "Upload Error",
+                          description: error.message || "Failed to upload banner",
                           variant: "destructive",
                         });
-                        return;
+                      } finally {
+                        setUploadingBanner(false);
                       }
-
-                      const fileExt = file.name.split('.').pop();
-                      const fileName = `${Math.random()}.${fileExt}`;
-                      // Include user ID in path for RLS policy compliance
-                      const filePath = `${user.id}/banners/${fileName}`;
-
-                      const { error: uploadError, data } = await supabase.storage
-                        .from('artwork')
-                        .upload(filePath, file);
-
-                      if (uploadError) {
-                        toast({
-                          title: "Upload Failed",
-                          description: uploadError.message,
-                          variant: "destructive",
-                        });
-                        return;
-                      }
-
-                      const { data: { publicUrl } } = supabase.storage
-                        .from('artwork')
-                        .getPublicUrl(filePath);
-
-                      setModuleData({ ...moduleData, bannerUrl: publicUrl });
-                      toast({
-                        title: "Banner Uploaded",
-                        description: "Your banner image has been uploaded successfully",
-                      });
                     }}
                   />
                 </div>
