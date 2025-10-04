@@ -269,8 +269,8 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
       style={{
         left: clipLeft,
         width: clipWidth,
-        height: trackHeight - 8,
-        top: 4,
+        height: trackHeight,
+        top: 0,
         zIndex: isDragging || isTrimming ? 1000 : 1
       }}
       onMouseDown={handleMouseDown}
@@ -283,7 +283,7 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
         currentTime={currentTime}
         isPlaying={isPlaying}
         pixelsPerSecond={pixelsPerSecond}
-        trackHeight={trackHeight - 8}
+        trackHeight={trackHeight}
         trackIndex={trackIndex}
         onDuplicateClip={onDuplicateClip}
         onClipDoubleClick={onClipDoubleClick}

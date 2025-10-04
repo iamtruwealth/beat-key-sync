@@ -210,7 +210,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
       data-build={WAVEFORM_TRACK_BUILD}
       style={{
         width: clipWidth,
-        height: trackHeight - 8,
+        height: trackHeight,
         minWidth: 100
       }}
     >
