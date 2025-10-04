@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +20,7 @@ import {
 } from "lucide-react";
 
 export default function ArtistDashboard() {
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState<any[]>([]);
   const [recentMessages, setRecentMessages] = useState<any[]>([]);
   const [pendingPaperwork, setPendingPaperwork] = useState<any[]>([]);
@@ -277,7 +279,7 @@ export default function ArtistDashboard() {
             <Button 
               variant="outline" 
               className="h-20 flex flex-col gap-2"
-              onClick={() => window.location.href = '/epk'}
+              onClick={() => navigate('/epk')}
             >
               <DollarSign className="w-6 h-6" />
               Build Artist EPK
