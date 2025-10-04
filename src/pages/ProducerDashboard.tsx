@@ -399,7 +399,7 @@ export default function ProducerDashboard() {
         </Link>
         
         <div className="bg-gradient-to-br from-accent/10 to-accent/5 border border-border/20 rounded-lg p-6">
-          <h3 className="font-semibold text-foreground mb-2">Explore Library</h3>
+          <h3 className="font-semibold text-foreground mb-2">Explore Artists</h3>
           <p className="text-sm text-muted-foreground mb-4">
             Browse your complete library of stems and projects.
           </p>
