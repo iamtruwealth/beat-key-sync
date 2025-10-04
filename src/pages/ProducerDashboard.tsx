@@ -58,30 +58,44 @@ export default function ProducerDashboard() {
 
   // Get user data first
   useEffect(() => {
+    let mounted = true;
     const loadUserData = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        navigate('/auth');
-        return;
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!mounted) return;
+        
+        if (!user) {
+          navigate('/auth');
+          return;
+        }
+
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (!mounted) return;
+
+        if (profileError) {
+          console.warn('ProducerDashboard role fetch error:', profileError.message);
+        }
+
+        const role = (profile?.role as 'producer' | 'artist' | null) ?? null;
+        
+        // Set both at once to avoid race condition
+        setCurrentUser(user);
+        setUserRole(role);
+      } catch (error) {
+        console.error('Error loading user data:', error);
+        if (mounted) {
+          navigate('/auth');
+        }
       }
-
-      setCurrentUser(user);
-
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .maybeSingle();
-
-      if (profileError) {
-        console.warn('ProducerDashboard role fetch error:', profileError.message);
-      }
-
-      const role = (profile?.role as 'producer' | 'artist' | null) ?? null;
-      setUserRole(role);
     };
 
     loadUserData();
+    return () => { mounted = false; };
   }, [navigate]);
 
   // Check onboarding status
