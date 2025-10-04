@@ -396,8 +396,8 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
           
           <div className="flex flex-1 min-h-0 overflow-auto">
             <PianoRollKeyboard
-              startNote={39}
-              endNote={87}
+              startNote={15}
+              endNote={111}
               noteHeight={20}
               onKeyClick={handleKeyClick}
               onKeyRightClick={handleLoadSample}
@@ -409,8 +409,8 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
               notes={activeTrack?.notes || []}
               triggers={activeTrack?.triggers || []}
               snapGrid={state.snapGrid}
-              startNote={39}
-              endNote={87}
+              startNote={15}
+              endNote={111}
               noteHeight={20}
               beatsPerBar={4}
               barsVisible={16}
