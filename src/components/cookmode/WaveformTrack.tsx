@@ -183,7 +183,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
               waveColor={getTrackWaveColor(trackIndex, isMuted)}
               progressColor={getTrackProgressColor(trackIndex, isMuted)}
               progress={audioProgress}
-              className="absolute inset-0 z-30"
+              className="absolute inset-0 z-5"
             />
           )}
 

@@ -61,7 +61,7 @@ export const StaticWaveform: React.FC<StaticWaveformProps> = ({
     const numBars = Math.floor(width / barSpacing);
     const samplesPerBar = Math.max(1, Math.floor(channelPeaks.length / numBars));
 
-    // Draw waveform bars once using base color (avoid per-bar recolor flicker)
+    // Draw waveform bars once using base color (no progress overlay to avoid flicker)
     ctx.fillStyle = waveColor;
     for (let i = 0; i < numBars; i++) {
       const x = i * barSpacing;
@@ -81,12 +81,7 @@ export const StaticWaveform: React.FC<StaticWaveformProps> = ({
 
       ctx.fillRect(x, y, barWidth, barHeight);
     }
-
-    // Draw a single progress playhead line
-    const progressX = Math.max(0, Math.min(width, progress * width));
-    ctx.fillStyle = progressColor;
-    ctx.fillRect(progressX, 0, Math.max(1, barWidth), height);
-  }, [peaks, width, height, waveColor, progressColor, progress]);
+  }, [peaks, width, height, waveColor]);
 
   return (
     <canvas
