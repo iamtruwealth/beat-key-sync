@@ -5,8 +5,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Search, Music, CheckCircle, ArrowLeft } from "lucide-react";
+import { Loader2, Search, Music, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import verifiedBadge from "@/assets/verified-badge.png";
 
 interface Artist {
   id: string;
@@ -143,10 +144,11 @@ export default function BrowseArtists() {
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                     {artist.verification_status === "verified" && (
-                      <Badge className="absolute top-3 right-3 bg-primary/90 backdrop-blur-sm">
-                        <CheckCircle className="h-3 w-3 mr-1" />
-                        Verified
-                      </Badge>
+                      <img 
+                        src={verifiedBadge} 
+                        alt="Verified" 
+                        className="absolute top-3 right-3 h-8 w-8"
+                      />
                     )}
                   </div>
 
