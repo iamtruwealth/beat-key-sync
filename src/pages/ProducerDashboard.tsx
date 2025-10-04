@@ -37,38 +37,6 @@ import {
   Activity
 } from "lucide-react";
 
-// Dashboard stats for project management
-const dashboardStats = [
-  {
-    title: "Total Projects",
-    value: 24,
-    description: "Active projects",
-    icon: FolderOpen,
-    trend: { value: 12, isPositive: true },
-  },
-  {
-    title: "Audio Files",
-    value: 156,
-    description: "Stems uploaded",
-    icon: Music,
-    trend: { value: 8, isPositive: true },
-  },
-  {
-    title: "Collaborators",
-    value: 8,
-    description: "Active this month",
-    icon: Users,
-    trend: { value: 2, isPositive: true },
-  },
-  {
-    title: "Studio Time",
-    value: "47h",
-    description: "This week",
-    icon: Clock,
-    trend: { value: 15, isPositive: true },
-  },
-];
-
 export default function ProducerDashboard() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [recentMessages, setRecentMessages] = useState<any[]>([]);
@@ -79,6 +47,12 @@ export default function ProducerDashboard() {
   const [isMasterAccount, setIsMasterAccount] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [userRole, setUserRole] = useState<'producer' | 'artist' | null>(null);
+  const [productionStats, setProductionStats] = useState({
+    totalProjects: 0,
+    audioFiles: 0,
+    collaborators: 0,
+    studioTime: 0
+  });
   const navigate = useNavigate();
 
   // Get user data first
@@ -218,6 +192,80 @@ export default function ProducerDashboard() {
       .single();
     
     setTotalEarnings(profile?.total_earnings_cents || 0);
+
+    // Load production stats
+    // Total projects (created or member of)
+    const { data: createdProjects } = await supabase
+      .from('collaboration_projects')
+      .select('id', { count: 'exact', head: true })
+      .eq('created_by', currentUser.id);
+    
+    const { data: memberProjects } = await supabase
+      .from('collaboration_members')
+      .select('collaboration_id', { count: 'exact', head: true })
+      .eq('user_id', currentUser.id)
+      .eq('status', 'accepted');
+
+    const totalProjects = (createdProjects?.length || 0) + (memberProjects?.length || 0);
+
+    // Audio files uploaded
+    const { count: audioFilesCount } = await supabase
+      .from('session_audio_recordings')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', currentUser.id);
+
+    // Collaborators (distinct users from projects)
+    const { data: projectIds } = await supabase
+      .from('collaboration_projects')
+      .select('id')
+      .eq('created_by', currentUser.id);
+
+    const { data: memberProjectIds } = await supabase
+      .from('collaboration_members')
+      .select('collaboration_id')
+      .eq('user_id', currentUser.id)
+      .eq('status', 'accepted');
+
+    const allProjectIds = [
+      ...(projectIds?.map(p => p.id) || []),
+      ...(memberProjectIds?.map(m => m.collaboration_id) || [])
+    ];
+
+    let collaboratorsCount = 0;
+    if (allProjectIds.length > 0) {
+      const { data: collaborators } = await supabase
+        .from('collaboration_members')
+        .select('user_id')
+        .in('collaboration_id', allProjectIds)
+        .neq('user_id', currentUser.id)
+        .eq('status', 'accepted');
+      
+      const uniqueCollaborators = new Set(collaborators?.map(c => c.user_id) || []);
+      collaboratorsCount = uniqueCollaborators.size;
+    }
+
+    // Studio time (sum of session durations)
+    const { data: sessions } = await supabase
+      .from('collaboration_sessions')
+      .select('started_at, ended_at')
+      .contains('participants', [currentUser.id])
+      .not('ended_at', 'is', null);
+
+    let totalMinutes = 0;
+    sessions?.forEach(session => {
+      if (session.started_at && session.ended_at) {
+        const start = new Date(session.started_at).getTime();
+        const end = new Date(session.ended_at).getTime();
+        totalMinutes += (end - start) / (1000 * 60);
+      }
+    });
+
+    setProductionStats({
+      totalProjects,
+      audioFiles: audioFilesCount || 0,
+      collaborators: collaboratorsCount,
+      studioTime: Math.round(totalMinutes / 60) // Convert to hours
+    });
   };
 
   // Show loading while checking onboarding status
@@ -289,9 +337,30 @@ export default function ProducerDashboard() {
 
       {/* Production Stats */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {dashboardStats.map((stat) => (
-          <StatsCard key={stat.title} {...stat} />
-        ))}
+        <StatsCard
+          title="Total Projects"
+          value={productionStats.totalProjects}
+          description="Active collaborations"
+          icon={FolderOpen}
+        />
+        <StatsCard
+          title="Audio Files"
+          value={productionStats.audioFiles}
+          description="Recordings uploaded"
+          icon={Music}
+        />
+        <StatsCard
+          title="Collaborators"
+          value={productionStats.collaborators}
+          description="Unique producers"
+          icon={Users}
+        />
+        <StatsCard
+          title="Studio Time"
+          value={`${productionStats.studioTime}h`}
+          description="Total session time"
+          icon={Clock}
+        />
       </div>
 
       {/* Quick Actions */}
