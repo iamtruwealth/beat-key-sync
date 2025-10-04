@@ -21,15 +21,22 @@ export function ProducerSubscriptionTiers({ producerId }: ProducerSubscriptionTi
 
   const loadSubscriptionTiers = async () => {
     try {
-      const { data: tiersData } = await supabase
+      const { data: tiersData, error } = await supabase
         .from("producer_subscription_tiers")
         .select("*")
         .eq("producer_id", producerId)
         .eq("is_active", true)
         .order("price_cents");
 
+      if (error) {
+        console.error("Error loading tiers:", error);
+        throw error;
+      }
+
+      console.log("Loaded tiers:", tiersData);
       setTiers(tiersData || []);
     } catch (error: any) {
+      console.error("Failed to load subscription tiers:", error);
       toast({
         title: "Error",
         description: "Failed to load subscription tiers",
