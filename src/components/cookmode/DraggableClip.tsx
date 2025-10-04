@@ -45,7 +45,7 @@ interface DraggableClipProps {
   className?: string;
 }
 
-export const DraggableClip: React.FC<DraggableClipProps> = ({
+const DraggableClipComponent: React.FC<DraggableClipProps> = ({
   clip,
   currentTime,
   isPlaying,
@@ -368,4 +368,5 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
   );
 };
 
+export const DraggableClip = React.memo(DraggableClipComponent);
 export default DraggableClip;
