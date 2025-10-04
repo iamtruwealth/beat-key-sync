@@ -398,7 +398,7 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
             <PianoRollKeyboard
               startNote={15}
               endNote={111}
-              noteHeight={18}
+              noteHeight={17}
               onKeyClick={handleKeyClick}
               onKeyRightClick={handleLoadSample}
               sampleMappings={trackMode === 'sample' ? sampleMappings : undefined}
@@ -411,7 +411,7 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
               snapGrid={state.snapGrid}
               startNote={15}
               endNote={111}
-              noteHeight={18}
+              noteHeight={17}
               beatsPerBar={4}
               barsVisible={16}
               zoom={state.zoom}
