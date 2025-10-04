@@ -96,8 +96,8 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
           const arrayBuffer = await response.arrayBuffer();
           const audioBuffer = await Tone.getContext().decodeAudioData(arrayBuffer);
           
-          // Root note is C#5 (MIDI 73) - sample plays at normal pitch here
-          const rootPitch = 73; // C#5 - the natural key
+          // Root note is C5 (MIDI 72) - sample plays at normal pitch here
+          const rootPitch = 72; // C5 - the natural key
           const startPitch = 14; // D0
           const endPitch = 111;
           
@@ -105,10 +105,10 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
           samplersRef.current.forEach(player => player.dispose());
           samplersRef.current.clear();
           
-          // Create player for each key with pitch shifting relative to C#5
+          // Create player for each key with pitch shifting relative to C5
           for (let pitch = startPitch; pitch <= endPitch; pitch++) {
             const player = new Tone.Player(audioBuffer).toDestination();
-            // Calculate pitch shift relative to C#5 (73) - the natural key
+            // Calculate pitch shift relative to C5 (72) - the natural key
             const semitoneShift = pitch - rootPitch;
             player.playbackRate = Math.pow(2, semitoneShift / 12);
             samplersRef.current.set(pitch, player);
@@ -124,7 +124,7 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
           
           toast({
             title: "Sample Loaded",
-            description: `${trackName} loaded - C#5 is natural key`,
+            description: `${trackName} loaded - C5 is natural key`,
           });
         } catch (error) {
           console.error('Failed to load track sample:', error);

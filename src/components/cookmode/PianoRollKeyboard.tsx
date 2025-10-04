@@ -48,7 +48,7 @@ export const PianoRollKeyboard: React.FC<PianoRollKeyboardProps> = ({
         const isHighlighted = highlightedKeys.includes(pitch);
         const hasSample = pitch in sampleMappings;
         const isC = pitch % 12 === 0;
-        const isCSharp5 = pitch === 73; // C#5 is MIDI note 73
+        const isC5 = pitch === 72; // C5 is MIDI note 72 - the natural key
         const actualIndex = notes.indexOf(pitch);
 
         return (
@@ -59,8 +59,8 @@ export const PianoRollKeyboard: React.FC<PianoRollKeyboardProps> = ({
               "bg-white text-black border-r border-gray-300",
               isHighlighted && "bg-primary/20",
               hasSample && "bg-accent/30",
-              isC && "bg-blue-50",
-              isCSharp5 && "bg-cyan-100 border-l-4 border-l-cyan-500",
+              isC && !isC5 && "bg-blue-50",
+              isC5 && "bg-cyan-100 border-l-4 border-l-cyan-500",
               "hover:bg-gray-100"
             )}
             style={{ 
@@ -78,8 +78,8 @@ export const PianoRollKeyboard: React.FC<PianoRollKeyboardProps> = ({
           >
             <span className={cn(
               "text-xs font-mono", 
-              isC && "font-bold text-blue-600",
-              isCSharp5 && "font-extrabold text-cyan-700"
+              isC && !isC5 && "font-bold text-blue-600",
+              isC5 && "font-extrabold text-cyan-700"
             )}>
               {getNoteName(pitch)}
             </span>
@@ -96,8 +96,6 @@ export const PianoRollKeyboard: React.FC<PianoRollKeyboardProps> = ({
       {notes.filter(pitch => isBlackKey(pitch)).map((pitch) => {
         const isHighlighted = highlightedKeys.includes(pitch);
         const hasSample = pitch in sampleMappings;
-        const isCSharp = pitch % 12 === 1; // C# is note 1 in the scale
-        const isCSharp5 = pitch === 73; // C#5 is MIDI note 73 - the natural key
         const actualIndex = notes.indexOf(pitch);
 
         return (
@@ -108,18 +106,14 @@ export const PianoRollKeyboard: React.FC<PianoRollKeyboardProps> = ({
               "bg-black text-white border border-white/20",
               isHighlighted && "bg-primary/60",
               hasSample && "bg-primary/40",
-              isCSharp && "bg-gray-700",
-              isCSharp5 && "bg-cyan-700 border-2 border-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.6)]",
               "hover:bg-gray-800"
             )}
             style={{ 
               height: `${noteHeight}px`,
-              width: isCSharp5 ? '70%' : '65%',
+              width: '65%',
               top: `${actualIndex * noteHeight}px`,
               boxSizing: 'border-box',
-              boxShadow: isCSharp5 
-                ? 'inset 0 -2px 4px rgba(0,0,0,0.5), 2px 2px 8px rgba(34,211,238,0.5), 0 0 12px rgba(34,211,238,0.3)' 
-                : 'inset 0 -2px 4px rgba(0,0,0,0.5), 2px 2px 4px rgba(0,0,0,0.3)',
+              boxShadow: 'inset 0 -2px 4px rgba(0,0,0,0.5), 2px 2px 4px rgba(0,0,0,0.3)',
               pointerEvents: 'auto'
             }}
             onClick={() => onKeyClick?.(pitch)}
@@ -129,10 +123,7 @@ export const PianoRollKeyboard: React.FC<PianoRollKeyboardProps> = ({
             }}
             title={hasSample ? `${getNoteName(pitch)} - ${sampleMappings[pitch]}` : `${getNoteName(pitch)} - Right-click to load sample`}
           >
-            <span className={cn(
-              "text-[10px] font-mono font-bold",
-              isCSharp5 && "text-cyan-200"
-            )}>
+            <span className="text-[10px] font-mono font-bold">
               {getNoteName(pitch)}
             </span>
             {hasSample && (
