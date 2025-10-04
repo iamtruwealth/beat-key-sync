@@ -25,16 +25,30 @@ export const StaticWaveform: React.FC<StaticWaveformProps> = ({
 
   useEffect(() => {
     const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    // Set canvas resolution only when size changes to avoid flicker
+    const dpr = window.devicePixelRatio || 1;
+    const widthPx = Math.max(1, Math.floor(width * dpr));
+    const heightPx = Math.max(1, Math.floor(height * dpr));
+
+    if (canvas.width !== widthPx || canvas.height !== heightPx) {
+      canvas.width = widthPx;
+      canvas.height = heightPx;
+    }
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    // Reset transform before scaling to prevent compounding scale
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }, [width, height]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
     if (!canvas || !peaks || peaks.length === 0) return;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-
-    // Set canvas resolution
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = width * dpr;
-    canvas.height = height * dpr;
-    ctx.scale(dpr, dpr);
 
     // Clear canvas
     ctx.clearRect(0, 0, width, height);
@@ -47,11 +61,11 @@ export const StaticWaveform: React.FC<StaticWaveformProps> = ({
     const numBars = Math.floor(width / barSpacing);
     const samplesPerBar = Math.max(1, Math.floor(channelPeaks.length / numBars));
 
-    const progressX = progress * width;
+    const progressX = Math.max(0, Math.min(width, progress * width));
 
     for (let i = 0; i < numBars; i++) {
       const x = i * barSpacing;
-      
+
       // Get max value for this bar
       let max = 0;
       for (let j = 0; j < samplesPerBar; j++) {
@@ -75,7 +89,7 @@ export const StaticWaveform: React.FC<StaticWaveformProps> = ({
     <canvas
       ref={canvasRef}
       className={className}
-      style={{ width, height }}
+      style={{ width, height, pointerEvents: 'none' }}
     />
   );
 };
