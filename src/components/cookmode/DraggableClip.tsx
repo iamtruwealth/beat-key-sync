@@ -265,7 +265,7 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
   return (
     <div
       ref={clipRef}
-      className={`absolute cursor-move group ${className}`}
+      className={`absolute cursor-move group pointer-events-auto select-none ${className}`}
       style={{
         left: clipLeft,
         width: clipWidth,

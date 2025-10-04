@@ -156,7 +156,8 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
       style={{
         width: clipWidth,
         height: trackHeight - 8,
-        minWidth: 100
+        minWidth: 100,
+        pointerEvents: 'none'
       }}
     >
       {error ? (
