@@ -94,6 +94,18 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
   const clipWidth = visibleDuration * pixelsPerSecond;
   const clipLeft = clip.startTime * pixelsPerSecond;
 
+  // UI state for live drag/trim without React overriding inline styles
+  const [uiLeftPx, setUiLeftPx] = useState<number>(clipLeft);
+  const [uiWidthPx, setUiWidthPx] = useState<number>(clipWidth);
+
+  React.useEffect(() => {
+    if (!isDragging) setUiLeftPx(clipLeft);
+  }, [clipLeft, isDragging]);
+
+  React.useEffect(() => {
+    if (!isTrimming) setUiWidthPx(clipWidth);
+  }, [clipWidth, isTrimming]);
+
   // Grid snapping function
   const snapToGrid = useCallback((time: number): number => {
     return Math.round(time / secondsPerBeat) * secondsPerBeat;
@@ -196,9 +208,9 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
     if (isDragging) {
       const newStartTime = Math.max(0, dragStart.startTime + deltaTime);
       const snappedStartTime = snapToGrid(newStartTime);
-      
+      const newLeft = snappedStartTime * pixelsPerSecond;
+      setUiLeftPx(newLeft);
       if (clipRef.current) {
-        const newLeft = snappedStartTime * pixelsPerSecond;
         clipRef.current.style.left = `${newLeft}px`;
       }
     } else if (isTrimming && fullDuration > 0) {
@@ -218,10 +230,13 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
         if (isTrimming === 'start') {
           // Start trim: lock right edge, move left and adjust width
           const newLeft = Math.max(0, initialTrimRef.current.rightPx - tempWidthPx);
+          setUiLeftPx(newLeft);
+          setUiWidthPx(tempWidthPx);
           clipRef.current.style.left = `${newLeft}px`;
           clipRef.current.style.width = `${tempWidthPx}px`;
         } else {
           // End trim: lock left edge, adjust width only
+          setUiWidthPx(tempWidthPx);
           clipRef.current.style.width = `${tempWidthPx}px`;
         }
       }
@@ -307,8 +322,8 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
       ref={clipRef}
       className={`absolute cursor-move group pointer-events-auto select-none ${className}`}
       style={{
-        left: clipLeft,
-        width: clipWidth,
+        left: isDragging ? uiLeftPx : clipLeft,
+        width: isTrimming ? uiWidthPx : clipWidth,
         height: trackHeight - 8,
         top: 4,
         zIndex: isDragging || isTrimming ? 80 : 40
