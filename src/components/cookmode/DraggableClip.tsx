@@ -103,7 +103,17 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0) return; // Only left click
 
+    // Ensure timeline doesn't steal the event
+    e.preventDefault();
+    e.stopPropagation();
+
     const target = e.target as HTMLElement;
+    console.info('[DraggableClip] mousedown', {
+      clipId: clip.id,
+      targetTag: target.tagName,
+      classes: target.className,
+    });
+
     // 1) If the explicit trim handle was grabbed, delegate to trim handler
     if (target && target.closest('.trim-handle')) {
       return; // handleTrimMouseDown will run from the handle itself
@@ -126,19 +136,12 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
         return;
       }
     }
-    // 3) Otherwise, start drag (move clip)
-    e.preventDefault();
-    e.stopPropagation();
-    
+
+    // Begin dragging
     setIsDragging(true);
-    setDragStart({
-      x: e.clientX,
-      startTime: clip.startTime
-    });
-    console.log('[DraggableClip] drag mousedown', { clipId: clip.id, startTime: clip.startTime });
-    
     document.body.style.userSelect = 'none';
-  }, [clip.startTime]);
+    setDragStart({ x: (e as React.MouseEvent).clientX, startTime: clip.startTime });
+  }, [clip.id, clip.startTime]);
 
   // Handle mouse down for trim handles
   const handleTrimMouseDown = useCallback((e: React.MouseEvent, trimType: 'start' | 'end') => {
