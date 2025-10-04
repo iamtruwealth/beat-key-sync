@@ -718,7 +718,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           [1, 2, 3, 4].map(beat => (
             <div
               key={`track-${track.id}-beat-${bar}-${beat}`}
-              className="absolute w-px bg-white/5 pointer-events-none z-10"
+              className="absolute w-px bg-white/5 pointer-events-none z-0"
               style={{ 
                 left: bar * pixelsPerBar + beat * pixelsPerBeat,
                 top: 0,

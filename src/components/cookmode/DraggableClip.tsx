@@ -271,7 +271,7 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
         width: clipWidth,
         height: trackHeight - 8,
         top: 4,
-        zIndex: isDragging || isTrimming ? 50 : 10
+        zIndex: isDragging || isTrimming ? 60 : 20
       }}
       onMouseDown={handleMouseDown}
       onClick={handleClick}
