@@ -27,10 +27,7 @@ export const AudioStreamIndicator: React.FC<AudioStreamIndicatorProps> = ({
                 variant={isStreaming ? "default" : "outline"}
                 size="sm"
                 onClick={onToggleStream}
-                className={isStreaming 
-                  ? "bg-red-500 hover:bg-red-600 shadow-[0_0_20px_rgba(239,68,68,0.6)] animate-pulse" 
-                  : ""
-                }
+                className={isStreaming ? "bg-red-500 hover:bg-red-600" : ""}
               >
                 {isStreaming ? (
                   <>

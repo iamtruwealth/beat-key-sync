@@ -1,15 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
+import WaveSurfer from 'wavesurfer.js';
 import { Copy, Circle, Trash2 } from 'lucide-react';
-import { usePeaksCache } from '@/hooks/usePeaksCache';
-import { StaticWaveform } from './StaticWaveform';
-
-
-// Debug build stamp for WaveformTrack
-const WAVEFORM_TRACK_BUILD = 'WaveformTrack@2025-10-04T03:12:00Z';
-console.warn('[WaveformTrack] build', WAVEFORM_TRACK_BUILD);
-
-// Local module cache to prevent peaks flicker on remounts
-const __wfPeaksCache: Map<string, { peaks: Float32Array[]; duration: number }> = new Map();
 
 interface Track {
   id: string;
@@ -76,16 +67,11 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
   onRecordArmToggle
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const renderRef = useRef(0);
-  renderRef.current += 1;
+  const waveSurferRef = useRef<WaveSurfer | null>(null);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const track = clip.originalTrack;
-  const initialCache = track?.file_url ? __wfPeaksCache.get(track.file_url) : undefined;
-  const [isLoaded, setIsLoaded] = useState<boolean>(!!initialCache);
-  const [error, setError] = useState<string | null>(null);
-  const [peaks, setPeaks] = useState<Float32Array[] | null>(initialCache?.peaks ?? null);
-  const [audioDuration, setAudioDuration] = useState<number>(initialCache?.duration ?? 0);
-  const { getPeaks } = usePeaksCache();
   const clipDuration = clip.endTime - clip.startTime;
   const clipWidth = clipDuration * pixelsPerSecond;
   
@@ -93,96 +79,140 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
   const isMuted = track.isMuted || false;
   const opacity = isMuted ? 0.3 : 1;
 
-  // Calculate progress for waveform display
-  const fullDuration = clip.fullDuration || clip.originalTrack.analyzed_duration || clip.originalTrack.duration || clipDuration;
-  const startOffset = Math.max(0, clip.trimStart ?? 0);
-  const endOffset = Math.min(fullDuration, clip.trimEnd ?? fullDuration);
-  const trimmedDuration = Math.max(0.01, endOffset - startOffset);
-
-  const relativeTime = currentTime - clip.startTime;
-  let audioProgress = 0;
-  if (relativeTime >= 0 && relativeTime <= clipDuration) {
-    const progress = relativeTime / clipDuration;
-    const audioTime = startOffset + (progress * trimmedDuration);
-    audioProgress = Math.max(0, Math.min(1, audioTime / fullDuration));
-  } else if (currentTime < clip.startTime) {
-    audioProgress = Math.max(0, Math.min(1, startOffset / fullDuration));
-  } else {
-    audioProgress = Math.max(0, Math.min(1, endOffset / fullDuration));
-  }
-
-  // Load peaks from cache or decode
+  // Initialize WaveSurfer
   useEffect(() => {
-    if (!track.file_url || track.file_url.trim() === '') {
+    if (!containerRef.current || !track.file_url || track.file_url.trim() === '') {
       return;
     }
 
-    let mounted = true;
-
-    // 1) Serve instantly from local module cache to avoid flicker
-    const cached = __wfPeaksCache.get(track.file_url);
-    if (cached) {
-      setPeaks(cached.peaks);
-      setAudioDuration(cached.duration);
-      setIsLoaded(true);
-      setError(null);
+    // Clean up existing instance
+    if (waveSurferRef.current) {
+      waveSurferRef.current.destroy();
+      waveSurferRef.current = null;
     }
 
-    // 2) Fetch/generate peaks if not cached yet
-    if (!cached) {
-      console.info('[WaveformTrack] getPeaks start', { trackId: track.id, url: track.file_url });
-      getPeaks(track.file_url, 100)
-        .then(({ peaks: loadedPeaks, duration }) => {
-          if (!mounted) return;
-          console.info('[WaveformTrack] getPeaks success', { trackId: track.id, duration, channels: loadedPeaks?.length });
-          setPeaks(loadedPeaks);
-          setAudioDuration(duration);
+    try {
+      console.log(`Loading WaveSurfer for track: ${track.name} (${track.file_url})`);
+      
+      const waveSurfer = WaveSurfer.create({
+        container: containerRef.current,
+        waveColor: getTrackWaveColor(trackIndex, isMuted),
+        progressColor: getTrackProgressColor(trackIndex, isMuted),
+        cursorColor: 'transparent',
+        barWidth: 2,
+        barGap: 1,
+        height: trackHeight - 16,
+        normalize: true,
+        interact: false,
+        hideScrollbar: true,
+        minPxPerSec: pixelsPerSecond,
+        fillParent: false,
+        mediaControls: false,
+        autoplay: false,
+        backend: 'WebAudio'
+      });
+
+      waveSurferRef.current = waveSurfer;
+
+      waveSurfer.on('error', (e: any) => {
+        console.error(`WaveSurfer error for track ${track.name}:`, e);
+        setError('Failed to load waveform');
+        setIsLoaded(false);
+      });
+
+      waveSurfer.load(track.file_url).then(() => {
+        if (waveSurferRef.current === waveSurfer) {
           setIsLoaded(true);
           setError(null);
-          // Persist in local cache for future remounts
-          if (loadedPeaks) {
-            __wfPeaksCache.set(track.file_url, { peaks: loadedPeaks, duration });
-          }
-        })
-        .catch((err) => {
-          if (!mounted) return;
-          console.error(`Failed to load peaks for ${track.name}:`, err);
+          console.log(`WaveSurfer loaded for track: ${track.name}`);
+          waveSurfer.pause(); // Never play audio
+        }
+      }).catch((err) => {
+        if (waveSurferRef.current === waveSurfer) {
+          console.error(`Failed to load waveform for track ${track.name}:`, err);
           setError('Failed to load waveform');
           setIsLoaded(false);
-        });
+        }
+      });
+
+      waveSurfer.on('ready', () => {
+        if (waveSurferRef.current === waveSurfer) {
+          waveSurfer.pause();
+        }
+      });
+
+    } catch (err) {
+      console.error('Error creating WaveSurfer:', err);
+      setError('Failed to create waveform');
     }
 
     return () => {
-      mounted = false;
+      if (waveSurferRef.current) {
+        waveSurferRef.current.destroy();
+        waveSurferRef.current = null;
+      }
     };
-  }, [track.id, track.file_url, getPeaks, track.name]);
+  }, [track.id, track.file_url]);
 
-  // Debug: mount/unmount and key prop changes
+  // Resize/scale updates without re-creating WaveSurfer
   useEffect(() => {
-    console.info('[WaveformTrack] mount', {
-      clipId: clip.id,
-      trackId: track.id,
-      clipDuration,
-      clipWidth,
-      trackHeight,
-      pixelsPerSecond,
-    });
-    return () => {
-      console.info('[WaveformTrack] unmount', { clipId: clip.id, trackId: track.id });
-    };
-  }, []);
+    if (!waveSurferRef.current || !isLoaded) return;
+    try {
+      waveSurferRef.current.setOptions({
+        height: trackHeight - 16,
+        minPxPerSec: pixelsPerSecond,
+        fillParent: false,
+        hideScrollbar: true,
+      });
+    } catch (e) {
+      console.warn('WaveSurfer setOptions (size) failed', e);
+    }
+  }, [trackHeight, pixelsPerSecond, isLoaded]);
+  useEffect(() => {
+    if (!waveSurferRef.current || !isLoaded) return;
 
+    try {
+      const fullDuration = clip.fullDuration || clip.originalTrack.analyzed_duration || clip.originalTrack.duration || clipDuration;
+      const startOffset = Math.max(0, clip.trimStart ?? 0);
+      const endOffset = Math.min(fullDuration, clip.trimEnd ?? fullDuration);
+      const trimmedDuration = Math.max(0.01, endOffset - startOffset);
+
+      const relativeTime = currentTime - clip.startTime;
+      
+      if (relativeTime >= 0 && relativeTime <= clipDuration) {
+        const progress = relativeTime / clipDuration;
+        const audioTime = startOffset + (progress * trimmedDuration);
+        const audioProgress = Math.max(0, Math.min(1, audioTime / fullDuration));
+        waveSurferRef.current.seekTo(audioProgress);
+      } else if (currentTime < clip.startTime) {
+        const audioProgress = Math.max(0, Math.min(1, startOffset / fullDuration));
+        waveSurferRef.current.seekTo(audioProgress);
+      } else {
+        const audioProgress = Math.max(0, Math.min(1, endOffset / fullDuration));
+        waveSurferRef.current.seekTo(audioProgress);
+      }
+    } catch (err) {
+      console.error('Error updating WaveSurfer playhead:', err);
+    }
+  }, [currentTime, isPlaying, clip.startTime, clip.endTime, clipDuration, isLoaded, clip.fullDuration, clip.trimStart, clip.trimEnd]);
+
+  // Update visual opacity and colors based on mute state
   useEffect(() => {
-    console.info('[WaveformTrack] props update', {
-      clipId: clip.id,
-      currentTime,
-      audioProgress,
-      isPlaying,
-      isMuted,
-      hasPeaks: !!peaks,
-      audioDuration,
-    });
-  }, [currentTime, audioProgress, isPlaying, isMuted, peaks, audioDuration]);
+    if (!containerRef.current) return;
+    
+    containerRef.current.style.opacity = opacity.toString();
+    
+    if (waveSurferRef.current && isLoaded) {
+      try {
+        waveSurferRef.current.setOptions({
+          waveColor: getTrackWaveColor(trackIndex, isMuted),
+          progressColor: getTrackProgressColor(trackIndex, isMuted)
+        });
+      } catch (err) {
+        console.error('Error updating waveform colors:', err);
+      }
+    }
+  }, [isMuted, opacity, trackIndex, isLoaded]);
 
   // Handle click events
   const handleClick = (event: React.MouseEvent) => {
@@ -202,22 +232,19 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
     }
   };
 
-  const containerClassName = `relative ${className}`;
+  const containerClassName = `relative cursor-pointer overflow-hidden ${className}`;
 
   return (
     <div
       className={containerClassName}
-      data-build={WAVEFORM_TRACK_BUILD}
       style={{
         width: clipWidth,
         height: trackHeight - 8,
         minWidth: 100
       }}
+      onClick={handleClick}
+      onDoubleClick={handleDoubleClick}
     >
-      {/* Visible WF build badge */}
-      <div className="absolute top-1 left-1 z-20 bg-accent/80 text-accent-foreground px-1.5 py-0.5 rounded text-[10px] font-mono pointer-events-none">
-        WF: {WAVEFORM_TRACK_BUILD} | r:{renderRef.current} | peaks: {peaks ? 'yes' : 'no'}
-      </div>
       {error ? (
         <div className="flex items-center justify-center h-full bg-red-500/10 border-red-500">
           <span className="text-xs text-red-400">Failed to load</span>
@@ -231,19 +258,12 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
         </div>
       ) : (
         <>
-          {/* Static Waveform Renderer */}
-          {peaks && (
-            <StaticWaveform
-              peaks={peaks}
-              duration={audioDuration}
-              width={clipWidth}
-              height={trackHeight - 16}
-              waveColor={getTrackWaveColor(trackIndex, isMuted)}
-              progressColor={getTrackProgressColor(trackIndex, isMuted)}
-              progress={audioProgress}
-              className="absolute inset-0 z-5 pointer-events-none"
-            />
-          )}
+          {/* WaveSurfer container */}
+          <div
+            ref={containerRef}
+            id={containerId}
+            className="w-full h-full relative"
+          />
 
           {/* Trim overlays */}
           {(() => {
@@ -257,13 +277,13 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
               <>
                 {leftPct > 0 && (
                   <div
-                    className="pointer-events-none absolute top-0 left-0 h-full z-10 bg-background/60 border-r border-border/40"
+                    className="pointer-events-none absolute top-0 left-0 h-full bg-background/60 border-r border-border/40"
                     style={{ width: `${leftPct}%` }}
                   />
                 )}
                 {rightPct > 0 && (
                   <div
-                    className="pointer-events-none absolute top-0 right-0 h-full z-10 bg-background/60 border-l border-border/40"
+                    className="pointer-events-none absolute top-0 right-0 h-full bg-background/60 border-l border-border/40"
                     style={{ width: `${rightPct}%` }}
                   />
                 )}
@@ -272,7 +292,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
           })()}
            
           {/* Clip action buttons */}
-          <div className="absolute bottom-1 right-1 z-20 flex gap-1 pointer-events-auto">
+          <div className="absolute bottom-1 right-1 z-20 flex gap-1">
             <button
               type="button"
               className="inline-flex items-center justify-center h-6 w-6 rounded-md bg-background/80 text-foreground border border-border shadow-sm hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"

@@ -1,26 +1,12 @@
 import { useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { RealtimeChannel } from '@supabase/supabase-js';
-import { createChannelName } from '@/lib/realtimeChannels';
 
 export interface GhostUIState {
   playheadPosition: number; // In beats or seconds
   isPlaying: boolean;
   bpm: number;
   timestamp: number;
-  activeView?: 'timeline' | 'mixer';
-  mousePosition?: {
-    x: number;
-    y: number;
-    isMoving: boolean;
-  };
-  pianoRoll?: {
-    isOpen: boolean;
-    trackId?: string;
-    trackName?: string;
-    mode?: 'midi' | 'sample';
-    sampleUrl?: string;
-  };
   clipTriggers?: {
     trackId: string;
     clipId: string;
@@ -57,11 +43,10 @@ export const useGhostUIBroadcast = ({ sessionId, isHost, enabled = true }: UseGh
   useEffect(() => {
     if (!isHost || !enabled || !sessionId) return;
 
-    const channelName = createChannelName(`ghost-ui-${sessionId}`);
-    console.log('[GhostUI] Initializing broadcast for session:', sessionId, 'channel:', channelName);
+    console.log('[GhostUI] Initializing broadcast for session:', sessionId);
 
     // Create channel for broadcasting
-    const channel = supabase.channel(channelName, {
+    const channel = supabase.channel(`ghost-ui-${sessionId}`, {
       config: {
         broadcast: { self: false },
       },

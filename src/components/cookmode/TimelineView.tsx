@@ -1,8 +1,4 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-
-// Debug build stamp for TimelineView
-const TIMELINE_BUILD = 'TimelineView@2025-10-04T03:28:00Z';
-console.warn('[TimelineView] build', TIMELINE_BUILD);
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -19,7 +15,6 @@ import { undoManager, ActionType, createMoveAction } from '@/lib/UndoManager';
 import { PianoRoll } from './PianoRoll';
 import { TrackMode } from '@/types/pianoRoll';
 import { Music } from 'lucide-react';
-import { sessionLoopEngine } from '@/lib/sessionLoopEngine';
 
 interface Track {
   id: string;
@@ -62,12 +57,10 @@ interface TimelineViewProps {
   onSeek: (time: number) => void;
   onTracksUpdate?: (tracks: Track[]) => void;
   onTrimTrack?: (trackId: string, trimStart: number, trimEnd: number) => void;
-  onHardStop?: () => void;
   setActiveTrack?: (trackId: string) => void;
   activeTrackId?: string;
   createTrack?: (name: string) => string;
   loadSample?: (trackId: string, file: File) => Promise<void>;
-  onPianoRollStateChange?: (state: { isOpen: boolean; trackId?: string; trackName?: string; mode?: 'midi' | 'sample'; sampleUrl?: string }) => void;
 }
 
 export const TimelineView: React.FC<TimelineViewProps> = ({
@@ -82,12 +75,10 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   onSeek,
   onTracksUpdate,
   onTrimTrack,
-  onHardStop,
   setActiveTrack,
   activeTrackId,
   createTrack,
-  loadSample,
-  onPianoRollStateChange
+  loadSample
  }) => {
   const [activeMidiTrackId, setActiveMidiTrackId] = useState<string | null>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
@@ -102,18 +93,6 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const [pianoRollOpen, setPianoRollOpen] = useState(false);
   const [pianoRollTrack, setPianoRollTrack] = useState<{ id: string; name: string; mode: TrackMode; sampleUrl?: string } | null>(null);
   const { toast } = useToast();
-
-  // Broadcast piano roll state changes
-  React.useEffect(() => {
-    onPianoRollStateChange?.({
-      isOpen: pianoRollOpen,
-      trackId: pianoRollTrack?.id,
-      trackName: pianoRollTrack?.name,
-      mode: pianoRollTrack?.mode,
-      sampleUrl: pianoRollTrack?.sampleUrl,
-    });
-  }, [pianoRollOpen, pianoRollTrack, onPianoRollStateChange]);
-
 
   // Calculate timing constants with precise BPM
   const secondsPerBeat = 60 / bpm; // Precise: 60 seconds / beats per minute
@@ -591,36 +570,20 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   // Audio playback handler for individual tracks (mute/unmute)
   const handleTrackPlay = useCallback(async (track: Track) => {
     const newMutedState = !(track.isMuted || false);
-    console.log('[TimelineView] Toggling mute for track:', track.name, 'Current muted:', track.isMuted, 'New muted:', newMutedState);
-
-    // Immediate audio feedback for hosts: mute/unmute associated clips in the engine
-    try {
-      if (!readOnly) {
-        const affectedClips = audioClips.filter(c => c.trackId === track.id);
-        affectedClips.forEach(c => sessionLoopEngine.muteClip(c.id, newMutedState));
-        console.log('[TimelineView] Applied mute to engine clips:', affectedClips.map(c => c.id));
-      }
-    } catch (err) {
-      console.warn('[TimelineView] Engine mute failed (viewer mode or engine not ready):', err);
-    }
     
-    // Update track in parent component so UI and state persist
+    // Update track in parent component
     if (onTracksUpdate) {
       const updatedTracks = tracks.map(t => 
         t.id === track.id ? { ...t, isMuted: newMutedState } : t
       );
-      console.log('[TimelineView] Calling onTracksUpdate with updated tracks:', updatedTracks.map(t => ({ id: t.id, name: t.name, isMuted: t.isMuted })));
       onTracksUpdate(updatedTracks);
-    } else {
-      console.warn('[TimelineView] onTracksUpdate callback is not defined');
     }
-
-    // User feedback
+    
     toast({
-      title: newMutedState ? 'Track Muted' : 'Track Unmuted',
+      title: newMutedState ? "Track Muted" : "Track Unmuted",
       description: track.name,
     });
-  }, [audioClips, onTracksUpdate, readOnly, toast, tracks]);
+  }, [tracks, onTracksUpdate, toast]);
 
   // Update timeline width
   useEffect(() => {
@@ -722,7 +685,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           [1, 2, 3, 4].map(beat => (
             <div
               key={`track-${track.id}-beat-${bar}-${beat}`}
-              className="absolute w-px bg-white/5 pointer-events-none z-0"
+              className="absolute w-px bg-white/5 pointer-events-none z-10"
               style={{ 
                 left: bar * pixelsPerBar + beat * pixelsPerBeat,
                 top: 0,
@@ -748,7 +711,8 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
             isVisible
           });
 
-          // Always render; rely on CSS clipping instead of conditional unmounts
+          if (!isVisible) return null;
+
           return (
             <DraggableClip
               key={clip.id}
@@ -1031,12 +995,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           </div>
 
           {/* Timeline Area */}
-          <div className="flex-1 relative overflow-x-auto" ref={timelineRef} data-build={TIMELINE_BUILD}>
-            {/* Visible build indicator */}
-            <div className="absolute top-2 right-2 z-[9999] bg-primary/90 text-primary-foreground px-2 py-1 rounded text-xs font-mono pointer-events-none">
-              Build: {TIMELINE_BUILD}
-            </div>
-            
+          <div className="flex-1 relative overflow-x-auto" ref={timelineRef}>
             {/* Ruler */}
             <div className="h-[63.5px] bg-black/40 border-b border-white/10 relative">
               {/* Beat grid lines spanning all tracks */}
@@ -1175,11 +1134,6 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           trackMode={pianoRollTrack.mode}
           trackSampleUrl={pianoRollTrack.sampleUrl}
           sessionBpm={bpm}
-          sessionIsPlaying={isPlaying}
-          sessionCurrentTime={currentTime}
-          onToggleSessionPlayback={onPlayPause}
-          onStopSession={() => onSeek(0)}
-          onHardStop={onHardStop}
           onSave={(trackId, data) => {
             console.log('Saving piano roll data for track:', trackId, data);
             toast({

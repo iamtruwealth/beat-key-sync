@@ -16,11 +16,6 @@ interface PianoRollProps {
   trackMode: TrackMode;
   trackSampleUrl?: string;
   sessionBpm?: number;
-  sessionIsPlaying?: boolean;
-  sessionCurrentTime?: number;
-  onToggleSessionPlayback?: () => void;
-  onStopSession?: () => void;
-  onHardStop?: () => void;
   onSave?: (trackId: string, data: any) => void;
 }
 
@@ -32,22 +27,11 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
   trackMode,
   trackSampleUrl,
   sessionBpm = 120,
-  sessionIsPlaying = false,
-  sessionCurrentTime = 0,
-  onToggleSessionPlayback,
-  onStopSession,
-  onHardStop,
   onSave,
 }) => {
   const { toast } = useToast();
   const synthRef = useRef<Tone.PolySynth | null>(null);
   const samplersRef = useRef<Map<number, Tone.Player>>(new Map());
-  
-  // Use external playback control if provided
-  const externalPlayback = onToggleSessionPlayback ? {
-    isPlaying: sessionIsPlaying,
-    currentTime: (sessionCurrentTime / 60) * sessionBpm, // Convert seconds to beats
-  } : undefined;
   
   const {
     state,
@@ -65,7 +49,7 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
     stopPlayback,
     selectNotes,
     clearSelection,
-  } = usePianoRoll(sessionBpm, externalPlayback);
+  } = usePianoRoll(sessionBpm);
   
   // Initialize Tone.js instruments and load track sample
   useEffect(() => {
@@ -372,9 +356,8 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
             snapGrid={state.snapGrid}
             zoom={state.zoom}
             toolMode={toolMode}
-            onTogglePlayback={onToggleSessionPlayback || togglePlayback}
-            onStop={onStopSession || stopPlayback}
-            onHardStop={onHardStop}
+            onTogglePlayback={togglePlayback}
+            onStop={stopPlayback}
             onSnapGridChange={setSnapGrid}
             onZoomIn={handleZoomIn}
             onZoomOut={handleZoomOut}

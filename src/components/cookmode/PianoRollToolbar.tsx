@@ -11,7 +11,6 @@ interface PianoRollToolbarProps {
   toolMode: 'draw' | 'select';
   onTogglePlayback: () => void;
   onStop: () => void;
-  onHardStop?: () => void;
   onSnapGridChange: (value: SnapGridValue) => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
@@ -54,29 +53,11 @@ export const PianoRollToolbar: React.FC<PianoRollToolbarProps> = ({
   toolMode,
   onTogglePlayback,
   onStop,
-  onHardStop,
   onSnapGridChange,
   onZoomIn,
   onZoomOut,
   onToolModeChange,
 }) => {
-  const lastClickTimeRef = React.useRef<number>(0);
-
-  const handleStopClick = () => {
-    const now = Date.now();
-    const timeSinceLastClick = now - lastClickTimeRef.current;
-    
-    // Double-click detection (within 300ms)
-    if (timeSinceLastClick < 300) {
-      console.log('🛑 HARD STOP - Killing all audio');
-      onHardStop?.();
-    } else {
-      onStop();
-    }
-    
-    lastClickTimeRef.current = now;
-  };
-
   return (
     <div className="flex items-center gap-4 p-2 border-b border-border bg-card/50">
       {/* Transport Controls */}
@@ -91,8 +72,7 @@ export const PianoRollToolbar: React.FC<PianoRollToolbarProps> = ({
         <Button
           size="sm"
           variant="outline"
-          onClick={handleStopClick}
-          title="Click to stop, double-click to hard stop all audio"
+          onClick={onStop}
         >
           <Square className="w-4 h-4" />
         </Button>

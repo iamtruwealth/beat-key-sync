@@ -4,7 +4,6 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
-import { createChannelName } from '@/lib/realtimeChannels';
 import * as Tone from 'tone';
 
 const DEFAULT_SESSION = '7ec9d14d-82bf-4be8-91aa-a391815a1a72';
@@ -49,8 +48,7 @@ export default function MinimalViewer() {
     log(`🎬 Setting up viewer for session: ${sessionId}`);
     
     // Setup Supabase channel - MUST match host's channel name
-    const channelName = createChannelName(`audio-only-${sessionId}`);
-    const channel = supabase.channel(channelName);
+    const channel = supabase.channel(`audio-only-${sessionId}`);
     channelRef.current = channel;
 
     channel

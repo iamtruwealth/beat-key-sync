@@ -9,12 +9,12 @@ import {
   SampleMapping 
 } from '@/types/pianoRoll';
 
-export const usePianoRoll = (initialBpm: number = 120, externalPlayback?: { isPlaying: boolean; currentTime: number }) => {
+export const usePianoRoll = (initialBpm: number = 120) => {
   const [state, setState] = useState<PianoRollState>({
     tracks: {},
     activeTrackId: null,
-    isPlaying: externalPlayback?.isPlaying ?? false,
-    currentTime: externalPlayback?.currentTime ?? 0,
+    isPlaying: false,
+    currentTime: 0,
     bpm: initialBpm,
     snapGrid: '1/4-beat',
     zoom: 1,
@@ -22,26 +22,6 @@ export const usePianoRoll = (initialBpm: number = 120, externalPlayback?: { isPl
   });
 
   const playbackIntervalRef = useRef<number | null>(null);
-
-  // Sync with external playback state
-  useEffect(() => {
-    if (externalPlayback) {
-      setState(prev => {
-        // Only update if there's a significant change to avoid constant re-renders
-        const timeChanged = Math.abs((prev.currentTime || 0) - externalPlayback.currentTime) > 0.05;
-        const playingChanged = prev.isPlaying !== externalPlayback.isPlaying;
-        
-        if (timeChanged || playingChanged) {
-          return {
-            ...prev,
-            isPlaying: externalPlayback.isPlaying,
-            currentTime: externalPlayback.currentTime,
-          };
-        }
-        return prev;
-      });
-    }
-  }, [externalPlayback?.isPlaying, externalPlayback?.currentTime]);
 
   // Calculate snap amount in beats based on snap grid value
   const getSnapAmount = useCallback((snapGrid: SnapGridValue, beatsPerBar: number = 4): number => {
@@ -293,17 +273,8 @@ export const usePianoRoll = (initialBpm: number = 120, externalPlayback?: { isPl
     setState(prev => ({ ...prev, selectedNotes: [] }));
   }, []);
 
-  // Playback loop (only active when not using external playback control)
+  // Playback loop
   useEffect(() => {
-    // Skip internal playback if we're using external control
-    if (externalPlayback) {
-      if (playbackIntervalRef.current) {
-        clearInterval(playbackIntervalRef.current);
-        playbackIntervalRef.current = null;
-      }
-      return;
-    }
-
     if (state.isPlaying) {
       const beatsPerSecond = state.bpm / 60;
       const updateInterval = 50; // Update every 50ms
@@ -322,7 +293,7 @@ export const usePianoRoll = (initialBpm: number = 120, externalPlayback?: { isPl
         clearInterval(playbackIntervalRef.current);
       }
     };
-  }, [state.isPlaying, state.bpm, externalPlayback]);
+  }, [state.isPlaying, state.bpm]);
 
   return {
     state,

@@ -32,6 +32,3 @@ verify_jwt = true
 
 [functions.check-ip-limits]
 verify_jwt = false
-
-[functions.stream-audio]
-verify_jwt = false

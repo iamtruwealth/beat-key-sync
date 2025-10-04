@@ -23,11 +23,8 @@ import { SessionParticipants } from '@/components/cookmode/SessionParticipants';
 import { SessionControls } from '@/components/cookmode/SessionControls';
 import { GhostUI } from '@/components/cookmode/GhostUI';
 import { useGhostUIBroadcast } from '@/hooks/useGhostUIBroadcast';
-import { useAudioBroadcast } from '@/hooks/useAudioBroadcast';
-import { sessionLoopEngine } from '@/lib/sessionLoopEngine';
-// import { useWebRTCAudioStream } from '@/hooks/useWebRTCAudioStream'; // Disabled until HLS server deployed
+import { useWebRTCAudioStream } from '@/hooks/useWebRTCAudioStream';
 import { AudioStreamIndicator } from '@/components/cookmode/AudioStreamIndicator';
-import { useMuxAudioStream } from '@/hooks/useMuxAudioStream';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { CookModeAudioControls } from '@/components/cookmode/CookModeAudioControls';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -70,14 +67,6 @@ const CookMode = () => {
   const [minBars, setMinBars] = useState(8);
   const [authLoading, setAuthLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-  const [pianoRollState, setPianoRollState] = useState<{
-    isOpen: boolean;
-    trackId?: string;
-    trackName?: string;
-    mode?: 'midi' | 'sample';
-    sampleUrl?: string;
-  }>({ isOpen: false });
   const [sessionConfig, setSessionConfig] = useState({
     bpm: 120,
     key: 'C',
@@ -108,38 +97,6 @@ const CookMode = () => {
   
   const { midiDevices, setActiveTrack, tracks: audioTracks, createTrack, loadSample, setTrackTrim, masterDestination } = useCookModeAudio(permissions?.canEdit || false);
 
-  // Get the mixed audio stream for broadcasting
-  const [mixedAudioStream, setMixedAudioStream] = React.useState<MediaStream | null>(null);
-
-  React.useEffect(() => {
-    let intervalId: number | undefined;
-    if (permissions?.canEdit && isPlaying) {
-      const tryGet = () => {
-        const stream = sessionLoopEngine.getMixedAudioStream();
-        if (stream) {
-          console.log('[CookMode] Mixed audio stream ready');
-          setMixedAudioStream(stream);
-          if (intervalId) {
-            window.clearInterval(intervalId);
-            intervalId = undefined;
-          }
-        } else {
-          console.log('[CookMode] Mixed audio stream not ready yet, retrying...');
-        }
-      };
-      // Try immediately, then poll briefly until available (engine init race fix)
-      tryGet();
-      if (!sessionLoopEngine.getMixedAudioStream()) {
-        intervalId = window.setInterval(tryGet, 300);
-      }
-    } else {
-      setMixedAudioStream(null);
-    }
-    return () => {
-      if (intervalId) window.clearInterval(intervalId);
-    };
-  }, [permissions?.canEdit, isPlaying]);
-
   // Ghost UI broadcast for hosts (always enabled)
   const { broadcastState, broadcastClipTrigger, broadcastPadPress } = useGhostUIBroadcast({
     sessionId: sessionId || '',
@@ -147,46 +104,19 @@ const CookMode = () => {
     enabled: true,
   });
 
-  // Audio broadcast for hosts (broadcasts audio to Ghost UI viewers)
-  const { isActive: audioIsActive } = useAudioBroadcast({
-    sessionId: sessionId || '',
-    isHost: permissions?.canEdit || false,
-    audioStream: mixedAudioStream,
-    enabled: isPlaying && !!mixedAudioStream,
-  });
-
-  // Mux audio streaming to external server
-  const { 
-    isStreaming, 
-    audioLevel, 
-    startStreaming: startMuxStream, 
-    stopStreaming: stopMuxStream 
-  } = useMuxAudioStream({
+  // WebRTC Audio Stream (automatic, built-in)
+  const { isStreaming, audioLevel, startStreaming, stopStreaming } = useWebRTCAudioStream({
     sessionId: sessionId || '',
     isHost: permissions?.canEdit || false,
     enabled: true,
-    mediaStream: mixedAudioStream
   });
 
-  // Manual streaming control - users can click "Start Audio Stream"
-  const handleToggleStream = () => {
-    if (!permissions?.canEdit) return;
-
-    if (isStreaming) {
-      stopMuxStream();
-      toast.message('Audio stream stopped');
-      return;
+  // Auto-start streaming when master destination is available
+  React.useEffect(() => {
+    if (permissions?.canEdit && masterDestination && !isStreaming) {
+      startStreaming(masterDestination as AudioDestinationNode);
     }
-
-    // Starting stream
-    ensureAudioReady();
-    if (!mixedAudioStream) {
-      toast.info('Starting stream. Press Play to send audio, otherwise streaming will be silent until playback.');
-    } else {
-      toast.success('Starting live audio stream');
-    }
-    startMuxStream();
-  };
+  }, [permissions?.canEdit, masterDestination, isStreaming, startStreaming]);
 
   // Real-time collaboration
   const { 
@@ -231,20 +161,6 @@ const CookMode = () => {
       window.clearTimeout(timeoutId);
     };
   }, []);
-
-  // Safety: ensure playhead is paused on mount
-  React.useEffect(() => {
-    if (isPlaying) {
-      console.log('[CookMode] Safety pause on mount');
-      togglePlayback();
-    }
-    if (currentTime !== 0) {
-      seekTo(0);
-    }
-    // Run once
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
 
   // Get current user for video streaming
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -376,136 +292,68 @@ const CookMode = () => {
     }
   };
 
-  // Ensure audio is ready on user interaction (fixes autoplay policies)
-  const ensureAudioReady = () => {
-    console.log('[CookMode] ensureAudioReady called');
-    try {
-      void Tone.start();
-      const ctx = Tone.getContext();
-      console.log('[CookMode] Audio context state:', ctx.state);
-      if (ctx.state === 'suspended') {
-        void ctx.resume();
-        console.log('[CookMode] Audio context resumed');
-      }
-      console.log('[CookMode] Audio context ensured on interaction');
-    } catch (e) {
-      console.error('[CookMode] Failed to ensure audio context', e);
-    }
-  };
-
   // Wrap playback controls to broadcast to other users
   const handleTogglePlayback = () => {
-    console.log('[CookMode] handleTogglePlayback called - START');
     const next = !isPlaying;
-    console.log('[CookMode] togglePlayback', { from: isPlaying, to: next, hasToggleFunction: !!togglePlayback });
-    if (next) {
-      console.log('[CookMode] Will ensure audio ready');
-      ensureAudioReady();
-    }
-    console.log('[CookMode] Calling togglePlayback()');
+    console.log('[CookMode] togglePlayback', { from: isPlaying, to: next });
     togglePlayback();
-    console.log('[CookMode] togglePlayback() returned');
     if (broadcastPlaybackToggle) {
-      console.log('[CookMode] Broadcasting playback toggle');
+      console.log('[CookMode] broadcastPlaybackToggle', { to: next });
       broadcastPlaybackToggle(next);
     }
-    console.log('[CookMode] handleTogglePlayback called - END');
+    
+    // Broadcast Ghost UI state
+    if (permissions.canEdit && session) {
+      broadcastState({
+        playheadPosition: currentTime,
+        isPlaying: next,
+        bpm: session.target_bpm || 120,
+        timestamp: Date.now(),
+      });
+    }
   };
-  const handleSeekTo = (seconds: number) => {
-    console.log('[CookMode] seekTo', seconds);
-    seekTo(seconds);
+
+  const handleSeekTo = (time: number) => {
+    seekTo(time);
     if (broadcastPlaybackSeek) {
-      broadcastPlaybackSeek(seconds);
+      broadcastPlaybackSeek(time);
+    }
+    
+    // Broadcast Ghost UI state
+    if (permissions.canEdit && session) {
+      broadcastState({
+        playheadPosition: time,
+        isPlaying: isPlaying,
+        bpm: session.target_bpm || 120,
+        timestamp: Date.now(),
+      });
     }
   };
-
-  // Hard stop - stops transport without clearing schedules to enable immediate replay
-  const handleHardStop = () => {
-    console.log('🛑 HARD STOP - Stopping transport without canceling schedules');
-    try {
-      // Use engine stop so scheduled clip sync remains intact
-      sessionLoopEngine.stop();
-
-      // Ensure UI state reflects stopped playback
-      if (isPlaying) {
-        togglePlayback();
-      }
-      seekTo(0);
-
-      console.log('✅ Hard stop complete - ready to play on first click');
-    } catch (error) {
-      console.error('❌ Error during hard stop:', error);
-    }
-  };
-
-  // Track mouse movements for Ghost UI mirroring
-  React.useEffect(() => {
-    if (!permissions.canEdit) return;
-
-    let lastBroadcast = 0;
-    const MOUSE_THROTTLE = 50; // Broadcast mouse position every 50ms max
-
-    const handleMouseMove = (e: MouseEvent) => {
-      const now = Date.now();
-      if (now - lastBroadcast < MOUSE_THROTTLE) return;
-      
-      lastBroadcast = now;
-      setMousePosition({ x: e.clientX, y: e.clientY });
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, [permissions.canEdit]);
 
   React.useEffect(() => {
     console.log('[CookMode] isPlaying changed', isPlaying);
   }, [isPlaying]);
 
-  // Periodically broadcast Ghost UI state (playback + mouse + piano roll + view)
+  // Periodically broadcast Ghost UI state while playing
   React.useEffect(() => {
-    if (!permissions.canEdit || !session) return;
+    if (!permissions.canEdit || !isPlaying || !session) return;
 
     const intervalId = setInterval(() => {
       broadcastState({
         playheadPosition: currentTime,
-        isPlaying: isPlaying,
+        isPlaying: true,
         bpm: session.target_bpm || 120,
         timestamp: Date.now(),
-        activeView,
-        mousePosition: {
-          x: mousePosition.x,
-          y: mousePosition.y,
-          isMoving: true,
-        },
-        pianoRoll: pianoRollState,
         loopRegion: minBars ? {
           start: 0,
-          end: minBars * 4,
+          end: minBars * 4, // Convert bars to beats (4 beats per bar)
           enabled: true,
         } : undefined,
       });
-    }, isPlaying ? 100 : 200); // Faster updates when playing
+    }, 200); // Broadcast every 200ms while playing
 
     return () => clearInterval(intervalId);
-  }, [isPlaying, currentTime, permissions.canEdit, session, minBars, activeView, mousePosition, pianoRollState, broadcastState]);
-
-  // Broadcast immediate UI changes (view switches, piano roll open/close)
-  React.useEffect(() => {
-    if (!permissions.canEdit || !session) return;
-    broadcastState({
-      playheadPosition: currentTime,
-      isPlaying: isPlaying,
-      bpm: session.target_bpm || 120,
-      timestamp: Date.now(),
-      activeView,
-      pianoRoll: pianoRollState,
-      mousePosition: {
-        x: mousePosition.x,
-        y: mousePosition.y,
-        isMoving: false,
-      },
-    });
-  }, [activeView, pianoRollState.isOpen]);
+  }, [isPlaying, currentTime, permissions.canEdit, session, minBars, broadcastState]);
 
   // Session Creation Screen
   if (!sessionId) {
@@ -880,7 +728,7 @@ const CookMode = () => {
               isHost={permissions.canEdit}
               isStreaming={isStreaming}
               audioLevel={audioLevel}
-              onToggleStream={permissions.canEdit ? handleToggleStream : undefined}
+              onToggleStream={permissions.canEdit ? (isStreaming ? stopStreaming : () => startStreaming(masterDestination as AudioDestinationNode)) : undefined}
             />
 
             <Button
@@ -962,7 +810,6 @@ const CookMode = () => {
               }}
               onCreateEmptyTrack={async (name) => { await addEmptyTrack(name); }}
               onAddTrack={addTrack}
-              onHardStop={handleHardStop}
             />
           )}
 
@@ -1003,7 +850,6 @@ const CookMode = () => {
                 onUpdateTrack={permissions.canEdit ? updateTrack : undefined}
                 onTogglePlayback={permissions.canEdit ? handleTogglePlayback : undefined}
                 onSeek={permissions.canEdit ? handleSeekTo : undefined}
-                onHardStop={permissions.canEdit ? handleHardStop : undefined}
                 onTrimTrack={permissions.canEdit ? trimTrack : undefined}
                 activeView={activeView}
                 onViewChange={setActiveView}
@@ -1011,7 +857,6 @@ const CookMode = () => {
                 setActiveTrack={setActiveTrack}
                 createTrack={createTrack}
                 loadSample={loadSample}
-                onPianoRollStateChange={setPianoRollState}
               />
             )}
           </div>

@@ -51,7 +51,6 @@ interface CookModeDAWProps {
   onTrimTrack?: (trackId: string, trimStart: number, trimEnd: number) => void;
   onTogglePlayback?: () => void;
   onSeek?: (time: number) => void;
-  onHardStop?: () => void;
   activeView?: 'timeline' | 'mixer';
   onViewChange?: (view: 'timeline' | 'mixer') => void;
   readOnly?: boolean;
@@ -59,7 +58,6 @@ interface CookModeDAWProps {
   setActiveTrack?: (trackId: string) => void;
   createTrack?: (name: string) => string;
   loadSample?: (trackId: string, file: File) => Promise<void>;
-  onPianoRollStateChange?: (state: { isOpen: boolean; trackId?: string; trackName?: string; mode?: 'midi' | 'sample'; sampleUrl?: string }) => void;
 }
 
 export const CookModeDAW: React.FC<CookModeDAWProps> = ({
@@ -75,14 +73,12 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
   onTrimTrack,
   onTogglePlayback,
   onSeek,
-  onHardStop,
   activeView: externalActiveView,
   onViewChange,
   readOnly = false,
   setActiveTrack,
   createTrack,
-  loadSample,
-  onPianoRollStateChange
+  loadSample
 }) => {
   const [isAddingTrack, setIsAddingTrack] = useState(false);
   const [activeView, setActiveView] = useState<'timeline' | 'mixer'>('timeline');
@@ -251,7 +247,6 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
 
   // Handle track updates coming from TimelineView
   const handleTracksUpdateFromTimeline = async (updatedTracks: Track[]) => {
-    console.log('[CookModeDAW] handleTracksUpdateFromTimeline called with:', updatedTracks.map(t => ({ id: t.id, name: t.name, isMuted: t.isMuted, volume: t.volume })));
     const currentIds = new Set(tracks.map(t => t.id));
     const updatedIds = new Set(updatedTracks.map(t => t.id));
 
@@ -279,18 +274,7 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
           currentTrack.isMuted !== updatedTrack.isMuted ||
           currentTrack.isSolo !== updatedTrack.isSolo;
         
-        console.log('[CookModeDAW] Track change check:', {
-          trackId: updatedTrack.id,
-          trackName: updatedTrack.name,
-          hasChanges,
-          currentMuted: currentTrack.isMuted,
-          updatedMuted: updatedTrack.isMuted,
-          currentVolume: currentTrack.volume,
-          updatedVolume: updatedTrack.volume
-        });
-        
         if (hasChanges) {
-          console.log('[CookModeDAW] Calling onUpdateTrack for:', updatedTrack.id, { volume: updatedTrack.volume, isMuted: updatedTrack.isMuted, isSolo: updatedTrack.isSolo });
           onUpdateTrack(updatedTrack.id, {
             volume: updatedTrack.volume,
             isMuted: updatedTrack.isMuted,
@@ -449,13 +433,11 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
                 readOnly={readOnly}
                 onPlayPause={onTogglePlayback}
                 onSeek={onSeek}
-                onHardStop={onHardStop}
                 onTracksUpdate={handleTracksUpdateFromTimeline}
                 onTrimTrack={onTrimTrack}
                 setActiveTrack={setActiveTrack}
                 createTrack={createTrack}
                 loadSample={loadSample}
-                onPianoRollStateChange={onPianoRollStateChange}
               />
             )}
           </TabsContent>
