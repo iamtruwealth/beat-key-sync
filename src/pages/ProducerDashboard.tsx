@@ -405,7 +405,11 @@ export default function ProducerDashboard() {
           <p className="text-sm text-muted-foreground mb-4">
             Browse artists to send beats to and collaborate with.
           </p>
-          <Button variant="waveform" size="sm">
+          <Button 
+            variant="waveform" 
+            size="sm"
+            onClick={() => navigate('/browse-artists')}
+          >
             Browse Library
           </Button>
         </div>
