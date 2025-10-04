@@ -1529,6 +1529,56 @@ export type Database = {
           },
         ]
       }
+      track_midi_notes: {
+        Row: {
+          created_at: string | null
+          duration: number
+          id: string
+          note_type: string
+          pitch: number
+          project_id: string | null
+          start_time: number
+          track_id: string
+          updated_at: string | null
+          user_id: string
+          velocity: number
+        }
+        Insert: {
+          created_at?: string | null
+          duration: number
+          id?: string
+          note_type?: string
+          pitch: number
+          project_id?: string | null
+          start_time: number
+          track_id: string
+          updated_at?: string | null
+          user_id: string
+          velocity?: number
+        }
+        Update: {
+          created_at?: string | null
+          duration?: number
+          id?: string
+          note_type?: string
+          pitch?: number
+          project_id?: string | null
+          start_time?: number
+          track_id?: string
+          updated_at?: string | null
+          user_id?: string
+          velocity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "track_midi_notes_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tracks: {
         Row: {
           artist: string | null
