@@ -111,7 +111,7 @@ export function EPKSettings({ epkProfile, onUpdate }: EPKSettingsProps) {
       <Card className="p-6">
         <h2 className="text-2xl font-bold mb-4">EPK URL</h2>
         <p className="text-muted-foreground mb-4">
-          Your public EPK URL: <span className="text-primary font-mono">beatpackz.store/epk/{epkProfile.slug}</span>
+          Your public EPK URL: <a href={`/epk/${epkProfile.slug}`} target="_blank" rel="noopener noreferrer" className="text-primary font-mono hover:underline">beatpackz.store/epk/{epkProfile.slug}</a>
         </p>
         <p className="text-sm text-muted-foreground">
           Custom domain support coming soon!
