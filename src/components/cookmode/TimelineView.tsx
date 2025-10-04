@@ -955,7 +955,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                         }}
                         title="Edit Notes (Piano Roll)"
                       >
-                        <Music className="h-3 w-3" />
+                        <Piano className="h-3 w-3" />
                       </Button>
                       
                       <Button
