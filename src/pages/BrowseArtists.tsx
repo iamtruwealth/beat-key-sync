@@ -50,11 +50,7 @@ export default function BrowseArtists() {
   const loadArtists = async () => {
     try {
       const { data, error } = await supabase
-        .from("profiles")
-        .select("id, username, producer_name, producer_logo_url, verification_status, genres, bio")
-        .eq("public_profile_enabled", true)
-        .eq("role", "artist")
-        .order("created_at", { ascending: false });
+        .rpc("get_public_artist_profiles");
 
       if (error) throw error;
 

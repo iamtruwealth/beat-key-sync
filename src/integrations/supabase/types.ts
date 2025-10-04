@@ -2406,6 +2406,18 @@ export type Database = {
           verification_status: string
         }[]
       }
+      get_public_artist_profiles: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          bio: string
+          genres: string[]
+          id: string
+          producer_logo_url: string
+          producer_name: string
+          username: string
+          verification_status: string
+        }[]
+      }
       get_public_profile_info: {
         Args: { profile_id: string }
         Returns: {
