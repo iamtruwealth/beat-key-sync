@@ -76,13 +76,16 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
   onRecordArmToggle
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [peaks, setPeaks] = useState<Float32Array[] | null>(null);
-  const [audioDuration, setAudioDuration] = useState<number>(0);
-  const { getPeaks } = usePeaksCache();
+  const renderRef = useRef(0);
+  renderRef.current += 1;
 
   const track = clip.originalTrack;
+  const initialCache = track?.file_url ? __wfPeaksCache.get(track.file_url) : undefined;
+  const [isLoaded, setIsLoaded] = useState<boolean>(!!initialCache);
+  const [error, setError] = useState<string | null>(null);
+  const [peaks, setPeaks] = useState<Float32Array[] | null>(initialCache?.peaks ?? null);
+  const [audioDuration, setAudioDuration] = useState<number>(initialCache?.duration ?? 0);
+  const { getPeaks } = usePeaksCache();
   const clipDuration = clip.endTime - clip.startTime;
   const clipWidth = clipDuration * pixelsPerSecond;
   
@@ -214,7 +217,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
     >
       {/* Visible WF build badge */}
       <div className="absolute top-1 left-1 z-20 bg-accent/80 text-accent-foreground px-1.5 py-0.5 rounded text-[10px] font-mono pointer-events-none">
-        WF: {WAVEFORM_TRACK_BUILD} | peaks: {peaks ? 'yes' : 'no'}
+        WF: {WAVEFORM_TRACK_BUILD} | r:{renderRef.current} | peaks: {peaks ? 'yes' : 'no'}
       </div>
       {error ? (
         <div className="flex items-center justify-center h-full bg-red-500/10 border-red-500">
