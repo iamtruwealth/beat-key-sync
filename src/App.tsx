@@ -21,6 +21,7 @@ import Notifications from "./pages/Notifications";
 import Library from "./pages/Library";
 import Projects from "./pages/Projects";
 import BrowseProducers from "./pages/BrowseProducers";
+import BrowseArtists from "./pages/BrowseArtists";
 import UploadPage from "./pages/Upload";
 import BeatPackPage from "./pages/BeatPack";
 import AuthPage from "./pages/Auth";
@@ -109,6 +110,11 @@ const App = () => (
               <AudioProvider>
                 <BrowseProducers />
               </AudioProvider>
+            } />
+            
+            {/* Public browse artists page */}
+            <Route path="/browse-artists" element={
+              <BrowseArtists />
             } />
             
             <Route path="/beat-pack/:id" element={
