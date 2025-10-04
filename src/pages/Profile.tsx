@@ -25,6 +25,9 @@ import {
   X
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { z } from "zod";
+
+const usernameSchema = z.string().trim().regex(/^[a-zA-Z0-9_-]+$/, { message: "Username can only include letters, numbers, underscores and hyphens" }).min(3, { message: "Username must be at least 3 characters" }).max(30, { message: "Username must be at most 30 characters" });
 
 interface Profile {
   id: string;
@@ -137,10 +140,22 @@ export default function ProfilePage() {
       // Clean the data before updating
       const updateData: any = {};
       
-      if (profile.first_name !== undefined) updateData.first_name = profile.first_name;
-      if (profile.last_name !== undefined) updateData.last_name = profile.last_name;
-      if (profile.username) updateData.username = profile.username;
-      if (profile.producer_name) updateData.producer_name = profile.producer_name;
+      if (profile.first_name !== undefined) updateData.first_name = profile.first_name?.trim?.() ?? profile.first_name;
+      if (profile.last_name !== undefined) updateData.last_name = profile.last_name?.trim?.() ?? profile.last_name;
+
+      // Validate username against DB constraint before including
+      const trimmedUsername = profile.username?.trim();
+      if (trimmedUsername) {
+        const parsed = usernameSchema.safeParse(trimmedUsername);
+        if (!parsed.success) {
+          toast({ title: "Invalid username", description: parsed.error.issues[0]?.message || "Please use only letters, numbers, underscores, and hyphens", variant: "destructive" });
+          setSaving(false);
+          return;
+        }
+        updateData.username = parsed.data;
+      }
+
+      if (profile.producer_name) updateData.producer_name = profile.producer_name.trim();
       if (profile.bio !== undefined) updateData.bio = profile.bio;
       if (profile.home_town !== undefined) updateData.home_town = profile.home_town;
       if (profile.genres !== undefined) updateData.genres = profile.genres;
