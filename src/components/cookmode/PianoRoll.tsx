@@ -90,8 +90,8 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
           
           // Root note is D#4 (MIDI 63) - sample plays at normal pitch here
           const rootPitch = 63; // D#4
-          const startPitch = 39; // D#2 (2 octaves below)
-          const endPitch = 87; // D#6 (2 octaves above)
+          const startPitch = 15; // Extend down 2 octaves from original 39
+          const endPitch = 111; // Extend up 2 octaves from original 87
           
           // Clear existing samples
           samplersRef.current.forEach(player => player.dispose());
