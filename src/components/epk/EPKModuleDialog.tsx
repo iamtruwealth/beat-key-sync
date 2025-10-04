@@ -342,22 +342,25 @@ export function EPKModuleDialog({
 
                     const currentPhotos = moduleData.photos || [];
                     const uploadedUrls: string[] = [];
+                    const errors: string[] = [];
+
+                    setSaving(true);
 
                     for (const file of files) {
                       const fileExt = file.name.split('.').pop();
-                      const fileName = `${Math.random()}.${fileExt}`;
+                      const fileName = `${Date.now()}-${Math.random()}.${fileExt}`;
                       const filePath = `press_photos/${fileName}`;
 
                       const { error: uploadError } = await supabase.storage
                         .from('artwork')
-                        .upload(filePath, file);
+                        .upload(filePath, file, {
+                          cacheControl: '3600',
+                          upsert: false
+                        });
 
                       if (uploadError) {
-                        toast({
-                          title: "Upload Failed",
-                          description: `Failed to upload ${file.name}`,
-                          variant: "destructive",
-                        });
+                        console.error('Upload error:', uploadError);
+                        errors.push(`${file.name}: ${uploadError.message}`);
                         continue;
                       }
 
@@ -368,15 +371,30 @@ export function EPKModuleDialog({
                       uploadedUrls.push(publicUrl);
                     }
 
-                    setModuleData({ 
-                      ...moduleData, 
-                      photos: [...currentPhotos, ...uploadedUrls] 
-                    });
+                    setSaving(false);
 
-                    toast({
-                      title: "Photos Uploaded",
-                      description: `${uploadedUrls.length} photo(s) uploaded successfully`,
-                    });
+                    if (uploadedUrls.length > 0) {
+                      setModuleData({ 
+                        ...moduleData, 
+                        photos: [...currentPhotos, ...uploadedUrls] 
+                      });
+
+                      toast({
+                        title: "Photos Uploaded",
+                        description: `${uploadedUrls.length} photo(s) uploaded successfully`,
+                      });
+                    }
+
+                    if (errors.length > 0) {
+                      toast({
+                        title: "Upload Errors",
+                        description: errors.join('\n'),
+                        variant: "destructive",
+                      });
+                    }
+
+                    // Reset the input
+                    e.target.value = '';
                   }}
                 />
               </div>
