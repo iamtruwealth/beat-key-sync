@@ -266,7 +266,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
           <div
             ref={containerRef}
             id={containerId}
-            className="w-full h-full relative z-10"
+            className="absolute inset-0 z-30 pointer-events-none transform-gpu"
           />
 
           {/* Trim overlays */}
@@ -281,13 +281,13 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
               <>
                 {leftPct > 0 && (
                   <div
-                    className="pointer-events-none absolute top-0 left-0 h-full bg-background/60 border-r border-border/40"
+                    className="pointer-events-none absolute top-0 left-0 h-full z-10 bg-background/60 border-r border-border/40"
                     style={{ width: `${leftPct}%` }}
                   />
                 )}
                 {rightPct > 0 && (
                   <div
-                    className="pointer-events-none absolute top-0 right-0 h-full bg-background/60 border-l border-border/40"
+                    className="pointer-events-none absolute top-0 right-0 h-full z-10 bg-background/60 border-l border-border/40"
                     style={{ width: `${rightPct}%` }}
                   />
                 )}
