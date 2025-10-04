@@ -30,6 +30,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface PaperworkDashboardProps {
   splitSheets: any[];
@@ -225,63 +231,86 @@ export function PaperworkDashboard({ splitSheets, onRefresh, onEdit }: Paperwork
                   </div>
                   
                   {/* Actions */}
-                  <div className="flex gap-1">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => onEdit(splitSheet)}
-                      className="flex-1"
-                    >
-                      <Eye className="w-3 h-3 mr-1" />
-                      View
-                    </Button>
-                    
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleDownload(splitSheet)}
-                    >
-                      <Download className="w-3 h-3" />
-                    </Button>
-                    
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleSend(splitSheet)}
-                    >
-                      <Send className="w-3 h-3" />
-                    </Button>
-                    
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete Split Sheet</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Are you sure you want to delete "{splitSheet.song_title}"? 
-                            This action cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => handleDelete(splitSheet.id)}
-                            className="bg-red-600 hover:bg-red-700"
+                  <TooltipProvider>
+                    <div className="flex gap-1">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onEdit(splitSheet)}
+                        className="flex-1"
+                      >
+                        <Eye className="w-3 h-3 mr-1" />
+                        View
+                      </Button>
+                      
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleDownload(splitSheet)}
                           >
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
+                            <Download className="w-3 h-3" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Download PDF (View to generate)</p>
+                        </TooltipContent>
+                      </Tooltip>
+                      
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleSend(splitSheet)}
+                          >
+                            <Send className="w-3 h-3" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Email PDF (View to send)</p>
+                        </TooltipContent>
+                      </Tooltip>
+                      
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Split Sheet</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete "{splitSheet.song_title}"? 
+                                  This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDelete(splitSheet.id)}
+                                  className="bg-red-600 hover:bg-red-700"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Delete split sheet</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                  </TooltipProvider>
                 </CardContent>
               </Card>
             );
