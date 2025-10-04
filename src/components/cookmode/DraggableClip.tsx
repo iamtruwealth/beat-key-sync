@@ -207,22 +207,20 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
     
     if (isDragging) {
       const newStartTime = Math.max(0, dragStart.startTime + deltaTime);
-      const snappedStartTime = snapToGrid(newStartTime);
-      const newLeft = snappedStartTime * pixelsPerSecond;
+      const newLeft = newStartTime * pixelsPerSecond; // live preview without snap
       setUiLeftPx(newLeft);
       if (clipRef.current) {
         clipRef.current.style.left = `${newLeft}px`;
       }
     } else if (isTrimming && fullDuration > 0) {
       const rawTime = Math.max(0, Math.min(fullDuration, dragStart.startTime + deltaTime));
-      const snappedTime = snapToGrid(rawTime);
-      
+      // live preview without snap
       let tempTrimStart = trimStart;
       let tempTrimEnd = trimEnd;
       if (isTrimming === 'start') {
-        tempTrimStart = Math.min(snappedTime, trimEnd - 0.1);
+        tempTrimStart = Math.min(rawTime, trimEnd - 0.1);
       } else {
-        tempTrimEnd = Math.max(snappedTime, trimStart + 0.1);
+        tempTrimEnd = Math.max(rawTime, trimStart + 0.1);
       }
       const tempWidthPx = Math.max(4, (tempTrimEnd - tempTrimStart) * pixelsPerSecond);
       // Live visual feedback: keep the non-dragged edge fixed
