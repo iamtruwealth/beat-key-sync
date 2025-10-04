@@ -196,6 +196,11 @@ export class SessionLoopEngine {
 
   async start() {
     console.log('[SessionLoopEngine] start() called - BEGIN');
+    
+    // CRITICAL: Ensure Tone.js context is started (requires user gesture)
+    await Tone.start();
+    console.log('[SessionLoopEngine] Tone.start() completed');
+    
     await this.initialize();
     console.log('[SessionLoopEngine] Initialized, current Transport state:', Tone.Transport.state);
     
