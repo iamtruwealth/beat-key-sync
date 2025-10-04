@@ -11,6 +11,7 @@ import SubscriptionAnalytics from "@/components/epk/SubscriptionAnalytics";
 import { ExclusiveContentManager } from "@/components/epk/ExclusiveContentManager";
 import { WelcomeMessageManager } from "@/components/epk/WelcomeMessageManager";
 import { EPKSettings } from "@/components/epk/EPKSettings";
+import { PaymentMethodsManager } from "@/components/artist/PaymentMethodsManager";
 import { 
   Bell, 
   MessageSquare, 
@@ -317,18 +318,7 @@ export default function ArtistDashboard() {
           </div>
 
           {/* Payment Method Info */}
-          <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800">
-            <div className="flex items-start gap-3">
-              <BarChart3 className="w-5 h-5 text-blue-600 mt-0.5" />
-              <div>
-                <h4 className="font-medium text-blue-900 dark:text-blue-100">Payment Information</h4>
-                <p className="text-sm text-blue-800 dark:text-blue-200 mt-1">
-                  Payments are processed monthly. Request a payout when your balance reaches $10 or more.
-                  Available payout methods: PayPal, Bank Transfer, Stripe, CashApp, Venmo, Zelle.
-                </p>
-              </div>
-            </div>
-          </div>
+          <PaymentMethodsManager />
         </CardContent>
       </Card>
 

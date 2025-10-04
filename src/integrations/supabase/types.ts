@@ -101,6 +101,39 @@ export type Database = {
         }
         Relationships: []
       }
+      artist_payment_methods: {
+        Row: {
+          account_details: Json
+          artist_id: string
+          created_at: string | null
+          id: string
+          is_primary: boolean | null
+          is_verified: boolean | null
+          payment_method: string
+          updated_at: string | null
+        }
+        Insert: {
+          account_details?: Json
+          artist_id: string
+          created_at?: string | null
+          id?: string
+          is_primary?: boolean | null
+          is_verified?: boolean | null
+          payment_method: string
+          updated_at?: string | null
+        }
+        Update: {
+          account_details?: Json
+          artist_id?: string
+          created_at?: string | null
+          id?: string
+          is_primary?: boolean | null
+          is_verified?: boolean | null
+          payment_method?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       audio_analysis_jobs: {
         Row: {
           bpm: number | null
