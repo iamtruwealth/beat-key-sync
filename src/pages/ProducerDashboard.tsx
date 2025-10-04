@@ -244,18 +244,20 @@ export default function ProducerDashboard() {
       collaboratorsCount = uniqueCollaborators.size;
     }
 
-    // Studio time (sum of session durations)
+    // Studio time (sum of all Cook Mode session durations - completed and ongoing)
     const { data: sessions } = await supabase
       .from('collaboration_sessions')
       .select('started_at, ended_at')
-      .contains('participants', [currentUser.id])
-      .not('ended_at', 'is', null);
+      .contains('participants', [currentUser.id]);
 
     let totalMinutes = 0;
+    const now = Date.now();
+    
     sessions?.forEach(session => {
-      if (session.started_at && session.ended_at) {
+      if (session.started_at) {
         const start = new Date(session.started_at).getTime();
-        const end = new Date(session.ended_at).getTime();
+        // If session is ongoing (no ended_at), calculate up to now
+        const end = session.ended_at ? new Date(session.ended_at).getTime() : now;
         totalMinutes += (end - start) / (1000 * 60);
       }
     });
