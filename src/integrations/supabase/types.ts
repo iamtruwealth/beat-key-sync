@@ -2412,6 +2412,7 @@ export type Database = {
       get_public_artist_profiles: {
         Args: Record<PropertyKey, never>
         Returns: {
+          artist_name: string
           bio: string
           epk_slug: string
           genres: string[]

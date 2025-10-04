@@ -13,6 +13,7 @@ import { FaTwitter, FaSoundcloud, FaSpotify, FaTiktok } from "react-icons/fa";
 interface Artist {
   id: string;
   username: string;
+  artist_name: string;
   producer_name: string;
   producer_logo_url: string;
   verification_status: string;
@@ -151,7 +152,7 @@ export default function BrowseArtists() {
                     {artist.producer_logo_url ? (
                       <img
                         src={artist.producer_logo_url}
-                        alt={artist.producer_name}
+                        alt={artist.artist_name || artist.producer_name || "Artist"}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
                     ) : (
@@ -171,7 +172,7 @@ export default function BrowseArtists() {
 
                   <div className="p-6">
                     <h3 className="text-xl font-bold mb-1 group-hover:text-primary transition-colors">
-                      {artist.producer_name}
+                      {artist.artist_name || artist.producer_name || "Unknown Artist"}
                     </h3>
 
                     {artist.hometown && (
