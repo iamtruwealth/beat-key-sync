@@ -1031,7 +1031,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           </div>
 
           {/* Timeline Area */}
-          <div className="flex-1 relative overflow-x-auto" ref={timelineRef} data-build={TIMELINE_BUILD}>
+          <div className="flex-1 relative overflow-x-auto overflow-y-auto" ref={timelineRef} data-build={TIMELINE_BUILD}>
             {/* Ruler */}
             <div className="h-[63.5px] bg-black/40 border-b border-white/10 relative">
               {/* Beat grid lines spanning all tracks */}
