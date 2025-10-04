@@ -863,7 +863,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         {/* Main Timeline Area */}
         <div className="flex flex-1 overflow-hidden">
           {/* Track Names Sidebar */}
-          <div className="w-48 bg-black/60 border-r border-white/10 flex flex-col">
+          <div className="w-48 bg-black/60 border-r border-white/10 flex flex-col overflow-y-auto">
             {/* Master Volume */}
             <div className="h-[127px] flex flex-col justify-center p-3 border-b border-white/10">
               <div className="flex items-center justify-between mb-2">
