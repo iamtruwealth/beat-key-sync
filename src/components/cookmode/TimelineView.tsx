@@ -17,9 +17,11 @@ import { DraggableClip } from './DraggableClip';
 import { TrackMidiController } from './TrackMidiController';
 import { undoManager, ActionType, createMoveAction } from '@/lib/UndoManager';
 import { PianoRoll } from './PianoRoll';
-import { TrackMode } from '@/types/pianoRoll';
+import { TrackMode, PianoRollNote, SampleTrigger } from '@/types/pianoRoll';
 import { Music } from 'lucide-react';
 import { sessionLoopEngine } from '@/lib/sessionLoopEngine';
+import { PianoRollNoteVisualizer } from './PianoRollNoteVisualizer';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Track {
   id: string;
@@ -101,6 +103,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const [armedTracks, setArmedTracks] = useState<Set<string>>(new Set());
   const [pianoRollOpen, setPianoRollOpen] = useState(false);
   const [pianoRollTrack, setPianoRollTrack] = useState<{ id: string; name: string; mode: TrackMode; sampleUrl?: string } | null>(null);
+  const [trackNotes, setTrackNotes] = useState<Map<string, { notes: PianoRollNote[]; triggers: SampleTrigger[] }>>(new Map());
   const { toast } = useToast();
 
   // Broadcast piano roll state changes
@@ -113,6 +116,117 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       sampleUrl: pianoRollTrack?.sampleUrl,
     });
   }, [pianoRollOpen, pianoRollTrack, onPianoRollStateChange]);
+
+  // Load piano roll notes for all tracks
+  React.useEffect(() => {
+    const loadTrackNotes = async () => {
+      for (const track of tracks) {
+        const { data, error } = await supabase
+          .from('track_midi_notes')
+          .select('*')
+          .eq('track_id', track.id);
+
+        if (error) {
+          console.error('Error loading piano roll notes:', error);
+          continue;
+        }
+
+        if (data && data.length > 0) {
+          const notes: PianoRollNote[] = [];
+          const triggers: SampleTrigger[] = [];
+
+          data.forEach(dbNote => {
+            if (dbNote.note_type === 'note') {
+              notes.push({
+                id: dbNote.id,
+                pitch: dbNote.pitch,
+                startTime: dbNote.start_time,
+                duration: dbNote.duration,
+                velocity: dbNote.velocity,
+              });
+            } else {
+              triggers.push({
+                id: dbNote.id,
+                pitch: dbNote.pitch,
+                startTime: dbNote.start_time,
+                velocity: dbNote.velocity,
+                duration: dbNote.duration,
+              });
+            }
+          });
+
+          setTrackNotes(prev => new Map(prev.set(track.id, { notes, triggers })));
+        }
+      }
+    };
+
+    if (tracks.length > 0) {
+      loadTrackNotes();
+    }
+  }, [tracks]);
+
+  // Listen for realtime piano roll note changes
+  React.useEffect(() => {
+    const channel = supabase
+      .channel('timeline-piano-roll-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'track_midi_notes',
+        },
+        (payload) => {
+          console.log('Piano roll note change:', payload);
+          const note = payload.new as any;
+          
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            setTrackNotes(prev => {
+              const existing = prev.get(note.track_id) || { notes: [], triggers: [] };
+              
+              if (note.note_type === 'note') {
+                const noteData: PianoRollNote = {
+                  id: note.id,
+                  pitch: note.pitch,
+                  startTime: note.start_time,
+                  duration: note.duration,
+                  velocity: note.velocity,
+                };
+                const filtered = existing.notes.filter(n => n.id !== note.id);
+                return new Map(prev.set(note.track_id, { ...existing, notes: [...filtered, noteData] }));
+              } else {
+                const triggerData: SampleTrigger = {
+                  id: note.id,
+                  pitch: note.pitch,
+                  startTime: note.start_time,
+                  velocity: note.velocity,
+                  duration: note.duration,
+                };
+                const filtered = existing.triggers.filter(t => t.id !== note.id);
+                return new Map(prev.set(note.track_id, { ...existing, triggers: [...filtered, triggerData] }));
+              }
+            });
+          } else if (payload.eventType === 'DELETE') {
+            const oldNote = payload.old as any;
+            setTrackNotes(prev => {
+              const existing = prev.get(oldNote.track_id);
+              if (!existing) return prev;
+              
+              const updated = {
+                notes: existing.notes.filter(n => n.id !== oldNote.id),
+                triggers: existing.triggers.filter(t => t.id !== oldNote.id),
+              };
+              return new Map(prev.set(oldNote.track_id, updated));
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
 
   // Calculate timing constants with precise BPM
@@ -1135,6 +1249,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
               {tracks.map((track, index) => {
                 const trackY = index * 127;
                 const trackHeight = 115;
+                const trackNotesData = trackNotes.get(track.id);
                 
                 console.log('Rendering track', index, ':', track.name, '(ID:', track.id, ')');
                 
@@ -1143,7 +1258,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                     key={track.id}
                     className={`relative border-b border-white/10 transition-all duration-200 ${
                       selectedTrack === track.id 
-                        ? 'border-neon-cyan shadow-[0_0_15px_rgba(0,255,255,0.3)]' 
+                        ? 'border-neon-cyan shadow-[0_0_15px_rgba(0,255,255,0.3)]'
                         : ''
                     }`}
                     style={{ height: trackHeight }}
@@ -1156,6 +1271,18 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                       trackHeight={trackHeight}
                       trackIndex={index}
                     />
+                    {trackNotesData && (
+                      <PianoRollNoteVisualizer
+                        trackId={track.id}
+                        notes={trackNotesData.notes || []}
+                        triggers={trackNotesData.triggers || []}
+                        mode={track.mode || 'sample'}
+                        bpm={bpm}
+                        pixelsPerSecond={pixelsPerSecond}
+                        currentTime={currentTime}
+                        isPlaying={isPlaying}
+                      />
+                    )}
                   </div>
                 );
               })}

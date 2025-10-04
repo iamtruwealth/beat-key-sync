@@ -25,6 +25,7 @@ import { GhostUI } from '@/components/cookmode/GhostUI';
 import { useGhostUIBroadcast } from '@/hooks/useGhostUIBroadcast';
 import { useAudioBroadcast } from '@/hooks/useAudioBroadcast';
 import { sessionLoopEngine } from '@/lib/sessionLoopEngine';
+import { PianoRoll } from '@/components/cookmode/PianoRoll';
 // import { useWebRTCAudioStream } from '@/hooks/useWebRTCAudioStream'; // Disabled until HLS server deployed
 import { AudioStreamIndicator } from '@/components/cookmode/AudioStreamIndicator';
 import { useMuxAudioStream } from '@/hooks/useMuxAudioStream';
@@ -1047,6 +1048,25 @@ const CookMode = () => {
           </div>
         </div>
       </div>
+
+      {/* Piano Roll Dialog */}
+      {pianoRollState.isOpen && pianoRollState.trackId && pianoRollState.trackName && pianoRollState.mode && (
+        <PianoRoll
+          isOpen={pianoRollState.isOpen}
+          onClose={() => setPianoRollState({ isOpen: false })}
+          trackId={pianoRollState.trackId}
+          trackName={pianoRollState.trackName}
+          trackMode={pianoRollState.mode}
+          trackSampleUrl={pianoRollState.sampleUrl}
+          sessionBpm={session?.target_bpm || 120}
+          sessionIsPlaying={isPlaying}
+          sessionCurrentTime={currentTime}
+          onToggleSessionPlayback={permissions.canEdit ? handleTogglePlayback : undefined}
+          onStopSession={permissions.canEdit ? () => seekTo(0) : undefined}
+          onHardStop={permissions.canEdit ? handleHardStop : undefined}
+          sessionId={sessionId}
+        />
+      )}
     </div>
   );
 };

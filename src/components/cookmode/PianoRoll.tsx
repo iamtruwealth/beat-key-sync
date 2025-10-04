@@ -329,6 +329,21 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
     }
   };
 
+  const handleDeleteNote = async (noteId: string) => {
+    if (!trackId || !activeTrack) return;
+    
+    const note = activeTrack.notes.find(n => n.id === noteId);
+    const trigger = activeTrack.triggers.find(t => t.id === noteId);
+    
+    if (trackMode === 'midi' && note) {
+      deleteNote(trackId, noteId);
+      deleteFromDB(note.pitch, note.startTime);
+    } else if (trackMode === 'sample' && trigger) {
+      deleteTrigger(trackId, noteId);
+      deleteFromDB(trigger.pitch, trigger.startTime);
+    }
+  };
+
   // Load sample for a pitch
   const handleLoadSample = async (pitch: number) => {
     const input = document.createElement('input');
@@ -501,8 +516,8 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
               selectedNotes={state.selectedNotes}
               onAddNote={trackMode === 'midi' ? handleAddNote : undefined}
               onAddTrigger={trackMode === 'sample' ? handleAddNote : undefined}
-              onDeleteNote={trackMode === 'midi' ? (id) => deleteNote(trackId, id) : undefined}
-              onDeleteTrigger={trackMode === 'sample' ? (id) => deleteTrigger(trackId, id) : undefined}
+              onDeleteNote={trackMode === 'midi' ? handleDeleteNote : undefined}
+              onDeleteTrigger={trackMode === 'sample' ? handleDeleteNote : undefined}
               onUpdateNote={(id, updates) => updateNote(trackId, id, updates)}
               onSelectNotes={selectNotes}
               onClearSelection={clearSelection}
