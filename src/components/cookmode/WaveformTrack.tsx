@@ -70,6 +70,8 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
   const waveSurferRef = useRef<WaveSurfer | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const lastProgressRef = useRef<number>(-1);
 
   const track = clip.originalTrack;
   const clipDuration = clip.endTime - clip.startTime;
@@ -175,30 +177,41 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
   useEffect(() => {
     if (!waveSurferRef.current || !isLoaded) return;
 
-    try {
-      const fullDuration = clip.fullDuration || clip.originalTrack.analyzed_duration || clip.originalTrack.duration || clipDuration;
-      const startOffset = Math.max(0, clip.trimStart ?? 0);
-      const endOffset = Math.min(fullDuration, clip.trimEnd ?? fullDuration);
-      const trimmedDuration = Math.max(0.01, endOffset - startOffset);
+    // rAF-throttle and avoid redundant seeks to reduce layout churn
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => {
+      try {
+        const fullDuration = clip.fullDuration || clip.originalTrack.analyzed_duration || clip.originalTrack.duration || clipDuration;
+        const startOffset = Math.max(0, clip.trimStart ?? 0);
+        const endOffset = Math.min(fullDuration, clip.trimEnd ?? fullDuration);
+        const trimmedDuration = Math.max(0.01, endOffset - startOffset);
 
-      const relativeTime = currentTime - clip.startTime;
-      
-      if (relativeTime >= 0 && relativeTime <= clipDuration) {
-        const progress = relativeTime / clipDuration;
-        const audioTime = startOffset + (progress * trimmedDuration);
-        const audioProgress = Math.max(0, Math.min(1, audioTime / fullDuration));
-        waveSurferRef.current.seekTo(audioProgress);
-      } else if (currentTime < clip.startTime) {
-        const audioProgress = Math.max(0, Math.min(1, startOffset / fullDuration));
-        waveSurferRef.current.seekTo(audioProgress);
-      } else {
-        const audioProgress = Math.max(0, Math.min(1, endOffset / fullDuration));
-        waveSurferRef.current.seekTo(audioProgress);
+        const relativeTime = currentTime - clip.startTime;
+        let audioProgress = 0;
+        if (relativeTime >= 0 && relativeTime <= clipDuration) {
+          const progress = relativeTime / clipDuration;
+          const audioTime = startOffset + (progress * trimmedDuration);
+          audioProgress = Math.max(0, Math.min(1, audioTime / fullDuration));
+        } else if (currentTime < clip.startTime) {
+          audioProgress = Math.max(0, Math.min(1, startOffset / fullDuration));
+        } else {
+          audioProgress = Math.max(0, Math.min(1, endOffset / fullDuration));
+        }
+
+        if (Math.abs(audioProgress - (lastProgressRef.current ?? -1)) > 0.002) {
+          waveSurferRef.current!.seekTo(audioProgress);
+          lastProgressRef.current = audioProgress;
+        }
+      } catch (err) {
+        console.error('Error updating WaveSurfer playhead:', err);
       }
-    } catch (err) {
-      console.error('Error updating WaveSurfer playhead:', err);
-    }
-  }, [currentTime, isPlaying, clip.startTime, clip.endTime, clipDuration, isLoaded, clip.fullDuration, clip.trimStart, clip.trimEnd]);
+    });
+
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    };
+  }, [currentTime, clip.startTime, clip.endTime, clipDuration, isLoaded, clip.fullDuration, clip.trimStart, clip.trimEnd]);
 
   // Update visual opacity and colors based on mute state
   useEffect(() => {
