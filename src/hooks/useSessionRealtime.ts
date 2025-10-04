@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { RealtimeChannel } from '@supabase/supabase-js';
+import { createChannelName } from '@/lib/realtimeChannels';
 
 interface RealtimeParticipant {
   user_id: string;
@@ -29,10 +30,11 @@ export const useSessionRealtime = (sessionId: string | null) => {
   useEffect(() => {
     if (!sessionId) return;
 
-    console.log('🔄 Setting up real-time channel for session:', sessionId);
+    const channelName = createChannelName(`cook-mode-${sessionId}`);
+    console.log('🔄 Setting up real-time channel for session:', sessionId, 'channel:', channelName);
 
     // Create channel for this session
-    const sessionChannel = supabase.channel(`cook-mode-${sessionId}`, {
+    const sessionChannel = supabase.channel(channelName, {
       config: {
         presence: {
           key: sessionId,

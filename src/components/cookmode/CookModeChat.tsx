@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
+import { createChannelName } from '@/lib/realtimeChannels';
 import { Send, Mic, MicOff, Volume2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
@@ -84,8 +85,9 @@ export const CookModeChat: React.FC<CookModeChatProps> = ({ sessionId }) => {
   };
 
   const setupRealtimeSubscription = () => {
+    const channelName = createChannelName(`chat-${sessionId}`);
     const channel = supabase
-      .channel(`chat-${sessionId}`)
+      .channel(channelName)
       .on(
         'postgres_changes',
         {

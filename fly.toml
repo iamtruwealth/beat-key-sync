@@ -1,0 +1,36 @@
+# fly.toml - Beat Key Sync Fly.io deployment
+
+app = "beat-key-sync"
+primary_region = "dfw"  # Dallas, change if needed
+
+[build]
+  # Use your existing Dockerfile
+  dockerfile = "Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  VITE_SUPABASE_URL = "https://lascsucrozzhbvlsddxg.supabase.co"
+  VITE_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxhc2NzdWNyb3p6aGJ2bHNkZHhnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgxNTk5MDcsImV4cCI6MjA3MzczNTkwN30.DBNHTepFB_xFlBXBTSDZKh58d4dG1inM6mbXnfyuwlY"
+
+[experimental]
+  auto_rollback = true
+
+[deploy]
+  release_command = "npm run build"
+
+[[services]]
+  internal_port = 4173  # Vite production preview port
+  protocol = "tcp"
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+  [services.concurrency]
+    type = "connections"
+    hard_limit = 25
+    soft_limit = 20

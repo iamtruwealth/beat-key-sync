@@ -32,6 +32,16 @@ export class SessionLoopEngine {
       // Create a MediaStreamDestination to mirror the session mix for viewers
       const raw = Tone.getContext().rawContext as AudioContext;
       this.mediaStreamDest = raw.createMediaStreamDestination();
+      try {
+        const toneDest: any = (Tone as any).getDestination?.();
+        if (toneDest && this.mediaStreamDest) {
+          // Connect master output to MediaStreamDestination so the full mix is captured
+          // @ts-ignore Tone Destination can connect to native AudioNode
+          toneDest.connect(this.mediaStreamDest);
+        }
+      } catch (e) {
+        console.warn('Could not mirror Tone Destination to MediaStreamDestination:', e);
+      }
       this.isInitialized = true;
       console.log('SessionLoopEngine initialized successfully');
     } catch (error) {
@@ -185,18 +195,30 @@ export class SessionLoopEngine {
   }
 
   async start() {
+    console.log('[SessionLoopEngine] start() called - BEGIN');
+    
+    // CRITICAL: Ensure Tone.js context is started (requires user gesture)
+    await Tone.start();
+    console.log('[SessionLoopEngine] Tone.start() completed');
+    
     await this.initialize();
+    console.log('[SessionLoopEngine] Initialized, current Transport state:', Tone.Transport.state);
     
     try {
       // If resuming from pause, keep current position; otherwise start from beginning
       if (Tone.Transport.state !== 'paused') {
+        console.log('[SessionLoopEngine] Not paused, resetting to position 0');
         Tone.Transport.position = 0;
+      } else {
+        console.log('[SessionLoopEngine] Resuming from pause at position:', Tone.Transport.position);
       }
+      console.log('[SessionLoopEngine] About to call Transport.start');
       Tone.Transport.start("+0.05");
+      console.log('[SessionLoopEngine] Transport.start called, new state:', Tone.Transport.state);
       this.startTransportTicker();
-      console.log('Session playback started');
+      console.log('[SessionLoopEngine] Session playback started successfully');
     } catch (error) {
-      console.error('Failed to start session playback:', error);
+      console.error('[SessionLoopEngine] Failed to start session playback:', error);
       throw error;
     }
   }
@@ -215,10 +237,25 @@ export class SessionLoopEngine {
   }
 
   seek(seconds: number) {
-    const loopLenSec = Tone.Time(Tone.Transport.loopEnd).toSeconds();
-    const clampedSeconds = Math.min(Math.max(seconds, 0), loopLenSec - 0.0001);
-    Tone.Transport.seconds = clampedSeconds;
-    console.log(`Seeked to ${clampedSeconds} seconds`);
+    if (!this.isInitialized) {
+      console.warn('Cannot seek: SessionLoopEngine not initialized');
+      return;
+    }
+
+    try {
+      // Ensure Transport is ready
+      if (!Tone.Transport || Tone.Transport.state === 'stopped' && !Tone.Transport.loopEnd) {
+        console.warn('Transport not ready for seek operation');
+        return;
+      }
+
+      const loopLenSec = Tone.Time(Tone.Transport.loopEnd).toSeconds();
+      const clampedSeconds = Math.min(Math.max(seconds, 0), loopLenSec - 0.0001);
+      Tone.Transport.seconds = clampedSeconds;
+      console.log(`Seeked to ${clampedSeconds} seconds`);
+    } catch (error) {
+      console.error('Error during seek:', error);
+    }
   }
 
   updateClipGain(clipId: string, gain: number) {

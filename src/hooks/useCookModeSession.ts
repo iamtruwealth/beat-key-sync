@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
+import { createChannelName } from '@/lib/realtimeChannels';
 
 interface Track {
   id: string;
@@ -73,10 +74,11 @@ export function useCookModeSession(sessionId?: string) {
     if (!sessionId || !isValidUUID(sessionId)) return;
 
     const setupRealtime = async () => {
-      console.log('🔗 Setting up realtime for session:', sessionId);
+      const channelName = createChannelName(`cook-mode-${sessionId}`);
+      console.log('🔗 Setting up realtime for session:', sessionId, 'channel:', channelName);
       try {
         // Join realtime channel for this session
-        const channel = supabase.channel(`cook-mode-${sessionId}`)
+        const channel = supabase.channel(channelName)
           .on('presence', { event: 'sync' }, () => {
             console.log('🔗 Presence sync event');
             const newState = channel.presenceState();
@@ -379,10 +381,14 @@ export function useCookModeSession(sessionId?: string) {
   }, [isPlaying]);
 
   const togglePlayback = useCallback(() => {
+    console.log('[useCookModeSession] togglePlayback called - START');
     const newIsPlaying = !isPlaying;
+    console.log('[useCookModeSession] Toggling from', isPlaying, 'to', newIsPlaying);
     setIsPlaying(newIsPlaying);
+    console.log('[useCookModeSession] State set to', newIsPlaying);
     
     if (channelRef.current) {
+      console.log('[useCookModeSession] Broadcasting to channel');
       channelRef.current.send({
         type: 'broadcast',
         event: 'playback-control',
@@ -391,7 +397,10 @@ export function useCookModeSession(sessionId?: string) {
           currentTime: currentTime
         }
       });
+    } else {
+      console.warn('[useCookModeSession] No channel to broadcast to');
     }
+    console.log('[useCookModeSession] togglePlayback called - END');
   }, [isPlaying, currentTime]);
 
   const seekTo = useCallback((time: number) => {
