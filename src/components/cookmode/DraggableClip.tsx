@@ -132,6 +132,9 @@ const DraggableClipComponent: React.FC<DraggableClipProps> = ({
     if (clipRef.current) {
       clipRef.current.style.setProperty('--drag-dx', '0px');
     }
+    // Attach listeners immediately to avoid missing early moves
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
   }, [clip.id, clip.startTime]);
 
   // Handle mouse down for trim handles
@@ -263,6 +266,9 @@ const DraggableClipComponent: React.FC<DraggableClipProps> = ({
       }
       setIsTrimming(null);
     }
+    // Always cleanup listeners
+    document.removeEventListener('mousemove', handleMouseMove);
+    document.removeEventListener('mouseup', handleMouseUp);
   }, [isDragging, isTrimming, dragStart, pixelsPerSecond, snapToGrid, clip.id, clip.startTime, onClipMove, clip.originalTrack.id, trimStart, trimEnd, fullDuration, onTrimClip]);
 
   // Add global mouse event listeners
