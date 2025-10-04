@@ -90,8 +90,8 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
           
           // Root note is D#4 (MIDI 63) - sample plays at normal pitch here
           const rootPitch = 63; // D#4
-          const startPitch = 15; // Extend down 2 octaves from original 39
-          const endPitch = 111; // Extend up 2 octaves from original 87
+          const startPitch = 14; // D0
+          const endPitch = 111;
           
           // Clear existing samples
           samplersRef.current.forEach(player => player.dispose());
@@ -396,7 +396,7 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
           
           <div className="flex flex-1 min-h-0 overflow-auto">
             <PianoRollKeyboard
-              startNote={15}
+              startNote={14}
               endNote={111}
               noteHeight={17}
               onKeyClick={handleKeyClick}
@@ -409,7 +409,7 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
               notes={activeTrack?.notes || []}
               triggers={activeTrack?.triggers || []}
               snapGrid={state.snapGrid}
-              startNote={15}
+              startNote={14}
               endNote={111}
               noteHeight={17}
               beatsPerBar={4}
