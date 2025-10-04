@@ -368,22 +368,5 @@ const DraggableClipComponent: React.FC<DraggableClipProps> = ({
   );
 };
 
-// Memoize to prevent parent rerenders from resetting drag state
-export const DraggableClip = React.memo(DraggableClipComponent, (prev, next) => {
-  // During drag, freeze all updates except currentTime for playhead
-  if (prev.clip.id !== next.clip.id) return false;
-  if (prev.pixelsPerSecond !== next.pixelsPerSecond) return false;
-  if (prev.trackHeight !== next.trackHeight) return false;
-  if (prev.secondsPerBeat !== next.secondsPerBeat) return false;
-  
-  // Allow currentTime updates for playhead, but freeze clip position during drag
-  if (Math.abs(prev.currentTime - next.currentTime) > 0.01) return false;
-  
-  // Only rerender if clip position/trim actually changed
-  if (prev.clip.startTime !== next.clip.startTime) return false;
-  if (prev.clip.trimStart !== next.clip.trimStart) return false;
-  if (prev.clip.trimEnd !== next.clip.trimEnd) return false;
-  if (prev.isPlaying !== next.isPlaying) return false;
-  
-  return true; // Skip rerender
-});
+// Memoize to prevent parent rerenders from interrupting drag state
+export const DraggableClip = React.memo(DraggableClipComponent);
