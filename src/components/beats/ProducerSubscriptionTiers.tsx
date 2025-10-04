@@ -76,7 +76,10 @@ export function ProducerSubscriptionTiers({ producerId }: ProducerSubscriptionTi
     }
   };
 
+  console.log('[ProducerSubscriptionTiers] Render - loading:', loading, 'tiers.length:', tiers.length, 'tiers:', tiers);
+
   if (loading) {
+    console.log('[ProducerSubscriptionTiers] Rendering loading state');
     return (
       <div className="flex justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -85,9 +88,11 @@ export function ProducerSubscriptionTiers({ producerId }: ProducerSubscriptionTi
   }
 
   if (tiers.length === 0) {
+    console.log('[ProducerSubscriptionTiers] No tiers, returning null');
     return null;
   }
 
+  console.log('[ProducerSubscriptionTiers] Rendering subscription tiers section');
   return (
     <section className="space-y-6">
       <div>
