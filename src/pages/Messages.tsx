@@ -104,7 +104,7 @@ export default function MessagesPage() {
             user_name: partnerName,
             last_message: message.content,
             last_message_time: message.created_at,
-            unread_count: 0 // TODO: Implement unread count logic
+            unread_count: message.read_at === null && message.recipient_id === userId ? 1 : 0
           });
         }
       });

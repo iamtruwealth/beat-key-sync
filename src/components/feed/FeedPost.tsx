@@ -227,8 +227,7 @@ export function FeedPost({
     if (!beatData) return;
     if (beatData.is_free) {
       if (!currentUser) return toast.error('Please sign in to download');
-      toast.success('Free download started!');
-      // TODO: Implement actual download
+      toast.success('Free download - contact producer for file');
     } else {
       if (!currentUser) return toast.error('Please sign in to purchase');
       await addToCart({

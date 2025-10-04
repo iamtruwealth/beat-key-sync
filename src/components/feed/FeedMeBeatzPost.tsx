@@ -289,8 +289,7 @@ export function FeedMeBeatzPost({
         return;
       }
       
-      toast.success('Free download started!');
-      // TODO: Implement actual download functionality
+      toast.success('Free download - contact producer for file');
     } else {
       // Handle paid beat - add to cart
       if (!currentUser) {

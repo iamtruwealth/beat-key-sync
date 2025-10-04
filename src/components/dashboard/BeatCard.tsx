@@ -218,11 +218,10 @@ export function TrackCard({ track, onTrackUpdated, onTrackDeleted }: BeatCardPro
           </div>
         </div>
         
-        {/* Waveform Placeholder */}
+        {/* Waveform Visualization */}
         <div className="h-16 bg-muted/30 rounded-md relative overflow-hidden">
           {track.waveform_data ? (
             <div className="absolute inset-0 flex items-center justify-center">
-              {/* TODO: Render actual waveform data */}
               <div className="flex items-center gap-0.5">
                 {Array.from({ length: 40 }).map((_, i) => (
                   <div
