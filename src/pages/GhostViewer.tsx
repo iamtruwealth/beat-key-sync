@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { GhostUI } from '@/components/cookmode/GhostUI';
-import { GhostCursor } from '@/components/cookmode/GhostCursor';
 import { CookModeDAW } from '@/components/cookmode/CookModeDAW';
 import { PianoRoll } from '@/components/cookmode/PianoRoll';
 import { useCookModeSession } from '@/hooks/useCookModeSession';
@@ -150,15 +149,6 @@ const GhostViewer = () => {
         <div className="flex h-[calc(100vh-80px)]">
           {/* DAW Area */}
           <div className="flex-1 overflow-hidden relative">
-            {/* Ghost Cursor - shows host's mouse movements */}
-            {ghostState?.mousePosition && (
-              <GhostCursor
-                x={ghostState.mousePosition.x}
-                y={ghostState.mousePosition.y}
-                isMoving={ghostState.mousePosition.isMoving}
-              />
-            )}
-
             <GhostUI sessionId={sessionId || ''}>
               {tracks.length > 0 ? (
                 <>

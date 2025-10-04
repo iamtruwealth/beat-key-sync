@@ -9,11 +9,6 @@ export interface GhostUIState {
   bpm: number;
   timestamp: number;
   activeView?: 'timeline' | 'mixer';
-  mousePosition?: {
-    x: number;
-    y: number;
-    isMoving: boolean;
-  };
   pianoRoll?: {
     isOpen: boolean;
     trackId?: string;

@@ -70,7 +70,6 @@ const CookMode = () => {
   const [minBars, setMinBars] = useState(8);
   const [authLoading, setAuthLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [pianoRollState, setPianoRollState] = useState<{
     isOpen: boolean;
     trackId?: string;
@@ -438,25 +437,6 @@ const CookMode = () => {
     }
   };
 
-  // Track mouse movements for Ghost UI mirroring
-  React.useEffect(() => {
-    if (!permissions.canEdit) return;
-
-    let lastBroadcast = 0;
-    const MOUSE_THROTTLE = 50; // Broadcast mouse position every 50ms max
-
-    const handleMouseMove = (e: MouseEvent) => {
-      const now = Date.now();
-      if (now - lastBroadcast < MOUSE_THROTTLE) return;
-      
-      lastBroadcast = now;
-      setMousePosition({ x: e.clientX, y: e.clientY });
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, [permissions.canEdit]);
-
   React.useEffect(() => {
     console.log('[CookMode] isPlaying changed', isPlaying);
   }, [isPlaying]);
@@ -472,22 +452,17 @@ const CookMode = () => {
         bpm: session.target_bpm || 120,
         timestamp: Date.now(),
         activeView,
-        mousePosition: {
-          x: mousePosition.x,
-          y: mousePosition.y,
-          isMoving: true,
-        },
         pianoRoll: pianoRollState,
         loopRegion: minBars ? {
           start: 0,
-          end: minBars * 4,
+          end: minBars,
           enabled: true,
         } : undefined,
       });
     }, isPlaying ? 100 : 200); // Faster updates when playing
 
     return () => clearInterval(intervalId);
-  }, [isPlaying, currentTime, permissions.canEdit, session, minBars, activeView, mousePosition, pianoRollState, broadcastState]);
+  }, [isPlaying, currentTime, permissions.canEdit, session, minBars, activeView, pianoRollState, broadcastState]);
 
   // Broadcast immediate UI changes (view switches, piano roll open/close)
   React.useEffect(() => {
@@ -499,11 +474,6 @@ const CookMode = () => {
       timestamp: Date.now(),
       activeView,
       pianoRoll: pianoRollState,
-      mousePosition: {
-        x: mousePosition.x,
-        y: mousePosition.y,
-        isMoving: false,
-      },
     });
   }, [activeView, pianoRollState.isOpen]);
 
