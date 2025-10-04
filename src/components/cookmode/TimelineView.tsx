@@ -586,13 +586,17 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   // Audio playback handler for individual tracks (mute/unmute)
   const handleTrackPlay = useCallback(async (track: Track) => {
     const newMutedState = !(track.isMuted || false);
+    console.log('[TimelineView] Toggling mute for track:', track.name, 'Current muted:', track.isMuted, 'New muted:', newMutedState);
     
     // Update track in parent component
     if (onTracksUpdate) {
       const updatedTracks = tracks.map(t => 
         t.id === track.id ? { ...t, isMuted: newMutedState } : t
       );
+      console.log('[TimelineView] Calling onTracksUpdate with updated tracks:', updatedTracks.map(t => ({ id: t.id, name: t.name, isMuted: t.isMuted })));
       onTracksUpdate(updatedTracks);
+    } else {
+      console.warn('[TimelineView] onTracksUpdate callback is not defined');
     }
     
     toast({

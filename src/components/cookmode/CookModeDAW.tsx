@@ -251,6 +251,7 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
 
   // Handle track updates coming from TimelineView
   const handleTracksUpdateFromTimeline = async (updatedTracks: Track[]) => {
+    console.log('[CookModeDAW] handleTracksUpdateFromTimeline called with:', updatedTracks.map(t => ({ id: t.id, name: t.name, isMuted: t.isMuted, volume: t.volume })));
     const currentIds = new Set(tracks.map(t => t.id));
     const updatedIds = new Set(updatedTracks.map(t => t.id));
 
@@ -278,7 +279,18 @@ export const CookModeDAW: React.FC<CookModeDAWProps> = ({
           currentTrack.isMuted !== updatedTrack.isMuted ||
           currentTrack.isSolo !== updatedTrack.isSolo;
         
+        console.log('[CookModeDAW] Track change check:', {
+          trackId: updatedTrack.id,
+          trackName: updatedTrack.name,
+          hasChanges,
+          currentMuted: currentTrack.isMuted,
+          updatedMuted: updatedTrack.isMuted,
+          currentVolume: currentTrack.volume,
+          updatedVolume: updatedTrack.volume
+        });
+        
         if (hasChanges) {
+          console.log('[CookModeDAW] Calling onUpdateTrack for:', updatedTrack.id, { volume: updatedTrack.volume, isMuted: updatedTrack.isMuted, isSolo: updatedTrack.isSolo });
           onUpdateTrack(updatedTrack.id, {
             volume: updatedTrack.volume,
             isMuted: updatedTrack.isMuted,
