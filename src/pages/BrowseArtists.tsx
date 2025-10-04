@@ -53,7 +53,7 @@ export default function BrowseArtists() {
         .from("profiles")
         .select("id, username, producer_name, producer_logo_url, verification_status, genres, bio")
         .eq("public_profile_enabled", true)
-        .not("producer_name", "is", null)
+        .eq("role", "artist")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
