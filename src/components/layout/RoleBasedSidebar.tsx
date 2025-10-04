@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { NavLink, useLocation, useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 import {
@@ -138,7 +138,7 @@ export function RoleBasedSidebar() {
       
       <SidebarContent>
         {/* Brand */}
-        <div className="flex items-center gap-2 px-4 py-6">
+        <Link to="/" className="flex items-center gap-2 px-4 py-6 hover:bg-accent transition-colors">
           {userRole === 'artist' ? (
             <Mic className="h-8 w-8 text-primary" />
           ) : (
@@ -150,7 +150,7 @@ export function RoleBasedSidebar() {
               <p className="text-xs text-muted-foreground capitalize">{userRole}</p>
             </div>
           )}
-        </div>
+        </Link>
 
         {/* Main Navigation */}
         <SidebarGroup>
