@@ -235,17 +235,31 @@ export default function AuthPage() {
         }
       }
 
-      // Create account without email confirmation using edge function
-      const { data, error } = await supabase.functions.invoke('signup-without-confirmation', {
+      // Create account with IP-based protection using edge function
+      const { data, error } = await supabase.functions.invoke('signup-with-ip-guard', {
         body: {
           email,
           password,
-          username: username.toLowerCase(),
-          role: userRole,
-          producerLogoUrl: logoUrl,
-          displayName: displayName
+          userAgent: navigator.userAgent
         }
       });
+
+      // If signup succeeded, update the profile with additional info
+      if (data?.success && data?.user) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({
+            username: username.toLowerCase(),
+            role: userRole,
+            producer_name: displayName,
+            producer_logo_url: logoUrl
+          })
+          .eq('id', data.user.id);
+
+        if (profileError) {
+          console.error('Profile update failed:', profileError);
+        }
+      }
 
       if (error) {
         toast({
