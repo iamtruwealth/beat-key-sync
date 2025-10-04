@@ -369,4 +369,4 @@ function getTrackProgressColor(trackIndex: number, isMuted: boolean): string {
   return base.replace('0.8', '1.0').replace('0.3', '0.6');
 }
 
-export const WaveformTrack = memo(WaveformTrackComponent);
+export const WaveformTrack = React.memo(WaveformTrackComponent);
