@@ -862,10 +862,10 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
 
         {/* Main Timeline Area */}
         <div className="flex flex-1 overflow-hidden max-h-[calc(100vh-200px)]">
-          {/* Fixed Headers Row */}
-          <div className="flex w-full absolute top-0 left-0 z-30">
+          {/* Track Names Sidebar - Fixed width, scrolls with timeline */}
+          <div className="w-48 bg-black/60 border-r border-white/10 flex flex-col flex-shrink-0">
             {/* Master Volume - Fixed */}
-            <div className="w-48 h-[127px] flex-shrink-0 bg-black/60 border-r border-b border-white/10 flex flex-col justify-center p-3">
+            <div className="h-[127px] flex-shrink-0 flex flex-col justify-center p-3 border-b border-white/10">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-medium text-white">Master</span>
                 <span className="text-xs text-gray-400">{masterVolume}%</span>
@@ -878,28 +878,9 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                 className="w-full"
               />
             </div>
-            
-            {/* Ruler - Fixed */}
-            <div className="flex-1 h-[127px] bg-black/40 border-b border-white/10 relative overflow-hidden">
-              <div className="h-[63.5px] relative">
-                {renderBarMarkers()}
-                <div className="absolute top-6 left-2 text-xs text-gray-400">
-                  Position: {formatPosition(currentTime)} | Bar: {formatTime(currentTime)}
-                </div>
-              </div>
-              {/* Master Output Visualization */}
-              <div className="h-[63.5px] bg-gradient-to-r from-primary/10 to-secondary/10 border-t border-white/10 relative">
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-xs text-gray-400">Master Output</span>
-                </div>
-              </div>
-            </div>
-          </div>
 
-          {/* Scrollable Content */}
-          <div className="flex w-full mt-[127px] overflow-y-auto scrollbar-hide">
-            {/* Track Names Sidebar */}
-            <div className="w-48 flex-shrink-0 bg-black/60 border-r border-white/10">
+            {/* Track Controls - Scrollable */}
+            <div className="flex-1 overflow-y-auto scrollbar-hide track-controls-sidebar">
               {tracks.map((track, index) => {
                 console.log('Sidebar track', index, ':', track.name, '(ID:', track.id, ')');
                 const isTrackSelected = selectedTrack === track.id;
@@ -1049,15 +1030,57 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
               );
             })}
             </div>
+          </div>
 
-            {/* Timeline Tracks */}
-            <div className="flex-1 relative overflow-x-auto scrollbar-hide" ref={timelineRef} data-build={TIMELINE_BUILD}>
-              {/* Beat grid lines spanning all tracks */}
+          {/* Timeline Area */}
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {/* Ruler - Fixed at top */}
+            <div className="h-[63.5px] bg-black/40 border-b border-white/10 relative flex-shrink-0">
+              {Array.from({ length: totalBars }).map((_, bar) => 
+                [1, 2, 3, 4].map(beat => (
+                  <div
+                    key={`track-beat-${bar}-${beat}`}
+                    className="absolute w-px bg-white/5 pointer-events-none z-10"
+                    style={{ 
+                      left: bar * pixelsPerBar + beat * pixelsPerBeat,
+                      top: 0,
+                      height: '100%'
+                    }}
+                  />
+                ))
+              ).flat()}
+              
+              {renderBarMarkers()}
+              <div className="absolute top-6 left-2 text-xs text-gray-400">
+                Position: {formatPosition(currentTime)} | Bar: {formatTime(currentTime)}
+              </div>
+            </div>
+
+            {/* Master Output Visualization - Fixed */}
+            <div className="h-[63.5px] bg-gradient-to-r from-primary/10 to-secondary/10 border-b border-white/10 relative flex-shrink-0">
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-xs text-gray-400">Master Output</span>
+              </div>
+            </div>
+
+            {/* Timeline Tracks - Scrollable */}
+            <div 
+              className="flex-1 relative overflow-x-auto overflow-y-auto scrollbar-hide" 
+              ref={timelineRef} 
+              data-build={TIMELINE_BUILD}
+              onScroll={(e) => {
+                const sidebar = document.querySelector('.track-controls-sidebar');
+                if (sidebar) {
+                  sidebar.scrollTop = e.currentTarget.scrollTop;
+                }
+              }}
+            >
+              {/* Beat grid lines */}
               <div className="absolute top-0 left-0 right-0" style={{ height: `${tracks.length * 115}px` }}>
                 {Array.from({ length: totalBars }).map((_, bar) => 
                   [1, 2, 3, 4].map(beat => (
                     <div
-                      key={`track-beat-${bar}-${beat}`}
+                      key={`timeline-beat-${bar}-${beat}`}
                       className="absolute w-px bg-white/5 pointer-events-none z-10"
                       style={{ 
                         left: bar * pixelsPerBar + beat * pixelsPerBeat,
@@ -1068,6 +1091,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                   ))
                 ).flat()}
               </div>
+
               {/* Playhead */}
               <div
                 className="playhead-container absolute top-0 bottom-0 w-0.5 bg-primary z-20 cursor-pointer hover:w-1 transition-all"
