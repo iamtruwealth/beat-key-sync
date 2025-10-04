@@ -467,7 +467,7 @@ export const PianoRollGrid: React.FC<PianoRollGridProps> = ({
   };
 
   return (
-    <div ref={scrollerRef} onScroll={onScroll} className="relative overflow-auto bg-background flex-1">
+    <div className="relative bg-background flex-1">
       <div
         ref={gridRef}
         className="relative cursor-crosshair min-h-full"
