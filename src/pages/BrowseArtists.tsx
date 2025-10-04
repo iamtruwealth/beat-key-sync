@@ -27,6 +27,8 @@ interface Artist {
     soundcloud?: string;
     tiktok?: string;
   };
+  epk_slug?: string;
+  has_epk: boolean;
 }
 
 export default function BrowseArtists() {
@@ -137,7 +139,12 @@ export default function BrowseArtists() {
               <Card
                 key={artist.id}
                 className="group hover:shadow-lg transition-all duration-300 cursor-pointer overflow-hidden"
-                onClick={() => navigate(`/${artist.username}`)}
+                onClick={() => {
+                  const destination = artist.has_epk && artist.epk_slug 
+                    ? `/epk/${artist.epk_slug}`
+                    : `/${artist.username}`;
+                  navigate(destination);
+                }}
               >
                 <CardContent className="p-0">
                   <div className="relative h-48 bg-gradient-to-br from-primary/20 to-accent/20 overflow-hidden">
@@ -271,10 +278,13 @@ export default function BrowseArtists() {
                       className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors"
                       onClick={(e) => {
                         e.stopPropagation();
-                        navigate(`/${artist.username}`);
+                        const destination = artist.has_epk && artist.epk_slug 
+                          ? `/epk/${artist.epk_slug}`
+                          : `/${artist.username}`;
+                        navigate(destination);
                       }}
                     >
-                      View Profile
+                      {artist.has_epk ? "View EPK" : "View Profile"}
                     </Button>
                   </div>
                 </CardContent>
