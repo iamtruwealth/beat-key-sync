@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Maximize2, Minimize2 } from 'lucide-react';
 import { PianoRollToolbar } from './PianoRollToolbar';
 import { PianoRollGrid } from './PianoRollGrid';
 import { PianoRollKeyboard } from './PianoRollKeyboard';
@@ -164,6 +166,7 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
   }, [isOpen, trackId, trackName, trackMode, state.tracks, createTrack, setActiveTrack]);
 
   const [toolMode, setToolMode] = useState<'draw' | 'select'>('draw');
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const activeTrack = state.tracks[trackId];
 
   // Scroll sync between keyboard and grid
@@ -377,17 +380,27 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-[90vw] h-[80vh] p-0">
-        <DialogHeader className="px-4 pt-4 pb-2">
-          <DialogTitle className="flex items-center gap-2">
-            Piano Roll - {trackName}
-            <span className="text-sm text-muted-foreground">
-              ({trackMode === 'midi' ? 'MIDI' : 'Sample'} Mode)
-            </span>
+      <DialogContent className={isFullscreen ? "max-w-full h-screen p-0 m-0" : "max-w-[90vw] h-[80vh] p-0"}>
+        <DialogHeader className="px-4 pt-4 pb-2 flex-shrink-0">
+          <DialogTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              Piano Roll - {trackName}
+              <span className="text-sm text-muted-foreground">
+                ({trackMode === 'midi' ? 'MIDI' : 'Sample'} Mode)
+              </span>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsFullscreen(!isFullscreen)}
+              className="h-8 w-8 p-0"
+            >
+              {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+            </Button>
           </DialogTitle>
         </DialogHeader>
         
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
           <PianoRollToolbar
             isPlaying={state.isPlaying}
             snapGrid={state.snapGrid}
@@ -402,7 +415,7 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
             onToolModeChange={setToolMode}
           />
           
-          <div className="flex flex-1 overflow-hidden">
+          <div className="flex flex-1 min-h-0 overflow-hidden">
             <PianoRollKeyboard
               startNote={39}
               endNote={87}
