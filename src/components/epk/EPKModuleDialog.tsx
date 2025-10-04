@@ -19,7 +19,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Loader2, Music, X } from "lucide-react";
 
 interface EPKModuleDialogProps {
   open: boolean;
@@ -52,6 +53,8 @@ export function EPKModuleDialog({
   const [moduleType, setModuleType] = useState("");
   const [customTitle, setCustomTitle] = useState("");
   const [moduleData, setModuleData] = useState<any>({});
+  const [userBeats, setUserBeats] = useState<any[]>([]);
+  const [loadingBeats, setLoadingBeats] = useState(false);
 
   useEffect(() => {
     if (editingModule) {
@@ -64,6 +67,61 @@ export function EPKModuleDialog({
       setModuleData({});
     }
   }, [editingModule, open]);
+
+  useEffect(() => {
+    if (moduleType === "music_player" && open) {
+      loadUserBeats();
+    }
+  }, [moduleType, open]);
+
+  const loadUserBeats = async () => {
+    setLoadingBeats(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('beats')
+        .select('*')
+        .eq('producer_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (!error && data) {
+        setUserBeats(data);
+      }
+    } catch (error) {
+      console.error('Error loading beats:', error);
+    } finally {
+      setLoadingBeats(false);
+    }
+  };
+
+  const toggleTrack = (beatId: string) => {
+    const currentTracks = moduleData.track_ids || [];
+    const index = currentTracks.indexOf(beatId);
+    
+    if (index > -1) {
+      // Remove track
+      setModuleData({
+        ...moduleData,
+        track_ids: currentTracks.filter((id: string) => id !== beatId)
+      });
+    } else {
+      // Add track (max 10)
+      if (currentTracks.length >= 10) {
+        toast({
+          title: "Maximum Reached",
+          description: "You can only add up to 10 tracks",
+          variant: "destructive",
+        });
+        return;
+      }
+      setModuleData({
+        ...moduleData,
+        track_ids: [...currentTracks, beatId]
+      });
+    }
+  };
 
   const handleSave = async () => {
     if (!moduleType) {
@@ -285,6 +343,69 @@ export function EPKModuleDialog({
                 }}
                 rows={6}
               />
+            </div>
+          )}
+
+          {moduleType === "music_player" && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label>Select Tracks (Max 10)</Label>
+                <span className="text-sm text-muted-foreground">
+                  {(moduleData.track_ids || []).length} / 10 selected
+                </span>
+              </div>
+              
+              {loadingBeats ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : userBeats.length === 0 ? (
+                <div className="text-center py-8 border-2 border-dashed rounded-lg">
+                  <Music className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">No beats uploaded yet</p>
+                  <p className="text-xs text-muted-foreground mt-1">Upload beats first to add them here</p>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-96 overflow-y-auto border rounded-lg p-4">
+                  {userBeats.map((beat) => {
+                    const isSelected = (moduleData.track_ids || []).includes(beat.id);
+                    return (
+                      <div
+                        key={beat.id}
+                        className="flex items-center gap-3 p-3 rounded-lg hover:bg-accent/50 transition-colors"
+                      >
+                        <Checkbox
+                          id={`beat-${beat.id}`}
+                          checked={isSelected}
+                          onCheckedChange={() => toggleTrack(beat.id)}
+                        />
+                        <label
+                          htmlFor={`beat-${beat.id}`}
+                          className="flex items-center gap-3 flex-1 cursor-pointer"
+                        >
+                          {beat.artwork_url ? (
+                            <img
+                              src={beat.artwork_url}
+                              alt={beat.title}
+                              className="w-10 h-10 rounded object-cover"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded bg-primary/20 flex items-center justify-center">
+                              <Music className="w-4 h-4 text-primary" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate">{beat.title}</p>
+                            {beat.genre && (
+                              <p className="text-xs text-muted-foreground">{beat.genre}</p>
+                            )}
+                          </div>
+                        </label>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </div>

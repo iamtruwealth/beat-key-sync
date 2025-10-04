@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Lock, ArrowLeft } from "lucide-react";
+import { AudioProvider } from "@/contexts/AudioContext";
 import { EPKHeaderModule } from "@/components/epk/modules/EPKHeaderModule";
 import { EPKBioModule } from "@/components/epk/modules/EPKBioModule";
 import { EPKMusicPlayerModule } from "@/components/epk/modules/EPKMusicPlayerModule";
@@ -162,59 +163,61 @@ export default function PublicEPK() {
   const accentColor = epkProfile.theme_settings?.accentColor || "#EC4899";
 
   return (
-    <div className="min-h-screen bg-background">
-      <style>
-        {`
-          :root {
-            --epk-primary: ${primaryColor};
-            --epk-accent: ${accentColor};
-          }
-        `}
-      </style>
+    <AudioProvider>
+      <div className="min-h-screen bg-background">
+        <style>
+          {`
+            :root {
+              --epk-primary: ${primaryColor};
+              --epk-accent: ${accentColor};
+            }
+          `}
+        </style>
 
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
-        <Button
-          variant="ghost"
-          className="mb-6"
-          onClick={() => navigate("/")}
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Home
-        </Button>
+        <div className="container mx-auto px-4 py-8 max-w-6xl">
+          <Button
+            variant="ghost"
+            className="mb-6"
+            onClick={() => navigate("/")}
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Home
+          </Button>
 
-        {activeSubscription && (
-          <Card className="mb-6 p-4 bg-gradient-to-r from-primary/10 to-accent/10 border-primary/30">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-semibold">
-                  You're a {activeSubscription.fan_subscription_tiers?.tier_name.replace("_", " ")} subscriber!
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Access to exclusive content and perks
-                </p>
+          {activeSubscription && (
+            <Card className="mb-6 p-4 bg-gradient-to-r from-primary/10 to-accent/10 border-primary/30">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-semibold">
+                    You're a {activeSubscription.fan_subscription_tiers?.tier_name.replace("_", " ")} subscriber!
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Access to exclusive content and perks
+                  </p>
+                </div>
+                <Badge className="capitalize">
+                  {activeSubscription.fan_subscription_tiers?.tier_name.replace("_", " ")}
+                </Badge>
               </div>
-              <Badge className="capitalize">
-                {activeSubscription.fan_subscription_tiers?.tier_name.replace("_", " ")}
-              </Badge>
-            </div>
-          </Card>
-        )}
+            </Card>
+          )}
 
-        <div className="space-y-8">
-          {modules.map((module) => renderModule(module))}
-        </div>
-
-        {subscriptionTiers.length > 0 && (
-          <div className="mt-16">
-            <EPKSubscriptionTiers
-              tiers={subscriptionTiers}
-              artistId={epkProfile.artist_id}
-              currentUser={currentUser}
-              activeSubscription={activeSubscription}
-            />
+          <div className="space-y-8">
+            {modules.map((module) => renderModule(module))}
           </div>
-        )}
+
+          {subscriptionTiers.length > 0 && (
+            <div className="mt-16">
+              <EPKSubscriptionTiers
+                tiers={subscriptionTiers}
+                artistId={epkProfile.artist_id}
+                currentUser={currentUser}
+                activeSubscription={activeSubscription}
+              />
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </AudioProvider>
   );
 }

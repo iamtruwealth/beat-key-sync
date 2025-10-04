@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Eye, Save, Plus, Globe, Download } from "lucide-react";
+import { AudioProvider } from "@/contexts/AudioContext";
 import { EPKModuleList } from "@/components/epk/EPKModuleList";
 import { EPKSettings } from "@/components/epk/EPKSettings";
 import { FanSubscriptionManager } from "@/components/epk/FanSubscriptionManager";
@@ -188,66 +189,68 @@ export default function ArtistEPK() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
-            Artist EPK Studio
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Your EPK URL: <span className="text-primary font-mono">beatpackz.com/epk/{epkProfile.slug}</span>
-          </p>
+    <AudioProvider>
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
+              Artist EPK Studio
+            </h1>
+            <p className="text-muted-foreground mt-2">
+              Your EPK URL: <span className="text-primary font-mono">beatpackz.com/epk/{epkProfile.slug}</span>
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => window.open(`/epk/${epkProfile.slug}`, "_blank")}>
+              <Eye className="h-4 w-4 mr-2" />
+              Preview
+            </Button>
+            <Button onClick={togglePublish} disabled={saving} className="bg-gradient-to-r from-primary to-accent">
+              {saving ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Globe className="h-4 w-4 mr-2" />
+              )}
+              {epkProfile.is_published ? "Unpublish" : "Publish"}
+            </Button>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => window.open(`/epk/${epkProfile.slug}`, "_blank")}>
-            <Eye className="h-4 w-4 mr-2" />
-            Preview
-          </Button>
-          <Button onClick={togglePublish} disabled={saving} className="bg-gradient-to-r from-primary to-accent">
-            {saving ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : (
-              <Globe className="h-4 w-4 mr-2" />
-            )}
-            {epkProfile.is_published ? "Unpublish" : "Publish"}
-          </Button>
-        </div>
+
+        <Tabs defaultValue="modules" className="w-full">
+          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 mb-8">
+            <TabsTrigger value="modules">Modules</TabsTrigger>
+            <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            <TabsTrigger value="content">Exclusive</TabsTrigger>
+            <TabsTrigger value="emails">Welcome</TabsTrigger>
+            <TabsTrigger value="settings">Settings</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="modules">
+            <EPKModuleList epkProfileId={epkProfile.id} />
+          </TabsContent>
+
+          <TabsContent value="subscriptions">
+            <FanSubscriptionManager />
+          </TabsContent>
+
+          <TabsContent value="analytics">
+            <SubscriptionAnalytics />
+          </TabsContent>
+
+          <TabsContent value="content">
+            <ExclusiveContentManager />
+          </TabsContent>
+
+          <TabsContent value="emails">
+            <WelcomeMessageManager />
+          </TabsContent>
+
+          <TabsContent value="settings">
+            <EPKSettings epkProfile={epkProfile} onUpdate={setEpkProfile} />
+          </TabsContent>
+        </Tabs>
       </div>
-
-      <Tabs defaultValue="modules" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 mb-8">
-          <TabsTrigger value="modules">Modules</TabsTrigger>
-          <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          <TabsTrigger value="content">Exclusive</TabsTrigger>
-          <TabsTrigger value="emails">Welcome</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="modules">
-          <EPKModuleList epkProfileId={epkProfile.id} />
-        </TabsContent>
-
-        <TabsContent value="subscriptions">
-          <FanSubscriptionManager />
-        </TabsContent>
-
-        <TabsContent value="analytics">
-          <SubscriptionAnalytics />
-        </TabsContent>
-
-        <TabsContent value="content">
-          <ExclusiveContentManager />
-        </TabsContent>
-
-        <TabsContent value="emails">
-          <WelcomeMessageManager />
-        </TabsContent>
-
-        <TabsContent value="settings">
-          <EPKSettings epkProfile={epkProfile} onUpdate={setEpkProfile} />
-        </TabsContent>
-      </Tabs>
-    </div>
+    </AudioProvider>
   );
 }
