@@ -45,7 +45,7 @@ interface DraggableClipProps {
   className?: string;
 }
 
-const DraggableClipComponent: React.FC<DraggableClipProps> = ({
+export const DraggableClip: React.FC<DraggableClipProps> = ({
   clip,
   currentTime,
   isPlaying,
@@ -66,25 +66,6 @@ const DraggableClipComponent: React.FC<DraggableClipProps> = ({
   const [isTrimming, setIsTrimming] = useState<'start' | 'end' | null>(null);
   const [dragStart, setDragStart] = useState({ x: 0, startTime: 0 });
   const initialTrimRef = useRef<{ leftPx: number; widthPx: number; rightPx: number }>({ leftPx: 0, widthPx: 0, rightPx: 0 });
-  const lastMoveLogRef = useRef<number>(0);
-  const liveDragOffsetRef = useRef<number>(0); // Track live drag offset across renders
-
-  // Debug mount/unmount and computed styles
-  React.useEffect(() => {
-    const el = clipRef.current;
-    const cs = el ? getComputedStyle(el) : null;
-    console.info('[DraggableClip] mount', {
-      clipId: clip.id,
-      trackId: clip.trackId,
-      startTime: clip.startTime,
-      endTime: clip.endTime,
-      zIndex: cs?.zIndex,
-      pointerEvents: cs?.pointerEvents,
-    });
-    return () => {
-      console.info('[DraggableClip] unmount', { clipId: clip.id });
-    };
-  }, [clip.id, clip.trackId, clip.startTime, clip.endTime]);
 
   // Calculate clip timings
   const fullDuration = clip.fullDuration || clip.originalTrack.analyzed_duration || clip.originalTrack.duration || 0;
@@ -95,9 +76,6 @@ const DraggableClipComponent: React.FC<DraggableClipProps> = ({
   const clipWidth = visibleDuration * pixelsPerSecond;
   const clipLeft = clip.startTime * pixelsPerSecond;
 
-  // UI state for live drag/trim without React overriding inline styles
-  // Live preview uses inline styles/transform; avoid React state during drag/trim to prevent flicker
-
   // Grid snapping function
   const snapToGrid = useCallback((time: number): number => {
     return Math.round(time / secondsPerBeat) * secondsPerBeat;
@@ -107,31 +85,42 @@ const DraggableClipComponent: React.FC<DraggableClipProps> = ({
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0) return; // Only left click
 
-    // Ensure timeline doesn't steal the event
-    e.preventDefault();
-    e.stopPropagation();
-
     const target = e.target as HTMLElement;
-    console.info('[DraggableClip] mousedown', {
-      clipId: clip.id,
-      targetTag: target.tagName,
-      classes: target.className,
-    });
-
     // 1) If the explicit trim handle was grabbed, delegate to trim handler
     if (target && target.closest('.trim-handle')) {
       return; // handleTrimMouseDown will run from the handle itself
     }
 
-    // Edge-dragging disabled to avoid accidental trims; use explicit trim handles instead.
-
-
-    // Begin dragging
+    // 2) Edge-dragging: if click is within threshold from left/right edge, start trim
+    const EDGE_THRESHOLD = 8; // px
+    if (clipRef.current) {
+      const rect = clipRef.current.getBoundingClientRect();
+      const xFromLeft = e.clientX - rect.left;
+      const xFromRight = rect.right - e.clientX;
+      if (xFromLeft <= EDGE_THRESHOLD) {
+        console.log('[DraggableClip] edge-trim start detected', { clipId: clip.id, xFromLeft });
+        handleTrimMouseDown(e, 'start');
+        return;
+      }
+      if (xFromRight <= EDGE_THRESHOLD) {
+        console.log('[DraggableClip] edge-trim end detected', { clipId: clip.id, xFromRight });
+        handleTrimMouseDown(e, 'end');
+        return;
+      }
+    }
+    // 3) Otherwise, start drag (move clip)
+    e.preventDefault();
+    e.stopPropagation();
+    
     setIsDragging(true);
-    liveDragOffsetRef.current = 0;
+    setDragStart({
+      x: e.clientX,
+      startTime: clip.startTime
+    });
+    console.log('[DraggableClip] drag mousedown', { clipId: clip.id, startTime: clip.startTime });
+    
     document.body.style.userSelect = 'none';
-    setDragStart({ x: (e as React.MouseEvent).clientX, startTime: clip.startTime });
-  }, [clip.id, clip.startTime]);
+  }, [clip.startTime]);
 
   // Handle mouse down for trim handles
   const handleTrimMouseDown = useCallback((e: React.MouseEvent, trimType: 'start' | 'end') => {
@@ -163,39 +152,25 @@ const DraggableClipComponent: React.FC<DraggableClipProps> = ({
     
     const deltaX = e.clientX - dragStart.x;
     const deltaTime = deltaX / pixelsPerSecond;
-    console.info('[DraggableClip] mouseup', {
-      clipId: clip.id,
-      isDragging,
-      isTrimming,
-      deltaX,
-      deltaTime,
-    });
-
-    const now = performance.now();
-    if (!lastMoveLogRef.current || now - lastMoveLogRef.current > 120) {
-      lastMoveLogRef.current = now;
-      console.info('[DraggableClip] mousemove', {
-        clipId: clip.id,
-        isDragging,
-        isTrimming,
-        deltaX,
-        deltaTime,
-      });
-    }
     
     if (isDragging) {
-      liveDragOffsetRef.current = deltaX;
-      // Force immediate rerender to update transform in style object
-      setIsDragging(true);
+      const newStartTime = Math.max(0, dragStart.startTime + deltaTime);
+      const snappedStartTime = snapToGrid(newStartTime);
+      
+      if (clipRef.current) {
+        const newLeft = snappedStartTime * pixelsPerSecond;
+        clipRef.current.style.left = `${newLeft}px`;
+      }
     } else if (isTrimming && fullDuration > 0) {
       const rawTime = Math.max(0, Math.min(fullDuration, dragStart.startTime + deltaTime));
-      // live preview without snap
+      const snappedTime = snapToGrid(rawTime);
+      
       let tempTrimStart = trimStart;
       let tempTrimEnd = trimEnd;
       if (isTrimming === 'start') {
-        tempTrimStart = Math.min(rawTime, trimEnd - 0.1);
+        tempTrimStart = Math.min(snappedTime, trimEnd - 0.1);
       } else {
-        tempTrimEnd = Math.max(rawTime, trimStart + 0.1);
+        tempTrimEnd = Math.max(snappedTime, trimStart + 0.1);
       }
       const tempWidthPx = Math.max(4, (tempTrimEnd - tempTrimStart) * pixelsPerSecond);
       // Live visual feedback: keep the non-dragged edge fixed
@@ -226,7 +201,7 @@ const DraggableClipComponent: React.FC<DraggableClipProps> = ({
       setIsDragging(false);
       const newStartTime = Math.max(0, dragStart.startTime + deltaTime);
       const snappedStartTime = snapToGrid(newStartTime);
-      liveDragOffsetRef.current = 0;
+      
       if (Math.abs(snappedStartTime - clip.startTime) > 0.01) {
         onClipMove(clip.id, snappedStartTime);
       }
@@ -251,14 +226,10 @@ const DraggableClipComponent: React.FC<DraggableClipProps> = ({
           onTrimClip(clip.id, isTrimming, trimStart, newTrimEnd);
         }
       }
-      // Clear live width/left overrides
-      if (clipRef.current) {
-        clipRef.current.style.width = '';
-        clipRef.current.style.left = '';
-      }
+      
       setIsTrimming(null);
     }
-  }, [isDragging, isTrimming, dragStart, pixelsPerSecond, snapToGrid, clip.id, clip.startTime, onClipMove, trimStart, trimEnd, fullDuration, onTrimClip]);
+  }, [isDragging, isTrimming, dragStart, pixelsPerSecond, snapToGrid, clip.id, clip.startTime, onClipMove, clip.originalTrack.id, trimStart, trimEnd, fullDuration, onTrimClip]);
 
   // Add global mouse event listeners
   React.useEffect(() => {
@@ -294,18 +265,14 @@ const DraggableClipComponent: React.FC<DraggableClipProps> = ({
   return (
     <div
       ref={clipRef}
-      className={`absolute cursor-move group pointer-events-auto select-none ${className}`}
+      className={`absolute cursor-move group ${className}`}
       style={{
-        left: clipLeft + (isDragging ? liveDragOffsetRef.current : 0),
+        left: clipLeft,
         width: clipWidth,
         height: trackHeight - 8,
         top: 4,
-        zIndex: isDragging || isTrimming ? 80 : 40
+        zIndex: isDragging || isTrimming ? 1000 : 1
       }}
-      data-dragging={isDragging ? '1' : '0'}
-      draggable={false}
-      
-      onMouseDownCapture={(e) => { e.stopPropagation(); }}
       onMouseDown={handleMouseDown}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
@@ -331,18 +298,18 @@ const DraggableClipComponent: React.FC<DraggableClipProps> = ({
           {/* Left trim handle - hide when trimming end */}
           {isTrimming !== 'end' && (
             <div
-              className="trim-handle absolute left-0 top-0 w-4 h-full cursor-ew-resize bg-transparent hover:bg-primary/20 transition-colors"
+              className="trim-handle absolute left-0 top-0 w-4 h-full cursor-ew-resize"
               onMouseDown={(e) => handleTrimMouseDown(e, 'start')}
-              style={{ zIndex: 90 }}
+              style={{ zIndex: 1001, pointerEvents: 'auto' }}
             />
           )}
           
           {/* Right trim handle - hide when trimming start */}
           {isTrimming !== 'start' && (
             <div
-              className="trim-handle absolute right-0 top-0 w-4 h-full cursor-ew-resize bg-transparent hover:bg-primary/20 transition-colors"
+              className="trim-handle absolute right-0 top-0 w-4 h-full cursor-ew-resize"
               onMouseDown={(e) => handleTrimMouseDown(e, 'end')}
-              style={{ zIndex: 90 }}
+              style={{ zIndex: 1001, pointerEvents: 'auto' }}
             />
           )}
         </>
@@ -360,6 +327,3 @@ const DraggableClipComponent: React.FC<DraggableClipProps> = ({
     </div>
   );
 };
-
-export const DraggableClip = React.memo(DraggableClipComponent);
-export default DraggableClip;
