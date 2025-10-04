@@ -18,11 +18,11 @@ import {
   Award,
   ExternalLink,
   Instagram,
-  Twitter,
   Youtube,
   Globe,
   Save,
-  Upload
+  Upload,
+  X
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -436,10 +436,10 @@ export default function ProfilePage() {
                   </div>
                 </div>
                 <div>
-                  <Label htmlFor="twitter">Twitter</Label>
+                  <Label htmlFor="twitter">X (Twitter)</Label>
                   <div className="flex">
                     <div className="flex items-center px-3 border border-r-0 rounded-l-md bg-muted">
-                      <Twitter className="w-4 h-4" />
+                      <X className="w-4 h-4" />
                     </div>
                     <Input
                       id="twitter"
