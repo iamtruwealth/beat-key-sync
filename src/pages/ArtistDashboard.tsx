@@ -274,6 +274,14 @@ export default function ArtistDashboard() {
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-3">
+            <Button 
+              variant="outline" 
+              className="h-20 flex flex-col gap-2"
+              onClick={() => window.location.href = '/epk'}
+            >
+              <DollarSign className="w-6 h-6" />
+              Build Artist EPK
+            </Button>
             <Button variant="outline" className="h-20 flex flex-col gap-2">
               <MessageSquare className="w-6 h-6" />
               Start Conversation
@@ -281,10 +289,6 @@ export default function ArtistDashboard() {
             <Button variant="outline" className="h-20 flex flex-col gap-2">
               <FileText className="w-6 h-6" />
               Create Split Sheet
-            </Button>
-            <Button variant="outline" className="h-20 flex flex-col gap-2">
-              <Users className="w-6 h-6" />
-              Find Collaborators
             </Button>
           </div>
         </CardContent>

@@ -43,6 +43,7 @@ import Collaborate from "./pages/Collaborate";
 import CookMode from "./pages/CookMode";
 import GhostViewer from "./pages/GhostViewer";
 import MinimalViewer from "./pages/MinimalViewer";
+import ArtistEPK from "./pages/ArtistEPK";
 
 import { FuturisticWaveformPlayer } from "./components/player/FuturisticWaveformPlayer";
 
@@ -327,6 +328,18 @@ const App = () => (
             } />
             <Route path="/cook-mode" element={<CookMode />} />
             <Route path="/cook-mode/:sessionId" element={<CookMode />} />
+            
+            {/* Artist EPK */}
+            <Route path="/epk" element={
+              <RoleProtectedRoute allowedRoles={['artist']}>
+                <div className="flex min-h-screen w-full">
+                  <RoleBasedSidebar />
+                  <main className="flex-1 overflow-auto">
+                    <ArtistEPK />
+                  </main>
+                </div>
+              </RoleProtectedRoute>
+            } />
             
             {/* Public Ghost UI viewer - no auth required, auto-connected */}
             <Route path="/ghost/:sessionId" element={
