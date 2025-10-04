@@ -5,9 +5,11 @@ interface EPKHeaderModuleProps {
 }
 
 export function EPKHeaderModule({ module, themeSettings, artistName }: EPKHeaderModuleProps) {
-  const data = module.module_data || {};
-  const bannerUrl = data.bannerUrl || "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=1200";
-  const tagline = data.tagline || "Electronic Press Kit";
+  const data = module?.module_data || {};
+  const bannerUrl = data?.bannerUrl || "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=1200";
+  const tagline = data?.tagline || "Electronic Press Kit";
+  
+  console.log('EPKHeaderModule data:', { data, bannerUrl, module });
 
   return (
     <div className="relative w-full h-[400px] rounded-lg overflow-hidden mb-8">

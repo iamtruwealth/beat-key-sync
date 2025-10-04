@@ -672,6 +672,53 @@ export function EPKModuleDialog({
                 </span>
               </div>
 
+              {/* Preview Section */}
+              {(moduleData.track_ids || []).length > 0 && (
+                <div className="space-y-2">
+                  <Label>Preview</Label>
+                  <div className="border rounded-lg p-4 bg-card/50 space-y-2">
+                    {userBeats
+                      .filter(beat => (moduleData.track_ids || []).includes(beat.id))
+                      .map((beat, index) => (
+                        <div
+                          key={beat.id}
+                          className="flex items-center gap-4 p-3 rounded-lg bg-background/50 border"
+                        >
+                          {beat.artwork_url ? (
+                            <img
+                              src={beat.artwork_url}
+                              alt={beat.title}
+                              className="w-14 h-14 rounded object-cover"
+                            />
+                          ) : (
+                            <div className="w-14 h-14 rounded bg-primary/20 flex items-center justify-center">
+                              <Music className="w-6 h-6 text-primary" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold truncate">
+                              {index + 1}. {beat.title}
+                            </p>
+                            {beat.artist && (
+                              <p className="text-sm text-muted-foreground truncate">{beat.artist}</p>
+                            )}
+                            {beat.genre && (
+                              <p className="text-xs text-muted-foreground">{beat.genre}</p>
+                            )}
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => toggleTrack(beat.id)}
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+
               {/* Upload Section */}
               <div className="space-y-2">
                 <Label>Upload Songs</Label>
@@ -785,6 +832,9 @@ export function EPKModuleDialog({
                           )}
                           <div className="flex-1 min-w-0">
                             <p className="font-medium truncate">{beat.title}</p>
+                            {beat.artist && (
+                              <p className="text-xs text-muted-foreground truncate">{beat.artist}</p>
+                            )}
                             {beat.genre && (
                               <p className="text-xs text-muted-foreground">{beat.genre}</p>
                             )}

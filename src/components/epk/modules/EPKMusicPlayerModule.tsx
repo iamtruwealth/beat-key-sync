@@ -20,7 +20,9 @@ export function EPKMusicPlayerModule({ module, themeSettings }: EPKMusicPlayerMo
   }, [module]);
 
   const loadTracks = async () => {
-    const trackIds = module.module_data?.track_ids || [];
+    const trackIds = module?.module_data?.track_ids || [];
+    console.log('EPKMusicPlayerModule loading tracks:', { trackIds, module });
+    
     if (trackIds.length === 0) {
       setLoading(false);
       return;
@@ -30,6 +32,8 @@ export function EPKMusicPlayerModule({ module, themeSettings }: EPKMusicPlayerMo
       .from('beats')
       .select('*')
       .in('id', trackIds);
+
+    console.log('EPKMusicPlayerModule tracks loaded:', { data, error });
 
     if (!error && data) {
       // Sort by the order in track_ids
