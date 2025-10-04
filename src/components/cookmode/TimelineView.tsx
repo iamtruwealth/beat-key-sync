@@ -863,7 +863,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         {/* Main Timeline Area */}
         <div className="flex flex-1 overflow-hidden max-h-[calc(100vh-200px)]">
           {/* Track Names Sidebar */}
-          <div className="w-48 bg-black/60 border-r border-white/10 flex flex-col overflow-y-auto">
+          <div className="w-48 bg-black/60 border-r border-white/10 flex flex-col overflow-y-auto scrollbar-hide">
             {/* Master Volume */}
             <div className="h-[127px] flex flex-col justify-center p-3 border-b border-white/10">
               <div className="flex items-center justify-between mb-2">
@@ -1031,7 +1031,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           </div>
 
           {/* Timeline Area */}
-          <div className="flex-1 relative overflow-x-auto overflow-y-auto" ref={timelineRef} data-build={TIMELINE_BUILD}>
+          <div className="flex-1 relative overflow-x-auto overflow-y-auto scrollbar-hide" ref={timelineRef} data-build={TIMELINE_BUILD}>
             {/* Ruler */}
             <div className="h-[63.5px] bg-black/40 border-b border-white/10 relative">
               {/* Beat grid lines spanning all tracks */}
