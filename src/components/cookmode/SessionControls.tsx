@@ -83,6 +83,7 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
   const [tempBpm, setTempBpm] = useState(bpm.toString());
   const [currentRecordingTrackId, setCurrentRecordingTrackId] = useState<string | null>(null);
   const [recordingMode, setRecordingMode] = useState<'audio' | 'midi' | null>(null);
+  const [recordingEnabled, setRecordingEnabled] = useState(false); // Ready to record when play is pressed
   const lastStopClickRef = React.useRef<number>(0);
 
   // Calculate session duration
@@ -195,9 +196,20 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
               variant="ghost"
               size="sm"
               className="p-2"
-              onClick={() => {
+              onClick={async () => {
                 const now = Date.now();
                 const timeSinceLastClick = now - lastStopClickRef.current;
+                
+                // Stop recording if active
+                if (isRecording) {
+                  if (recordingMode === 'audio') {
+                    await stopAudioRecording();
+                  } else if (recordingMode === 'midi') {
+                    stopRecording();
+                  }
+                  setRecordingEnabled(false);
+                  setRecordingMode(null);
+                }
                 
                 // Double-click detection (within 300ms)
                 if (timeSinceLastClick < 300) {
@@ -222,92 +234,63 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
               <Square className="w-4 h-4" />
             </Button>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant={isRecording ? "destructive" : "ghost"}
-                  size="sm"
-                  className={`p-2 gap-1 transition-all duration-200 ${
-                    isRecording 
-                      ? 'bg-red-500 text-white animate-pulse' 
-                      : 'hover:bg-accent hover:text-accent-foreground'
-                  }`}
-                  title={isRecording ? "Stop Recording" : "Start Recording"}
-                >
-                  {isRecording ? (
-                    <>
-                      <Square className="w-4 h-4" />
-                      <span className="text-xs">REC</span>
-                    </>
-                  ) : (
-                    <>
-                      <Circle className="w-4 h-4" />
-                      <span className="text-xs">REC</span>
-                      <ChevronDown className="w-3 h-3" />
-                    </>
-                  )}
-                </Button>
-              </DropdownMenuTrigger>
-              {!isRecording && (
-                <DropdownMenuContent align="start" className="bg-background border-border">
-                  <DropdownMenuItem
-                    onClick={async () => {
-                      // Get the first armed track
-                      const armedTrackIds = Array.from(document.querySelectorAll('[data-track-armed="true"]'))
-                        .map(el => el.getAttribute('data-track-id'))
-                        .filter(Boolean) as string[];
-                      
-                      if (armedTrackIds.length === 0) {
-                        toast({
-                          title: "No Track Armed",
-                          description: "Please arm a track for recording first (click the circle button on a track)",
-                          variant: "destructive",
-                        });
-                        return;
-                      }
-                      
-                      const armedTrackId = armedTrackIds[0];
-                      
-                      try {
-                        console.log('🎙️ Starting audio recording on armed track:', armedTrackId);
-                        await startAudioRecording(armedTrackId);
-                        setRecordingMode('audio');
-                        setCurrentRecordingTrackId(armedTrackId);
-                      } catch (error) {
-                        console.error('Failed to start audio recording:', error);
-                        toast({
-                          title: "Microphone Access Denied",
-                          description: "Please allow microphone access to record audio",
-                          variant: "destructive",
-                        });
-                      }
-                    }}
-                  >
-                    <Mic className="w-4 h-4 mr-2" />
-                    Record Audio
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => {
-                      // Start MIDI recording on selected track
-                      if (audioTracks.length === 0) {
-                        toast({
-                          title: "No Tracks Available",
-                          description: "Please create a track first",
-                          variant: "destructive",
-                        });
-                        return;
-                      }
-                      
-                      startRecording();
-                      setRecordingMode('midi');
-                    }}
-                  >
-                    <Activity className="w-4 h-4 mr-2" />
-                    Record MIDI
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
+            {/* Record Enable Button - prepares recording, actual recording starts when play is pressed */}
+            <Button
+              variant={recordingEnabled ? "destructive" : "ghost"}
+              size="sm"
+              className={`p-2 gap-1 transition-all duration-200 ${
+                recordingEnabled 
+                  ? 'bg-red-500 text-white shadow-[0_0_15px_rgba(239,68,68,0.8)]' 
+                  : 'hover:bg-accent hover:text-accent-foreground'
+              }`}
+              title={recordingEnabled ? "Recording armed - press Play to start" : "Enable recording mode"}
+              onClick={() => {
+                if (recordingEnabled) {
+                  // Disable recording mode
+                  setRecordingEnabled(false);
+                  setRecordingMode(null);
+                  setCurrentRecordingTrackId(null);
+                  toast({
+                    title: "Recording Disabled",
+                    description: "Recording mode turned off",
+                  });
+                } else {
+                  // Enable recording mode - show options
+                  const armedTrackIds = Array.from(document.querySelectorAll('[data-track-armed="true"]'))
+                    .map(el => el.getAttribute('data-track-id'))
+                    .filter(Boolean) as string[];
+                  
+                  if (armedTrackIds.length === 0) {
+                    toast({
+                      title: "No Track Armed",
+                      description: "Please arm a track for recording first (click the circle button on a track)",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                  
+                  // Enable audio recording mode
+                  setRecordingEnabled(true);
+                  setRecordingMode('audio');
+                  toast({
+                    title: "Recording Armed",
+                    description: "Press Play to start recording",
+                  });
+                }
+              }}
+            >
+              {recordingEnabled ? (
+                <>
+                  <Circle className="w-4 h-4 fill-current" />
+                  <span className="text-xs font-bold">REC</span>
+                </>
+              ) : (
+                <>
+                  <Circle className="w-4 h-4" />
+                  <span className="text-xs">REC</span>
+                </>
               )}
-            </DropdownMenu>
+            </Button>
             
             {isRecording && (
               <Button
