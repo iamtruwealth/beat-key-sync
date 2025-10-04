@@ -185,10 +185,8 @@ const DraggableClipComponent: React.FC<DraggableClipProps> = ({
     
     if (isDragging) {
       liveDragOffsetRef.current = deltaX;
-      // Direct DOM manipulation to avoid React rerender interference
-      if (clipRef.current) {
-        clipRef.current.style.transform = `translateX(${deltaX}px)`;
-      }
+      // Force immediate rerender to update transform in style object
+      setIsDragging(true);
     } else if (isTrimming && fullDuration > 0) {
       const rawTime = Math.max(0, Math.min(fullDuration, dragStart.startTime + deltaTime));
       // live preview without snap
@@ -228,11 +226,7 @@ const DraggableClipComponent: React.FC<DraggableClipProps> = ({
       setIsDragging(false);
       const newStartTime = Math.max(0, dragStart.startTime + deltaTime);
       const snappedStartTime = snapToGrid(newStartTime);
-      // Clear transform after drag completes
       liveDragOffsetRef.current = 0;
-      if (clipRef.current) {
-        clipRef.current.style.transform = '';
-      }
       if (Math.abs(snappedStartTime - clip.startTime) > 0.01) {
         onClipMove(clip.id, snappedStartTime);
       }
@@ -297,13 +291,6 @@ const DraggableClipComponent: React.FC<DraggableClipProps> = ({
     }
   }, [isDragging, isTrimming, onClipDoubleClick, clip.id]);
 
-  // Preserve live drag transform across rerenders
-  React.useEffect(() => {
-    if (isDragging && clipRef.current && liveDragOffsetRef.current !== 0) {
-      clipRef.current.style.transform = `translateX(${liveDragOffsetRef.current}px)`;
-    }
-  });
-
   return (
     <div
       ref={clipRef}
@@ -314,6 +301,7 @@ const DraggableClipComponent: React.FC<DraggableClipProps> = ({
         height: trackHeight - 8,
         top: 4,
         zIndex: isDragging || isTrimming ? 80 : 40,
+        transform: isDragging ? `translateX(${liveDragOffsetRef.current}px)` : undefined,
         willChange: isDragging ? 'transform' as const : undefined
       }}
       data-dragging={isDragging ? '1' : '0'}
