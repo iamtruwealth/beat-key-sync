@@ -281,9 +281,20 @@ export function EPKModuleDialog({
                       const file = e.target.files?.[0];
                       if (!file) return;
 
+                      const { data: { user } } = await supabase.auth.getUser();
+                      if (!user) {
+                        toast({
+                          title: "Authentication Required",
+                          description: "You must be logged in to upload files",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+
                       const fileExt = file.name.split('.').pop();
                       const fileName = `${Math.random()}.${fileExt}`;
-                      const filePath = `banners/${fileName}`;
+                      // Include user ID in path for RLS policy compliance
+                      const filePath = `${user.id}/banners/${fileName}`;
 
                       const { error: uploadError, data } = await supabase.storage
                         .from('artwork')
@@ -346,10 +357,23 @@ export function EPKModuleDialog({
 
                     setSaving(true);
 
+                    // Get current user ID for the file path
+                    const { data: { user } } = await supabase.auth.getUser();
+                    if (!user) {
+                      toast({
+                        title: "Authentication Required",
+                        description: "You must be logged in to upload files",
+                        variant: "destructive",
+                      });
+                      setSaving(false);
+                      return;
+                    }
+
                     for (const file of files) {
                       const fileExt = file.name.split('.').pop();
                       const fileName = `${Date.now()}-${Math.random()}.${fileExt}`;
-                      const filePath = `press_photos/${fileName}`;
+                      // Include user ID in path for RLS policy compliance
+                      const filePath = `${user.id}/press_photos/${fileName}`;
 
                       const { error: uploadError } = await supabase.storage
                         .from('artwork')
