@@ -14,6 +14,90 @@ export type Database = {
   }
   public: {
     Tables: {
+      artist_epk_profiles: {
+        Row: {
+          artist_id: string
+          created_at: string | null
+          custom_domain: string | null
+          id: string
+          is_published: boolean | null
+          seo_metadata: Json | null
+          slug: string
+          theme_settings: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          artist_id: string
+          created_at?: string | null
+          custom_domain?: string | null
+          id?: string
+          is_published?: boolean | null
+          seo_metadata?: Json | null
+          slug: string
+          theme_settings?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          artist_id?: string
+          created_at?: string | null
+          custom_domain?: string | null
+          id?: string
+          is_published?: boolean | null
+          seo_metadata?: Json | null
+          slug?: string
+          theme_settings?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      artist_exclusive_posts: {
+        Row: {
+          artist_id: string
+          content: string | null
+          created_at: string | null
+          id: string
+          is_published: boolean | null
+          media_type: string | null
+          media_url: string | null
+          preview_image_url: string | null
+          preview_text: string | null
+          published_at: string | null
+          required_tier: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          artist_id: string
+          content?: string | null
+          created_at?: string | null
+          id?: string
+          is_published?: boolean | null
+          media_type?: string | null
+          media_url?: string | null
+          preview_image_url?: string | null
+          preview_text?: string | null
+          published_at?: string | null
+          required_tier: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          artist_id?: string
+          content?: string | null
+          created_at?: string | null
+          id?: string
+          is_published?: boolean | null
+          media_type?: string | null
+          media_url?: string | null
+          preview_image_url?: string | null
+          preview_text?: string | null
+          published_at?: string | null
+          required_tier?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       audio_analysis_jobs: {
         Row: {
           bpm: number | null
@@ -843,6 +927,192 @@ export type Database = {
           },
         ]
       }
+      epk_modules: {
+        Row: {
+          created_at: string | null
+          custom_title: string | null
+          epk_profile_id: string
+          id: string
+          is_enabled: boolean | null
+          module_data: Json
+          module_type: string
+          position: number
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          custom_title?: string | null
+          epk_profile_id: string
+          id?: string
+          is_enabled?: boolean | null
+          module_data?: Json
+          module_type: string
+          position?: number
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          custom_title?: string | null
+          epk_profile_id?: string
+          id?: string
+          is_enabled?: boolean | null
+          module_data?: Json
+          module_type?: string
+          position?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "epk_modules_epk_profile_id_fkey"
+            columns: ["epk_profile_id"]
+            isOneToOne: false
+            referencedRelation: "artist_epk_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fan_subscription_payments: {
+        Row: {
+          amount_cents: number
+          artist_earnings_cents: number
+          artist_id: string
+          created_at: string | null
+          fan_id: string
+          id: string
+          payment_date: string | null
+          platform_fee_cents: number
+          stripe_payment_intent_id: string | null
+          subscription_id: string
+        }
+        Insert: {
+          amount_cents: number
+          artist_earnings_cents: number
+          artist_id: string
+          created_at?: string | null
+          fan_id: string
+          id?: string
+          payment_date?: string | null
+          platform_fee_cents: number
+          stripe_payment_intent_id?: string | null
+          subscription_id: string
+        }
+        Update: {
+          amount_cents?: number
+          artist_earnings_cents?: number
+          artist_id?: string
+          created_at?: string | null
+          fan_id?: string
+          id?: string
+          payment_date?: string | null
+          platform_fee_cents?: number
+          stripe_payment_intent_id?: string | null
+          subscription_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fan_subscription_payments_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "fan_subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fan_subscription_tiers: {
+        Row: {
+          artist_id: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          perks: Json | null
+          price_cents: number
+          stripe_price_id: string | null
+          stripe_product_id: string | null
+          tier_name: string
+          updated_at: string | null
+        }
+        Insert: {
+          artist_id: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          perks?: Json | null
+          price_cents: number
+          stripe_price_id?: string | null
+          stripe_product_id?: string | null
+          tier_name: string
+          updated_at?: string | null
+        }
+        Update: {
+          artist_id?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          perks?: Json | null
+          price_cents?: number
+          stripe_price_id?: string | null
+          stripe_product_id?: string | null
+          tier_name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      fan_subscriptions: {
+        Row: {
+          artist_id: string
+          cancel_at: string | null
+          canceled_at: string | null
+          created_at: string | null
+          current_period_end: string | null
+          current_period_start: string | null
+          fan_id: string
+          id: string
+          status: string | null
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          tier_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          artist_id: string
+          cancel_at?: string | null
+          canceled_at?: string | null
+          created_at?: string | null
+          current_period_end?: string | null
+          current_period_start?: string | null
+          fan_id: string
+          id?: string
+          status?: string | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          tier_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          artist_id?: string
+          cancel_at?: string | null
+          canceled_at?: string | null
+          created_at?: string | null
+          current_period_end?: string | null
+          current_period_start?: string | null
+          fan_id?: string
+          id?: string
+          status?: string | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          tier_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fan_subscriptions_tier_id_fkey"
+            columns: ["tier_id"]
+            isOneToOne: false
+            referencedRelation: "fan_subscription_tiers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       featured_beat_packs: {
         Row: {
           added_by: string
@@ -1640,6 +1910,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      subscription_welcome_messages: {
+        Row: {
+          artist_id: string
+          created_at: string | null
+          download_urls: Json | null
+          id: string
+          include_download_links: boolean | null
+          message_body: string
+          subject: string | null
+          tier_name: string
+          updated_at: string | null
+        }
+        Insert: {
+          artist_id: string
+          created_at?: string | null
+          download_urls?: Json | null
+          id?: string
+          include_download_links?: boolean | null
+          message_body: string
+          subject?: string | null
+          tier_name: string
+          updated_at?: string | null
+        }
+        Update: {
+          artist_id?: string
+          created_at?: string | null
+          download_urls?: Json | null
+          id?: string
+          include_download_links?: boolean | null
+          message_body?: string
+          subject?: string | null
+          tier_name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       track_midi_notes: {
         Row: {
