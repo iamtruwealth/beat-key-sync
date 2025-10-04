@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import * as Tone from 'tone';
 import { Button } from '@/components/ui/button';
+import { useSessionRecordings } from '@/hooks/useSessionRecordings';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -77,6 +78,7 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
 }) => {
   const { createTrack, isRecording, startAudioRecording, stopAudioRecording, startRecording, stopRecording, tracks: audioTracks, loadSample, setActiveTrack, engine } = useCookModeAudio(canEdit);
   const { toast } = useToast();
+  const { saveRecording } = useSessionRecordings(sessionId || '');
   const [masterVolume, setMasterVolume] = useState(75);
   const [sessionDuration, setSessionDuration] = useState(0);
   const [isEditingBpm, setIsEditingBpm] = useState(false);
@@ -203,7 +205,10 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
                 // Stop recording if active
                 if (isRecording) {
                   if (recordingMode === 'audio') {
-                    await stopAudioRecording();
+                    const result = await stopAudioRecording(sessionId);
+                    if (result) {
+                      await saveRecording(result.blob, result.metadata);
+                    }
                   } else if (recordingMode === 'midi') {
                     stopRecording();
                   }
@@ -300,11 +305,14 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
                 onClick={async () => {
                   if (recordingMode === 'audio') {
                     try {
-                      await stopAudioRecording();
+                      const result = await stopAudioRecording(sessionId);
+                      if (result) {
+                        await saveRecording(result.blob, result.metadata);
+                      }
                       setCurrentRecordingTrackId(null);
                       toast({
                         title: "Recording Stopped",
-                        description: "Audio recording complete",
+                        description: "Audio recording saved",
                       });
                     } catch (error) {
                       console.error('Failed to stop audio recording:', error);

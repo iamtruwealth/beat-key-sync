@@ -21,6 +21,7 @@ import { AccessLevelNotification } from '@/components/cookmode/AccessLevelNotifi
 import { CookModeChat } from '@/components/cookmode/CookModeChat';
 import { SessionParticipants } from '@/components/cookmode/SessionParticipants';
 import { SessionControls } from '@/components/cookmode/SessionControls';
+import { SessionRecordingsList } from '@/components/cookmode/SessionRecordingsList';
 import { GhostUI } from '@/components/cookmode/GhostUI';
 import { useGhostUIBroadcast } from '@/hooks/useGhostUIBroadcast';
 import { useAudioBroadcast } from '@/hooks/useAudioBroadcast';
@@ -1008,10 +1009,14 @@ const CookMode = () => {
           {/* Always visible chat section - takes remaining space */}
           <div className="flex-1 flex flex-col min-h-0">
             <Tabs defaultValue="chat" className="flex-1 flex flex-col">
-              <TabsList className="grid w-full grid-cols-2 mx-4 mt-4">
+              <TabsList className="grid w-full grid-cols-3 mx-4 mt-4">
                 <TabsTrigger value="chat" className="flex items-center gap-2">
                   <MessageSquare className="w-4 h-4" />
                   Chat
+                </TabsTrigger>
+                <TabsTrigger value="recordings" className="flex items-center gap-2">
+                  <Layers className="w-4 h-4" />
+                  Recordings
                 </TabsTrigger>
                 <TabsTrigger value="audio" className="flex items-center gap-2">
                   <Piano className="w-4 h-4" />
@@ -1022,6 +1027,12 @@ const CookMode = () => {
               <TabsContent value="chat" className="flex-1 overflow-hidden min-h-0 m-0">
                 <div className="flex-1 overflow-hidden min-h-0 p-4 pt-2">
                   <CookModeChat sessionId={sessionId!} />
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="recordings" className="flex-1 overflow-auto min-h-0 m-0">
+                <div className="p-4 pt-2">
+                  <SessionRecordingsList sessionId={sessionId!} />
                 </div>
               </TabsContent>
               

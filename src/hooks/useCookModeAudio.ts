@@ -36,7 +36,7 @@ export interface UseCookModeAudioReturn {
   startRecording: () => void;
   stopRecording: () => void;
   startAudioRecording: (trackId: string) => Promise<void>;
-  stopAudioRecording: () => Promise<Blob | null>;
+  stopAudioRecording: (sessionId?: string) => Promise<{ blob: Blob; metadata: any } | null>;
   playbackRecording: () => void;
   recordAudioInput: (trackId: string, durationMs?: number) => Promise<Blob>;
   setTrackTrim: (trackId: string, trimStart: number, trimEnd: number) => void;
@@ -329,7 +329,7 @@ export function useCookModeAudio(isHost: boolean = true): UseCookModeAudioReturn
   }, [toast]);
 
   // Stop continuous audio recording
-  const stopAudioRecording = useCallback(async (): Promise<Blob | null> => {
+  const stopAudioRecording = useCallback(async (sessionId?: string): Promise<{ blob: Blob; metadata: any } | null> => {
     if (!engineRef.current) {
       throw new Error('Audio engine not initialized');
     }
@@ -338,14 +338,27 @@ export function useCookModeAudio(isHost: boolean = true): UseCookModeAudioReturn
       const audioBlob = await engineRef.current.stopAudioRecording();
       setIsRecording(false);
       
-      if (audioBlob) {
-        toast({
-          title: "Recording Complete",
-          description: "Your recording is ready. You can now add it to a track.",
-        });
-      }
+      if (!audioBlob) return null;
+      
+      // Get track info for metadata
+      const recordingTrackId = (engineRef.current as any).recordingTrackId;
+      const track = tracks.find(t => t.id === recordingTrackId);
+      
+      toast({
+        title: "Recording Complete",
+        description: "Your recording is ready and will be saved.",
+      });
 
-      return audioBlob;
+      return {
+        blob: audioBlob,
+        metadata: {
+          trackId: track?.id,
+          trackName: track?.name,
+          duration: audioBlob.size / 44100 / 2 / 2, // rough estimate
+          sampleRate: 44100,
+          format: 'audio/webm'
+        }
+      };
       
     } catch (error) {
       console.error('❌ Failed to stop audio recording:', error);
@@ -357,7 +370,7 @@ export function useCookModeAudio(isHost: boolean = true): UseCookModeAudioReturn
       });
       throw error;
     }
-  }, [toast]);
+  }, [toast, tracks]);
 
   // Computed properties
   const hasMidiDevices = midiDevices.some(device => device.connected);

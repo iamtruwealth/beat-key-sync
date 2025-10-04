@@ -1375,6 +1375,118 @@ export type Database = {
         }
         Relationships: []
       }
+      session_audio_recordings: {
+        Row: {
+          created_at: string | null
+          duration: number | null
+          file_name: string
+          file_size: number | null
+          file_url: string
+          format: string | null
+          id: string
+          is_outtake: boolean | null
+          is_used_in_session: boolean | null
+          metadata: Json | null
+          sample_rate: number | null
+          session_id: string
+          track_id: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          duration?: number | null
+          file_name: string
+          file_size?: number | null
+          file_url: string
+          format?: string | null
+          id?: string
+          is_outtake?: boolean | null
+          is_used_in_session?: boolean | null
+          metadata?: Json | null
+          sample_rate?: number | null
+          session_id: string
+          track_id?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          duration?: number | null
+          file_name?: string
+          file_size?: number | null
+          file_url?: string
+          format?: string | null
+          id?: string
+          is_outtake?: boolean | null
+          is_used_in_session?: boolean | null
+          metadata?: Json | null
+          sample_rate?: number | null
+          session_id?: string
+          track_id?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_audio_recordings_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "collaboration_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      session_midi_recordings: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_outtake: boolean | null
+          is_used_in_session: boolean | null
+          metadata: Json | null
+          note_count: number | null
+          recording_name: string
+          session_id: string
+          track_id: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_outtake?: boolean | null
+          is_used_in_session?: boolean | null
+          metadata?: Json | null
+          note_count?: number | null
+          recording_name: string
+          session_id: string
+          track_id?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_outtake?: boolean | null
+          is_used_in_session?: boolean | null
+          metadata?: Json | null
+          note_count?: number | null
+          recording_name?: string
+          session_id?: string
+          track_id?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_midi_recordings_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "collaboration_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       signup_attempts: {
         Row: {
           attempted_at: string
