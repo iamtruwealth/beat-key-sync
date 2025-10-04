@@ -51,8 +51,9 @@ export default function BrowseArtists() {
       const query = searchQuery.toLowerCase();
       setFilteredArtists(
         artists.filter((artist) => {
+          const displayName = artist.artist_name || artist.producer_name || "";
           return (
-            artist.producer_name?.toLowerCase().includes(query) ||
+            displayName.toLowerCase().includes(query) ||
             artist.username?.toLowerCase().includes(query) ||
             artist.genres?.some(g => g.toLowerCase().includes(query))
           );
