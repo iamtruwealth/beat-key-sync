@@ -3,6 +3,10 @@ import { Copy, Circle, Trash2 } from 'lucide-react';
 import { usePeaksCache } from '@/hooks/usePeaksCache';
 import { StaticWaveform } from './StaticWaveform';
 
+// Debug build stamp for WaveformTrack
+const WAVEFORM_TRACK_BUILD = 'WaveformTrack@2025-10-04T03:12:00Z';
+console.warn('[WaveformTrack] build', WAVEFORM_TRACK_BUILD);
+
 interface Track {
   id: string;
   name: string;
@@ -182,6 +186,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
   return (
     <div
       className={containerClassName}
+      data-build={WAVEFORM_TRACK_BUILD}
       style={{
         width: clipWidth,
         height: trackHeight - 8,

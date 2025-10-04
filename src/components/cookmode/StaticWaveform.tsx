@@ -1,5 +1,9 @@
 import React, { useRef, useEffect } from 'react';
 
+// Debug build stamp for StaticWaveform
+const STATIC_WAVEFORM_BUILD = 'StaticWaveform@2025-10-04T03:12:00Z';
+console.warn('[StaticWaveform] build', STATIC_WAVEFORM_BUILD);
+
 interface StaticWaveformProps {
   peaks: Float32Array[];
   duration: number;
@@ -86,10 +90,12 @@ export const StaticWaveform: React.FC<StaticWaveformProps> = ({
     }
   }, [peaks, width, height, waveColor]);
 
+  console.info('[StaticWaveform] render', { width, height, barsSourceLen: peaks?.[0]?.length ?? 0, className });
   return (
     <canvas
       ref={canvasRef}
       className={className}
+      data-build={STATIC_WAVEFORM_BUILD}
       style={{ width, height, pointerEvents: 'none' }}
     />
   );
