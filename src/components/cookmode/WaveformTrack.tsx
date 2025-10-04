@@ -280,7 +280,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
           <div
             ref={containerRef}
             id={containerId}
-            className="absolute inset-0 z-30 pointer-events-none transform-gpu"
+            className="absolute inset-0 z-30 pointer-events-auto transform-gpu"
           />
 
           {/* Trim overlays */}
