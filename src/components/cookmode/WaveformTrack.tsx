@@ -194,6 +194,10 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
         pointerEvents: 'none'
       }}
     >
+      {/* Visible WF build badge */}
+      <div className="absolute top-1 left-1 z-20 bg-accent/80 text-accent-foreground px-1.5 py-0.5 rounded text-[10px] font-mono pointer-events-none">
+        WF: {WAVEFORM_TRACK_BUILD} | peaks: {peaks ? 'yes' : 'no'}
+      </div>
       {error ? (
         <div className="flex items-center justify-center h-full bg-red-500/10 border-red-500">
           <span className="text-xs text-red-400">Failed to load</span>
