@@ -30,6 +30,7 @@ interface Profile {
   id: string;
   first_name?: string;
   last_name?: string;
+  artist_name?: string;
   producer_name?: string;
   username?: string;
   bio?: string;
@@ -48,6 +49,7 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [newGenre, setNewGenre] = useState("");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -186,9 +188,9 @@ export default function ProfilePage() {
     );
   }
 
-  const displayName = profile.role === 'producer' 
-    ? profile.producer_name 
-    : `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
+  const displayName = profile.role === 'artist'
+    ? profile.artist_name || `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
+    : profile.producer_name || `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
 
   return (
     <div className="space-y-6">
@@ -295,6 +297,18 @@ export default function ProfilePage() {
                     placeholder="e.g., keilowbeats"
                   />
                 </div>
+                {profile.role === 'artist' && (
+                  <div>
+                    <Label htmlFor="artist-name">Artist Name</Label>
+                    <Input
+                      id="artist-name"
+                      value={profile.artist_name || ''}
+                      onChange={(e) => updateProfile({ artist_name: e.target.value })}
+                      disabled={!isEditing}
+                      placeholder="Your stage/artist name"
+                    />
+                  </div>
+                )}
                 {profile.role === 'producer' && (
                   <div>
                     <Label htmlFor="producer-name">Producer Name</Label>
@@ -336,16 +350,61 @@ export default function ProfilePage() {
               {/* Genres */}
               <div>
                 <Label>Genres</Label>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {profile.genres?.map((genre, index) => (
-                    <Badge key={index} variant="secondary">
-                      {genre}
-                    </Badge>
-                  ))}
-                  {isEditing && (
-                    <Button variant="outline" size="sm">
-                      Add Genre
-                    </Button>
+                <div className="space-y-3 mt-2">
+                  <div className="flex flex-wrap gap-2">
+                    {profile.genres?.map((genre, index) => (
+                      <Badge key={index} variant="secondary" className="flex items-center gap-1">
+                        {genre}
+                        {isEditing && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updatedGenres = profile.genres?.filter((_, i) => i !== index) || [];
+                              updateProfile({ genres: updatedGenres });
+                            }}
+                            className="ml-1 hover:text-destructive"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </Badge>
+                    ))}
+                  </div>
+                  {isEditing && profile.genres && profile.genres.length < 4 && (
+                    <div className="flex gap-2">
+                      <Input
+                        value={newGenre}
+                        onChange={(e) => setNewGenre(e.target.value)}
+                        placeholder="Add a genre"
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            if (newGenre.trim() && !profile.genres?.includes(newGenre.trim())) {
+                              const updatedGenres = [...(profile.genres || []), newGenre.trim()];
+                              updateProfile({ genres: updatedGenres });
+                              setNewGenre("");
+                            }
+                          }
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (newGenre.trim() && !profile.genres?.includes(newGenre.trim())) {
+                            const updatedGenres = [...(profile.genres || []), newGenre.trim()];
+                            updateProfile({ genres: updatedGenres });
+                            setNewGenre("");
+                          }
+                        }}
+                      >
+                        Add
+                      </Button>
+                    </div>
+                  )}
+                  {profile.genres && profile.genres.length >= 4 && isEditing && (
+                    <p className="text-xs text-muted-foreground">Maximum 4 genres reached</p>
                   )}
                 </div>
               </div>
