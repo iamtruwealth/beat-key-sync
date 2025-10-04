@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
-import WaveSurfer from 'wavesurfer.js';
 import { Copy, Circle, Trash2 } from 'lucide-react';
+import { usePeaksCache } from '@/hooks/usePeaksCache';
+import { StaticWaveform } from './StaticWaveform';
 
 interface Track {
   id: string;
@@ -67,11 +68,11 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
   onRecordArmToggle
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const waveSurferRef = useRef<WaveSurfer | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const rafRef = useRef<number | null>(null);
-  const lastProgressRef = useRef<number>(-1);
+  const [peaks, setPeaks] = useState<Float32Array[] | null>(null);
+  const [audioDuration, setAudioDuration] = useState<number>(0);
+  const { getPeaks } = usePeaksCache();
 
   const track = clip.originalTrack;
   const clipDuration = clip.endTime - clip.startTime;
@@ -81,156 +82,53 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
   const isMuted = track.isMuted || false;
   const opacity = isMuted ? 0.3 : 1;
 
-  // Initialize WaveSurfer
+  // Calculate progress for waveform display
+  const fullDuration = clip.fullDuration || clip.originalTrack.analyzed_duration || clip.originalTrack.duration || clipDuration;
+  const startOffset = Math.max(0, clip.trimStart ?? 0);
+  const endOffset = Math.min(fullDuration, clip.trimEnd ?? fullDuration);
+  const trimmedDuration = Math.max(0.01, endOffset - startOffset);
+
+  const relativeTime = currentTime - clip.startTime;
+  let audioProgress = 0;
+  if (relativeTime >= 0 && relativeTime <= clipDuration) {
+    const progress = relativeTime / clipDuration;
+    const audioTime = startOffset + (progress * trimmedDuration);
+    audioProgress = Math.max(0, Math.min(1, audioTime / fullDuration));
+  } else if (currentTime < clip.startTime) {
+    audioProgress = Math.max(0, Math.min(1, startOffset / fullDuration));
+  } else {
+    audioProgress = Math.max(0, Math.min(1, endOffset / fullDuration));
+  }
+
+  // Load peaks from cache or decode
   useEffect(() => {
-    if (!containerRef.current || !track.file_url || track.file_url.trim() === '') {
+    if (!track.file_url || track.file_url.trim() === '') {
       return;
     }
 
-    // Use a ref to track if we've already loaded this exact file
-    const currentTrackKey = `${track.id}-${track.file_url}`;
-    
-    // Clean up existing instance only if track/url changed
-    if (waveSurferRef.current) {
-      waveSurferRef.current.destroy();
-      waveSurferRef.current = null;
-    }
+    let mounted = true;
 
-    try {
-      console.log(`Loading WaveSurfer for track: ${track.name} (${track.file_url})`);
-      
-      const waveSurfer = WaveSurfer.create({
-        container: containerRef.current,
-        waveColor: getTrackWaveColor(trackIndex, isMuted),
-        progressColor: getTrackProgressColor(trackIndex, isMuted),
-        cursorColor: 'transparent',
-        barWidth: 2,
-        barGap: 1,
-        height: trackHeight - 16,
-        normalize: true,
-        interact: false,
-        hideScrollbar: true,
-        minPxPerSec: pixelsPerSecond,
-        fillParent: false,
-        mediaControls: false,
-        autoplay: false,
-        backend: 'WebAudio'
-      });
-
-      waveSurferRef.current = waveSurfer;
-
-      waveSurfer.on('error', (e: any) => {
-        console.error(`WaveSurfer error for track ${track.name}:`, e);
-        setError('Failed to load waveform');
-        setIsLoaded(false);
-      });
-
-      waveSurfer.load(track.file_url).then(() => {
-        if (waveSurferRef.current === waveSurfer) {
+    getPeaks(track.file_url, 100)
+      .then(({ peaks: loadedPeaks, duration }) => {
+        if (mounted) {
+          setPeaks(loadedPeaks);
+          setAudioDuration(duration);
           setIsLoaded(true);
           setError(null);
-          console.log(`WaveSurfer loaded for track: ${track.name}`);
-          waveSurfer.pause(); // Never play audio
         }
-      }).catch((err) => {
-        if (waveSurferRef.current === waveSurfer) {
-          console.error(`Failed to load waveform for track ${track.name}:`, err);
+      })
+      .catch((err) => {
+        if (mounted) {
+          console.error(`Failed to load peaks for ${track.name}:`, err);
           setError('Failed to load waveform');
           setIsLoaded(false);
         }
       });
 
-      waveSurfer.on('ready', () => {
-        if (waveSurferRef.current === waveSurfer) {
-          waveSurfer.pause();
-        }
-      });
-
-    } catch (err) {
-      console.error('Error creating WaveSurfer:', err);
-      setError('Failed to create waveform');
-    }
-
     return () => {
-      if (waveSurferRef.current) {
-        waveSurferRef.current.destroy();
-        waveSurferRef.current = null;
-      }
+      mounted = false;
     };
-    // Only re-run when track ID or file URL actually changes
-  }, [track.id, track.file_url]);
-
-  // Resize/scale updates without re-creating WaveSurfer
-  useEffect(() => {
-    if (!waveSurferRef.current || !isLoaded) return;
-    try {
-      waveSurferRef.current.setOptions({
-        height: trackHeight - 16,
-        minPxPerSec: pixelsPerSecond,
-        fillParent: false,
-        hideScrollbar: true,
-      });
-    } catch (e) {
-      console.warn('WaveSurfer setOptions (size) failed', e);
-    }
-  }, [trackHeight, pixelsPerSecond, isLoaded]);
-  useEffect(() => {
-    if (!waveSurferRef.current || !isLoaded) return;
-
-
-    // rAF-throttle and avoid redundant seeks to reduce layout churn
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    rafRef.current = requestAnimationFrame(() => {
-      try {
-        const fullDuration = clip.fullDuration || clip.originalTrack.analyzed_duration || clip.originalTrack.duration || clipDuration;
-        const startOffset = Math.max(0, clip.trimStart ?? 0);
-        const endOffset = Math.min(fullDuration, clip.trimEnd ?? fullDuration);
-        const trimmedDuration = Math.max(0.01, endOffset - startOffset);
-
-        const relativeTime = currentTime - clip.startTime;
-        let audioProgress = 0;
-        if (relativeTime >= 0 && relativeTime <= clipDuration) {
-          const progress = relativeTime / clipDuration;
-          const audioTime = startOffset + (progress * trimmedDuration);
-          audioProgress = Math.max(0, Math.min(1, audioTime / fullDuration));
-        } else if (currentTime < clip.startTime) {
-          audioProgress = Math.max(0, Math.min(1, startOffset / fullDuration));
-        } else {
-          audioProgress = Math.max(0, Math.min(1, endOffset / fullDuration));
-        }
-
-        if (Math.abs(audioProgress - (lastProgressRef.current ?? -1)) > 0.01) {
-          waveSurferRef.current!.seekTo(audioProgress);
-          lastProgressRef.current = audioProgress;
-        }
-      } catch (err) {
-        console.error('Error updating WaveSurfer playhead:', err);
-      }
-    });
-
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
-    };
-  }, [currentTime, isPlaying, clip.startTime, clip.endTime, clipDuration, isLoaded, clip.fullDuration, clip.trimStart, clip.trimEnd]);
-
-  // Update visual opacity and colors based on mute state
-  useEffect(() => {
-    if (!containerRef.current) return;
-    
-    containerRef.current.style.opacity = opacity.toString();
-    
-    if (waveSurferRef.current && isLoaded) {
-      try {
-        waveSurferRef.current.setOptions({
-          waveColor: getTrackWaveColor(trackIndex, isMuted),
-          progressColor: getTrackProgressColor(trackIndex, isMuted)
-        });
-      } catch (err) {
-        console.error('Error updating waveform colors:', err);
-      }
-    }
-  }, [isMuted, opacity, trackIndex, isLoaded]);
+  }, [track.id, track.file_url, getPeaks, track.name]);
 
   // Handle click events
   const handleClick = (event: React.MouseEvent) => {
@@ -276,12 +174,19 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
         </div>
       ) : (
         <>
-          {/* WaveSurfer container */}
-          <div
-            ref={containerRef}
-            id={containerId}
-            className="absolute inset-0 z-30 pointer-events-none transform-gpu"
-          />
+          {/* Static Waveform Renderer */}
+          {peaks && (
+            <StaticWaveform
+              peaks={peaks}
+              duration={audioDuration}
+              width={clipWidth}
+              height={trackHeight - 16}
+              waveColor={getTrackWaveColor(trackIndex, isMuted)}
+              progressColor={getTrackProgressColor(trackIndex, isMuted)}
+              progress={audioProgress}
+              className="absolute inset-0 z-30"
+            />
+          )}
 
           {/* Trim overlays */}
           {(() => {
