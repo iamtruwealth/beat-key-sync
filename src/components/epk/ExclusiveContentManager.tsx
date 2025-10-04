@@ -52,6 +52,27 @@ export function ExclusiveContentManager() {
     setDialogOpen(true);
   };
 
+  const handleNotifySubscribers = async (postId: string) => {
+    try {
+      const { error } = await supabase.functions.invoke("notify-new-exclusive-content", {
+        body: { post_id: postId },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Subscribers have been notified about this post",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleDeletePost = async (postId: string) => {
     try {
       const { error } = await supabase
@@ -121,6 +142,9 @@ export function ExclusiveContentManager() {
               <div className="flex gap-2 mt-4">
                 <Button variant="outline" size="sm" onClick={() => handleEditPost(post)}>
                   Edit
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => handleNotifySubscribers(post.id)}>
+                  Notify
                 </Button>
                 <Button 
                   variant="ghost" 

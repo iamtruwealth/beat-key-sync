@@ -127,17 +127,29 @@ export function EPKSubscriptionTiers({
                 ))}
               </ul>
 
-              <Button
-                onClick={() => handleSubscribe(tier)}
-                disabled={isActive}
-                className={`w-full ${
-                  isPopular
-                    ? "bg-gradient-to-r from-primary to-accent"
-                    : ""
-                }`}
-              >
-                {isActive ? "Current Tier" : "Subscribe Now"}
-              </Button>
+              {isActive ? (
+                <div className="space-y-2">
+                  <Button disabled className="w-full">
+                    Active
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={() => navigate("/my-subscriptions")}
+                  >
+                    Manage
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  onClick={() => handleSubscribe(tier)}
+                  className={`w-full ${
+                    isPopular ? "bg-gradient-to-r from-primary to-accent" : ""
+                  }`}
+                >
+                  Subscribe Now
+                </Button>
+              )}
             </Card>
           );
         })}

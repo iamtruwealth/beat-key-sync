@@ -115,6 +115,25 @@
     @apply bg-background text-foreground overflow-x-hidden;
   }
 
+  /* Mobile optimizations */
+  @media (max-width: 768px) {
+    .container {
+      @apply px-4;
+    }
+    
+    h1 {
+      @apply text-2xl;
+    }
+    
+    h2 {
+      @apply text-xl;
+    }
+    
+    .grid {
+      @apply gap-3;
+    }
+  }
+
   /* Custom scrollbar */
   ::-webkit-scrollbar {
     width: 8px;

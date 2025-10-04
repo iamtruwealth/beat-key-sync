@@ -12,6 +12,7 @@ import { EPKSettings } from "@/components/epk/EPKSettings";
 import { FanSubscriptionManager } from "@/components/epk/FanSubscriptionManager";
 import { ExclusiveContentManager } from "@/components/epk/ExclusiveContentManager";
 import { WelcomeMessageManager } from "@/components/epk/WelcomeMessageManager";
+import SubscriptionAnalytics from "@/components/epk/SubscriptionAnalytics";
 
 export default function ArtistEPK() {
   const navigate = useNavigate();
@@ -214,11 +215,12 @@ export default function ArtistEPK() {
       </div>
 
       <Tabs defaultValue="modules" className="w-full">
-        <TabsList className="grid w-full grid-cols-5 mb-8">
+        <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 mb-8">
           <TabsTrigger value="modules">Modules</TabsTrigger>
-          <TabsTrigger value="subscriptions">Fan Subscriptions</TabsTrigger>
-          <TabsTrigger value="content">Exclusive Content</TabsTrigger>
-          <TabsTrigger value="emails">Welcome Emails</TabsTrigger>
+          <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="content">Exclusive</TabsTrigger>
+          <TabsTrigger value="emails">Welcome</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
 
@@ -228,6 +230,10 @@ export default function ArtistEPK() {
 
         <TabsContent value="subscriptions">
           <FanSubscriptionManager />
+        </TabsContent>
+
+        <TabsContent value="analytics">
+          <SubscriptionAnalytics />
         </TabsContent>
 
         <TabsContent value="content">

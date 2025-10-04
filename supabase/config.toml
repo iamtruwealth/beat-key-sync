@@ -3,6 +3,12 @@ project_id = "lascsucrozzhbvlsddxg"
 [functions.analyze-beat]
 verify_jwt = false
 
+[functions.customer-portal]
+verify_jwt = true
+
+[functions.notify-new-exclusive-content]
+verify_jwt = true
+
 [functions.beat-webhook-handler]
 verify_jwt = false
 
