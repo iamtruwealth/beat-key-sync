@@ -53,13 +53,17 @@ export const PianoRollKeyboard: React.FC<PianoRollKeyboardProps> = ({
           <div
             key={pitch}
             className={cn(
-              "flex items-center justify-between px-2 border-b border-border cursor-pointer transition-colors",
+              "flex items-center justify-between px-2 cursor-pointer transition-colors",
               isBlack ? "bg-muted text-muted-foreground" : "bg-background text-foreground",
               isHighlighted && "bg-primary/20",
               hasSample && "bg-accent/30",
               "hover:bg-accent/50"
             )}
-            style={{ height: `${noteHeight}px` }}
+            style={{ 
+              height: `${noteHeight}px`,
+              boxSizing: 'border-box',
+              borderBottom: '1px solid hsl(var(--border))'
+            }}
             onClick={() => onKeyClick?.(pitch)}
             onContextMenu={(e) => {
               e.preventDefault();
