@@ -63,14 +63,20 @@ export function ProducerSubscriptionTiers({ producerId }: ProducerSubscriptionTi
         return;
       }
 
-      toast({
-        title: "Coming Soon",
-        description: "Stripe payment integration coming in Phase 2",
+      const { data, error } = await supabase.functions.invoke('create-producer-subscription', {
+        body: { tier_id: tierId, producer_id: producerId }
       });
+
+      if (error) throw error;
+
+      if (data?.url) {
+        window.open(data.url, '_blank');
+      }
     } catch (error: any) {
+      console.error('Subscription error:', error);
       toast({
         title: "Error",
-        description: "Failed to process subscription",
+        description: error.message || "Failed to process subscription",
         variant: "destructive",
       });
     }
