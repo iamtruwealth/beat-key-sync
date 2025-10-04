@@ -133,10 +133,20 @@ export default function ProfilePage() {
         logoUrl = publicUrl;
       }
 
+      // Only update specific editable fields to avoid constraint violations
       const { error } = await supabase
         .from('profiles')
         .update({
-          ...profile,
+          first_name: profile.first_name,
+          last_name: profile.last_name,
+          username: profile.username,
+          artist_name: profile.artist_name,
+          producer_name: profile.producer_name,
+          bio: profile.bio,
+          home_town: profile.home_town,
+          genres: profile.genres,
+          social_links: profile.social_links,
+          public_profile_enabled: profile.public_profile_enabled,
           producer_logo_url: logoUrl
         })
         .eq('id', profile.id);
