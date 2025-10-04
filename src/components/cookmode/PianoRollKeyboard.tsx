@@ -42,45 +42,83 @@ export const PianoRollKeyboard: React.FC<PianoRollKeyboardProps> = ({
   const notes = Array.from({ length: endNote - startNote + 1 }, (_, i) => startNote + i).reverse();
 
   return (
-    <div className={cn("w-20 border-r border-border bg-background flex flex-col flex-shrink-0", className)}>
-      {notes.map((pitch) => {
+    <div className={cn("w-32 border-r border-border bg-background flex flex-col flex-shrink-0 relative", className)}>
+      {notes.map((pitch, index) => {
         const isBlack = isBlackKey(pitch);
         const isHighlighted = highlightedKeys.includes(pitch);
         const hasSample = pitch in sampleMappings;
         const isC = pitch % 12 === 0;
 
-        return (
-          <div
-            key={pitch}
-            className={cn(
-              "flex items-center justify-between px-2 cursor-pointer transition-colors",
-              isBlack ? "bg-muted text-muted-foreground" : "bg-background text-foreground",
-              isHighlighted && "bg-primary/20",
-              hasSample && "bg-accent/30",
-              "hover:bg-accent/50"
-            )}
-            style={{ 
-              height: `${noteHeight}px`,
-              boxSizing: 'border-box',
-              borderBottom: '1px solid hsl(var(--border))'
-            }}
-            onClick={() => onKeyClick?.(pitch)}
-            onContextMenu={(e) => {
-              e.preventDefault();
-              onKeyRightClick?.(pitch);
-            }}
-            title={hasSample ? `${getNoteName(pitch)} - ${sampleMappings[pitch]}` : `${getNoteName(pitch)} - Right-click to load sample`}
-          >
-            <span className={cn("text-xs font-mono", isC && "font-bold")}>
-              {getNoteName(pitch)}
-            </span>
-            {hasSample && (
-              <span className="text-[10px] text-primary truncate max-w-[30px]" title={sampleMappings[pitch]}>
-                ●
+        if (isBlack) {
+          // Black keys - smaller, positioned on top
+          return (
+            <div
+              key={pitch}
+              className={cn(
+                "absolute left-0 flex items-center justify-start px-2 cursor-pointer transition-colors z-10",
+                "bg-black text-white border border-white/20",
+                isHighlighted && "bg-primary/60",
+                hasSample && "bg-primary/40",
+                "hover:bg-gray-800"
+              )}
+              style={{ 
+                height: `${noteHeight}px`,
+                width: '65%',
+                top: `${index * noteHeight}px`,
+                boxSizing: 'border-box',
+                boxShadow: 'inset 0 -2px 4px rgba(0,0,0,0.5), 2px 2px 4px rgba(0,0,0,0.3)'
+              }}
+              onClick={() => onKeyClick?.(pitch)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                onKeyRightClick?.(pitch);
+              }}
+              title={hasSample ? `${getNoteName(pitch)} - ${sampleMappings[pitch]}` : `${getNoteName(pitch)} - Right-click to load sample`}
+            >
+              <span className="text-[10px] font-mono font-bold">
+                {getNoteName(pitch)}
               </span>
-            )}
-          </div>
-        );
+              {hasSample && (
+                <span className="text-[8px] text-primary ml-1" title={sampleMappings[pitch]}>●</span>
+              )}
+            </div>
+          );
+        } else {
+          // White keys - full width
+          return (
+            <div
+              key={pitch}
+              className={cn(
+                "flex items-center justify-between px-2 cursor-pointer transition-colors relative",
+                "bg-white text-black border-r border-gray-300",
+                isHighlighted && "bg-primary/20",
+                hasSample && "bg-accent/30",
+                "hover:bg-gray-100"
+              )}
+              style={{ 
+                height: `${noteHeight}px`,
+                boxSizing: 'border-box',
+                borderBottom: '1px solid hsl(var(--border))',
+                boxShadow: 'inset 0 -1px 2px rgba(0,0,0,0.1)'
+              }}
+              onClick={() => onKeyClick?.(pitch)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                onKeyRightClick?.(pitch);
+              }}
+              title={hasSample ? `${getNoteName(pitch)} - ${sampleMappings[pitch]}` : `${getNoteName(pitch)} - Right-click to load sample`}
+            >
+              <span className={cn("text-xs font-mono", isC && "font-bold text-primary")}>
+                {getNoteName(pitch)}
+              </span>
+              {hasSample && (
+                <span className="text-[10px] text-primary truncate max-w-[30px]" title={sampleMappings[pitch]}>
+                  ●
+                </span>
+              )}
+            </div>
+          );
+        }
       })}
     </div>
   );
