@@ -259,6 +259,9 @@ export function EPKModuleDialog({
                   value={moduleData.bannerUrl || ""}
                   onChange={(e) => setModuleData({ ...moduleData, bannerUrl: e.target.value })}
                 />
+                <p className="text-sm text-muted-foreground">
+                  Recommended size: 1920x400px for optimal display
+                </p>
               </div>
             </>
           )}
