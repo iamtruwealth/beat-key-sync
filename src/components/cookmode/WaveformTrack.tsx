@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, memo } from 'react';
 import WaveSurfer from 'wavesurfer.js';
 import { Copy, Circle, Trash2 } from 'lucide-react';
 
@@ -369,4 +369,4 @@ function getTrackProgressColor(trackIndex: number, isMuted: boolean): string {
   return base.replace('0.8', '1.0').replace('0.3', '0.6');
 }
 
-export const WaveformTrack = React.memo(WaveformTrackComponent);
+export const WaveformTrack = memo(WaveformTrackComponent);
