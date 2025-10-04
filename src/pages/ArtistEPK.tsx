@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Eye, Save, Plus, Globe } from "lucide-react";
+import { Loader2, Eye, Save, Plus, Globe, Download } from "lucide-react";
 import { EPKModuleList } from "@/components/epk/EPKModuleList";
 import { EPKSettings } from "@/components/epk/EPKSettings";
 import { FanSubscriptionManager } from "@/components/epk/FanSubscriptionManager";

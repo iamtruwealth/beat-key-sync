@@ -10,6 +10,10 @@ import { EPKHeaderModule } from "@/components/epk/modules/EPKHeaderModule";
 import { EPKBioModule } from "@/components/epk/modules/EPKBioModule";
 import { EPKMusicPlayerModule } from "@/components/epk/modules/EPKMusicPlayerModule";
 import { EPKPressPhotosModule } from "@/components/epk/modules/EPKPressPhotosModule";
+import { EPKVideoModule } from "@/components/epk/modules/EPKVideoModule";
+import { EPKTourDatesModule } from "@/components/epk/modules/EPKTourDatesModule";
+import { EPKDiscographyModule } from "@/components/epk/modules/EPKDiscographyModule";
+import { EPKPressQuotesModule } from "@/components/epk/modules/EPKPressQuotesModule";
 import { EPKSubscriptionTiers } from "@/components/epk/EPKSubscriptionTiers";
 
 export default function PublicEPK() {
@@ -122,6 +126,14 @@ export default function PublicEPK() {
         return <EPKMusicPlayerModule key={module.id} {...commonProps} />;
       case "press_photos":
         return <EPKPressPhotosModule key={module.id} {...commonProps} />;
+      case "video":
+        return <EPKVideoModule key={module.id} data={module.module_data} customTitle={module.custom_title} />;
+      case "tour_dates":
+        return <EPKTourDatesModule key={module.id} data={module.module_data} customTitle={module.custom_title} />;
+      case "discography":
+        return <EPKDiscographyModule key={module.id} data={module.module_data} customTitle={module.custom_title} />;
+      case "press_quotes":
+        return <EPKPressQuotesModule key={module.id} data={module.module_data} customTitle={module.custom_title} />;
       default:
         return (
           <Card key={module.id} className="p-6">

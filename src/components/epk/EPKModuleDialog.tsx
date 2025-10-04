@@ -34,15 +34,10 @@ const MODULE_TYPES = [
   { value: "bio", label: "Bio" },
   { value: "press_photos", label: "Press Photos" },
   { value: "music_player", label: "Music Player" },
-  { value: "music_video", label: "Music Video" },
-  { value: "achievements", label: "Achievements & Press" },
-  { value: "performance_history", label: "Performance History" },
-  { value: "social_stats", label: "Social Media Stats" },
-  { value: "genre_tags", label: 'Genre / "For Fans Of"' },
-  { value: "contact", label: "Contact / Booking" },
-  { value: "sync_licensing", label: "Sync Licensing" },
-  { value: "merch", label: "Merch Store" },
-  { value: "testimonials", label: "Testimonials" },
+  { value: "video", label: "Video Showcase" },
+  { value: "tour_dates", label: "Tour Dates" },
+  { value: "discography", label: "Discography" },
+  { value: "press_quotes", label: "Press Quotes" },
 ];
 
 export function EPKModuleDialog({
@@ -210,9 +205,88 @@ export function EPKModuleDialog({
             </>
           )}
 
-          <p className="text-sm text-muted-foreground">
-            More detailed module configuration options coming soon!
-          </p>
+          {moduleType === "video" && (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="video-url">Video URL (YouTube/Vimeo)</Label>
+                <Input
+                  id="video-url"
+                  placeholder="https://youtube.com/watch?v=..."
+                  value={moduleData.video_url || ""}
+                  onChange={(e) => setModuleData({ ...moduleData, video_url: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="video-title">Video Title</Label>
+                <Input
+                  id="video-title"
+                  placeholder="Featured Video"
+                  value={moduleData.video_title || ""}
+                  onChange={(e) => setModuleData({ ...moduleData, video_title: e.target.value })}
+                />
+              </div>
+            </>
+          )}
+
+          {moduleType === "tour_dates" && (
+            <div className="space-y-2">
+              <Label htmlFor="tour-dates">Tour Dates (JSON)</Label>
+              <Textarea
+                id="tour-dates"
+                placeholder='[{"date": "2025-10-15", "venue": "The Venue", "city": "City", "ticket_url": ""}]'
+                value={moduleData.dates ? JSON.stringify(moduleData.dates, null, 2) : ""}
+                onChange={(e) => {
+                  try {
+                    const dates = JSON.parse(e.target.value);
+                    setModuleData({ ...moduleData, dates });
+                  } catch {
+                    // Invalid JSON, ignore
+                  }
+                }}
+                rows={6}
+              />
+            </div>
+          )}
+
+          {moduleType === "discography" && (
+            <div className="space-y-2">
+              <Label htmlFor="releases">Releases (JSON)</Label>
+              <Textarea
+                id="releases"
+                placeholder='[{"title": "Album Name", "year": 2025, "cover_url": "", "spotify_url": ""}]'
+                value={moduleData.releases ? JSON.stringify(moduleData.releases, null, 2) : ""}
+                onChange={(e) => {
+                  try {
+                    const releases = JSON.parse(e.target.value);
+                    setModuleData({ ...moduleData, releases });
+                  } catch {
+                    // Invalid JSON, ignore
+                  }
+                }}
+                rows={6}
+              />
+            </div>
+          )}
+
+          {moduleType === "press_quotes" && (
+            <div className="space-y-2">
+              <Label htmlFor="quotes">Press Quotes (JSON)</Label>
+              <Textarea
+                id="quotes"
+                placeholder='[{"quote": "Amazing artist!", "source": "John Doe", "publication": "Music Magazine"}]'
+                value={moduleData.quotes ? JSON.stringify(moduleData.quotes, null, 2) : ""}
+                onChange={(e) => {
+                  try {
+                    const quotes = JSON.parse(e.target.value);
+                    setModuleData({ ...moduleData, quotes });
+                  } catch {
+                    // Invalid JSON, ignore
+                  }
+                }}
+                rows={6}
+              />
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end gap-2">
