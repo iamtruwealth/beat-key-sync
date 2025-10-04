@@ -287,20 +287,43 @@ export function useCookModeAudio(isHost: boolean = true): UseCookModeAudioReturn
     }
 
     try {
-      await engineRef.current.startAudioRecording(trackId);
+      // Request microphone access - this will trigger browser permission dialog
+      console.log('🎙️ Requesting microphone permission...');
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        } 
+      });
+      
+      console.log('✅ Microphone access granted');
+      
+      // Pass the stream to the engine to start recording
+      await engineRef.current.startAudioRecording(trackId, stream);
+      setIsRecording(true);
       
       toast({
-        title: "Audio Recording Started",
-        description: "Recording audio from your microphone...",
+        title: "Recording Started",
+        description: "Recording from your microphone. Click stop when done.",
       });
       
     } catch (error) {
       console.error('❌ Failed to start audio recording:', error);
-      toast({
-        title: "Audio Recording Failed",
-        description: error instanceof Error ? error.message : 'Unknown error',
-        variant: "destructive",
-      });
+      
+      if (error instanceof DOMException && error.name === 'NotAllowedError') {
+        toast({
+          title: "Microphone Access Denied",
+          description: "Please allow microphone access in your browser settings",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Recording Failed",
+          description: error instanceof Error ? error.message : 'Unknown error',
+          variant: "destructive",
+        });
+      }
       throw error;
     }
   }, [toast]);
@@ -313,11 +336,12 @@ export function useCookModeAudio(isHost: boolean = true): UseCookModeAudioReturn
 
     try {
       const audioBlob = await engineRef.current.stopAudioRecording();
+      setIsRecording(false);
       
       if (audioBlob) {
         toast({
-          title: "Audio Recording Complete",
-          description: "Audio has been recorded and added to the track",
+          title: "Recording Complete",
+          description: "Your recording is ready. You can now add it to a track.",
         });
       }
 
@@ -325,8 +349,9 @@ export function useCookModeAudio(isHost: boolean = true): UseCookModeAudioReturn
       
     } catch (error) {
       console.error('❌ Failed to stop audio recording:', error);
+      setIsRecording(false);
       toast({
-        title: "Audio Recording Failed",
+        title: "Recording Failed",
         description: error instanceof Error ? error.message : 'Unknown error',
         variant: "destructive",
       });

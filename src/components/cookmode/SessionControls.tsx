@@ -252,22 +252,18 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
                 <DropdownMenuContent align="start" className="bg-background border-border">
                   <DropdownMenuItem
                     onClick={async () => {
-                      // Start audio recording
-                      let trackId = currentRecordingTrackId;
-                      
-                      if (!trackId) {
-                        const trackName = `Recording ${Date.now()}`;
-                        trackId = createTrack(trackName);
-                        setCurrentRecordingTrackId(trackId);
-                        await onCreateEmptyTrack?.(trackName);
-                      }
-                      
                       try {
-                        await startAudioRecording(trackId);
+                        // Request microphone permission and start recording WITHOUT creating a track
+                        console.log('🎙️ Requesting microphone access...');
+                        await startAudioRecording(''); // Empty string = no track yet
                         setRecordingMode('audio');
                       } catch (error) {
                         console.error('Failed to start audio recording:', error);
-                        setCurrentRecordingTrackId(null);
+                        toast({
+                          title: "Microphone Access Denied",
+                          description: "Please allow microphone access to record audio",
+                          variant: "destructive",
+                        });
                       }
                     }}
                   >

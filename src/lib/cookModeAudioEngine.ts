@@ -417,26 +417,32 @@ export class CookModeAudioEngine {
   }
 
   // Start continuous audio recording
-  public async startAudioRecording(trackId: string): Promise<void> {
+  public async startAudioRecording(trackId: string, stream?: MediaStream): Promise<void> {
     try {
       if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
         console.warn('⚠️ Already recording audio');
         return;
       }
 
-      console.log(`🎤 Starting continuous audio recording for track ${trackId}`);
-      this.currentRecordingTrackId = trackId;
+      console.log(`🎤 Starting continuous audio recording${trackId ? ` for track ${trackId}` : ''}`);
+      this.currentRecordingTrackId = trackId || null;
       
-      // Request microphone access
-      this.audioStream = await navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          sampleRate: 44100,
-          channelCount: 2,
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true
-        }
-      });
+      // Use provided stream or request microphone access
+      if (stream) {
+        console.log('✅ Using provided MediaStream');
+        this.audioStream = stream;
+      } else {
+        console.log('🎙️ Requesting microphone access...');
+        this.audioStream = await navigator.mediaDevices.getUserMedia({ 
+          audio: {
+            sampleRate: 44100,
+            channelCount: 2,
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          }
+        });
+      }
 
       this.recordedChunks = [];
       
