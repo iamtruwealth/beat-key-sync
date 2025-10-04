@@ -36,6 +36,12 @@ export default function ArtistDashboard() {
   const [isPublished, setIsPublished] = useState(false);
   const [epkProfile, setEpkProfile] = useState<any>(null);
   const [subscriberCount, setSubscriberCount] = useState(0);
+  const [revenueData, setRevenueData] = useState({
+    monthlyRevenue: 0,
+    lifetimeRevenue: 0,
+    availableBalance: 0,
+    recentPayments: [] as any[]
+  });
 
   useEffect(() => {
     loadDashboardData();
@@ -111,6 +117,42 @@ export default function ArtistDashboard() {
       .eq('status', 'active');
     
     setSubscriberCount(subCount || 0);
+
+    // Load revenue data
+    const now = new Date();
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    // Get monthly revenue
+    const { data: monthlyPayments } = await supabase
+      .from('fan_subscription_payments')
+      .select('artist_earnings_cents')
+      .eq('artist_id', user.id)
+      .gte('payment_date', firstDayOfMonth.toISOString());
+
+    const monthlyRev = monthlyPayments?.reduce((sum, p) => sum + (p.artist_earnings_cents || 0), 0) || 0;
+
+    // Get lifetime revenue
+    const { data: allPayments } = await supabase
+      .from('fan_subscription_payments')
+      .select('artist_earnings_cents')
+      .eq('artist_id', user.id);
+
+    const lifetimeRev = allPayments?.reduce((sum, p) => sum + (p.artist_earnings_cents || 0), 0) || 0;
+
+    // Get recent payments
+    const { data: recentPays } = await supabase
+      .from('fan_subscription_payments')
+      .select('*, fan:profiles!fan_subscription_payments_fan_id_fkey(producer_name, first_name, last_name)')
+      .eq('artist_id', user.id)
+      .order('payment_date', { ascending: false })
+      .limit(10);
+
+    setRevenueData({
+      monthlyRevenue: monthlyRev,
+      lifetimeRevenue: lifetimeRev,
+      availableBalance: lifetimeRev, // In real app, subtract paid out amounts
+      recentPayments: recentPays || []
+    });
   };
 
   const getStatusIcon = (status: string) => {
@@ -192,122 +234,103 @@ export default function ArtistDashboard() {
         </Card>
       </div>
 
-      {/* Main Content Grid */}
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Recent Messages */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MessageSquare className="w-5 h-5" />
-              Recent Messages
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {recentMessages.length === 0 ? (
-              <p className="text-muted-foreground text-center py-4">No recent messages</p>
-            ) : (
-              recentMessages.map((message) => (
-                <div key={message.id} className="flex items-start gap-3 p-3 rounded-lg hover:bg-muted/50">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                    <User className="w-4 h-4" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-sm">
-                      {message.sender?.producer_name || `${message.sender?.first_name} ${message.sender?.last_name}`}
-                    </p>
-                    <p className="text-sm text-muted-foreground truncate">{message.content}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(message.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
+      {/* Revenue & Earnings Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <DollarSign className="w-5 h-5" />
+            Revenue & Earnings
+          </CardTitle>
+          <CardDescription>Track your subscription revenue and manage payouts</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Revenue Stats */}
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-sm font-medium text-muted-foreground">Monthly Revenue</div>
+                <div className="text-2xl font-bold">${(revenueData.monthlyRevenue / 100).toFixed(2)}</div>
+                <p className="text-xs text-muted-foreground mt-1">This month</p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-sm font-medium text-muted-foreground">Lifetime Earnings</div>
+                <div className="text-2xl font-bold">${(revenueData.lifetimeRevenue / 100).toFixed(2)}</div>
+                <p className="text-xs text-muted-foreground mt-1">All time</p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-sm font-medium text-muted-foreground">Available Balance</div>
+                <div className="text-2xl font-bold text-green-600">${(revenueData.availableBalance / 100).toFixed(2)}</div>
+                <Button 
+                  size="sm" 
+                  className="mt-2 w-full"
+                  onClick={() => navigate('/producer-dashboard')}
+                >
+                  Request Payout
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
 
-        {/* Active Projects */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Music className="w-5 h-5" />
-              Active Projects
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {activeProjects.length === 0 ? (
-              <p className="text-muted-foreground text-center py-4">No active projects</p>
-            ) : (
-              activeProjects.map((project) => (
-                <div key={project.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50">
-                  <div className="flex items-center gap-3">
-                    {getStatusIcon(project.status)}
-                    <div>
-                      <p className="font-medium">{project.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        Updated {new Date(project.updated_at).toLocaleDateString()}
+          {/* Recent Payments */}
+          <div>
+            <h3 className="text-lg font-semibold mb-4">Recent Payments</h3>
+            <div className="space-y-3">
+              {revenueData.recentPayments.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">No payments received yet</p>
+              ) : (
+                revenueData.recentPayments.map((payment) => (
+                  <div 
+                    key={payment.id} 
+                    className="flex items-center justify-between p-4 rounded-lg border bg-muted/50"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                        <DollarSign className="w-5 h-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="font-medium">
+                          {payment.fan?.producer_name || `${payment.fan?.first_name} ${payment.fan?.last_name}` || 'Fan'}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {new Date(payment.payment_date).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-green-600">
+                        +${(payment.artist_earnings_cents / 100).toFixed(2)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Net earnings
                       </p>
                     </div>
                   </div>
-                  <Badge variant="secondary">{project.status}</Badge>
-                </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
+                ))
+              )}
+            </div>
+          </div>
 
-        {/* Notifications */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Bell className="w-5 h-5" />
-              Recent Notifications
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {notifications.length === 0 ? (
-              <p className="text-muted-foreground text-center py-4">No new notifications</p>
-            ) : (
-              notifications.map((notification) => (
-                <div key={notification.id} className="p-3 rounded-lg border-l-4 border-l-primary bg-muted/50">
-                  <p className="font-medium text-sm">{notification.title}</p>
-                  <p className="text-sm text-muted-foreground">{notification.message}</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {new Date(notification.created_at).toLocaleDateString()}
-                  </p>
-                </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Pending Paperwork */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="w-5 h-5" />
-              Pending Paperwork
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {pendingPaperwork.length === 0 ? (
-              <p className="text-muted-foreground text-center py-4">All paperwork up to date</p>
-            ) : (
-              pendingPaperwork.map((sheet) => (
-                <div key={sheet.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50">
-                  <div>
-                    <p className="font-medium">{sheet.song_title}</p>
-                    <p className="text-sm text-muted-foreground">
-                      Created {new Date(sheet.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <Badge variant="outline">Draft</Badge>
-                </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
-      </div>
+          {/* Payment Method Info */}
+          <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800">
+            <div className="flex items-start gap-3">
+              <BarChart3 className="w-5 h-5 text-blue-600 mt-0.5" />
+              <div>
+                <h4 className="font-medium text-blue-900 dark:text-blue-100">Payment Information</h4>
+                <p className="text-sm text-blue-800 dark:text-blue-200 mt-1">
+                  Payments are processed monthly. Request a payout when your balance reaches $50 or more.
+                  Available payout methods: PayPal, Bank Transfer, Stripe, CashApp, Venmo, Zelle.
+                </p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Quick Actions */}
       <Card>
