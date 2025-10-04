@@ -134,24 +134,31 @@ export default function ProfilePage() {
       }
 
       // Only update specific editable fields to avoid constraint violations
+      // Clean the data before updating
+      const updateData: any = {};
+      
+      if (profile.first_name !== undefined) updateData.first_name = profile.first_name;
+      if (profile.last_name !== undefined) updateData.last_name = profile.last_name;
+      if (profile.username) updateData.username = profile.username;
+      if (profile.producer_name) updateData.producer_name = profile.producer_name;
+      if (profile.bio !== undefined) updateData.bio = profile.bio;
+      if (profile.home_town !== undefined) updateData.home_town = profile.home_town;
+      if (profile.genres !== undefined) updateData.genres = profile.genres;
+      if (profile.social_links !== undefined) updateData.social_links = profile.social_links;
+      if (profile.public_profile_enabled !== undefined) updateData.public_profile_enabled = profile.public_profile_enabled;
+      if (logoUrl) updateData.producer_logo_url = logoUrl;
+      
+      console.log('Updating profile with data:', updateData);
+
       const { error } = await supabase
         .from('profiles')
-        .update({
-          first_name: profile.first_name,
-          last_name: profile.last_name,
-          username: profile.username,
-          artist_name: profile.artist_name,
-          producer_name: profile.producer_name,
-          bio: profile.bio,
-          home_town: profile.home_town,
-          genres: profile.genres,
-          social_links: profile.social_links,
-          public_profile_enabled: profile.public_profile_enabled,
-          producer_logo_url: logoUrl
-        })
+        .update(updateData)
         .eq('id', profile.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Profile update error:', error);
+        throw error;
+      }
 
       setIsEditing(false);
       setLogoFile(null);
@@ -159,11 +166,12 @@ export default function ProfilePage() {
         title: "Success",
         description: "Profile updated successfully"
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving profile:', error);
+      const errorMessage = error?.message || error?.error_description || "Failed to save profile";
       toast({
         title: "Error",
-        description: "Failed to save profile",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
