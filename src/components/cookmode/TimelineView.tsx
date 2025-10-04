@@ -104,6 +104,8 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const [copiedClip, setCopiedClip] = useState<AudioClip | null>(null);
   const [selectedTrack, setSelectedTrack] = useState<string | null>(null);
   const [armedTracks, setArmedTracks] = useState<Set<string>>(new Set());
+  const [monitoringTracks, setMonitoringTracks] = useState<Set<string>>(new Set());
+  const monitorStreamsRef = useRef<Map<string, { stream: MediaStream; gainNode: GainNode; source: MediaStreamAudioSourceNode }>>(new Map());
   const [pianoRollOpen, setPianoRollOpen] = useState(false);
   const [pianoRollTrack, setPianoRollTrack] = useState<{ id: string; name: string; mode: TrackMode; sampleUrl?: string } | null>(null);
   const [trackNotes, setTrackNotes] = useState<Map<string, { notes: PianoRollNote[]; triggers: SampleTrigger[] }>>(new Map());
@@ -1069,9 +1071,84 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                       {track.name}
                     </span>
                     <div className="flex items-center gap-1">
+                      {/* Input Monitor Button */}
+                      <button
+                        type="button"
+                        data-track-id={track.id}
+                        data-track-armed={armedTracks.has(track.id) ? 'true' : 'false'}
+                        className={`inline-flex items-center justify-center h-6 w-6 rounded-full transition-all duration-200 text-xs font-bold ${
+                          monitoringTracks.has(track.id)
+                            ? 'bg-green-500 shadow-[0_0_15px_rgba(34,197,94,0.8)] text-white' 
+                            : 'bg-background/80 border border-border text-foreground hover:bg-green-500/20 hover:border-green-500'
+                        }`}
+                        aria-label={monitoringTracks.has(track.id) ? "Stop monitoring input" : "Monitor input"}
+                        title={monitoringTracks.has(track.id) ? "Stop monitoring input" : "Monitor input - hear mic in real-time"}
+                        onClick={async (e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          
+                          const trackId = track.id;
+                          const isMonitoring = monitoringTracks.has(trackId);
+                          
+                          if (isMonitoring) {
+                            // Stop monitoring
+                            const monitor = monitorStreamsRef.current.get(trackId);
+                            if (monitor) {
+                              monitor.source.disconnect();
+                              monitor.gainNode.disconnect();
+                              monitor.stream.getTracks().forEach(t => t.stop());
+                              monitorStreamsRef.current.delete(trackId);
+                            }
+                            setMonitoringTracks(prev => {
+                              const next = new Set(prev);
+                              next.delete(trackId);
+                              return next;
+                            });
+                          } else {
+                            // Start monitoring
+                            try {
+                              const stream = await navigator.mediaDevices.getUserMedia({ 
+                                audio: {
+                                  echoCancellation: false, // Don't cancel echo for monitoring
+                                  noiseSuppression: false,
+                                  autoGainControl: false
+                                } 
+                              });
+                              
+                              const audioContext = new AudioContext();
+                              const source = audioContext.createMediaStreamSource(stream);
+                              const gainNode = audioContext.createGain();
+                              gainNode.gain.value = 0.8; // Slightly reduce volume to prevent feedback
+                              
+                              source.connect(gainNode);
+                              gainNode.connect(audioContext.destination);
+                              
+                              monitorStreamsRef.current.set(trackId, { stream, gainNode, source });
+                              setMonitoringTracks(prev => new Set(prev).add(trackId));
+                              
+                              toast({
+                                title: "Input Monitoring Active",
+                                description: "You can now hear your microphone input",
+                              });
+                            } catch (error) {
+                              console.error('Failed to start input monitoring:', error);
+                              toast({
+                                title: "Monitoring Failed",
+                                description: "Could not access microphone",
+                                variant: "destructive",
+                              });
+                            }
+                          }
+                        }}
+                      >
+                        i
+                      </button>
+                      
                       {/* Record Arm Button */}
                       <button
                         type="button"
+                        data-track-id={track.id}
+                        data-track-armed={armedTracks.has(track.id) ? 'true' : 'false'}
                         className={`inline-flex items-center justify-center h-6 w-6 rounded-full transition-all duration-200 ${
                           armedTracks.has(track.id)
                             ? 'bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.8)] text-white' 

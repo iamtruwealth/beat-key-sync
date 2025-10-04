@@ -252,11 +252,27 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
                 <DropdownMenuContent align="start" className="bg-background border-border">
                   <DropdownMenuItem
                     onClick={async () => {
+                      // Get the first armed track
+                      const armedTrackIds = Array.from(document.querySelectorAll('[data-track-armed="true"]'))
+                        .map(el => el.getAttribute('data-track-id'))
+                        .filter(Boolean) as string[];
+                      
+                      if (armedTrackIds.length === 0) {
+                        toast({
+                          title: "No Track Armed",
+                          description: "Please arm a track for recording first (click the circle button on a track)",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+                      
+                      const armedTrackId = armedTrackIds[0];
+                      
                       try {
-                        // Request microphone permission and start recording WITHOUT creating a track
-                        console.log('🎙️ Requesting microphone access...');
-                        await startAudioRecording(''); // Empty string = no track yet
+                        console.log('🎙️ Starting audio recording on armed track:', armedTrackId);
+                        await startAudioRecording(armedTrackId);
                         setRecordingMode('audio');
+                        setCurrentRecordingTrackId(armedTrackId);
                       } catch (error) {
                         console.error('Failed to start audio recording:', error);
                         toast({
