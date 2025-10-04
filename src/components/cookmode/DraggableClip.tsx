@@ -271,7 +271,7 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
         width: clipWidth,
         height: trackHeight - 8,
         top: 4,
-        zIndex: isDragging || isTrimming ? 1000 : 1
+        zIndex: isDragging || isTrimming ? 50 : 10
       }}
       onMouseDown={handleMouseDown}
       onClick={handleClick}
@@ -298,18 +298,18 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
           {/* Left trim handle - hide when trimming end */}
           {isTrimming !== 'end' && (
             <div
-              className="trim-handle absolute left-0 top-0 w-4 h-full cursor-ew-resize"
+              className="trim-handle absolute left-0 top-0 w-4 h-full cursor-ew-resize bg-transparent hover:bg-primary/20 transition-colors"
               onMouseDown={(e) => handleTrimMouseDown(e, 'start')}
-              style={{ zIndex: 1001, pointerEvents: 'auto' }}
+              style={{ zIndex: 20 }}
             />
           )}
           
           {/* Right trim handle - hide when trimming start */}
           {isTrimming !== 'start' && (
             <div
-              className="trim-handle absolute right-0 top-0 w-4 h-full cursor-ew-resize"
+              className="trim-handle absolute right-0 top-0 w-4 h-full cursor-ew-resize bg-transparent hover:bg-primary/20 transition-colors"
               onMouseDown={(e) => handleTrimMouseDown(e, 'end')}
-              style={{ zIndex: 1001, pointerEvents: 'auto' }}
+              style={{ zIndex: 20 }}
             />
           )}
         </>
