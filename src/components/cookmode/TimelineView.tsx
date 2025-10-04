@@ -15,6 +15,7 @@ import { undoManager, ActionType, createMoveAction } from '@/lib/UndoManager';
 import { PianoRoll } from './PianoRoll';
 import { TrackMode } from '@/types/pianoRoll';
 import { Music } from 'lucide-react';
+import { sessionLoopEngine } from '@/lib/sessionLoopEngine';
 
 interface Track {
   id: string;
@@ -587,8 +588,19 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const handleTrackPlay = useCallback(async (track: Track) => {
     const newMutedState = !(track.isMuted || false);
     console.log('[TimelineView] Toggling mute for track:', track.name, 'Current muted:', track.isMuted, 'New muted:', newMutedState);
+
+    // Immediate audio feedback for hosts: mute/unmute associated clips in the engine
+    try {
+      if (!readOnly) {
+        const affectedClips = audioClips.filter(c => c.trackId === track.id);
+        affectedClips.forEach(c => sessionLoopEngine.muteClip(c.id, newMutedState));
+        console.log('[TimelineView] Applied mute to engine clips:', affectedClips.map(c => c.id));
+      }
+    } catch (err) {
+      console.warn('[TimelineView] Engine mute failed (viewer mode or engine not ready):', err);
+    }
     
-    // Update track in parent component
+    // Update track in parent component so UI and state persist
     if (onTracksUpdate) {
       const updatedTracks = tracks.map(t => 
         t.id === track.id ? { ...t, isMuted: newMutedState } : t
@@ -598,12 +610,13 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     } else {
       console.warn('[TimelineView] onTracksUpdate callback is not defined');
     }
-    
+
+    // User feedback
     toast({
-      title: newMutedState ? "Track Muted" : "Track Unmuted",
+      title: newMutedState ? 'Track Muted' : 'Track Unmuted',
       description: track.name,
     });
-  }, [tracks, onTracksUpdate, toast]);
+  }, [audioClips, onTracksUpdate, readOnly, toast, tracks]);
 
   // Update timeline width
   useEffect(() => {
