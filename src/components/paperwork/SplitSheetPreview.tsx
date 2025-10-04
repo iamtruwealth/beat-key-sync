@@ -1,13 +1,25 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Download, Send, FileText, Pen } from "lucide-react";
+import { Download, Send, FileText, Pen, Mail, Loader2 } from "lucide-react";
 import { SignatureCapture } from "./SignatureCapture";
 import { format } from "date-fns";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 
 interface SplitSheetPreviewProps {
   splitSheet: any;
@@ -18,6 +30,10 @@ export function SplitSheetPreview({ splitSheet, onUpdate }: SplitSheetPreviewPro
   const [showSignature, setShowSignature] = useState(false);
   const [selectedContributor, setSelectedContributor] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [showEmailDialog, setShowEmailDialog] = useState(false);
+  const [emailRecipients, setEmailRecipients] = useState("");
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const documentRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   const getStatusColor = (status: string) => {
@@ -83,19 +99,123 @@ export function SplitSheetPreview({ splitSheet, onUpdate }: SplitSheetPreviewPro
     setLoading(false);
   };
 
-  const handleDownloadPDF = () => {
-    // This would generate and download a PDF - for now just show a toast
-    toast({
-      title: "PDF Download",
-      description: "PDF generation feature coming soon!"
+  const generatePDF = async (): Promise<string> => {
+    if (!documentRef.current) {
+      throw new Error("Document reference not found");
+    }
+
+    // Capture the document as an image
+    const canvas = await html2canvas(documentRef.current, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff'
     });
+
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    const imgWidth = 210; // A4 width in mm
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    
+    pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+    
+    return pdf.output('datauristring');
+  };
+
+  const handleDownloadPDF = async () => {
+    try {
+      setLoading(true);
+      const pdfDataUri = await generatePDF();
+      
+      // Convert data URI to blob and download
+      const blob = await (await fetch(pdfDataUri)).blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${splitSheet.song_title.replace(/[^a-z0-9]/gi, '_')}_split_sheet.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "PDF Downloaded",
+        description: "Split sheet PDF has been downloaded successfully"
+      });
+    } catch (error: any) {
+      console.error("Error generating PDF:", error);
+      toast({
+        title: "Error",
+        description: "Failed to generate PDF",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSendToCollaborators = () => {
-    toast({
-      title: "Send to Collaborators",
-      description: "Email invitation feature coming soon!"
-    });
+    // Pre-fill with contributor emails
+    const emails = splitSheet.split_sheet_contributors
+      ?.map((c: any) => c.contact_info)
+      .filter((email: string) => email && email.includes('@'))
+      .join(', ');
+    
+    setEmailRecipients(emails || '');
+    setShowEmailDialog(true);
+  };
+
+  const handleSendEmail = async () => {
+    try {
+      setSendingEmail(true);
+      
+      // Validate email addresses
+      const emails = emailRecipients
+        .split(',')
+        .map(e => e.trim())
+        .filter(e => e.includes('@'));
+      
+      if (emails.length === 0) {
+        throw new Error("Please enter at least one valid email address");
+      }
+
+      // Generate PDF
+      const pdfDataUri = await generatePDF();
+      const pdfBase64 = pdfDataUri.split(',')[1]; // Remove data URI prefix
+
+      // Call edge function to send email
+      const { data, error } = await supabase.functions.invoke('email-splitsheet', {
+        body: {
+          splitSheetId: splitSheet.id,
+          recipients: emails,
+          pdfData: pdfBase64
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Emails Sent",
+        description: `Split sheet sent to ${data.sent} recipient(s)`
+      });
+
+      setShowEmailDialog(false);
+      setEmailRecipients('');
+    } catch (error: any) {
+      console.error("Error sending email:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to send email",
+        variant: "destructive"
+      });
+    } finally {
+      setSendingEmail(false);
+    }
   };
 
   const unsignedContributors = splitSheet.split_sheet_contributors?.filter((c: any) => !c.signed_at) || [];
@@ -118,19 +238,27 @@ export function SplitSheetPreview({ splitSheet, onUpdate }: SplitSheetPreviewPro
         </div>
         
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleDownloadPDF}>
-            <Download className="w-4 h-4 mr-2" />
+          <Button 
+            variant="outline" 
+            onClick={handleDownloadPDF}
+            disabled={loading}
+          >
+            {loading ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Download className="w-4 h-4 mr-2" />
+            )}
             Download PDF
           </Button>
           <Button variant="outline" onClick={handleSendToCollaborators}>
-            <Send className="w-4 h-4 mr-2" />
-            Send to Collaborators
+            <Mail className="w-4 h-4 mr-2" />
+            Email PDF
           </Button>
         </div>
       </div>
 
       {/* Split Sheet Document Preview */}
-      <Card>
+      <Card ref={documentRef}>
         <CardHeader>
           <CardTitle className="text-center">
             SPLIT SHEET AGREEMENT
@@ -250,6 +378,60 @@ export function SplitSheetPreview({ splitSheet, onUpdate }: SplitSheetPreviewPro
           loading={loading}
         />
       )}
+
+      {/* Email Dialog */}
+      <Dialog open={showEmailDialog} onOpenChange={setShowEmailDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Email Split Sheet PDF</DialogTitle>
+            <DialogDescription>
+              Enter the email addresses of the recipients (separated by commas)
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="email-recipients">Email Recipients</Label>
+              <Input
+                id="email-recipients"
+                placeholder="email1@example.com, email2@example.com"
+                value={emailRecipients}
+                onChange={(e) => setEmailRecipients(e.target.value)}
+                className="mt-1"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Separate multiple emails with commas
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setShowEmailDialog(false)}
+              disabled={sendingEmail}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSendEmail}
+              disabled={sendingEmail || !emailRecipients.trim()}
+            >
+              {sendingEmail ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Mail className="w-4 h-4 mr-2" />
+                  Send Email
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

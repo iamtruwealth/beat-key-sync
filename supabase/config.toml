@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.stream-audio]
 verify_jwt = false
+
+[functions.email-splitsheet]
+verify_jwt = true
