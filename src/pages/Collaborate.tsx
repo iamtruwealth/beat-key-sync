@@ -10,38 +10,87 @@ import { CollabProjects } from '@/components/collaboration/CollabProjects';
 import { CollabMatchmaking } from '@/components/collaboration/CollabMatchmaking';
 import { CollabTinder } from '@/components/collaboration/CollabTinder';
 import { RoyaltyMarketplace } from '@/components/collaboration/RoyaltyMarketplace';
+import { supabase } from '@/integrations/supabase/client';
 
 const Collaborate = () => {
   const [activeTab, setActiveTab] = useState('projects');
+  const [stats, setStats] = useState({
+    activeCollabs: 0,
+    liveSessions: 0,
+    sharedEarnings: 0,
+    packReleases: 0
+  });
   const navigate = useNavigate();
+
+  useEffect(() => {
+    loadStats();
+  }, []);
+
+  const loadStats = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const [collabsData, sessionsData, packData] = await Promise.all([
+      supabase
+        .from('collaboration_members')
+        .select('collaboration_id', { count: 'exact' })
+        .eq('user_id', user.id)
+        .eq('status', 'accepted'),
+      supabase
+        .from('collaboration_sessions')
+        .select('id', { count: 'exact' })
+        .is('ended_at', null)
+        .contains('participants', [user.id]),
+      supabase
+        .from('collaboration_projects')
+        .select('id', { count: 'exact' })
+        .or(`created_by.eq.${user.id},id.in.(${await getCollabIds(user.id)})`)
+    ]);
+
+    setStats({
+      activeCollabs: collabsData.count || 0,
+      liveSessions: sessionsData.count || 0,
+      sharedEarnings: 0,
+      packReleases: packData.count || 0
+    });
+  };
+
+  const getCollabIds = async (userId: string) => {
+    const { data } = await supabase
+      .from('collaboration_members')
+      .select('collaboration_id')
+      .eq('user_id', userId)
+      .eq('status', 'accepted');
+    return data?.map(m => m.collaboration_id).join(',') || '';
+  };
 
   const collaborationStats = [
     {
       title: "Active Collabs",
-      value: "12",
+      value: stats.activeCollabs.toString(),
       icon: Users,
-      change: "+3 this week",
+      change: "Total projects",
       color: "text-neon-cyan"
     },
     {
       title: "Live Sessions",
-      value: "4",
+      value: stats.liveSessions.toString(),
       icon: Zap,
-      change: "2 cooking now",
+      change: "Cooking now",
       color: "text-electric-blue"
     },
     {
       title: "Shared Earnings",
-      value: "$2,450",
+      value: `$${(stats.sharedEarnings / 100).toFixed(0)}`,
       icon: TrendingUp,
-      change: "+$340 this month",
+      change: "From collabs",
       color: "text-neon-magenta"
     },
     {
       title: "Pack Releases",
-      value: "8",
+      value: stats.packReleases.toString(),
       icon: Music,
-      change: "3 pending splits",
+      change: "Collaborative",
       color: "text-neon-cyan"
     }
   ];
