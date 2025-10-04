@@ -66,6 +66,7 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
   const [isTrimming, setIsTrimming] = useState<'start' | 'end' | null>(null);
   const [dragStart, setDragStart] = useState({ x: 0, startTime: 0 });
   const initialTrimRef = useRef<{ leftPx: number; widthPx: number; rightPx: number }>({ leftPx: 0, widthPx: 0, rightPx: 0 });
+  const listenersAttachedRef = useRef(false);
 
   // Calculate clip timings
   const fullDuration = clip.fullDuration || clip.originalTrack.analyzed_duration || clip.originalTrack.duration || 0;
@@ -80,6 +81,83 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
   const snapToGrid = useCallback((time: number): number => {
     return Math.round(time / secondsPerBeat) * secondsPerBeat;
   }, [secondsPerBeat]);
+
+  // Handle mouse move during drag or trim (defined early so we can attach immediately)
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isDragging && !isTrimming) return;
+    const deltaX = e.clientX - dragStart.x;
+    const deltaTime = deltaX / pixelsPerSecond;
+
+    if (isDragging) {
+      const newStartTime = Math.max(0, dragStart.startTime + deltaTime);
+      const snappedStartTime = snapToGrid(newStartTime);
+      if (clipRef.current) {
+        const newLeft = snappedStartTime * pixelsPerSecond;
+        clipRef.current.style.left = `${newLeft}px`;
+      }
+    } else if (isTrimming && fullDuration > 0) {
+      const rawTime = Math.max(0, Math.min(fullDuration, dragStart.startTime + deltaTime));
+      const snappedTime = snapToGrid(rawTime);
+      let tempTrimStart = trimStart;
+      let tempTrimEnd = trimEnd;
+      if (isTrimming === 'start') {
+        tempTrimStart = Math.min(snappedTime, trimEnd - 0.1);
+      } else {
+        tempTrimEnd = Math.max(snappedTime, trimStart + 0.1);
+      }
+      const tempWidthPx = Math.max(4, (tempTrimEnd - tempTrimStart) * pixelsPerSecond);
+      if (clipRef.current) {
+        if (isTrimming === 'start') {
+          const newLeft = Math.max(0, initialTrimRef.current.rightPx - tempWidthPx);
+          clipRef.current.style.left = `${newLeft}px`;
+          clipRef.current.style.width = `${tempWidthPx}px`;
+        } else {
+          clipRef.current.style.width = `${tempWidthPx}px`;
+        }
+      }
+    }
+  }, [isDragging, isTrimming, dragStart, pixelsPerSecond, snapToGrid, fullDuration, trimStart, trimEnd]);
+
+  // Handle mouse up
+  const handleMouseUp = useCallback((e: MouseEvent) => {
+    if (!isDragging && !isTrimming) return;
+    document.body.style.userSelect = '';
+    const deltaX = e.clientX - dragStart.x;
+    const deltaTime = deltaX / pixelsPerSecond;
+
+    if (isDragging) {
+      setIsDragging(false);
+      const newStartTime = Math.max(0, dragStart.startTime + deltaTime);
+      const snappedStartTime = snapToGrid(newStartTime);
+      if (Math.abs(snappedStartTime - clip.startTime) > 0.01) {
+        onClipMove(clip.id, snappedStartTime);
+      }
+    } else if (isTrimming && onTrimClip && fullDuration > 0) {
+      const newTime = Math.max(0, Math.min(fullDuration, dragStart.startTime + deltaTime));
+      const snappedTime = snapToGrid(newTime);
+      console.log('[DraggableClip] trim mouseup', { clipId: clip.id, edge: isTrimming, newTime, snappedTime, trimStart, trimEnd });
+      if (isTrimming === 'start') {
+        const trimDelta = deltaTime;
+        const newTrimStart = Math.max(0, Math.min(trimStart + trimDelta, trimEnd - 0.1));
+        if (Math.abs(newTrimStart - trimStart) > 0.01) {
+          onTrimClip(clip.id, isTrimming, newTrimStart, trimEnd);
+        }
+      } else {
+        const newTrimEnd = Math.max(snappedTime, trimStart + 0.1);
+        if (Math.abs(newTrimEnd - trimEnd) > 0.01) {
+          onTrimClip(clip.id, isTrimming, trimStart, newTrimEnd);
+        }
+      }
+      setIsTrimming(null);
+    }
+
+    // Cleanup listeners
+    if (listenersAttachedRef.current) {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      listenersAttachedRef.current = false;
+    }
+  }, [isDragging, isTrimming, dragStart, pixelsPerSecond, snapToGrid, clip.id, clip.startTime, onClipMove, trimStart, trimEnd, fullDuration, onTrimClip]);
 
   // Handle mouse down for clip movement
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -120,7 +198,13 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
     console.log('[DraggableClip] drag mousedown', { clipId: clip.id, startTime: clip.startTime });
     
     document.body.style.userSelect = 'none';
-  }, [clip.startTime]);
+    // Attach listeners immediately for zero-latency dragging
+    if (!listenersAttachedRef.current) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      listenersAttachedRef.current = true;
+    }
+  }, [clip.startTime, handleMouseMove, handleMouseUp]);
 
   // Handle mouse down for trim handles
   const handleTrimMouseDown = useCallback((e: React.MouseEvent, trimType: 'start' | 'end') => {
@@ -146,90 +230,6 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
     document.body.style.userSelect = 'none';
   }, [trimStart, trimEnd, clipLeft, clipWidth, clip.id]);
 
-  // Handle mouse move during drag or trim
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!isDragging && !isTrimming) return;
-    
-    const deltaX = e.clientX - dragStart.x;
-    const deltaTime = deltaX / pixelsPerSecond;
-    
-    if (isDragging) {
-      const newStartTime = Math.max(0, dragStart.startTime + deltaTime);
-      const snappedStartTime = snapToGrid(newStartTime);
-      
-      if (clipRef.current) {
-        const newLeft = snappedStartTime * pixelsPerSecond;
-        clipRef.current.style.left = `${newLeft}px`;
-      }
-    } else if (isTrimming && fullDuration > 0) {
-      const rawTime = Math.max(0, Math.min(fullDuration, dragStart.startTime + deltaTime));
-      const snappedTime = snapToGrid(rawTime);
-      
-      let tempTrimStart = trimStart;
-      let tempTrimEnd = trimEnd;
-      if (isTrimming === 'start') {
-        tempTrimStart = Math.min(snappedTime, trimEnd - 0.1);
-      } else {
-        tempTrimEnd = Math.max(snappedTime, trimStart + 0.1);
-      }
-      const tempWidthPx = Math.max(4, (tempTrimEnd - tempTrimStart) * pixelsPerSecond);
-      // Live visual feedback: keep the non-dragged edge fixed
-      if (clipRef.current) {
-        if (isTrimming === 'start') {
-          // Start trim: lock right edge, move left and adjust width
-          const newLeft = Math.max(0, initialTrimRef.current.rightPx - tempWidthPx);
-          clipRef.current.style.left = `${newLeft}px`;
-          clipRef.current.style.width = `${tempWidthPx}px`;
-        } else {
-          // End trim: lock left edge, adjust width only
-          clipRef.current.style.width = `${tempWidthPx}px`;
-        }
-      }
-    }
-  }, [isDragging, isTrimming, dragStart, pixelsPerSecond, snapToGrid, fullDuration, trimStart, trimEnd]);
-
-  // Handle mouse up
-  const handleMouseUp = useCallback((e: MouseEvent) => {
-    if (!isDragging && !isTrimming) return;
-    
-    document.body.style.userSelect = '';
-    
-    const deltaX = e.clientX - dragStart.x;
-    const deltaTime = deltaX / pixelsPerSecond;
-    
-    if (isDragging) {
-      setIsDragging(false);
-      const newStartTime = Math.max(0, dragStart.startTime + deltaTime);
-      const snappedStartTime = snapToGrid(newStartTime);
-      
-      if (Math.abs(snappedStartTime - clip.startTime) > 0.01) {
-        onClipMove(clip.id, snappedStartTime);
-      }
-    } else if (isTrimming && onTrimClip && fullDuration > 0) {
-      const newTime = Math.max(0, Math.min(fullDuration, dragStart.startTime + deltaTime));
-      const snappedTime = snapToGrid(newTime);
-      console.log('[DraggableClip] trim mouseup', { clipId: clip.id, edge: isTrimming, newTime, snappedTime, trimStart, trimEnd });
-      
-      if (isTrimming === 'start') {
-        // For start trim, calculate the new trimStart based on the drag delta
-        const trimDelta = deltaTime;
-        const newTrimStart = Math.max(0, Math.min(trimStart + trimDelta, trimEnd - 0.1));
-        
-        if (Math.abs(newTrimStart - trimStart) > 0.01) {
-          onTrimClip(clip.id, isTrimming, newTrimStart, trimEnd);
-        }
-      } else {
-        // For end trim, calculate the new trimEnd
-        const newTrimEnd = Math.max(snappedTime, trimStart + 0.1);
-        
-        if (Math.abs(newTrimEnd - trimEnd) > 0.01) {
-          onTrimClip(clip.id, isTrimming, trimStart, newTrimEnd);
-        }
-      }
-      
-      setIsTrimming(null);
-    }
-  }, [isDragging, isTrimming, dragStart, pixelsPerSecond, snapToGrid, clip.id, clip.startTime, onClipMove, clip.originalTrack.id, trimStart, trimEnd, fullDuration, onTrimClip]);
 
   // Add global mouse event listeners
   React.useEffect(() => {
