@@ -70,7 +70,8 @@ interface TimelineViewProps {
   createTrack?: (name: string) => string;
   loadSample?: (trackId: string, file: File) => Promise<void>;
   onPianoRollStateChange?: (state: { isOpen: boolean; trackId?: string; trackName?: string; mode?: 'midi' | 'sample'; sampleUrl?: string }) => void;
-}
+  sessionId?: string;
+};
 
 export const TimelineView: React.FC<TimelineViewProps> = ({
   tracks,
@@ -89,7 +90,8 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   activeTrackId,
   createTrack,
   loadSample,
-  onPianoRollStateChange
+  onPianoRollStateChange,
+  sessionId,
  }) => {
   const [activeMidiTrackId, setActiveMidiTrackId] = useState<string | null>(null);
   const timelineRef = useRef<HTMLDivElement>(null);

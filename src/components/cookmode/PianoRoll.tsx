@@ -26,6 +26,7 @@ interface PianoRollProps {
   onHardStop?: () => void;
   onSave?: (trackId: string, data: any) => void;
   sessionId?: string;
+  tracks?: Array<{ id: string; name: string; analyzed_duration?: number; duration?: number; bars?: number }>;
 }
 
 export const PianoRoll: React.FC<PianoRollProps> = ({
@@ -43,6 +44,7 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
   onHardStop,
   onSave,
   sessionId = 'default-session',
+  tracks = [],
 }) => {
   const { toast } = useToast();
   const synthRef = useRef<Tone.PolySynth | null>(null);
@@ -190,7 +192,7 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
             }
           });
         } else {
-          // Only add default 8-bar trigger/note if no saved notes exist
+          // Only add default trigger/note if no saved notes exist
           const track = state.tracks[trackId];
           const hasNoNotes = trackMode === 'midi' ? (!track?.notes || track.notes.length === 0) : (!track?.triggers || track.triggers.length === 0);
           
@@ -211,29 +213,48 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
               rootPitch = noteMap[keyName] || 60;
             }
             
-            // Create 8-bar trigger/note (8 bars * 4 beats = 32 beats)
-            const eightBars = 32;
+            // Calculate trigger duration based on actual track length
+            // Get the track from the tracks array to find its actual duration
+            const actualTrack = tracks.find(t => t.id === trackId);
+            const trackDuration = actualTrack?.analyzed_duration || actualTrack?.duration;
+            const trackBars = actualTrack?.bars;
+            
+            // Calculate duration in beats
+            const beatsPerBar = 4;
+            let durationInBeats: number;
+            
+            if (trackDuration && trackDuration > 0) {
+              // Convert seconds to beats based on BPM
+              const secondsPerBeat = 60 / sessionBpm;
+              durationInBeats = trackDuration / secondsPerBeat;
+            } else if (trackBars) {
+              // Use specified bars
+              durationInBeats = trackBars * beatsPerBar;
+            } else {
+              // Default to 4 bars if unknown
+              durationInBeats = 4 * beatsPerBar;
+            }
             
             if (trackMode === 'sample') {
               const newTrigger = {
                 pitch: rootPitch,
                 startTime: 0,
                 velocity: 100,
-                duration: eightBars,
+                duration: durationInBeats,
               };
               addTrigger(trackId, newTrigger);
               saveToDB({ trackId, sessionId, note: newTrigger, noteType: 'trigger' });
-              console.log(`🎹 Created default 8-bar trigger at pitch ${rootPitch} for ${trackName}`);
+              console.log(`🎹 Created default trigger at pitch ${rootPitch} for ${trackName} with ${durationInBeats} beats (${durationInBeats / beatsPerBar} bars)`);
             } else {
               const newNote = {
                 pitch: rootPitch,
                 startTime: 0,
-                duration: eightBars,
+                duration: durationInBeats,
                 velocity: 100,
               };
               addNote(trackId, newNote);
               saveToDB({ trackId, sessionId, note: newNote, noteType: 'note' });
-              console.log(`🎹 Created default 8-bar note at pitch ${rootPitch} for ${trackName}`);
+              console.log(`🎹 Created default note at pitch ${rootPitch} for ${trackName} with ${durationInBeats} beats (${durationInBeats / beatsPerBar} bars)`);
             }
           }
         }

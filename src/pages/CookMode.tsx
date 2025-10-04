@@ -983,6 +983,7 @@ const CookMode = () => {
                 createTrack={createTrack}
                 loadSample={loadSample}
                 onPianoRollStateChange={setPianoRollState}
+                sessionId={sessionId}
               />
             )}
           </div>
@@ -1065,6 +1066,7 @@ const CookMode = () => {
           onStopSession={permissions.canEdit ? () => seekTo(0) : undefined}
           onHardStop={permissions.canEdit ? handleHardStop : undefined}
           sessionId={sessionId}
+          tracks={tracks}
         />
       )}
     </div>
