@@ -56,6 +56,8 @@ export function EPKModuleDialog({
   const [userBeats, setUserBeats] = useState<any[]>([]);
   const [loadingBeats, setLoadingBeats] = useState(false);
   const [uploadingBanner, setUploadingBanner] = useState(false);
+  const [editingBeatId, setEditingBeatId] = useState<string | null>(null);
+  const [editingBeatData, setEditingBeatData] = useState<any>({});
 
   useEffect(() => {
     if (editingModule) {
@@ -224,6 +226,72 @@ export function EPKModuleDialog({
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSaveBeatEdit = async (beatId: string) => {
+    try {
+      const { error } = await supabase
+        .from('beats')
+        .update({
+          title: editingBeatData.title,
+          artist: editingBeatData.artist,
+          genre: editingBeatData.genre,
+          artwork_url: editingBeatData.artwork_url,
+        })
+        .eq('id', beatId);
+
+      if (error) throw error;
+
+      // Refresh beats list
+      await loadUserBeats();
+      setEditingBeatId(null);
+      setEditingBeatData({});
+
+      toast({
+        title: "Track Updated",
+        description: "Track information has been saved",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Update Failed",
+        description: error.message || "Failed to update track",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleUploadArtwork = async (beatId: string, file: File) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random()}.${fileExt}`;
+      const filePath = `${user.id}/artwork/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('artwork')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('artwork')
+        .getPublicUrl(filePath);
+
+      setEditingBeatData({ ...editingBeatData, artwork_url: publicUrl });
+
+      toast({
+        title: "Artwork Uploaded",
+        description: "Track artwork has been uploaded",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Upload Failed",
+        description: error.message || "Failed to upload artwork",
+        variant: "destructive",
+      });
     }
   };
 
@@ -675,46 +743,156 @@ export function EPKModuleDialog({
               {/* Preview Section */}
               {(moduleData.track_ids || []).length > 0 && (
                 <div className="space-y-2">
-                  <Label>Preview</Label>
-                  <div className="border rounded-lg p-4 bg-card/50 space-y-2">
+                  <Label>Selected Tracks - Click to Edit</Label>
+                  <div className="border rounded-lg p-4 bg-card/50 space-y-3">
                     {userBeats
                       .filter(beat => (moduleData.track_ids || []).includes(beat.id))
-                      .map((beat, index) => (
-                        <div
-                          key={beat.id}
-                          className="flex items-center gap-4 p-3 rounded-lg bg-background/50 border"
-                        >
-                          {beat.artwork_url ? (
-                            <img
-                              src={beat.artwork_url}
-                              alt={beat.title}
-                              className="w-14 h-14 rounded object-cover"
-                            />
-                          ) : (
-                            <div className="w-14 h-14 rounded bg-primary/20 flex items-center justify-center">
-                              <Music className="w-6 h-6 text-primary" />
-                            </div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold truncate">
-                              {index + 1}. {beat.title}
-                            </p>
-                            {beat.artist && (
-                              <p className="text-sm text-muted-foreground truncate">{beat.artist}</p>
-                            )}
-                            {beat.genre && (
-                              <p className="text-xs text-muted-foreground">{beat.genre}</p>
+                      .map((beat, index) => {
+                        const isEditing = editingBeatId === beat.id;
+                        const editData = isEditing ? editingBeatData : beat;
+                        
+                        return (
+                          <div
+                            key={beat.id}
+                            className="rounded-lg bg-background border overflow-hidden"
+                          >
+                            {isEditing ? (
+                              <div className="p-4 space-y-3">
+                                <div className="flex items-start gap-4">
+                                  <div className="space-y-2">
+                                    <Label className="text-xs">Artwork</Label>
+                                    <div className="relative">
+                                      {editData.artwork_url ? (
+                                        <img
+                                          src={editData.artwork_url}
+                                          alt={editData.title}
+                                          className="w-24 h-24 rounded object-cover"
+                                        />
+                                      ) : (
+                                        <div className="w-24 h-24 rounded bg-primary/20 flex items-center justify-center">
+                                          <Music className="w-8 h-8 text-primary" />
+                                        </div>
+                                      )}
+                                      <Button
+                                        size="sm"
+                                        variant="secondary"
+                                        className="mt-2 w-full text-xs"
+                                        onClick={() => document.getElementById(`artwork-${beat.id}`)?.click()}
+                                      >
+                                        <Upload className="w-3 h-3 mr-1" />
+                                        Upload
+                                      </Button>
+                                      <input
+                                        id={`artwork-${beat.id}`}
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={(e) => {
+                                          const file = e.target.files?.[0];
+                                          if (file) {
+                                            handleUploadArtwork(beat.id, file);
+                                          }
+                                        }}
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="flex-1 space-y-3">
+                                    <div className="space-y-1">
+                                      <Label htmlFor={`title-${beat.id}`} className="text-xs">Track Title</Label>
+                                      <Input
+                                        id={`title-${beat.id}`}
+                                        value={editData.title}
+                                        onChange={(e) => setEditingBeatData({ ...editData, title: e.target.value })}
+                                        placeholder="Track title"
+                                      />
+                                    </div>
+                                    <div className="space-y-1">
+                                      <Label htmlFor={`artist-${beat.id}`} className="text-xs">Artist Name</Label>
+                                      <Input
+                                        id={`artist-${beat.id}`}
+                                        value={editData.artist || ''}
+                                        onChange={(e) => setEditingBeatData({ ...editData, artist: e.target.value })}
+                                        placeholder="Artist name"
+                                      />
+                                    </div>
+                                    <div className="space-y-1">
+                                      <Label htmlFor={`genre-${beat.id}`} className="text-xs">Genre</Label>
+                                      <Input
+                                        id={`genre-${beat.id}`}
+                                        value={editData.genre || ''}
+                                        onChange={(e) => setEditingBeatData({ ...editData, genre: e.target.value })}
+                                        placeholder="Genre"
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="flex justify-end gap-2 pt-2 border-t">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => {
+                                      setEditingBeatId(null);
+                                      setEditingBeatData({});
+                                    }}
+                                  >
+                                    Cancel
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleSaveBeatEdit(beat.id)}
+                                  >
+                                    Save Changes
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-4 p-3">
+                                {beat.artwork_url ? (
+                                  <img
+                                    src={beat.artwork_url}
+                                    alt={beat.title}
+                                    className="w-14 h-14 rounded object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-14 h-14 rounded bg-primary/20 flex items-center justify-center">
+                                    <Music className="w-6 h-6 text-primary" />
+                                  </div>
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-semibold truncate">
+                                    {index + 1}. {beat.title}
+                                  </p>
+                                  {beat.artist && (
+                                    <p className="text-sm text-muted-foreground truncate">{beat.artist}</p>
+                                  )}
+                                  {beat.genre && (
+                                    <p className="text-xs text-muted-foreground">{beat.genre}</p>
+                                  )}
+                                </div>
+                                <div className="flex gap-1">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => {
+                                      setEditingBeatId(beat.id);
+                                      setEditingBeatData(beat);
+                                    }}
+                                  >
+                                    Edit
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => toggleTrack(beat.id)}
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </div>
                             )}
                           </div>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => toggleTrack(beat.id)}
-                          >
-                            <X className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      ))}
+                        );
+                      })}
                   </div>
                 </div>
               )}
