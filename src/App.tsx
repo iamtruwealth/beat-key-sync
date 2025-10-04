@@ -44,6 +44,7 @@ import CookMode from "./pages/CookMode";
 import GhostViewer from "./pages/GhostViewer";
 import MinimalViewer from "./pages/MinimalViewer";
 import ArtistEPK from "./pages/ArtistEPK";
+import PublicEPK from "./pages/PublicEPK";
 
 import { FuturisticWaveformPlayer } from "./components/player/FuturisticWaveformPlayer";
 
@@ -340,6 +341,9 @@ const App = () => (
                 </div>
               </RoleProtectedRoute>
             } />
+            
+            {/* Public EPK Viewer - no auth required */}
+            <Route path="/epk/:slug" element={<PublicEPK />} />
             
             {/* Public Ghost UI viewer - no auth required, auto-connected */}
             <Route path="/ghost/:sessionId" element={

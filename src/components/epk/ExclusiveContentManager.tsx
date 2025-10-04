@@ -5,11 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, Lock } from "lucide-react";
+import { ExclusivePostDialog } from "./ExclusivePostDialog";
 
 export function ExclusiveContentManager() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [posts, setPosts] = useState<any[]>([]);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingPost, setEditingPost] = useState<any>(null);
 
   useEffect(() => {
     loadExclusivePosts();
@@ -39,6 +42,39 @@ export function ExclusiveContentManager() {
     }
   };
 
+  const handleAddPost = () => {
+    setEditingPost(null);
+    setDialogOpen(true);
+  };
+
+  const handleEditPost = (post: any) => {
+    setEditingPost(post);
+    setDialogOpen(true);
+  };
+
+  const handleDeletePost = async (postId: string) => {
+    try {
+      const { error } = await supabase
+        .from("artist_exclusive_posts")
+        .delete()
+        .eq("id", postId);
+
+      if (error) throw error;
+
+      setPosts(posts.filter((p) => p.id !== postId));
+      toast({
+        title: "Post Deleted",
+        description: "The exclusive content has been removed",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete post",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center py-12">
@@ -54,7 +90,7 @@ export function ExclusiveContentManager() {
           <h2 className="text-2xl font-bold">Exclusive Content</h2>
           <p className="text-muted-foreground">Paywalled content for your subscribers</p>
         </div>
-        <Button className="bg-gradient-to-r from-primary to-accent">
+        <Button onClick={handleAddPost} className="bg-gradient-to-r from-primary to-accent">
           <Plus className="h-4 w-4 mr-2" />
           Create Post
         </Button>
@@ -66,7 +102,7 @@ export function ExclusiveContentManager() {
           <p className="text-muted-foreground mb-4">
             No exclusive content yet. Create members-only posts to reward your subscribers!
           </p>
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleAddPost}>
             <Plus className="h-4 w-4 mr-2" />
             Create Your First Post
           </Button>
@@ -83,10 +119,15 @@ export function ExclusiveContentManager() {
               </div>
               <p className="text-sm text-muted-foreground line-clamp-2">{post.content}</p>
               <div className="flex gap-2 mt-4">
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" onClick={() => handleEditPost(post)}>
                   Edit
                 </Button>
-                <Button variant="ghost" size="sm" className="text-destructive">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-destructive"
+                  onClick={() => handleDeletePost(post.id)}
+                >
                   Delete
                 </Button>
               </div>
@@ -95,9 +136,12 @@ export function ExclusiveContentManager() {
         </div>
       )}
 
-      <p className="text-sm text-muted-foreground text-center">
-        Full content creation UI and media upload coming soon
-      </p>
+      <ExclusivePostDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        editingPost={editingPost}
+        onSuccess={loadExclusivePosts}
+      />
     </div>
   );
 }
