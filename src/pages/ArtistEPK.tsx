@@ -162,7 +162,7 @@ export default function ArtistEPK() {
                 <label className="text-sm font-medium mb-2 block">Your EPK URL</label>
                 <div className="flex gap-2">
                   <span className="inline-flex items-center px-3 border border-r-0 rounded-l-md bg-muted text-muted-foreground text-sm">
-                    beatpackz.com/epk/
+                    beatpackz.store/epk/
                   </span>
                   <Input
                     placeholder="your-artist-name"
@@ -197,7 +197,7 @@ export default function ArtistEPK() {
               Artist EPK Studio
             </h1>
             <p className="text-muted-foreground mt-2">
-              Your EPK URL: <span className="text-primary font-mono">beatpackz.com/epk/{epkProfile.slug}</span>
+              Your EPK URL: <span className="text-primary font-mono">beatpackz.store/epk/{epkProfile.slug}</span>
             </p>
           </div>
           <div className="flex gap-2">
