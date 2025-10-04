@@ -154,7 +154,7 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
     };
   }, [trackMode, isOpen, trackSampleUrl, trackName, trackId, toast, addSampleMapping]);
 
-  // Initialize track on open
+  // Initialize track on open and create default 8-bar trigger/note
   useEffect(() => {
     if (isOpen) {
       // Check if track exists, if not create it bound to external trackId
@@ -162,8 +162,51 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
         createTrack(trackName, trackMode, trackId);
       }
       setActiveTrack(trackId);
+      
+      // Add default 8-bar trigger/note at root pitch if track is empty
+      const track = state.tracks[trackId];
+      const hasNoNotes = trackMode === 'midi' ? (!track?.notes || track.notes.length === 0) : (!track?.triggers || track.triggers.length === 0);
+      
+      if (hasNoNotes) {
+        // Determine root pitch from track name (e.g., "Am" = A, "C" = C)
+        // Default to C4 (MIDI 60) if no key found
+        let rootPitch = 60; // C4
+        
+        // Try to extract key from track name (look for patterns like _Am, _C, _D#, etc.)
+        const keyMatch = trackName.match(/_([A-G][#b]?)(?:m|min|maj|M)?(?:_|$)/i);
+        if (keyMatch) {
+          const keyName = keyMatch[1].toUpperCase();
+          const noteMap: Record<string, number> = {
+            'C': 60, 'C#': 61, 'DB': 61, 'D': 62, 'D#': 63, 'EB': 63,
+            'E': 64, 'F': 65, 'F#': 66, 'GB': 66, 'G': 67, 'G#': 68, 'AB': 68,
+            'A': 69, 'A#': 70, 'BB': 70, 'B': 71
+          };
+          rootPitch = noteMap[keyName] || 60;
+        }
+        
+        // Create 8-bar trigger/note (8 bars * 4 beats = 32 beats)
+        const eightBars = 32;
+        
+        if (trackMode === 'sample') {
+          addTrigger(trackId, {
+            pitch: rootPitch,
+            startTime: 0,
+            velocity: 100,
+            duration: eightBars,
+          });
+          console.log(`🎹 Created default 8-bar trigger at pitch ${rootPitch} for ${trackName}`);
+        } else {
+          addNote(trackId, {
+            pitch: rootPitch,
+            startTime: 0,
+            duration: eightBars,
+            velocity: 100,
+          });
+          console.log(`🎹 Created default 8-bar note at pitch ${rootPitch} for ${trackName}`);
+        }
+      }
     }
-  }, [isOpen, trackId, trackName, trackMode, state.tracks, createTrack, setActiveTrack]);
+  }, [isOpen, trackId, trackName, trackMode, state.tracks, createTrack, setActiveTrack, addNote, addTrigger]);
 
   const [toolMode, setToolMode] = useState<'draw' | 'select'>('draw');
   const [isFullscreen, setIsFullscreen] = useState(false);
