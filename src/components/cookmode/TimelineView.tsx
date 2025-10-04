@@ -862,10 +862,10 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
 
         {/* Main Timeline Area */}
         <div className="flex flex-1 overflow-hidden max-h-[calc(100vh-200px)]">
-          {/* Track Names Sidebar */}
-          <div className="w-48 bg-black/60 border-r border-white/10 flex flex-col overflow-hidden">
-            {/* Master Volume */}
-            <div className="h-[127px] flex-shrink-0 flex flex-col justify-center p-3 border-b border-white/10">
+          {/* Fixed Headers Row */}
+          <div className="flex w-full absolute top-0 left-0 z-30">
+            {/* Master Volume - Fixed */}
+            <div className="w-48 h-[127px] flex-shrink-0 bg-black/60 border-r border-b border-white/10 flex flex-col justify-center p-3">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-medium text-white">Master</span>
                 <span className="text-xs text-gray-400">{masterVolume}%</span>
@@ -878,22 +878,41 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                 className="w-full"
               />
             </div>
+            
+            {/* Ruler - Fixed */}
+            <div className="flex-1 h-[127px] bg-black/40 border-b border-white/10 relative overflow-hidden">
+              <div className="h-[63.5px] relative">
+                {renderBarMarkers()}
+                <div className="absolute top-6 left-2 text-xs text-gray-400">
+                  Position: {formatPosition(currentTime)} | Bar: {formatTime(currentTime)}
+                </div>
+              </div>
+              {/* Master Output Visualization */}
+              <div className="h-[63.5px] bg-gradient-to-r from-primary/10 to-secondary/10 border-t border-white/10 relative">
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-xs text-gray-400">Master Output</span>
+                </div>
+              </div>
+            </div>
+          </div>
 
-            {/* Track Controls */}
-            <div className="flex-1 overflow-y-auto scrollbar-hide">
-            {tracks.map((track, index) => {
-              console.log('Sidebar track', index, ':', track.name, '(ID:', track.id, ')');
-              const isTrackSelected = selectedTrack === track.id;
-              return (
-                <div 
-                  key={track.id} 
-                  className={`h-[115px] p-3 border-b border-white/10 cursor-pointer transition-all duration-200 ${
-                    isTrackSelected 
-                      ? 'bg-neon-cyan/20 border-neon-cyan/30 shadow-[0_0_15px_rgba(0,255,255,0.3)]' 
-                      : 'bg-black/20 hover:bg-black/30'
-                  }`}
-                  onClick={() => setSelectedTrack(track.id)}
-                >
+          {/* Scrollable Content */}
+          <div className="flex w-full mt-[127px] overflow-y-auto scrollbar-hide">
+            {/* Track Names Sidebar */}
+            <div className="w-48 flex-shrink-0 bg-black/60 border-r border-white/10">
+              {tracks.map((track, index) => {
+                console.log('Sidebar track', index, ':', track.name, '(ID:', track.id, ')');
+                const isTrackSelected = selectedTrack === track.id;
+                return (
+                  <div 
+                    key={track.id} 
+                    className={`h-[115px] p-3 border-b border-white/10 cursor-pointer transition-all duration-200 ${
+                      isTrackSelected 
+                        ? 'bg-neon-cyan/20 border-neon-cyan/30 shadow-[0_0_15px_rgba(0,255,255,0.3)]' 
+                        : 'bg-black/20 hover:bg-black/30'
+                    }`}
+                    onClick={() => setSelectedTrack(track.id)}
+                  >
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-medium text-white truncate" title={track.name}>
                       {track.name}
@@ -1030,84 +1049,65 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
               );
             })}
             </div>
-          </div>
 
-          {/* Timeline Area */}
-          <div className="flex-1 relative overflow-x-auto overflow-y-auto scrollbar-hide" ref={timelineRef} data-build={TIMELINE_BUILD}>
-            {/* Ruler */}
-            <div className="h-[63.5px] bg-black/40 border-b border-white/10 relative">
+            {/* Timeline Tracks */}
+            <div className="flex-1 relative overflow-x-auto scrollbar-hide" ref={timelineRef} data-build={TIMELINE_BUILD}>
               {/* Beat grid lines spanning all tracks */}
-              {Array.from({ length: totalBars }).map((_, bar) => 
-                [1, 2, 3, 4].map(beat => (
-                  <div
-                    key={`track-beat-${bar}-${beat}`}
-                    className="absolute w-px bg-white/5 pointer-events-none z-10"
-                    style={{ 
-                      left: bar * pixelsPerBar + beat * pixelsPerBeat,
-                      top: 0,
-                      height: '100%'
-                    }}
-                  />
-                ))
-              ).flat()}
-              
-              {renderBarMarkers()}
-              <div className="absolute top-6 left-2 text-xs text-gray-400">
-                Position: {formatPosition(currentTime)} | Bar: {formatTime(currentTime)}
+              <div className="absolute top-0 left-0 right-0" style={{ height: `${tracks.length * 115}px` }}>
+                {Array.from({ length: totalBars }).map((_, bar) => 
+                  [1, 2, 3, 4].map(beat => (
+                    <div
+                      key={`track-beat-${bar}-${beat}`}
+                      className="absolute w-px bg-white/5 pointer-events-none z-10"
+                      style={{ 
+                        left: bar * pixelsPerBar + beat * pixelsPerBeat,
+                        top: 0,
+                        height: '100%'
+                      }}
+                    />
+                  ))
+                ).flat()}
               </div>
-            </div>
-
-            {/* Playhead */}
-            <div
-              className="playhead-container absolute top-12 bottom-0 w-0.5 bg-primary z-20 cursor-pointer hover:w-1 transition-all"
-              style={{ left: (currentTime % sessionDuration) * pixelsPerSecond }}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                const startX = e.clientX;
-                const startTime = currentTime;
-                let isDragging = false;
-                
-                const handleMouseMove = (moveEvent: MouseEvent) => {
-                  if (!timelineRef.current) return;
+              {/* Playhead */}
+              <div
+                className="playhead-container absolute top-0 bottom-0 w-0.5 bg-primary z-20 cursor-pointer hover:w-1 transition-all"
+                style={{ left: (currentTime % sessionDuration) * pixelsPerSecond }}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
                   
-                  const rect = timelineRef.current.getBoundingClientRect();
-                  const deltaX = moveEvent.clientX - startX;
-                  const deltaTime = deltaX / pixelsPerSecond;
-                  const newTime = Math.max(0, Math.min(sessionDuration, startTime + deltaTime));
+                  const startX = e.clientX;
+                  const startTime = currentTime;
                   
-                  isDragging = true;
-                  onSeek(newTime);
-                };
-                
-                const handleMouseUp = () => {
-                  document.removeEventListener('mousemove', handleMouseMove);
-                  document.removeEventListener('mouseup', handleMouseUp);
-                  document.body.style.cursor = '';
-                  document.body.style.userSelect = '';
-                };
-                
-                document.addEventListener('mousemove', handleMouseMove);
-                document.addEventListener('mouseup', handleMouseUp);
-                document.body.style.cursor = 'grabbing';
-                document.body.style.userSelect = 'none';
-              }}
-            >
-              <div 
-                className="absolute -top-2 -left-1 w-3 h-3 bg-primary rotate-45 hover:scale-125 transition-transform cursor-grab active:cursor-grabbing" 
-              />
-            </div>
-
-            {/* Master Output Visualization */}
-            <div className="h-[63.5px] bg-gradient-to-r from-primary/10 to-secondary/10 border-b border-white/10 relative">
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-xs text-gray-400">Master Output</span>
+                  const handleMouseMove = (moveEvent: MouseEvent) => {
+                    if (!timelineRef.current) return;
+                    
+                    const rect = timelineRef.current.getBoundingClientRect();
+                    const deltaX = moveEvent.clientX - startX;
+                    const deltaTime = deltaX / pixelsPerSecond;
+                    const newTime = Math.max(0, Math.min(sessionDuration, startTime + deltaTime));
+                    
+                    onSeek(newTime);
+                  };
+                  
+                  const handleMouseUp = () => {
+                    document.removeEventListener('mousemove', handleMouseMove);
+                    document.removeEventListener('mouseup', handleMouseUp);
+                    document.body.style.cursor = '';
+                    document.body.style.userSelect = '';
+                  };
+                  
+                  document.addEventListener('mousemove', handleMouseMove);
+                  document.addEventListener('mouseup', handleMouseUp);
+                  document.body.style.cursor = 'grabbing';
+                  document.body.style.userSelect = 'none';
+                }}
+              >
+                <div 
+                  className="absolute -top-2 -left-1 w-3 h-3 bg-primary rotate-45 hover:scale-125 transition-transform cursor-grab active:cursor-grabbing" 
+                />
               </div>
-            </div>
 
-            {/* Timeline with Tracks */}
-            <div className="relative">
               {tracks.map((track, index) => {
                 const trackY = index * 127;
                 const trackHeight = 115;
