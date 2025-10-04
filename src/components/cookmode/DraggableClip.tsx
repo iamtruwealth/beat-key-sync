@@ -95,16 +95,7 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
   const clipLeft = clip.startTime * pixelsPerSecond;
 
   // UI state for live drag/trim without React overriding inline styles
-  const [uiLeftPx, setUiLeftPx] = useState<number>(clipLeft);
-  const [uiWidthPx, setUiWidthPx] = useState<number>(clipWidth);
-
-  React.useEffect(() => {
-    if (!isDragging) setUiLeftPx(clipLeft);
-  }, [clipLeft, isDragging]);
-
-  React.useEffect(() => {
-    if (!isTrimming) setUiWidthPx(clipWidth);
-  }, [clipWidth, isTrimming]);
+  // Live preview uses inline styles/transform; avoid React state during drag/trim to prevent flicker
 
   // Grid snapping function
   const snapToGrid = useCallback((time: number): number => {
@@ -191,11 +182,9 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
     }
     
     if (isDragging) {
-      const newStartTime = Math.max(0, dragStart.startTime + deltaTime);
-      const newLeft = newStartTime * pixelsPerSecond; // live preview without snap
-      setUiLeftPx(newLeft);
+      // Live preview via GPU transform; avoid state updates to reduce flicker
       if (clipRef.current) {
-        clipRef.current.style.left = `${newLeft}px`;
+        clipRef.current.style.transform = `translateX(${deltaX}px)`;
       }
     } else if (isTrimming && fullDuration > 0) {
       const rawTime = Math.max(0, Math.min(fullDuration, dragStart.startTime + deltaTime));
@@ -213,13 +202,10 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
         if (isTrimming === 'start') {
           // Start trim: lock right edge, move left and adjust width
           const newLeft = Math.max(0, initialTrimRef.current.rightPx - tempWidthPx);
-          setUiLeftPx(newLeft);
-          setUiWidthPx(tempWidthPx);
           clipRef.current.style.left = `${newLeft}px`;
           clipRef.current.style.width = `${tempWidthPx}px`;
         } else {
           // End trim: lock left edge, adjust width only
-          setUiWidthPx(tempWidthPx);
           clipRef.current.style.width = `${tempWidthPx}px`;
         }
       }
@@ -239,7 +225,10 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
       setIsDragging(false);
       const newStartTime = Math.max(0, dragStart.startTime + deltaTime);
       const snappedStartTime = snapToGrid(newStartTime);
-      
+      // Clear live transform
+      if (clipRef.current) {
+        clipRef.current.style.transform = '';
+      }
       if (Math.abs(snappedStartTime - clip.startTime) > 0.01) {
         onClipMove(clip.id, snappedStartTime);
       }
@@ -264,7 +253,11 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
           onTrimClip(clip.id, isTrimming, trimStart, newTrimEnd);
         }
       }
-      
+      // Clear live width/left overrides
+      if (clipRef.current) {
+        clipRef.current.style.width = '';
+        clipRef.current.style.left = '';
+      }
       setIsTrimming(null);
     }
   }, [isDragging, isTrimming, dragStart, pixelsPerSecond, snapToGrid, clip.id, clip.startTime, onClipMove, clip.originalTrack.id, trimStart, trimEnd, fullDuration, onTrimClip]);
@@ -305,15 +298,16 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
       ref={clipRef}
       className={`absolute cursor-move group pointer-events-auto select-none ${className}`}
       style={{
-        left: isDragging ? uiLeftPx : clipLeft,
-        width: isTrimming ? uiWidthPx : clipWidth,
+        left: clipLeft,
+        width: clipWidth,
         height: trackHeight - 8,
         top: 4,
-        zIndex: isDragging || isTrimming ? 80 : 40
+        zIndex: isDragging || isTrimming ? 80 : 40,
+        willChange: isDragging ? 'transform' as const : undefined
       }}
       data-dragging={isDragging ? '1' : '0'}
       draggable={false}
-      onMouseDownCapture={(e) => { e.stopPropagation(); }}
+      
       onMouseDown={handleMouseDown}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
