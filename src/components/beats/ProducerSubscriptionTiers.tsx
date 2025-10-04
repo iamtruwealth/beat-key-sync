@@ -15,7 +15,10 @@ export function ProducerSubscriptionTiers({ producerId }: ProducerSubscriptionTi
   const [loading, setLoading] = useState(true);
   const [tiers, setTiers] = useState<any[]>([]);
 
+  console.log('[ProducerSubscriptionTiers] Component mounted with producerId:', producerId);
+
   useEffect(() => {
+    console.log('[ProducerSubscriptionTiers] useEffect triggered for producerId:', producerId);
     loadSubscriptionTiers();
   }, [producerId]);
 
