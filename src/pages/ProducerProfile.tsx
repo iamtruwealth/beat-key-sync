@@ -21,6 +21,7 @@ import hipHopCollageFallback from '@/assets/hip-hop-collage-fallback.png';
 import { useTrackDownload } from '@/hooks/useTrackDownload';
 import { FuturisticWaveformPlayer } from '@/components/player/FuturisticWaveformPlayer';
 import { FollowButton } from '@/components/ui/follow-button';
+import { ProducerSubscriptionTiers } from '@/components/beats/ProducerSubscriptionTiers';
 
 interface Profile {
   id: string;
@@ -409,6 +410,9 @@ export default function ProducerProfile() {
           </TabsList>
           
           <TabsContent value="beats" className="space-y-12">
+        {/* Subscription Tiers Section */}
+        <ProducerSubscriptionTiers producerId={id!} />
+        
         {/* Beat Packs Section */}
         {beatPacks.length > 0 && (
           <section>
