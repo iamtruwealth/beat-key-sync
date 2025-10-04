@@ -19,6 +19,7 @@ export type Database = {
           artist_id: string
           created_at: string | null
           custom_domain: string | null
+          exclusive_beat_ids: string[] | null
           id: string
           is_published: boolean | null
           seo_metadata: Json | null
@@ -30,6 +31,7 @@ export type Database = {
           artist_id: string
           created_at?: string | null
           custom_domain?: string | null
+          exclusive_beat_ids?: string[] | null
           id?: string
           is_published?: boolean | null
           seo_metadata?: Json | null
@@ -41,6 +43,7 @@ export type Database = {
           artist_id?: string
           created_at?: string | null
           custom_domain?: string | null
+          exclusive_beat_ids?: string[] | null
           id?: string
           is_published?: boolean | null
           seo_metadata?: Json | null
