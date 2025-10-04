@@ -1,4 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+
+// Debug build stamp for TimelineView
+const TIMELINE_BUILD = 'TimelineView@2025-10-04T03:28:00Z';
+console.warn('[TimelineView] build', TIMELINE_BUILD);
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -1027,7 +1031,12 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           </div>
 
           {/* Timeline Area */}
-          <div className="flex-1 relative overflow-x-auto" ref={timelineRef}>
+          <div className="flex-1 relative overflow-x-auto" ref={timelineRef} data-build={TIMELINE_BUILD}>
+            {/* Visible build indicator */}
+            <div className="absolute top-2 right-2 z-[9999] bg-primary/90 text-primary-foreground px-2 py-1 rounded text-xs font-mono pointer-events-none">
+              Build: {TIMELINE_BUILD}
+            </div>
+            
             {/* Ruler */}
             <div className="h-[63.5px] bg-black/40 border-b border-white/10 relative">
               {/* Beat grid lines spanning all tracks */}
