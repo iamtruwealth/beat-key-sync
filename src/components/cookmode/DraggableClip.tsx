@@ -326,6 +326,9 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
         top: 4,
         zIndex: isDragging || isTrimming ? 80 : 40
       }}
+      data-dragging={isDragging ? '1' : '0'}
+      draggable={false}
+      onMouseDownCapture={(e) => { e.stopPropagation(); }}
       onMouseDown={handleMouseDown}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
