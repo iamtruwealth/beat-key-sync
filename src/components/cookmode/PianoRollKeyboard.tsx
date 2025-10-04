@@ -9,6 +9,9 @@ interface PianoRollKeyboardProps {
   onKeyRightClick?: (pitch: number) => void;
   highlightedKeys?: number[];
   sampleMappings?: Record<number, string>; // pitch -> sample name
+  containerRef?: React.Ref<HTMLDivElement>;
+  onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
+  className?: string;
 }
 
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -32,11 +35,14 @@ export const PianoRollKeyboard: React.FC<PianoRollKeyboardProps> = ({
   onKeyRightClick,
   highlightedKeys = [],
   sampleMappings = {},
+  containerRef,
+  onScroll,
+  className,
 }) => {
   const notes = Array.from({ length: endNote - startNote + 1 }, (_, i) => startNote + i).reverse();
 
   return (
-    <div className="w-20 border-r border-border bg-background flex flex-col overflow-y-auto">
+    <div ref={containerRef} onScroll={onScroll} className={cn("w-20 border-r border-border bg-background flex flex-col overflow-y-auto", className)}>
       {notes.map((pitch) => {
         const isBlack = isBlackKey(pitch);
         const isHighlighted = highlightedKeys.includes(pitch);

@@ -23,6 +23,8 @@ interface PianoRollGridProps {
   onSelectNotes?: (noteIds: string[]) => void;
   onClearSelection?: () => void;
   toolMode?: 'draw' | 'select';
+  scrollerRef?: React.Ref<HTMLDivElement>;
+  onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
 }
 
 export const PianoRollGrid: React.FC<PianoRollGridProps> = ({
@@ -46,6 +48,8 @@ export const PianoRollGrid: React.FC<PianoRollGridProps> = ({
   onSelectNotes,
   onClearSelection,
   toolMode = 'draw',
+  scrollerRef,
+  onScroll,
 }) => {
   const gridRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -463,7 +467,7 @@ export const PianoRollGrid: React.FC<PianoRollGridProps> = ({
   };
 
   return (
-    <div className="relative overflow-auto bg-background flex-1">
+    <div ref={scrollerRef} onScroll={onScroll} className="relative overflow-auto bg-background flex-1">
       <div
         ref={gridRef}
         className="relative cursor-crosshair min-h-full"

@@ -166,6 +166,27 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
   const [toolMode, setToolMode] = useState<'draw' | 'select'>('draw');
   const activeTrack = state.tracks[trackId];
 
+  // Scroll sync between keyboard and grid
+  const gridScrollRef = useRef<HTMLDivElement>(null);
+  const keyboardScrollRef = useRef<HTMLDivElement>(null);
+  const syncingRef = useRef<null | 'grid' | 'kbd'>(null);
+
+  const handleGridScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (syncingRef.current === 'kbd') { syncingRef.current = null; return; }
+    syncingRef.current = 'grid';
+    const top = e.currentTarget.scrollTop;
+    if (keyboardScrollRef.current) keyboardScrollRef.current.scrollTop = top;
+    requestAnimationFrame(() => { syncingRef.current = null; });
+  };
+
+  const handleKeyboardScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (syncingRef.current === 'grid') { syncingRef.current = null; return; }
+    syncingRef.current = 'kbd';
+    const top = e.currentTarget.scrollTop;
+    if (gridScrollRef.current) gridScrollRef.current.scrollTop = top;
+    requestAnimationFrame(() => { syncingRef.current = null; });
+  };
+
   // Schedule notes/triggers for playback
   useEffect(() => {
     if (!isOpen || !activeTrack) return;
@@ -381,7 +402,7 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
             onToolModeChange={setToolMode}
           />
           
-          <div className="flex flex-1 overflow-auto">
+          <div className="flex flex-1 overflow-hidden">
             <PianoRollKeyboard
               startNote={39}
               endNote={87}
@@ -389,9 +410,13 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
               onKeyClick={handleKeyClick}
               onKeyRightClick={handleLoadSample}
               sampleMappings={trackMode === 'sample' ? sampleMappings : undefined}
+              containerRef={keyboardScrollRef}
+              onScroll={handleKeyboardScroll}
             />
             
             <PianoRollGrid
+              scrollerRef={gridScrollRef}
+              onScroll={handleGridScroll}
               mode={trackMode}
               notes={activeTrack?.notes || []}
               triggers={activeTrack?.triggers || []}
