@@ -1672,6 +1672,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          artist_name: string | null
           available_balance_cents: number | null
           banner_url: string | null
           beat_pack_count: number | null
@@ -1700,6 +1701,7 @@ export type Database = {
           verification_status: string | null
         }
         Insert: {
+          artist_name?: string | null
           available_balance_cents?: number | null
           banner_url?: string | null
           beat_pack_count?: number | null
@@ -1728,6 +1730,7 @@ export type Database = {
           verification_status?: string | null
         }
         Update: {
+          artist_name?: string | null
           available_balance_cents?: number | null
           banner_url?: string | null
           beat_pack_count?: number | null
