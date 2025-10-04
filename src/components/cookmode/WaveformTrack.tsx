@@ -177,9 +177,6 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
   useEffect(() => {
     if (!waveSurferRef.current || !isLoaded) return;
 
-    // While playing, freeze WaveSurfer to avoid expensive canvas churn.
-    // We still render progress via the global playhead.
-    if (isPlaying) return;
 
     // rAF-throttle and avoid redundant seeks to reduce layout churn
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
