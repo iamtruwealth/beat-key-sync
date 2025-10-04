@@ -4,6 +4,13 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { EPKModuleList } from "@/components/epk/EPKModuleList";
+import { FanSubscriptionManager } from "@/components/epk/FanSubscriptionManager";
+import SubscriptionAnalytics from "@/components/epk/SubscriptionAnalytics";
+import { ExclusiveContentManager } from "@/components/epk/ExclusiveContentManager";
+import { WelcomeMessageManager } from "@/components/epk/WelcomeMessageManager";
+import { EPKSettings } from "@/components/epk/EPKSettings";
 import { 
   Bell, 
   MessageSquare, 
@@ -27,6 +34,7 @@ export default function ArtistDashboard() {
   const [activeProjects, setActiveProjects] = useState<any[]>([]);
   const [epkSlug, setEpkSlug] = useState<string | null>(null);
   const [isPublished, setIsPublished] = useState(false);
+  const [epkProfile, setEpkProfile] = useState<any>(null);
 
   useEffect(() => {
     loadDashboardData();
@@ -39,11 +47,12 @@ export default function ArtistDashboard() {
     // Load EPK profile
     const { data: epkData } = await supabase
       .from('artist_epk_profiles')
-      .select('slug, is_published')
+      .select('*')
       .eq('artist_id', user.id)
       .single();
     
     if (epkData) {
+      setEpkProfile(epkData);
       setEpkSlug(epkData.slug);
       setIsPublished(epkData.is_published || false);
     }
@@ -317,6 +326,52 @@ export default function ArtistDashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {/* EPK Management */}
+      {epkProfile && (
+        <Card>
+          <CardHeader>
+            <CardTitle>EPK Management</CardTitle>
+            <CardDescription>Manage your Electronic Press Kit</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Tabs defaultValue="modules" className="w-full">
+              <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 mb-8">
+                <TabsTrigger value="modules">Modules</TabsTrigger>
+                <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
+                <TabsTrigger value="analytics">Analytics</TabsTrigger>
+                <TabsTrigger value="content">Exclusive</TabsTrigger>
+                <TabsTrigger value="emails">Welcome</TabsTrigger>
+                <TabsTrigger value="settings">Settings</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="modules">
+                <EPKModuleList epkProfileId={epkProfile.id} />
+              </TabsContent>
+
+              <TabsContent value="subscriptions">
+                <FanSubscriptionManager />
+              </TabsContent>
+
+              <TabsContent value="analytics">
+                <SubscriptionAnalytics />
+              </TabsContent>
+
+              <TabsContent value="content">
+                <ExclusiveContentManager />
+              </TabsContent>
+
+              <TabsContent value="emails">
+                <WelcomeMessageManager />
+              </TabsContent>
+
+              <TabsContent value="settings">
+                <EPKSettings epkProfile={epkProfile} onUpdate={(updated) => setEpkProfile(updated)} />
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
