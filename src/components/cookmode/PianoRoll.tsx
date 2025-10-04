@@ -6,6 +6,7 @@ import { PianoRollToolbar } from './PianoRollToolbar';
 import { PianoRollGrid } from './PianoRollGrid';
 import { PianoRollKeyboard } from './PianoRollKeyboard';
 import { usePianoRoll } from '@/hooks/usePianoRoll';
+import { usePianoRollPersistence } from '@/hooks/usePianoRollPersistence';
 import { TrackMode } from '@/types/pianoRoll';
 import { useToast } from '@/hooks/use-toast';
 import * as Tone from 'tone';
@@ -24,6 +25,7 @@ interface PianoRollProps {
   onStopSession?: () => void;
   onHardStop?: () => void;
   onSave?: (trackId: string, data: any) => void;
+  sessionId?: string;
 }
 
 export const PianoRoll: React.FC<PianoRollProps> = ({
@@ -40,6 +42,7 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
   onStopSession,
   onHardStop,
   onSave,
+  sessionId = 'default-session',
 }) => {
   const { toast } = useToast();
   const synthRef = useRef<Tone.PolySynth | null>(null);
@@ -68,6 +71,8 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
     selectNotes,
     clearSelection,
   } = usePianoRoll(sessionBpm, externalPlayback);
+  
+  const { saveNote: saveToDB, loadNotes, deleteNote: deleteFromDB } = usePianoRollPersistence(trackId, sessionId);
   
   // Initialize Tone.js instruments and load track sample
   useEffect(() => {
@@ -154,7 +159,7 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
     };
   }, [trackMode, isOpen, trackSampleUrl, trackName, trackId, toast, addSampleMapping]);
 
-  // Initialize track on open and create default 8-bar trigger/note
+  // Initialize track on open and create default 8-bar trigger/note, then load saved notes
   useEffect(() => {
     if (isOpen) {
       // Check if track exists, if not create it bound to external trackId
@@ -163,50 +168,78 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
       }
       setActiveTrack(trackId);
       
-      // Add default 8-bar trigger/note at root pitch if track is empty
-      const track = state.tracks[trackId];
-      const hasNoNotes = trackMode === 'midi' ? (!track?.notes || track.notes.length === 0) : (!track?.triggers || track.triggers.length === 0);
-      
-      if (hasNoNotes) {
-        // Determine root pitch from track name (e.g., "Am" = A, "C" = C)
-        // Default to C4 (MIDI 60) if no key found
-        let rootPitch = 60; // C4
-        
-        // Try to extract key from track name (look for patterns like _Am, _C, _D#, etc.)
-        const keyMatch = trackName.match(/_([A-G][#b]?)(?:m|min|maj|M)?(?:_|$)/i);
-        if (keyMatch) {
-          const keyName = keyMatch[1].toUpperCase();
-          const noteMap: Record<string, number> = {
-            'C': 60, 'C#': 61, 'DB': 61, 'D': 62, 'D#': 63, 'EB': 63,
-            'E': 64, 'F': 65, 'F#': 66, 'GB': 66, 'G': 67, 'G#': 68, 'AB': 68,
-            'A': 69, 'A#': 70, 'BB': 70, 'B': 71
-          };
-          rootPitch = noteMap[keyName] || 60;
-        }
-        
-        // Create 8-bar trigger/note (8 bars * 4 beats = 32 beats)
-        const eightBars = 32;
-        
-        if (trackMode === 'sample') {
-          addTrigger(trackId, {
-            pitch: rootPitch,
-            startTime: 0,
-            velocity: 100,
-            duration: eightBars,
+      // Load existing notes from database first
+      loadNotes().then((savedNotes) => {
+        if (savedNotes.length > 0) {
+          console.log(`🎹 Loaded ${savedNotes.length} existing notes from database`);
+          savedNotes.forEach(dbNote => {
+            if (trackMode === 'sample') {
+              addTrigger(trackId, {
+                pitch: dbNote.pitch,
+                startTime: dbNote.start_time,
+                velocity: dbNote.velocity,
+                duration: dbNote.duration,
+              });
+            } else {
+              addNote(trackId, {
+                pitch: dbNote.pitch,
+                startTime: dbNote.start_time,
+                duration: dbNote.duration,
+                velocity: dbNote.velocity,
+              });
+            }
           });
-          console.log(`🎹 Created default 8-bar trigger at pitch ${rootPitch} for ${trackName}`);
         } else {
-          addNote(trackId, {
-            pitch: rootPitch,
-            startTime: 0,
-            duration: eightBars,
-            velocity: 100,
-          });
-          console.log(`🎹 Created default 8-bar note at pitch ${rootPitch} for ${trackName}`);
+          // Only add default 8-bar trigger/note if no saved notes exist
+          const track = state.tracks[trackId];
+          const hasNoNotes = trackMode === 'midi' ? (!track?.notes || track.notes.length === 0) : (!track?.triggers || track.triggers.length === 0);
+          
+          if (hasNoNotes) {
+            // Determine root pitch from track name (e.g., "Am" = A, "C" = C)
+            // Default to C4 (MIDI 60) if no key found
+            let rootPitch = 60; // C4
+            
+            // Try to extract key from track name (look for patterns like _Am, _C, _D#, etc.)
+            const keyMatch = trackName.match(/_([A-G][#b]?)(?:m|min|maj|M)?(?:_|$)/i);
+            if (keyMatch) {
+              const keyName = keyMatch[1].toUpperCase();
+              const noteMap: Record<string, number> = {
+                'C': 60, 'C#': 61, 'DB': 61, 'D': 62, 'D#': 63, 'EB': 63,
+                'E': 64, 'F': 65, 'F#': 66, 'GB': 66, 'G': 67, 'G#': 68, 'AB': 68,
+                'A': 69, 'A#': 70, 'BB': 70, 'B': 71
+              };
+              rootPitch = noteMap[keyName] || 60;
+            }
+            
+            // Create 8-bar trigger/note (8 bars * 4 beats = 32 beats)
+            const eightBars = 32;
+            
+            if (trackMode === 'sample') {
+              const newTrigger = {
+                pitch: rootPitch,
+                startTime: 0,
+                velocity: 100,
+                duration: eightBars,
+              };
+              addTrigger(trackId, newTrigger);
+              saveToDB({ trackId, sessionId, note: newTrigger, noteType: 'trigger' });
+              console.log(`🎹 Created default 8-bar trigger at pitch ${rootPitch} for ${trackName}`);
+            } else {
+              const newNote = {
+                pitch: rootPitch,
+                startTime: 0,
+                duration: eightBars,
+                velocity: 100,
+              };
+              addNote(trackId, newNote);
+              saveToDB({ trackId, sessionId, note: newNote, noteType: 'note' });
+              console.log(`🎹 Created default 8-bar note at pitch ${rootPitch} for ${trackName}`);
+            }
+          }
         }
-      }
+      });
     }
-  }, [isOpen, trackId, trackName, trackMode, state.tracks, createTrack, setActiveTrack, addNote, addTrigger]);
+  }, [isOpen, trackId, trackName, trackMode, state.tracks, createTrack, setActiveTrack, addNote, addTrigger, loadNotes, saveToDB, sessionId]);
 
   const [toolMode, setToolMode] = useState<'draw' | 'select'>('draw');
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -264,24 +297,30 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
     }
     
     if (trackMode === 'midi') {
-      addNote(trackId, {
+      const newNote = {
         pitch,
         startTime,
         duration: 1, // Default 1 beat duration
         velocity: 100,
-      });
+      };
+      addNote(trackId, newNote);
+      // Save to database
+      saveToDB({ trackId, sessionId, note: newNote, noteType: 'note' });
       // Play preview
       if (synthRef.current) {
         const noteName = Tone.Frequency(pitch, "midi").toNote();
         synthRef.current.triggerAttackRelease(noteName, "8n");
       }
     } else {
-      addTrigger(trackId, {
+      const newTrigger = {
         pitch,
         startTime,
         velocity: 100,
         duration: 1, // Default 1 beat duration
-      });
+      };
+      addTrigger(trackId, newTrigger);
+      // Save to database
+      saveToDB({ trackId, sessionId, note: newTrigger, noteType: 'trigger' });
       // Play preview
       const sampler = samplersRef.current.get(pitch);
       if (sampler) {
