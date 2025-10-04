@@ -5,9 +5,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Search, Music, ArrowLeft } from "lucide-react";
+import { Loader2, Search, Music, ArrowLeft, MapPin, Instagram, Youtube, Music2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import verifiedBadge from "@/assets/verified-badge.png";
+import { FaTwitter, FaSoundcloud, FaSpotify, FaTiktok } from "react-icons/fa";
 
 interface Artist {
   id: string;
@@ -17,6 +18,15 @@ interface Artist {
   verification_status: string;
   genres: string[];
   bio: string;
+  hometown: string;
+  social_links: {
+    instagram?: string;
+    twitter?: string;
+    youtube?: string;
+    spotify?: string;
+    soundcloud?: string;
+    tiktok?: string;
+  };
 }
 
 export default function BrowseArtists() {
@@ -153,9 +163,16 @@ export default function BrowseArtists() {
                   </div>
 
                   <div className="p-6">
-                    <h3 className="text-xl font-bold mb-2 group-hover:text-primary transition-colors">
+                    <h3 className="text-xl font-bold mb-1 group-hover:text-primary transition-colors">
                       {artist.producer_name}
                     </h3>
+
+                    {artist.hometown && (
+                      <div className="flex items-center gap-1 text-sm text-muted-foreground mb-3">
+                        <MapPin className="h-3 w-3" />
+                        <span>{artist.hometown}</span>
+                      </div>
+                    )}
 
                     {artist.genres && artist.genres.length > 0 && (
                       <div className="flex flex-wrap gap-2 mb-3">
@@ -173,9 +190,80 @@ export default function BrowseArtists() {
                     )}
 
                     {artist.bio && (
-                      <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
+                      <p className="text-sm text-muted-foreground line-clamp-3 mb-4">
                         {artist.bio}
                       </p>
+                    )}
+
+                    {artist.social_links && Object.keys(artist.social_links).length > 0 && (
+                      <div className="flex items-center gap-3 mb-4">
+                        {artist.social_links.instagram && (
+                          <a
+                            href={artist.social_links.instagram}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-muted-foreground hover:text-primary transition-colors"
+                          >
+                            <Instagram className="h-4 w-4" />
+                          </a>
+                        )}
+                        {artist.social_links.twitter && (
+                          <a
+                            href={artist.social_links.twitter}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-muted-foreground hover:text-primary transition-colors"
+                          >
+                            <FaTwitter className="h-4 w-4" />
+                          </a>
+                        )}
+                        {artist.social_links.spotify && (
+                          <a
+                            href={artist.social_links.spotify}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-muted-foreground hover:text-primary transition-colors"
+                          >
+                            <FaSpotify className="h-4 w-4" />
+                          </a>
+                        )}
+                        {artist.social_links.soundcloud && (
+                          <a
+                            href={artist.social_links.soundcloud}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-muted-foreground hover:text-primary transition-colors"
+                          >
+                            <FaSoundcloud className="h-4 w-4" />
+                          </a>
+                        )}
+                        {artist.social_links.youtube && (
+                          <a
+                            href={artist.social_links.youtube}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-muted-foreground hover:text-primary transition-colors"
+                          >
+                            <Youtube className="h-4 w-4" />
+                          </a>
+                        )}
+                        {artist.social_links.tiktok && (
+                          <a
+                            href={artist.social_links.tiktok}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-muted-foreground hover:text-primary transition-colors"
+                          >
+                            <FaTiktok className="h-4 w-4" />
+                          </a>
+                        )}
+                      </div>
                     )}
 
                     <Button
