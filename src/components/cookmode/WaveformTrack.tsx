@@ -177,6 +177,10 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
   useEffect(() => {
     if (!waveSurferRef.current || !isLoaded) return;
 
+    // While playing, freeze WaveSurfer to avoid expensive canvas churn.
+    // We still render progress via the global playhead.
+    if (isPlaying) return;
+
     // rAF-throttle and avoid redundant seeks to reduce layout churn
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     rafRef.current = requestAnimationFrame(() => {
@@ -198,7 +202,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
           audioProgress = Math.max(0, Math.min(1, endOffset / fullDuration));
         }
 
-        if (Math.abs(audioProgress - (lastProgressRef.current ?? -1)) > 0.002) {
+        if (Math.abs(audioProgress - (lastProgressRef.current ?? -1)) > 0.01) {
           waveSurferRef.current!.seekTo(audioProgress);
           lastProgressRef.current = audioProgress;
         }
@@ -211,7 +215,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     };
-  }, [currentTime, clip.startTime, clip.endTime, clipDuration, isLoaded, clip.fullDuration, clip.trimStart, clip.trimEnd]);
+  }, [currentTime, isPlaying, clip.startTime, clip.endTime, clipDuration, isLoaded, clip.fullDuration, clip.trimStart, clip.trimEnd]);
 
   // Update visual opacity and colors based on mute state
   useEffect(() => {
