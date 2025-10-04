@@ -381,7 +381,7 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
             onToolModeChange={setToolMode}
           />
           
-          <div className="flex flex-1 overflow-hidden">
+          <div className="flex flex-1 overflow-auto">
             <PianoRollKeyboard
               startNote={39}
               endNote={87}
