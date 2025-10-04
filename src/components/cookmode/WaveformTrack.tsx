@@ -236,7 +236,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
     }
   };
 
-  const containerClassName = `relative cursor-pointer overflow-hidden ${className}`;
+  const containerClassName = `relative cursor-pointer ${className}`;
 
   return (
     <div
