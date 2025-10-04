@@ -169,20 +169,32 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   }, [tracks]);
 
   // Initialize piano roll playback engine and register tracks with notes
+  // ONLY if track is NOT already on the timeline as a clip
   React.useEffect(() => {
     const initializePlayback = async () => {
       await pianoRollPlaybackEngine.initialize();
       
-      // Register all tracks with piano roll notes
+      // Get track IDs that are already on the timeline as clips
+      const tracksOnTimeline = new Set(audioClips.map(clip => clip.trackId));
+      
+      // Register all tracks with piano roll notes EXCEPT those already on timeline
       trackNotes.forEach((noteData, trackId) => {
         const track = tracks.find(t => t.id === trackId);
         if (!track) return;
         
+        // Skip if track is already on timeline - it will play via session loop engine
+        if (tracksOnTimeline.has(trackId)) {
+          console.log(`🎹 Skipping piano roll playback for ${track.name} - already on timeline`);
+          return;
+        }
+        
         const mode = track.mode || 'sample';
         
         if (mode === 'midi' && noteData.notes.length > 0) {
+          console.log(`🎹 Registering MIDI track ${track.name} for piano roll playback`);
           pianoRollPlaybackEngine.registerMidiTrack(trackId, noteData.notes);
         } else if (mode === 'sample' && noteData.triggers.length > 0) {
+          console.log(`🎹 Registering sample track ${track.name} for piano roll playback`);
           // For sample mode, we need the samplers map - this will be empty initially
           // Samplers are loaded in PianoRoll component, so we'll handle this there
           // For now, just register with empty map - will be updated when piano roll opens
@@ -194,7 +206,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     if (trackNotes.size > 0) {
       initializePlayback();
     }
-  }, [trackNotes, tracks]);
+  }, [trackNotes, tracks, audioClips]);
 
   // Listen for realtime piano roll note changes
   React.useEffect(() => {
