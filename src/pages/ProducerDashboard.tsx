@@ -50,7 +50,7 @@ export default function ProducerDashboard() {
   const [userRole, setUserRole] = useState<'producer' | 'artist' | null>(null);
   const [productionStats, setProductionStats] = useState({
     totalProjects: 0,
-    audioFiles: 0,
+    fanSubscriptions: 0,
     collaborators: 0,
     studioTime: 0
   });
@@ -209,11 +209,12 @@ export default function ProducerDashboard() {
 
     const totalProjects = (createdProjects?.length || 0) + (memberProjects?.length || 0);
 
-    // Audio files uploaded
-    const { count: audioFilesCount } = await supabase
-      .from('session_audio_recordings')
+    // Fan subscriptions count
+    const { count: fanSubscriptionsCount } = await supabase
+      .from('fan_subscriptions')
       .select('*', { count: 'exact', head: true })
-      .eq('user_id', currentUser.id);
+      .eq('artist_id', currentUser.id)
+      .eq('status', 'active');
 
     // Collaborators (distinct users from projects)
     const { data: projectIds } = await supabase
@@ -265,7 +266,7 @@ export default function ProducerDashboard() {
 
     setProductionStats({
       totalProjects,
-      audioFiles: audioFilesCount || 0,
+      fanSubscriptions: fanSubscriptionsCount || 0,
       collaborators: collaboratorsCount,
       studioTime: Math.round(totalMinutes / 60) // Convert to hours
     });
@@ -347,10 +348,10 @@ export default function ProducerDashboard() {
           icon={FolderOpen}
         />
         <StatsCard
-          title="Audio Files"
-          value={productionStats.audioFiles}
-          description="Recordings uploaded"
-          icon={Music}
+          title="Total Fans"
+          value={productionStats.fanSubscriptions}
+          description="Active subscribers"
+          icon={Users}
         />
         <StatsCard
           title="Collaborators"
