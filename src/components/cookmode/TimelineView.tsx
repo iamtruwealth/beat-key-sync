@@ -863,9 +863,9 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         {/* Main Timeline Area */}
         <div className="flex flex-1 overflow-hidden max-h-[calc(100vh-200px)]">
           {/* Track Names Sidebar */}
-          <div className="w-48 bg-black/60 border-r border-white/10 flex flex-col overflow-y-auto scrollbar-hide">
+          <div className="w-48 bg-black/60 border-r border-white/10 flex flex-col overflow-hidden">
             {/* Master Volume */}
-            <div className="h-[127px] flex flex-col justify-center p-3 border-b border-white/10">
+            <div className="h-[127px] flex-shrink-0 flex flex-col justify-center p-3 border-b border-white/10">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-medium text-white">Master</span>
                 <span className="text-xs text-gray-400">{masterVolume}%</span>
@@ -880,13 +880,14 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
             </div>
 
             {/* Track Controls */}
+            <div className="flex-1 overflow-y-auto scrollbar-hide">
             {tracks.map((track, index) => {
               console.log('Sidebar track', index, ':', track.name, '(ID:', track.id, ')');
               const isTrackSelected = selectedTrack === track.id;
               return (
                 <div 
                   key={track.id} 
-                  className={`p-3 border-b border-white/10 cursor-pointer transition-all duration-200 ${
+                  className={`h-[115px] p-3 border-b border-white/10 cursor-pointer transition-all duration-200 ${
                     isTrackSelected 
                       ? 'bg-neon-cyan/20 border-neon-cyan/30 shadow-[0_0_15px_rgba(0,255,255,0.3)]' 
                       : 'bg-black/20 hover:bg-black/30'
@@ -1028,6 +1029,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                 </div>
               );
             })}
+            </div>
           </div>
 
           {/* Timeline Area */}
