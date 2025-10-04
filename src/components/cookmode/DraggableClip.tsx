@@ -129,6 +129,9 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
     setIsDragging(true);
     document.body.style.userSelect = 'none';
     setDragStart({ x: (e as React.MouseEvent).clientX, startTime: clip.startTime });
+    if (clipRef.current) {
+      clipRef.current.style.setProperty('--drag-dx', '0px');
+    }
   }, [clip.id, clip.startTime]);
 
   // Handle mouse down for trim handles
@@ -182,9 +185,9 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
     }
     
     if (isDragging) {
-      // Live preview via GPU transform; avoid state updates to reduce flicker
+      // Live preview via CSS variable to avoid React overwriting transform
       if (clipRef.current) {
-        clipRef.current.style.transform = `translateX(${deltaX}px)`;
+        clipRef.current.style.setProperty('--drag-dx', `${deltaX}px`);
       }
     } else if (isTrimming && fullDuration > 0) {
       const rawTime = Math.max(0, Math.min(fullDuration, dragStart.startTime + deltaTime));
@@ -225,9 +228,9 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
       setIsDragging(false);
       const newStartTime = Math.max(0, dragStart.startTime + deltaTime);
       const snappedStartTime = snapToGrid(newStartTime);
-      // Clear live transform
+      // Clear live transform var
       if (clipRef.current) {
-        clipRef.current.style.transform = '';
+        clipRef.current.style.setProperty('--drag-dx', '0px');
       }
       if (Math.abs(snappedStartTime - clip.startTime) > 0.01) {
         onClipMove(clip.id, snappedStartTime);
@@ -303,11 +306,13 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
         height: trackHeight - 8,
         top: 4,
         zIndex: isDragging || isTrimming ? 80 : 40,
+        transform: 'translateX(var(--drag-dx, 0px))',
         willChange: isDragging ? 'transform' as const : undefined
       }}
       data-dragging={isDragging ? '1' : '0'}
       draggable={false}
       
+      onMouseDownCapture={(e) => { e.stopPropagation(); }}
       onMouseDown={handleMouseDown}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
