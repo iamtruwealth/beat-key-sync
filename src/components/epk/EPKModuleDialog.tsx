@@ -550,8 +550,8 @@ export function EPKModuleDialog({
               ) : userBeats.length === 0 ? (
                 <div className="text-center py-8 border-2 border-dashed rounded-lg">
                   <Music className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">No beats uploaded yet</p>
-                  <p className="text-xs text-muted-foreground mt-1">Upload beats first to add them here</p>
+                  <p className="text-sm text-muted-foreground">No songs uploaded yet</p>
+                  <p className="text-xs text-muted-foreground mt-1">Upload songs first to add them here</p>
                 </div>
               ) : (
                 <div className="space-y-2 max-h-96 overflow-y-auto border rounded-lg p-4">
