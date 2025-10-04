@@ -35,6 +35,7 @@ export default function ArtistDashboard() {
   const [epkSlug, setEpkSlug] = useState<string | null>(null);
   const [isPublished, setIsPublished] = useState(false);
   const [epkProfile, setEpkProfile] = useState<any>(null);
+  const [subscriberCount, setSubscriberCount] = useState(0);
 
   useEffect(() => {
     loadDashboardData();
@@ -101,6 +102,15 @@ export default function ArtistDashboard() {
       .limit(6);
     
     setActiveProjects(projectsData || []);
+
+    // Load subscriber count
+    const { count: subCount } = await supabase
+      .from('fan_subscriptions')
+      .select('*', { count: 'exact', head: true })
+      .eq('artist_id', user.id)
+      .eq('status', 'active');
+    
+    setSubscriberCount(subCount || 0);
   };
 
   const getStatusIcon = (status: string) => {
@@ -139,12 +149,12 @@ export default function ArtistDashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Projects</CardTitle>
-            <Music className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Active Subscriptions</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{activeProjects.length}</div>
-            <p className="text-xs text-muted-foreground">Tracks in progress</p>
+            <div className="text-2xl font-bold">{subscriberCount}</div>
+            <p className="text-xs text-muted-foreground">Fan subscribers</p>
           </CardContent>
         </Card>
         
