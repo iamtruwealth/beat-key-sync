@@ -1107,8 +1107,8 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
             {/* Timeline with Tracks */}
             <div className="relative">
               {tracks.map((track, index) => {
-                const trackY = index * 127;
-                const trackHeight = 127;
+                const trackY = index * 80;
+                const trackHeight = 80;
                 
                 console.log('Rendering track', index, ':', track.name, '(ID:', track.id, ')');
                 
