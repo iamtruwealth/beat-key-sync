@@ -111,11 +111,14 @@ export default function ProducerProfile() {
 
     const fetchProducerData = async () => {
       try {
-        // Fetch producer profile
+        // Check if id is a UUID or username
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+        
+        // Fetch producer profile by either UUID or username
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('id, username, producer_name, producer_logo_url, banner_url, bio, home_town, genres, total_earnings_cents, verification_status, followers_count, following_count')
-          .eq('id', id)
+          .eq(isUUID ? 'id' : 'username', id)
           .single();
 
         if (profileError) throw profileError;
@@ -411,7 +414,7 @@ export default function ProducerProfile() {
           
           <TabsContent value="beats" className="space-y-12">
         {/* Subscription Tiers Section */}
-        <ProducerSubscriptionTiers producerId={id!} />
+        {profile && <ProducerSubscriptionTiers producerId={profile.id} />}
         
         {/* Beat Packs Section */}
         {beatPacks.length > 0 && (
