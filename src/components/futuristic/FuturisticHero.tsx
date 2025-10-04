@@ -68,7 +68,7 @@ export function FuturisticHero() {
             </span>
           </h2>
           <p className="text-lg md:text-xl text-muted-foreground mt-6 max-w-3xl mx-auto animate-slide-up" style={{ animationDelay: '1s' }}>
-            Discover premium beats, connect with top producers, and elevate your music with our cutting-edge platform
+            Discover premium beats, cook up live with top producers, and elevate your music with our cutting-edge platform
           </p>
         </div>
 
