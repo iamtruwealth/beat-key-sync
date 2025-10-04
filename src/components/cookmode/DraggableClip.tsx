@@ -262,10 +262,6 @@ export const DraggableClip: React.FC<DraggableClipProps> = ({
     }
   }, [isDragging, isTrimming, onClipDoubleClick, clip.id]);
 
-  // Debug: verify imported component shape to catch circular/undefined export issues
-  // eslint-disable-next-line no-console
-  console.debug('[DraggableClip] WaveformTrack typeof:', typeof WaveformTrack);
-
   return (
     <div
       ref={clipRef}
