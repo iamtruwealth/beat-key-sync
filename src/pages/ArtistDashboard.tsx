@@ -25,6 +25,8 @@ export default function ArtistDashboard() {
   const [recentMessages, setRecentMessages] = useState<any[]>([]);
   const [pendingPaperwork, setPendingPaperwork] = useState<any[]>([]);
   const [activeProjects, setActiveProjects] = useState<any[]>([]);
+  const [epkSlug, setEpkSlug] = useState<string | null>(null);
+  const [isPublished, setIsPublished] = useState(false);
 
   useEffect(() => {
     loadDashboardData();
@@ -33,6 +35,18 @@ export default function ArtistDashboard() {
   const loadDashboardData = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
+
+    // Load EPK profile
+    const { data: epkData } = await supabase
+      .from('artist_epk_profiles')
+      .select('slug, is_published')
+      .eq('artist_id', user.id)
+      .single();
+    
+    if (epkData) {
+      setEpkSlug(epkData.slug);
+      setIsPublished(epkData.is_published || false);
+    }
 
     // Load notifications
     const { data: notificationsData } = await supabase
@@ -98,9 +112,17 @@ export default function ArtistDashboard() {
           <h1 className="text-3xl font-bold">Artist Account</h1>
           <p className="text-muted-foreground">Welcome back! Here's what's happening with your music.</p>
         </div>
-        <Button>
-          <Plus className="w-4 h-4 mr-2" />
-          New Project
+        <Button
+          onClick={() => {
+            if (isPublished && epkSlug) {
+              navigate(`/epk/${epkSlug}`);
+            } else {
+              navigate('/epk');
+            }
+          }}
+        >
+          <Music className="w-4 h-4 mr-2" />
+          Go to EPK
         </Button>
       </div>
 
