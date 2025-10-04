@@ -245,46 +245,9 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const activeTrack = state.tracks[trackId];
 
-  // Schedule notes/triggers for playback
-  useEffect(() => {
-    if (!isOpen || !activeTrack) return;
-    
-    const scheduledEvents: number[] = [];
-    
-    if (trackMode === 'midi' && synthRef.current) {
-      // Schedule MIDI notes
-      activeTrack.notes.forEach(note => {
-        const noteName = Tone.Frequency(note.pitch, "midi").toNote();
-        const startTime = `0:${note.startTime}:0`;
-        const duration = note.duration;
-        
-        const eventId = Tone.Transport.schedule((time) => {
-          synthRef.current?.triggerAttackRelease(noteName, duration * (60 / sessionBpm), time, note.velocity / 127);
-        }, startTime);
-        
-        scheduledEvents.push(eventId);
-      });
-    } else if (trackMode === 'sample') {
-      // Schedule sample triggers
-      activeTrack.triggers.forEach(trigger => {
-        const sampler = samplersRef.current.get(trigger.pitch);
-        if (sampler) {
-          const startTime = `0:${trigger.startTime}:0`;
-          
-          const eventId = Tone.Transport.schedule((time) => {
-            sampler.start(time);
-          }, startTime);
-          
-          scheduledEvents.push(eventId);
-        }
-      });
-    }
-    
-    // Cleanup scheduled events when dependencies change
-    return () => {
-      scheduledEvents.forEach(id => Tone.Transport.clear(id));
-    };
-  }, [isOpen, activeTrack, trackMode, sessionBpm]);
+  // Don't schedule notes here - let the session loop engine handle playback
+  // Piano roll is just for editing, the timeline visualizer shows the notes
+  // and the session loop engine plays them during playback
 
   const handleAddNote = async (pitch: number, startTime: number) => {
     if (!trackId) return;
