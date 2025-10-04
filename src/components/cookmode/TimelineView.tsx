@@ -744,8 +744,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
             isVisible
           });
 
-          if (!isVisible) return null;
-
+          // Always render; rely on CSS clipping instead of conditional unmounts
           return (
             <DraggableClip
               key={clip.id}

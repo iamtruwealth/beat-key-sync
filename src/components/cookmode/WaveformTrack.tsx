@@ -266,7 +266,7 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
           <div
             ref={containerRef}
             id={containerId}
-            className="w-full h-full relative"
+            className="w-full h-full relative z-10"
           />
 
           {/* Trim overlays */}
