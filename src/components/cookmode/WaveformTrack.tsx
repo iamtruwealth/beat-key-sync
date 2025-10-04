@@ -3,9 +3,13 @@ import { Copy, Circle, Trash2 } from 'lucide-react';
 import { usePeaksCache } from '@/hooks/usePeaksCache';
 import { StaticWaveform } from './StaticWaveform';
 
+
 // Debug build stamp for WaveformTrack
 const WAVEFORM_TRACK_BUILD = 'WaveformTrack@2025-10-04T03:12:00Z';
 console.warn('[WaveformTrack] build', WAVEFORM_TRACK_BUILD);
+
+// Local module cache to prevent peaks flicker on remounts
+const __wfPeaksCache: Map<string, { peaks: Float32Array[]; duration: number }> = new Map();
 
 interface Track {
   id: string;
@@ -112,24 +116,38 @@ export const WaveformTrack: React.FC<WaveformTrackProps> = ({
 
     let mounted = true;
 
-    console.info('[WaveformTrack] getPeaks start', { trackId: track.id, url: track.file_url });
-    getPeaks(track.file_url, 100)
-      .then(({ peaks: loadedPeaks, duration }) => {
-        if (mounted) {
+    // 1) Serve instantly from local module cache to avoid flicker
+    const cached = __wfPeaksCache.get(track.file_url);
+    if (cached) {
+      setPeaks(cached.peaks);
+      setAudioDuration(cached.duration);
+      setIsLoaded(true);
+      setError(null);
+    }
+
+    // 2) Fetch/generate peaks if not cached yet
+    if (!cached) {
+      console.info('[WaveformTrack] getPeaks start', { trackId: track.id, url: track.file_url });
+      getPeaks(track.file_url, 100)
+        .then(({ peaks: loadedPeaks, duration }) => {
+          if (!mounted) return;
           console.info('[WaveformTrack] getPeaks success', { trackId: track.id, duration, channels: loadedPeaks?.length });
           setPeaks(loadedPeaks);
           setAudioDuration(duration);
           setIsLoaded(true);
           setError(null);
-        }
-      })
-      .catch((err) => {
-        if (mounted) {
+          // Persist in local cache for future remounts
+          if (loadedPeaks) {
+            __wfPeaksCache.set(track.file_url, { peaks: loadedPeaks, duration });
+          }
+        })
+        .catch((err) => {
+          if (!mounted) return;
           console.error(`Failed to load peaks for ${track.name}:`, err);
           setError('Failed to load waveform');
           setIsLoaded(false);
-        }
-      });
+        });
+    }
 
     return () => {
       mounted = false;
