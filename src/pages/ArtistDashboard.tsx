@@ -12,6 +12,7 @@ import { ExclusiveContentManager } from "@/components/epk/ExclusiveContentManage
 import { WelcomeMessageManager } from "@/components/epk/WelcomeMessageManager";
 import { EPKSettings } from "@/components/epk/EPKSettings";
 import { PaymentMethodsManager } from "@/components/artist/PaymentMethodsManager";
+import { ArtistOnboarding } from "@/components/artist/ArtistOnboarding";
 import { 
   Bell, 
   MessageSquare, 
@@ -168,6 +169,9 @@ export default function ArtistDashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Onboarding Guide */}
+      <ArtistOnboarding />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
